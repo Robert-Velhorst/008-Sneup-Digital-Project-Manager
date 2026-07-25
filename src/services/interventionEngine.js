@@ -167,12 +167,12 @@ class InterventionEngine {
     const members = await Member.find({ boards: board._id, workspaceId: board.workspaceId });
 
     // Calculate team average workload
-    const totalCards = members.reduce((sum, m) => sum + ((m.assignedCards || []).length), 0);
+    const totalCards = members.reduce((sum, member) => sum + this.getAssignedCardCount(member), 0);
     const teamAverage = totalCards / members.length;
 
     for (const member of members) {
       // Check if member is overloaded
-      const assignedCardCount = (member.assignedCards || []).length;
+      const assignedCardCount = this.getAssignedCardCount(member);
       if (assignedCardCount > teamAverage * 1.5) {
         interventions.push(await this.createIntervention({
           boardId: board._id,
@@ -301,24 +301,34 @@ class InterventionEngine {
       boards: card.boardId,
       workspaceId: card.workspaceId,
       _id: { $ne: currentMember._id }
-    }).sort({ assignedCards: 1 });
+    }).select('_id specialties assignedCards').lean();
 
-    // Find member with lowest workload and matching specialties
-    for (const member of members) {
-      if (member.assignedCards < currentMember.assignedCards * 0.8) {
-        // Check if member has relevant specialties
-        const hasRelevantSkill = card.labels.some(label =>
-          member.specialties.includes(label.name.toLowerCase())
-        );
+    const currentWorkload = this.getAssignedCardCount(currentMember);
+    const lowerWorkloadCandidates = members
+      .map((member) => ({ member, workload: this.getAssignedCardCount(member) }))
+      .filter(({ workload }) => workload < currentWorkload * 0.8)
+      .sort((left, right) => left.workload - right.workload);
 
-        if (hasRelevantSkill || member.assignedCards < 5) {
-          return member;
-        }
-      }
-    }
+    if (!lowerWorkloadCandidates.length) return null;
 
-    // Return member with lowest workload if no specialty match
-    return members[0];
+    const cardLabels = (card.labels || [])
+      .map((label) => typeof label === 'string' ? label : label?.name)
+      .filter(Boolean)
+      .map((label) => label.toLowerCase());
+
+    // Prefer a qualifying specialty match, otherwise return the least-loaded safe candidate.
+    const specialtyMatch = lowerWorkloadCandidates.find(({ member }) =>
+      (member.specialties || []).some((specialty) => cardLabels.includes(String(specialty).toLowerCase()))
+    );
+    if (specialtyMatch) return specialtyMatch.member;
+
+    return lowerWorkloadCandidates[0].member;
+  }
+
+  getAssignedCardCount(member) {
+    if (Array.isArray(member?.assignedCards)) return member.assignedCards.length;
+    const count = Number(member?.assignedCards);
+    return Number.isFinite(count) && count > 0 ? count : 0;
   }
 
   // Helper: Create intervention
@@ -385,7 +395,7 @@ class InterventionEngine {
   }
 
   generateOverloadedMessage(member, teamAverage) {
-    return `You currently have ${member.assignedCards} cards assigned (team average: ${teamAverage.toFixed(1)}). I'm rebalancing your workload to prevent burnout.`;
+    return `You currently have ${this.getAssignedCardCount(member)} cards assigned (team average: ${teamAverage.toFixed(1)}). I'm rebalancing your workload to prevent burnout.`;
   }
 
   // Process follow-ups for interventions that didn't get responses

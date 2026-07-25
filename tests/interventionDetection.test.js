@@ -1,4 +1,5 @@
 const Card = require('../src/models/Card');
+const Member = require('../src/models/Member');
 const interventionEngine = require('../src/services/interventionEngine');
 
 describe('intervention detection', () => {
@@ -38,5 +39,50 @@ describe('intervention detection', () => {
       closed: false,
       'labels.name': 'BLOCKED'
     }));
+  });
+
+  test('selects a substantially less-loaded specialty match for reassignment', async () => {
+    const lean = jest.fn().mockResolvedValue([
+      { _id: 'member-low', assignedCards: ['one'], specialties: ['design'] },
+      { _id: 'member-specialist', assignedCards: ['one', 'two'], specialties: ['frontend'] },
+      { _id: 'member-too-busy', assignedCards: ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'], specialties: ['frontend'] }
+    ]);
+    const select = jest.fn().mockReturnValue({ lean });
+    jest.spyOn(Member, 'find').mockReturnValue({ select });
+
+    const target = await interventionEngine.findBestReassignmentTarget({
+      boardId: 'board-1',
+      workspaceId: 'workspace-1',
+      labels: [{ name: 'Frontend' }]
+    }, {
+      _id: 'member-current',
+      assignedCards: new Array(10).fill('card')
+    });
+
+    expect(target._id).toBe('member-specialist');
+    expect(select).toHaveBeenCalledWith('_id specialties assignedCards');
+  });
+
+  test('does not recommend reassignment without a meaningfully less-loaded teammate', async () => {
+    const lean = jest.fn().mockResolvedValue([
+      { _id: 'member-near-capacity', assignedCards: new Array(8).fill('card'), specialties: ['frontend'] }
+    ]);
+    jest.spyOn(Member, 'find').mockReturnValue({
+      select: jest.fn().mockReturnValue({ lean })
+    });
+
+    await expect(interventionEngine.findBestReassignmentTarget({
+      boardId: 'board-1',
+      workspaceId: 'workspace-1',
+      labels: []
+    }, {
+      _id: 'member-current',
+      assignedCards: new Array(10).fill('card')
+    })).resolves.toBeNull();
+  });
+
+  test('reports the member workload count instead of serializing assigned card identifiers', () => {
+    expect(interventionEngine.generateOverloadedMessage({ assignedCards: ['card-1', 'card-2'] }, 1.5))
+      .toContain('2 cards assigned');
   });
 });

@@ -73,7 +73,8 @@ const state = {
   signalFilter: 'all',
   setupMode: localStorage.getItem(FIRST_RUN_SETUP_KEY) || '',
   runtimeMode: 'unknown',
-  modalCleanup: null
+  modalCleanup: null,
+  commandPaletteLastFocused: null
 };
 
 const els = {
@@ -168,6 +169,10 @@ const els = {
   policyHistoryActorFilter: document.getElementById('policyHistoryActorFilter'),
   policyHistoryRangeFilter: document.getElementById('policyHistoryRangeFilter'),
   setupButton: document.getElementById('setupButton'),
+  commandPaletteButton: document.getElementById('commandPaletteButton'),
+  commandPalette: document.getElementById('commandPalette'),
+  commandPaletteSearch: document.getElementById('commandPaletteSearch'),
+  commandPaletteList: document.getElementById('commandPaletteList'),
   modal: document.getElementById('connectorModal'),
   modalTitle: document.getElementById('modalTitle'),
   modalBody: document.getElementById('modalBody')
@@ -181,6 +186,32 @@ document.getElementById('refreshButton').addEventListener('click', () => loadAll
 document.getElementById('approvalButton').addEventListener('click', () => openDecisionQueue('robert'));
 document.getElementById('connectorButton').addEventListener('click', () => showView('connectors'));
 els.setupButton.addEventListener('click', () => openFirstRunSetup());
+els.commandPaletteButton.addEventListener('click', openCommandPalette);
+document.getElementById('closeCommandPalette').addEventListener('click', closeCommandPalette);
+els.commandPalette.addEventListener('click', (event) => {
+  if (event.target === els.commandPalette) closeCommandPalette();
+});
+els.commandPaletteSearch.addEventListener('input', renderCommandPalette);
+els.commandPaletteList.addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-command-palette-action]');
+  if (!button) return;
+  await runCommandPaletteAction(button.dataset.commandPaletteAction);
+});
+document.addEventListener('keydown', (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+    event.preventDefault();
+    if (els.commandPalette.classList.contains('open')) {
+      closeCommandPalette();
+    } else {
+      openCommandPalette();
+    }
+    return;
+  }
+  if (event.key === 'Escape' && els.commandPalette.classList.contains('open')) {
+    event.preventDefault();
+    closeCommandPalette();
+  }
+});
 els.notificationPolicyButton.addEventListener('click', openNotificationPolicy);
 els.workspaceInviteButton.addEventListener('click', openWorkspaceInvite);
 els.workspaceSelect.addEventListener('change', async (event) => {
@@ -274,6 +305,64 @@ async function showView(viewName, options = {}) {
 
 async function openDecisionQueue(ownerType = 'robert') {
   await showView('approvals', { queueFilter: ownerType, focusElementId: 'decisionQueue' });
+}
+
+const COMMAND_PALETTE_ACTIONS = [
+  { id: 'overview', title: 'Open overview', detail: 'Mission control, focus, team load, and board health' },
+  { id: 'approvals', title: 'Review approvals', detail: 'Decision queue and approval ledger' },
+  { id: 'connectors', title: 'Open account connectors', detail: 'Connected tools and access reviews' },
+  { id: 'signals', title: 'Open cross-tool signals', detail: 'Normalized provider work and dependencies' },
+  { id: 'forecasts', title: 'Open capacity forecasts', detail: 'What-if delivery and workload scenarios' },
+  { id: 'reports', title: 'Open stakeholder reports', detail: 'Status, stand-up, risk, and client exports' },
+  { id: 'enhancements', title: 'Open enhancement backlog', detail: 'Prioritized product improvements' },
+  { id: 'workspaces', title: 'Open workspace administration', detail: 'Users, sessions, invitations, and action safety' },
+  { id: 'refresh', title: 'Refresh command center', detail: 'Reload current workspace data' }
+];
+
+function openCommandPalette() {
+  state.commandPaletteLastFocused = document.activeElement;
+  els.commandPaletteSearch.value = '';
+  renderCommandPalette();
+  els.commandPalette.classList.add('open');
+  els.commandPalette.setAttribute('aria-hidden', 'false');
+  requestAnimationFrame(() => els.commandPaletteSearch.focus());
+}
+
+function closeCommandPalette() {
+  if (!els.commandPalette.classList.contains('open')) return;
+  els.commandPalette.classList.remove('open');
+  els.commandPalette.setAttribute('aria-hidden', 'true');
+  state.commandPaletteLastFocused?.focus?.();
+  state.commandPaletteLastFocused = null;
+}
+
+function renderCommandPalette() {
+  const query = els.commandPaletteSearch.value.trim().toLowerCase();
+  const actions = COMMAND_PALETTE_ACTIONS.filter((action) => {
+    const searchable = `${action.title} ${action.detail}`.toLowerCase();
+    return searchable.includes(query);
+  });
+  els.commandPaletteList.innerHTML = actions.length
+    ? actions.map((action) => `
+        <button class="command-palette-action" data-command-palette-action="${escapeHtml(action.id)}" type="button" role="option">
+          <strong>${escapeHtml(action.title)}</strong>
+          <span>${escapeHtml(action.detail)}</span>
+        </button>
+      `).join('')
+    : '<p class="command-palette-empty">No matching command.</p>';
+}
+
+async function runCommandPaletteAction(actionId) {
+  closeCommandPalette();
+  if (actionId === 'refresh') {
+    await loadAll({ force: true });
+    return;
+  }
+  if (actionId === 'approvals') {
+    await openDecisionQueue('robert');
+    return;
+  }
+  await showView(actionId);
 }
 
 async function openLedgerSection(options = {}) {

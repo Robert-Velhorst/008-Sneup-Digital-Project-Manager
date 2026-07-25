@@ -39,6 +39,7 @@
           <select class="workspace-select" id="workspaceSelect" aria-label="Workspace">
             <option value="">Current workspace</option>
           </select>
+          <button class="button" id="commandPaletteButton" type="button" aria-haspopup="dialog">Quick switch</button>
           <button class="button" id="setupButton" type="button">Set up</button>
           <button class="button" id="refreshButton" type="button">Refresh</button>
           <button class="button primary" id="approvalButton" type="button">Review approvals</button>
@@ -494,6 +495,20 @@
       </div>
       <div id="modalBody"></div>
     </div>
+  </div>
+
+  <div class="command-palette" id="commandPalette" aria-hidden="true">
+    <section class="command-palette-panel" role="dialog" aria-modal="true" aria-labelledby="commandPaletteTitle">
+      <div class="command-palette-head">
+        <h2 id="commandPaletteTitle">Quick switch</h2>
+        <button class="button" id="closeCommandPalette" type="button">Close</button>
+      </div>
+      <label class="command-palette-search" for="commandPaletteSearch">
+        <span>Search</span>
+        <input id="commandPaletteSearch" type="search" maxlength="80" autocomplete="off" placeholder="Find a workspace view or action">
+      </label>
+      <div class="command-palette-list" id="commandPaletteList" role="listbox" aria-label="Quick switch actions"></div>
+    </section>
   </div>
 
   <script src="/app.js?v=__SNEUP_ASSET_VERSION__" defer></script>
