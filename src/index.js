@@ -22,6 +22,7 @@ const responseTimingService = require('./services/responseTimingService');
 const commandCenterAssetService = require('./services/commandCenterAssetService');
 const { validateRuntimeSecurityConfiguration } = require('./utils/securityConfiguration');
 const { getRuntimeReadiness } = require('./services/runtimeDiagnosticsService');
+const ngrokTunnelService = require('./services/ngrokTunnelService');
 
 // Import routes
 const boardRoutes = require('./routes/boards');
@@ -50,6 +51,7 @@ const notificationRoutes = require('./routes/notifications');
 const policyRuleRoutes = require('./routes/policyRules');
 const outcomeRoutes = require('./routes/outcomes');
 const operationsLedgerRoutes = require('./routes/operationsLedger');
+const haiIntegrationRoutes = require('./routes/haiIntegration');
 
 // Initialize Express app
 const app = express();
@@ -165,6 +167,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/policy-rules', policyRuleRoutes);
 app.use('/api/outcomes', outcomeRoutes);
 app.use('/api/operations-ledger', operationsLedgerRoutes);
+app.use('/api/integrations/hai', haiIntegrationRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -185,6 +188,8 @@ app.get('/', (req, res) => {
       'Job observability',
       'Cross-tool work signals',
       'Accountability reports',
+      'HAI approval-gated integration',
+      'Authenticated ngrok ingress',
       'Capacity-aware P50/P80 delivery forecasts'
     ]
   });
@@ -298,6 +303,12 @@ const initApp = async () => {
       logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
     });
 
+    await new Promise((resolve, reject) => {
+      server.once('listening', resolve);
+      server.once('error', reject);
+    });
+    await ngrokTunnelService.start({ host: HOST, port: PORT });
+
     return server;
   } catch (error) {
     startupState.initialized = false;
@@ -313,6 +324,7 @@ const closeServer = () => new Promise((resolve, reject) => {
 });
 
 const shutdown = async () => {
+  await ngrokTunnelService.stop();
   await closeServer();
   if (isDatabaseConnected()) await disconnectDatabase();
 };

@@ -19,6 +19,6 @@ The browser command center directly calls workspace, security, operations-ledger
 
 - Legacy routes do not yet use one universal JSON error envelope; status codes and sanitized messages are consistent, but response shapes differ.
 - API versioning is not namespaced. A hosted public API should introduce `/api/v1` before compatibility promises.
-- OpenAPI generation is not present. Route tests and README tables are the current contract evidence.
+- The general Sneup API remains route-and-test documented. The bounded HAI integration additionally publishes a dedicated OpenAPI 3.1 contract at `/api/integrations/hai/openapi.json`; it intentionally omits approval and execution operations.
 
 The new `/ready` endpoint reports operational state only and never returns secret values or connection strings.

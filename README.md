@@ -127,6 +127,12 @@ Terminal workspace invitations are retained as lifecycle evidence only. The dail
 
 The Windows installer uses the bundled Sneup icon. Release signing and automatic updates remain release-infrastructure tasks: configure a publisher certificate and update feed in the release environment before distributing a trusted production build.
 
+### Authenticated ngrok cloud access
+
+Sneup can open an ngrok ingress while keeping the HTTP server on loopback. Set `SNEUP_NGROK_ENABLED=true`, `NGROK_AUTHTOKEN`, `SNEUP_REQUIRE_API_KEY=true`, and a unique `SNEUP_API_KEY` of at least 32 characters, then start Sneup normally. An optional `SNEUP_NGROK_DOMAIN` selects a reserved domain. Startup fails closed if any authentication prerequisite is missing, and `npm run doctor` validates the posture without exposing secret values. Remote browser users join through a one-time workspace invitation and then use the short-lived session token stored only in that browser session.
+
+See `docs/CLOUD_AND_HAI.md` for the Windows, ngrok, HAI, and shutdown flow.
+
 ## API Endpoints
 
 ### Boards
@@ -191,6 +197,15 @@ See `docs/MULTI_WORKSPACE_IDENTITY.md` for workspace selection, session token, a
 Trello writes remain approval-gated regardless of a workspace rule. A rule can pause a write action, raise its risk, or route its decision to a stricter owner. An optional future pause review time makes an overdue pause visible, but it never re-enables an action automatically. Re-enabling a paused action or relaxing a prior workspace rule requires explicit confirmation and creates an audit event. The Workspace command center shows the latest bounded policy history. The executor resolves this policy immediately before its atomic execution claim, so a pause also blocks recommendations approved before the policy changed. Approved payloads also expire before execution (critical: 4 hours, high: 24 hours, medium: 72 hours, low: 168 hours by default); Sneup returns an expired item to the internal decision queue, records the expiry, and requires review of the unchanged protected payload before any provider write. Operators can shorten or extend each risk window only within 1 to 168 hours through `SNEUP_APPROVAL_TTL_CRITICAL_HOURS`, `SNEUP_APPROVAL_TTL_HIGH_HOURS`, `SNEUP_APPROVAL_TTL_MEDIUM_HOURS`, and `SNEUP_APPROVAL_TTL_LOW_HOURS`. A separate bounded outcome worker rechecks completed actions only against existing Sneup evidence after a 24-hour settling window by default; it never sends another provider request, skips already-confirmed outcomes, and avoids writing duplicate unchanged audit events.
 
 Sneup also retains a workspace-scoped, read-only recommendation-feedback signal for approval, rejection, change-request, execution, and outcome status. This supports operator reporting through `GET /api/analytics/recommendation-feedback`, but it is never read by policy resolution or execution authorization, so prior acceptance patterns cannot weaken approval requirements.
+
+### HAI Connector
+
+- `GET /api/integrations/hai/manifest` - Discover the least-privilege HAI connector contract
+- `GET /api/integrations/hai/openapi.json` - Read the machine-readable HAI API contract
+- `GET /api/integrations/hai/snapshot` - Read a bounded and redacted operating snapshot
+- `POST /api/integrations/hai/proposals` - Queue an HAI suggestion as an approval-gated recommendation
+
+Issue HAI a workspace API token scoped only to `integrations:hai:read` and, when proposals are needed, `integrations:hai:propose`. The connector intentionally exposes no approval or execution operation. HAI suggestions enter Sneup's recommendation and Yes/No decision ledger; consequential provider actions still need exact-payload human approval inside Sneup.
 
 ### Connectors and Work Signals
 
@@ -503,6 +518,9 @@ pm2 startup
 | `FULL_SYNC_CRON` | Full sync schedule | `0 1 * * *` |
 | `INCREMENTAL_SYNC_CRON` | Incremental sync schedule | `*/15 * * * *` |
 | `SNEUP_TRELLO_BOARD_SYNC_CONCURRENCY` | Bounded boards processed in parallel during Trello full and incremental syncs | `2` |
+| `SNEUP_NGROK_ENABLED` | Open an authenticated ngrok ingress after local startup | `false` |
+| `NGROK_AUTHTOKEN` | ngrok account auth token; required only when ingress is enabled | Empty |
+| `SNEUP_NGROK_DOMAIN` | Optional reserved ngrok domain | Empty |
 | `SNEUP_CONNECTOR_CREDENTIAL_ROTATION_DAYS` | Review interval for secret-based connector credentials; it never rotates a provider credential automatically | `90` |
 | `SNEUP_CONNECTOR_CREDENTIAL_ROTATION_WARNING_DAYS` | Days before the review deadline when Sneup shows a connector rotation warning | `14` |
 | `SNEUP_CONNECTOR_SYNC_FRESHNESS_HOURS` | Hours before a completed read-only connector sync is flagged for operator review; it never triggers a provider call | `24` |

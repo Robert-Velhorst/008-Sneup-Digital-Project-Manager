@@ -68,6 +68,13 @@ const getRuntimeDiagnostics = ({ environment = process.env, nodeVersion = proces
     ? diagnostic('remote_api_access', 'error', 'A non-loopback host requires an enabled, non-placeholder API key')
     : diagnostic('remote_api_access', 'ok', remotelyExposed ? 'Remote API access is protected by an API key' : 'The HTTP server is bound to loopback'));
 
+  const ngrokEnabled = String(environment.SNEUP_NGROK_ENABLED || '').toLowerCase() === 'true';
+  const ngrokTokenConfigured = Boolean(String(environment.NGROK_AUTHTOKEN || '').trim()) && !isPlaceholder(environment.NGROK_AUTHTOKEN);
+  const ngrokApiKeyStrong = apiKeyConfigured && String(environment.SNEUP_API_KEY).length >= 32;
+  checks.push(ngrokEnabled && (!ngrokTokenConfigured || !apiKeyRequired || !ngrokApiKeyStrong)
+    ? diagnostic('ngrok_ingress', 'error', 'ngrok ingress requires an auth token, enforced API authentication, and a unique API key of at least 32 characters')
+    : diagnostic('ngrok_ingress', 'ok', ngrokEnabled ? 'ngrok ingress prerequisites are configured' : 'ngrok ingress is disabled'));
+
   const writeSafety = getProviderWriteSafetyStatus(environment);
   checks.push(diagnostic('provider_write_safety', writeSafety.enabled || demoMode ? 'ok' : 'warning',
     demoMode

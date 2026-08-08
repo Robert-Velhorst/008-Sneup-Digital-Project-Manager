@@ -66,6 +66,21 @@ describe('redacted runtime diagnostics', () => {
     ]));
   });
 
+  test('fails closed when ngrok is enabled without enforced strong API authentication', () => {
+    const report = getRuntimeDiagnostics({ environment: {
+      NODE_ENV: 'development',
+      SNEUP_DEMO_MODE: 'true',
+      HOST: '127.0.0.1',
+      SNEUP_NGROK_ENABLED: 'true',
+      NGROK_AUTHTOKEN: 'configured-ngrok-token',
+      SNEUP_REQUIRE_API_KEY: 'false',
+      SNEUP_API_KEY: 'short'
+    } });
+
+    expect(report.ready).toBe(false);
+    expect(report.checks).toContainEqual(expect.objectContaining({ id: 'ngrok_ingress', status: 'error' }));
+  });
+
   test('validates live production prerequisites without returning secret values', () => {
     const environment = {
       NODE_ENV: 'production',
