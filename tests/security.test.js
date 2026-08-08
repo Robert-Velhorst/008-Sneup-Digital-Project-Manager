@@ -9110,11 +9110,60 @@ describe('approved Trello action execution safety', () => {
     jest.dontMock('../src/models/Approval');
     jest.dontMock('../src/models/DecisionQueueItem');
     jest.dontMock('../src/models/TrelloActionAttempt');
+    jest.dontMock('../src/models/AuditEvent');
     jest.dontMock('../src/services/operationsLedgerService');
     jest.dontMock('../src/services/workspaceScopeService');
     jest.dontMock('../src/services/policyRuleService');
     jest.dontMock('../src/services/trelloClient');
     jest.resetModules();
+    delete process.env.SNEUP_PROVIDER_WRITES_DISABLED;
+  });
+
+  test('audits and blocks every provider write while the deployment emergency stop is active', async () => {
+    jest.resetModules();
+    jest.dontMock('../src/services/operationsLedgerService');
+    process.env.SNEUP_PROVIDER_WRITES_DISABLED = 'true';
+
+    const recommendation = {
+      _id: 'recommendation-emergency-stop',
+      workspaceId: 'workspace-1',
+      actionType: 'comment',
+      riskLevel: 'critical',
+      requiresApproval: true,
+      status: 'approved',
+      actionPayload: { executable: true, draftOnly: false }
+    };
+    const auditCreate = jest.fn().mockResolvedValue({ _id: 'audit-1' });
+    const resolveEffectivePolicy = jest.fn();
+    jest.doMock('../src/models/Recommendation', () => ({
+      findOne: jest.fn().mockResolvedValue(recommendation)
+    }));
+    jest.doMock('../src/models/AuditEvent', () => ({ create: auditCreate }));
+    jest.doMock('../src/services/workspaceScopeService', () => ({
+      normalizeWorkspaceObjectId: jest.fn(value => value)
+    }));
+    jest.doMock('../src/services/policyRuleService', () => ({ resolveEffectivePolicy }));
+
+    const operationsLedgerService = require('../src/services/operationsLedgerService');
+    jest.spyOn(operationsLedgerService, 'isDatabaseReady').mockReturnValue(true);
+
+    await expect(operationsLedgerService.executeApprovedRecommendation(recommendation._id, {
+      workspaceId: 'workspace-1',
+      actor: 'release-operator'
+    })).rejects.toMatchObject({
+      code: 'SNEUP_PROVIDER_WRITES_DISABLED',
+      statusCode: 503
+    });
+    expect(resolveEffectivePolicy).not.toHaveBeenCalled();
+    expect(auditCreate).toHaveBeenCalledWith(expect.objectContaining({
+      workspaceId: 'workspace-1',
+      action: 'provider_write_blocked_by_emergency_stop',
+      actor: 'release-operator',
+      recommendationId: recommendation._id,
+      afterState: expect.objectContaining({
+        providerWriteSafety: expect.objectContaining({ enabled: false, mode: 'emergency_stop' })
+      })
+    }));
   });
 
   test('rejects a provider write whose persisted recommendation attempts to bypass approval', async () => {

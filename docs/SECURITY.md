@@ -1,0 +1,28 @@
+# Security
+
+## Trust boundaries
+
+Sneup separates browser/API identity, workspace-scoped persistence, encrypted connector credentials, read-only provider ingestion, notification delivery, and the approval-gated Trello write executor. Demo mode is a separate read-only boundary.
+
+## Controls
+
+- CSP, Helmet, bounded JSON/form/webhook bodies, origin controls, request throttling, and capped in-memory rate-limit cardinality.
+- Role permissions and workspace ownership on API tokens, sessions, invitations, connectors, jobs, policies, recommendations, actions, and audit reads.
+- Independent 32+ character production peppers; separate connector encryption and OAuth-state secrets; placeholder and secret-reuse rejection.
+- OAuth state signing, redirect validation, fixed provider hosts, SSRF/DNS protections where custom hosts are supported, redirect denial, timeouts, bounded pages, and redacted retained fields.
+- Exact approval payload snapshot, expiry, action policy, atomic claim, idempotency evidence, partial-write reconciliation, and no automatic retry after ambiguous writes.
+- Deployment emergency stop: set `SNEUP_PROVIDER_WRITES_DISABLED=true` and restart. Denials are audited before policy resolution or execution claim.
+- Logs and support bundles exclude secret values. The support bundle also excludes logs and user data entirely.
+
+## Incident response
+
+1. Activate the emergency stop and restart all instances.
+2. Revoke affected provider tokens and API/session tokens.
+3. Preserve audit/action/job records and create a redacted support bundle.
+4. Inspect unresolved action attempts before any provider write is re-enabled.
+5. Rotate secrets by purpose; never reuse a token pepper as a connector secret.
+6. Re-enable only after explicit owner review and a bounded canary.
+
+## Known boundaries
+
+The distributed Windows installer is unsigned until a publisher certificate is configured. Live provider consent, production database backups, penetration testing, and deployment configuration remain operator-owned release gates. Security issues should be reported privately to the repository owner and must not include live credentials.

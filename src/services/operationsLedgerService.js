@@ -19,6 +19,10 @@ const trelloClient = require('./trelloClient');
 const policyRuleService = require('./policyRuleService');
 const recommendationPayloadPolicy = require('./recommendationPayloadPolicy');
 const workGraphService = require('./workGraphService');
+const {
+  assertProviderWritesEnabled,
+  getProviderWriteSafetyStatus
+} = require('./providerWriteSafetyService');
 const logger = require('../utils/logger');
 const { normalizeWorkspaceObjectId } = require('./workspaceScopeService');
 
@@ -1016,6 +1020,26 @@ class OperationsLedgerService {
       const error = new Error('Recommendation not found');
       error.statusCode = 404;
       throw error;
+    }
+
+    const providerWriteSafety = getProviderWriteSafetyStatus();
+    if (!providerWriteSafety.enabled) {
+      await this.recordAudit({
+        workspaceId: recommendation.workspaceId,
+        entityType: 'recommendation',
+        entityId: recommendation._id,
+        action: 'provider_write_blocked_by_emergency_stop',
+        actor: options.actor || 'sneup',
+        source: 'system',
+        riskLevel: recommendation.riskLevel,
+        recommendationId: recommendation._id,
+        afterState: {
+          workspaceId: recommendation.workspaceId,
+          actionType: recommendation.actionType,
+          providerWriteSafety
+        }
+      });
+      assertProviderWritesEnabled();
     }
 
     const actionPolicy = await policyRuleService.resolveEffectivePolicy(recommendation.actionType, {

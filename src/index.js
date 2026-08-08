@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 const path = require('path');
+const packageMetadata = require('../package.json');
 const logger = require('./utils/logger');
 const { registerProcessHandlers } = require('./utils/processHandlers');
 const { connectDatabase, disconnectDatabase, isDatabaseConnected, getDatabaseStatus } = require('./utils/database');
@@ -20,6 +21,7 @@ const workspaceScopeService = require('./services/workspaceScopeService');
 const responseTimingService = require('./services/responseTimingService');
 const commandCenterAssetService = require('./services/commandCenterAssetService');
 const { validateRuntimeSecurityConfiguration } = require('./utils/securityConfiguration');
+const { getRuntimeReadiness } = require('./services/runtimeDiagnosticsService');
 
 // Import routes
 const boardRoutes = require('./routes/boards');
@@ -54,6 +56,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '127.0.0.1';
 let server;
+const startupState = {
+  initialized: false,
+  phase: 'starting'
+};
 
 // Middleware
 app.use(helmet({
@@ -124,6 +130,14 @@ app.get('/health', (req, res) => {
   });
 });
 
+app.get('/ready', (req, res) => {
+  const readiness = getRuntimeReadiness({
+    databaseState: getDatabaseStatus().state,
+    initialized: startupState.initialized
+  });
+  res.status(readiness.ready ? 200 : 503).json(readiness);
+});
+
 // API routes
 app.use('/api/boards', boardRoutes);
 app.use('/api/analytics', analyticsRoutes);
@@ -156,7 +170,7 @@ app.use('/api/operations-ledger', operationsLedgerRoutes);
 app.get('/', (req, res) => {
   res.json({
     name: 'Sneup',
-    version: '2.0.0',
+    version: packageMetadata.version,
     description: 'Autonomous AI-powered digital project manager for Trello with proactive management and conversational AI',
     status: 'running',
     features: [
@@ -203,6 +217,8 @@ app.use((req, res) => {
 // Initialize application
 const initApp = async () => {
   try {
+    startupState.initialized = false;
+    startupState.phase = 'initializing';
     logger.info('Starting Sneup...');
     validateRuntimeSecurityConfiguration();
     
@@ -276,12 +292,16 @@ const initApp = async () => {
     
     // Start server
     server = app.listen(PORT, HOST, () => {
+      startupState.initialized = true;
+      startupState.phase = 'serving';
       logger.info(`Sneup server running on http://${HOST}:${PORT}`);
       logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
     });
 
     return server;
   } catch (error) {
+    startupState.initialized = false;
+    startupState.phase = 'failed';
     logger.error('Failed to initialize application:', error);
     process.exit(1);
   }
@@ -306,4 +326,5 @@ if (require.main === module) {
 
 app.initApp = initApp;
 app.getServer = () => server;
+app.getStartupState = () => ({ ...startupState });
 module.exports = app;

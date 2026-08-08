@@ -3,6 +3,7 @@ const router = express.Router();
 const responseTimingService = require('../services/responseTimingService');
 const { getDemoSecurityContext, isDemoMode } = require('../services/demoWorkspaceService');
 const { getRateLimitMetrics, requirePermission } = require('../utils/requestSecurity');
+const { getProviderWriteSafetyStatus } = require('../services/providerWriteSafetyService');
 
 const publicAuthContext = (auth = {}) => ({
   authenticated: Boolean(auth.authenticated),
@@ -30,6 +31,7 @@ router.get('/context', requirePermission('api:read'), (req, res) => {
       apiKeyRequired: process.env.SNEUP_REQUIRE_API_KEY === 'true',
       workspaceScoped: true,
       trelloWritesApprovalGated: true,
+      providerWrites: getProviderWriteSafetyStatus(),
       demoMode
     }
   });

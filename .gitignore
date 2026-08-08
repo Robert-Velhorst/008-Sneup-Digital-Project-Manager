@@ -84,6 +84,7 @@ out
 dist
 release/
 /artifacts/
+/output/support/
 .codex-git-index*
 
 # Gatsby files
