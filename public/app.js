@@ -26,6 +26,10 @@ let approvalViewPromise;
 let approvalViewController;
 let workSignalsViewPromise;
 let workSignalsViewController;
+let forecastViewPromise;
+let forecastViewController;
+let reportViewPromise;
+let reportViewController;
 
 function loadBrowserModule(path, globalName, messages = {}) {
   if (window[globalName]) return Promise.resolve(window[globalName]);
@@ -229,6 +233,77 @@ function loadWorkSignalsView() {
       });
   }
   return workSignalsViewPromise;
+}
+
+function loadForecastView() {
+  if (!forecastViewPromise) {
+    forecastViewPromise = loadBrowserModule('/forecastView.js', 'SneupForecastView', {
+      runtime: 'The forecast view loaded without its runtime. Try again.',
+      load: 'The forecast view could not be loaded. Check the connection and try again.'
+    })
+      .then((module) => {
+        i18n.registerMessages('nl', module.NL_MESSAGES);
+        return module.createController({
+          document,
+          state,
+          elements: els,
+          t,
+          plural: tp,
+          escapeHtml,
+          getLocale: i18n.getLocale,
+          isFeatureEnabled,
+          callbacks: {
+            openForecastScenario,
+            resetForecastScenario,
+            openBoardProjectMappingsEditor,
+            openCapacityEditor,
+            openNotice,
+            closeModal,
+            enhanceForm: form => formPersistence?.enhanceForm(form)
+          }
+        });
+      })
+      .then((controller) => {
+        forecastViewController = controller;
+        return controller;
+      })
+      .catch((error) => {
+        forecastViewPromise = null;
+        forecastViewController = null;
+        throw error;
+      });
+  }
+  return forecastViewPromise;
+}
+
+function loadReportView() {
+  if (!reportViewPromise) {
+    reportViewPromise = loadBrowserModule('/reportView.js', 'SneupReportView', {
+      runtime: 'The report view loaded without its runtime. Try again.',
+      load: 'The report view could not be loaded. Check the connection and try again.'
+    })
+      .then((module) => {
+        i18n.registerMessages('nl', module.NL_MESSAGES);
+        return module.createController({
+          document,
+          state,
+          elements: els,
+          t,
+          escapeHtml,
+          callbacks: { downloadReport }
+        });
+      })
+      .then((controller) => {
+        reportViewController = controller;
+        return controller;
+      })
+      .catch((error) => {
+        reportViewPromise = null;
+        reportViewController = null;
+        throw error;
+      });
+  }
+  return reportViewPromise;
 }
 
 const state = {
@@ -930,148 +1005,60 @@ function isFeatureEnabled(key) {
 }
 
 async function loadReports() {
+  const renderer = loadReportView();
   try {
-    const data = await fetchApi('/api/reports');
+    const [data, controller] = await Promise.all([
+      fetchApi('/api/reports'),
+      renderer
+    ]);
     state.reports = data.reports || [];
-    renderReports();
+    controller.render();
   } catch (error) {
     state.reports = [];
-    renderReports(error.message);
+    try {
+      const controller = await renderer;
+      controller.render(error.message);
+    } catch (moduleError) {
+      els.reportList.innerHTML = `<div class="empty">${escapeHtml(moduleError.message)}</div>`;
+      throw moduleError;
+    }
   }
 }
 
 async function loadForecast() {
+  const renderer = loadForecastView();
   try {
-    const data = await fetchApi('/api/forecasts');
+    const [data, controller] = await Promise.all([
+      fetchApi('/api/forecasts'),
+      renderer
+    ]);
     state.forecast = data.forecast || null;
-    renderForecast();
+    controller.render();
   } catch (error) {
     state.forecast = null;
-    renderForecast(error.message);
+    try {
+      const controller = await renderer;
+      controller.render(error.message);
+    } catch (moduleError) {
+      els.portfolioForecast.innerHTML = `<div class="empty">${escapeHtml(moduleError.message)}</div>`;
+      throw moduleError;
+    }
   }
 }
 
 function renderForecast(errorMessage = '') {
-  const forecast = state.forecast;
-  if (!forecast) {
-    els.forecastCount.textContent = '0';
-    els.forecastMode.textContent = 'unavailable';
-    els.forecastMode.className = 'pill critical';
-    els.forecastMetrics.innerHTML = '';
-    els.portfolioForecast.innerHTML = `<div class="empty">${escapeHtml(errorMessage || 'Forecast unavailable')}</div>`;
-    els.forecastCapacity.innerHTML = '';
-    els.forecastBoards.innerHTML = '';
-    return;
-  }
-
-  const portfolio = forecast.portfolio || {};
-  const members = forecast.memberCapacity || [];
-  const boards = forecast.boards || [];
-  const utilization = forecast.dataQuality?.utilization || {};
-  const allocations = forecast.dataQuality?.allocations || {};
-  const calendar = forecast.dataQuality?.calendar || {};
-  const scenario = forecast.scenario || null;
-  els.forecastCount.textContent = String(boards.filter(board => board.health !== 'on_track').length);
-  els.forecastMode.textContent = forecast.mode === 'demo' ? 'demo' : scenario?.active ? 'scenario' : 'analysis only';
-  els.forecastMode.className = `pill ${forecast.mode === 'demo' || scenario?.active ? 'review' : 'healthy'}`;
-  els.forecastCapacityCount.textContent = `${members.length} people`;
-  els.forecastBoardCount.textContent = `${boards.length} boards`;
-  els.forecastMetrics.innerHTML = [
-    ['P50 delivery', formatForecastDate(portfolio.p50?.date)],
-    ['P80 delivery', formatForecastDate(portfolio.p80?.date)],
-    ['Forecast confidence', `${portfolio.confidence || 0}%`],
-    ['Open cards', portfolio.openCards || 0],
-    ['Weekly capacity', `${portfolio.weeklyAvailableHours || 0}h`],
-    ['Estimated work', `${portfolio.workHours || 0}h`],
-    ['Tracked utilization', utilization.entries ? `${utilization.weeklyHours || 0}h/week, ${(utilization.activeProviders || []).length} source${(utilization.activeProviders || []).length === 1 ? '' : 's'}` : 'No data'],
-    ['Mapped allocations', allocations.matchedEntries ? `${allocations.matchedWeeklyHours || 0}h/week` : 'No data'],
-    ['Board-mapped schedule', allocations.mappedProjectEntries ? `${allocations.mappedProjectWeeklyHours || 0}h/week` : 'No mapping'],
-    ['Mapped calendar', calendar.matchedEntries ? `${calendar.matchedWeeklyHours || 0}h/week` : 'No data']
-  ].map(([label, value]) => `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('');
-  els.portfolioForecast.innerHTML = renderForecastSummary(portfolio, scenario);
-  els.forecastCapacity.innerHTML = listOrEmpty(members, renderCapacityMember);
-  els.forecastBoards.innerHTML = listOrEmpty(boards, renderBoardForecast);
-  document.querySelectorAll('[data-capacity-member]').forEach((button) => {
-    button.addEventListener('click', () => openCapacityEditor(button.dataset.capacityMember));
-  });
-  document.querySelectorAll('[data-board-project-mappings]').forEach((button) => {
-    button.addEventListener('click', () => openBoardProjectMappingsEditor(button.dataset.boardProjectMappings));
-  });
-  document.querySelectorAll('[data-forecast-scenario]').forEach((button) => {
-    button.addEventListener('click', openForecastScenario);
-  });
-  document.querySelectorAll('[data-forecast-scenario-reset]').forEach((button) => {
-    button.addEventListener('click', async () => {
-      await loadForecast();
-      openNotice('Scenario reset', 'Sneup restored the live analysis without changing any capacity profile.');
-    });
-  });
+  forecastViewController?.render(errorMessage);
 }
 
-function formatForecastDate(value) {
-  if (!value) return 'Needs capacity';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'Needs capacity' : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
-
-function formatProviderNames(providers = []) {
-  const labels = providers.map(provider => ({ harvest: 'Harvest', everhour: 'Everhour', timeneye: 'Lucen Track', toggl_track: 'Toggl Track', clockify: 'Clockify', float: 'Float', resource_guru: 'Resource Guru', motion: 'Motion', google_workspace: 'Google Workspace', microsoft_365: 'Microsoft 365' }[provider] || provider)).filter(Boolean);
-  if (labels.length <= 1) return labels[0] || 'connected time tools';
-  return `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
-}
-
-function renderForecastSummary(forecast = {}, scenario = null) {
-  const canManageCapacity = forecast.mode !== 'demo' && state.securityContext?.permissions?.includes('capacity:manage');
-  const canRunScenarios = canManageCapacity && isFeatureEnabled('forecast_scenarios');
-  return `
-    <div class="item forecast-summary">
-      <div class="item-title">
-        <strong>${escapeHtml(forecast.boardName || 'Portfolio')}</strong>
-        <span class="pill ${forecast.health === 'at_risk' ? 'high' : forecast.health === 'watch' ? 'review' : 'healthy'}">${escapeHtml(forecast.health || 'unknown')}</span>
-      </div>
-      <div class="meta"><span>P50 ${escapeHtml(formatForecastDate(forecast.p50?.date))}</span><span>P80 ${escapeHtml(formatForecastDate(forecast.p80?.date))}</span><span>${forecast.openCards || 0} open cards</span><span>${forecast.utilizationPercent ?? 'n/a'}% modeled load</span></div>
-      <div class="meta">${escapeHtml(forecast.confidenceLabel || 'low evidence')} confidence: forecast uses explicit capacity and uncertainty assumptions.</div>
-      ${(forecast.risks || []).length ? `<div class="forecast-risks">${forecast.risks.map(risk => `<span class="pill high">${escapeHtml(risk)}</span>`).join('')}</div>` : ''}
-      <details class="payload"><summary>Assumptions</summary><div class="forecast-assumptions">${(forecast.assumptions || []).map(item => `<p>${escapeHtml(item)}</p>`).join('')}</div></details>
-      ${scenario?.active ? `<div class="notice">Temporary scenario for ${scenario.overrideCount || 0} contributor${scenario.overrideCount === 1 ? '' : 's'}. It does not change a capacity profile, provider, work item, or decision.</div>` : ''}
-      ${canManageCapacity && !canRunScenarios ? '<div class="notice">Capacity scenarios are paused by this workspace rollout.</div>' : ''}
-      ${canRunScenarios ? `<div class="item-actions">${scenario?.active ? '<button class="button" data-forecast-scenario-reset type="button">Reset scenario</button>' : ''}<button class="button primary" data-forecast-scenario type="button">Explore capacity scenario</button></div>` : ''}
-    </div>
-  `;
+async function resetForecastScenario() {
+  await loadForecast();
+  openNotice(t('Scenario reset'), t('Sneup restored the live analysis without changing any capacity profile.'));
 }
 
 function openForecastScenario() {
-  const members = (state.forecast?.memberCapacity || []).filter(member => member.memberId);
-  if (!members.length) {
-    openNotice('Capacity scenario unavailable', 'Sneup needs at least one active team member in the live workspace.');
-    return;
-  }
-  const selected = members[0];
-  els.modalTitle.textContent = 'Explore capacity scenario';
-  els.modalBody.innerHTML = `
-    <form id="forecastScenarioForm" data-draft-key="forecast-scenario" data-draft-fields="memberId,weeklyHours,allocationPercent,focusHoursPerWeek,timeOff" data-template-fields="weeklyHours,allocationPercent,focusHoursPerWeek">
-      <div class="notice">This is a temporary what-if analysis. It does not save a capacity profile, change provider data, update work, or queue a decision.</div>
-      <div class="field"><label for="forecastScenarioMember">Contributor</label><select id="forecastScenarioMember" name="memberId">${members.map(member => `<option value="${escapeHtml(member.memberId)}">${escapeHtml(member.name || 'Team member')}</option>`).join('')}</select></div>
-      <div class="field"><label for="forecastScenarioWeeklyHours">Weekly hours</label><input id="forecastScenarioWeeklyHours" name="weeklyHours" type="number" min="1" max="80" value="${escapeHtml(selected.weeklyHours || 32)}" required></div>
-      <div class="field"><label for="forecastScenarioAllocation">Allocation percentage</label><input id="forecastScenarioAllocation" name="allocationPercent" type="number" min="0" max="100" value="${escapeHtml(selected.allocationPercent ?? 100)}" required></div>
-      <div class="field"><label for="forecastScenarioFocus">Focus hours per week</label><input id="forecastScenarioFocus" name="focusHoursPerWeek" type="number" min="0" max="80" value="${escapeHtml(selected.focusHoursPerWeek || 0)}" required></div>
-      <div class="field"><label for="forecastScenarioTimeOff">Temporary time off (one YYYY-MM-DD to YYYY-MM-DD range per line)</label><textarea id="forecastScenarioTimeOff" name="timeOff">${escapeHtml((selected.timeOff || []).map(item => `${String(item.startDate || '').slice(0, 10)} to ${String(item.endDate || '').slice(0, 10)}${item.label ? ` | ${item.label}` : ''}`).join('\n'))}</textarea></div>
-      <div class="toolbar modal-actions"><button class="button" type="button" id="cancelForecastScenario">Cancel</button><button class="button primary" type="submit">Run scenario</button></div>
-    </form>
-  `;
-  els.modal.classList.add('open');
-  const form = document.getElementById('forecastScenarioForm');
-  formPersistence?.enhanceForm(form);
-  const syncMemberInputs = () => {
-    const member = members.find(item => String(item.memberId) === String(form.elements.memberId.value));
-    if (!member) return;
-    form.elements.weeklyHours.value = member.weeklyHours || 32;
-    form.elements.allocationPercent.value = member.allocationPercent ?? 100;
-    form.elements.focusHoursPerWeek.value = member.focusHoursPerWeek || 0;
-    form.elements.timeOff.value = (member.timeOff || []).map(item => `${String(item.startDate || '').slice(0, 10)} to ${String(item.endDate || '').slice(0, 10)}${item.label ? ` | ${item.label}` : ''}`).join('\n');
-  };
-  document.getElementById('cancelForecastScenario').addEventListener('click', closeModal);
-  form.elements.memberId.addEventListener('change', syncMemberInputs);
+  const opened = forecastViewController?.openForecastScenarioForm();
+  if (!opened) return;
+  const { form } = opened;
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const submit = form.querySelector('button[type="submit"]');
@@ -1099,43 +1086,18 @@ function openForecastScenario() {
       formPersistence?.markSaved(form);
       closeModal();
       renderForecast();
-      openNotice('Scenario ready', 'Sneup calculated this temporary delivery range without changing live capacity.');
+      openNotice(t('Scenario ready'), t('Sneup calculated this temporary delivery range without changing live capacity.'));
     } catch (error) {
       submit.disabled = false;
-      openNotice('Scenario failed', error.message);
+      openNotice(t('Scenario failed'), error.message);
     }
   });
 }
 
-function renderBoardForecast(forecast = {}) {
-  const editable = Boolean(state.securityContext?.permissions?.includes('capacity:manage'));
-  return `
-    <article class="connector-card forecast-card">
-      <div class="connector-top"><div><h3>${escapeHtml(forecast.boardName || 'Board')}</h3><p>${forecast.openCards || 0} open cards and ${forecast.workHours || 0} modeled work hours.</p></div><span class="pill ${forecast.health === 'at_risk' ? 'high' : forecast.health === 'watch' ? 'review' : 'healthy'}">${escapeHtml(forecast.health || 'unknown')}</span></div>
-      <div class="forecast-dates"><span><strong>P50</strong>${escapeHtml(formatForecastDate(forecast.p50?.date))}</span><span><strong>P80</strong>${escapeHtml(formatForecastDate(forecast.p80?.date))}</span><span><strong>Confidence</strong>${forecast.confidence || 0}%</span></div>
-      <div class="meta">${(forecast.risks || []).slice(0, 2).map(escapeHtml).join(' | ') || 'No material delivery risk detected.'}</div>
-      <div class="meta">${forecast.mappedProjectScheduleEntriesNext28Days ? `Mapped project schedule: ${escapeHtml(forecast.mappedProjectScheduleWeeklyHours || 0)}h/week.` : 'No provider project schedule is mapped to this board.'}</div>
-      ${editable && forecast.boardId ? `<div class="connector-actions"><button class="button" type="button" data-board-project-mappings="${escapeHtml(forecast.boardId)}">Map provider projects</button></div>` : ''}
-    </article>
-  `;
-}
-
 function openBoardProjectMappingsEditor(boardId) {
-  const board = (state.forecast?.boards || []).find(item => String(item.boardId) === String(boardId));
-  if (!board) return;
-  const mappings = (board.externalProjectMappings || []).map(item => `${item.provider}: ${item.projectId}`).join('\n');
-  els.modalTitle.textContent = `Project mappings: ${board.boardName || 'board'}`;
-  els.modalBody.innerHTML = `
-    <form id="boardProjectMappingsForm" data-draft-key="board-project-mappings:${escapeHtml(boardId)}" data-draft-fields="externalProjectMappings">
-      <div class="notice">Only explicit Float, Resource Guru, or Motion project IDs scope schedule evidence to this board. Mapped schedules remain analysis-only and do not change provider data or delivery capacity.</div>
-      <div class="field"><label for="boardProjectMappings">Provider project IDs (one provider: ID per line)</label><textarea id="boardProjectMappings" name="externalProjectMappings" placeholder="float: 123&#10;resource_guru: 456&#10;motion: project_123">${escapeHtml(mappings)}</textarea></div>
-      <div class="toolbar modal-actions"><button class="button" type="button" id="cancelBoardProjectMappings">Cancel</button><button class="button primary" type="submit">Save project mappings</button></div>
-    </form>
-  `;
-  els.modal.classList.add('open');
-  const form = document.getElementById('boardProjectMappingsForm');
-  formPersistence?.enhanceForm(form);
-  document.getElementById('cancelBoardProjectMappings').addEventListener('click', closeModal);
+  const opened = forecastViewController?.openBoardProjectMappingsForm(boardId);
+  if (!opened) return;
+  const { form } = opened;
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -1155,47 +1117,18 @@ function openBoardProjectMappingsEditor(boardId) {
       formPersistence?.markSaved(form);
       closeModal();
       await loadForecast();
-      openNotice('Project mappings saved', 'Sneup refreshed board-scoped schedule evidence without changing provider data.');
+      openNotice(t('Project mappings saved'), t('Sneup refreshed board-scoped schedule evidence without changing provider data.'));
     } catch (error) {
       submit.disabled = false;
-      openNotice('Project mapping update failed', error.message);
+      openNotice(t('Project mapping update failed'), error.message);
     }
   });
 }
 
-function renderCapacityMember(member = {}) {
-  const editable = Boolean(state.securityContext?.permissions?.includes('capacity:manage'));
-  return `
-    <div class="item">
-      <div class="item-title"><strong>${escapeHtml(member.name || 'Team member')}</strong><span class="pill ${member.configured ? 'healthy' : 'review'}">${member.configured ? 'configured' : 'default'}</span></div>
-      <div class="meta"><span>${member.weeklyAvailableHours || 0}h/week</span><span>${member.dailyAvailableHours || 0}h/day</span><span>${member.allocationPercent || 0}% allocation</span><span>${member.focusHoursPerWeek || 0}h focus</span>${member.timeOffHours ? `<span>${member.timeOffHours}h planned time off</span>` : ''}</div>
-      <div class="meta">Historical card effort: ${member.historicalCardHours || 0}h. ${member.trackedTimeEntriesLast28Days ? `${escapeHtml(formatProviderNames(member.trackedTimeProvidersLast28Days))} tracked ${member.trackedTimeWeeklyHours || 0}h/week recently.` : 'No matched tracked-time evidence.'} ${member.scheduledAllocationEntriesNext28Days ? `${escapeHtml(formatProviderNames(member.scheduledAllocationProvidersNext28Days))} schedules ${member.scheduledAllocationWeeklyHours || 0}h/week.` : 'No mapped allocation evidence.'} ${member.calendarEventsNext28Days ? `Mapped calendar blocks ${member.calendarBusyWeeklyHours || 0}h/week.` : 'No mapped calendar evidence.'} ${(member.skills || []).map(escapeHtml).join(' | ') || 'No skills recorded.'}</div>
-      ${editable ? `<div class="item-actions"><button class="button" type="button" data-capacity-member="${escapeHtml(member.memberId)}">Edit capacity</button></div>` : ''}
-    </div>
-  `;
-}
-
 function openCapacityEditor(memberId) {
-  const member = (state.forecast?.memberCapacity || []).find(item => String(item.memberId) === String(memberId));
-  if (!member) return;
-  const externalIdentities = (member.externalIdentities || []).map(item => `${item.provider}: ${item.externalId}`).join('\n');
-  els.modalTitle.textContent = `Capacity: ${member.name || 'team member'}`;
-  els.modalBody.innerHTML = `
-    <form id="capacityProfileForm" data-draft-key="capacity-profile:${escapeHtml(memberId)}" data-draft-fields="weeklyHours,allocationPercent,focusHoursPerWeek,skills,externalIdentities,timeOff" data-template-fields="weeklyHours,allocationPercent,focusHoursPerWeek">
-      <div class="notice">Capacity updates are analysis inputs only. They do not change any provider account or work item.</div>
-      <div class="field"><label for="capacityWeeklyHours">Weekly hours</label><input id="capacityWeeklyHours" name="weeklyHours" type="number" min="1" max="80" value="${escapeHtml(member.weeklyHours || 32)}" required></div>
-      <div class="field"><label for="capacityAllocation">Allocation percentage</label><input id="capacityAllocation" name="allocationPercent" type="number" min="0" max="100" value="${escapeHtml(member.allocationPercent ?? 100)}" required></div>
-      <div class="field"><label for="capacityFocus">Focus hours per week</label><input id="capacityFocus" name="focusHoursPerWeek" type="number" min="0" max="80" value="${escapeHtml(member.focusHoursPerWeek || 0)}" required></div>
-      <div class="field"><label for="capacitySkills">Skills (comma-separated)</label><input id="capacitySkills" name="skills" type="text" value="${escapeHtml((member.skills || []).join(', '))}"></div>
-      <div class="field"><label for="capacityExternalIdentities">Capacity evidence IDs (one provider: ID per line)</label><textarea id="capacityExternalIdentities" name="externalIdentities" placeholder="float: 123&#10;motion: user_123&#10;google_workspace: person@example.com">${escapeHtml(externalIdentities)}</textarea></div>
-      <div class="field"><label for="capacityTimeOff">Planned time off (one YYYY-MM-DD to YYYY-MM-DD range per line)</label><textarea id="capacityTimeOff" name="timeOff">${escapeHtml((member.timeOff || []).map(item => `${String(item.startDate || '').slice(0, 10)} to ${String(item.endDate || '').slice(0, 10)}${item.label ? ` | ${item.label}` : ''}`).join('\n'))}</textarea></div>
-      <div class="toolbar modal-actions"><button class="button" type="button" id="cancelCapacityEdit">Cancel</button><button class="button primary" type="submit">Save capacity</button></div>
-    </form>
-  `;
-  els.modal.classList.add('open');
-  const form = document.getElementById('capacityProfileForm');
-  formPersistence?.enhanceForm(form);
-  document.getElementById('cancelCapacityEdit').addEventListener('click', closeModal);
+  const opened = forecastViewController?.openCapacityForm(memberId);
+  if (!opened) return;
+  const { form } = opened;
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -1224,36 +1157,11 @@ function openCapacityEditor(memberId) {
       formPersistence?.markSaved(form);
       closeModal();
       await loadForecast();
-      openNotice('Capacity saved', 'Sneup refreshed the analysis-only delivery forecast.');
+      openNotice(t('Capacity saved'), t('Sneup refreshed the analysis-only delivery forecast.'));
     } catch (error) {
       submit.disabled = false;
-      openNotice('Capacity update failed', error.message);
+      openNotice(t('Capacity update failed'), error.message);
     }
-  });
-}
-
-function renderReports(errorMessage = '') {
-  els.reportCount.textContent = state.reports.length || 0;
-  els.reportMode.textContent = errorMessage ? 'unavailable' : 'read-only';
-  els.reportMode.className = `pill ${errorMessage ? 'critical' : 'healthy'}`;
-  els.reportList.innerHTML = errorMessage
-    ? `<div class="empty">${escapeHtml(errorMessage)}</div>`
-    : listOrEmpty(state.reports, (report) => `
-      <div class="item report-item">
-        <div class="item-title">
-          <strong>${escapeHtml(report.label)}</strong>
-          <span class="pill review">read-only</span>
-        </div>
-        <div class="meta">Uses current command, risk, decision, owner, date, and source-evidence context.</div>
-        <div class="item-actions">
-          <button class="button" data-report-download="${escapeHtml(report.id)}" data-report-format="markdown" type="button">Markdown</button>
-          <button class="button primary" data-report-download="${escapeHtml(report.id)}" data-report-format="pdf" type="button">PDF</button>
-        </div>
-      </div>
-    `);
-
-  document.querySelectorAll('[data-report-download]').forEach((button) => {
-    button.addEventListener('click', () => downloadReport(button.dataset.reportDownload, button.dataset.reportFormat));
   });
 }
 

@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.3.21 - 2026-08-09
+
+### Demand-loaded Forecasts and Reports
+
+- Moved Forecasts, capacity evidence, delivery scenarios, project mappings, and report-list rendering into retry-safe modules loaded only when an operator opens the corresponding view.
+- Kept every API request, capacity/project-mapping write, report download, session boundary, and provider authority in the authenticated application controller. The renderers receive only named guarded callbacks and cannot fetch, persist, approve, or execute provider actions.
+- Added complete English/Dutch Forecasts and Reports operator chrome while preserving risks, assumptions, provider names, member and board evidence, identifiers, report labels, and server errors verbatim.
+
+### Resource, security, browser, and Windows verification
+
+- Reduced the initial app-plus-localization payload by 14,902 raw, 3,391 gzip, and 2,579 Brotli bytes compared with 2.3.20. The 31,512 raw bytes of Forecasts/Reports rendering are fetched only when needed and share the command-center asset fingerprint.
+- Added rendering, guarded-action delegation, localized-form, catalog-completeness, form-persistence, retry, CSP, source-authority, and fingerprint regressions. The full gate passes 111 suites/830 tests, the 5/5 recommendation safety evaluation, two zero-vulnerability audits, and five-secret production-style validation.
+- In-app Browser acceptance passed English/Dutch rendering, exact operational-evidence preservation, deferred loading, shared fingerprint reuse, layout containment, and zero current console warnings/errors.
+- Built and verified the unsigned Windows 11 installer. The packaged app reports 2.3.21, contains both deferred modules, exposes no secrets, keeps HAI at `never_direct`, closes normally, and releases its loopback port.
+
 ## 2.3.20 - 2026-08-09
 
 ### Demand-loaded Work Signals and graph review

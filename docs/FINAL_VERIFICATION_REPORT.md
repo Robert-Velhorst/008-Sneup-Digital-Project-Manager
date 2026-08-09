@@ -6,7 +6,7 @@ This report is updated from executed commands at release time. A passing local s
 
 - Branch: `main`
 - Starting commit: `d58266bb982e560ac1324f51eb487ea30665d507`
-- Release under verification: `2.3.20`
+- Release under verification: `2.3.21`
 - Default remote: `origin`
 
 ## Verification ledger
@@ -65,4 +65,21 @@ Live Trello critical-path acceptance, live ngrok/HAI credential acceptance, prod
 | Windows installer | Pass: 109,476,907 bytes, version 2.3.20, unsigned, SHA-256 `3B0E3460D84DAA3BD5CC7E182FA423287C321E4A50B83621E8F0E311450A6D95`; archive contains `public/workSignalsView.js` |
 | Fresh-clone GitHub CI | Pass: run `31327523743` on source `0b19b13009bae3523d4cdffa14ea630c923b139f`; Node.js 24 quality completed in 1m01s and Windows packaging/upload in 2m14s |
 | GitHub installer artifact | Pass: artifact `9041970725`, archive size 109,483,887 bytes, digest `sha256:7e47e852d4c7a084f5177c2d018aedb4ce5bd949ba9b6a623f6b0ed0d9040cb0`; its single installer is 109,477,917 bytes, unsigned, version 2.3.20, SHA-256 `D245ABBC0D6C6B3D4CDD2DA53DD81A310FA21D798631E05E6A36A0CC7EE8CBDC` |
+| External gates | Live provider/ngrok/HAI acceptance, production-like restore/deployment rollback, code signing, clean-VM scaling, and assistive-technology certification remain external |
+
+## 2.3.21 continuation evidence
+
+| Check | Result |
+| --- | --- |
+| Scope | Forecasts, capacity/scenario/project-mapping forms, and Reports extracted behind retry-safe deferred modules; guarded API, persistence, download, and mutation authority remains in the controller |
+| Full quality gate | Pass: lint, 111 suites/830 tests, and 5/5 recommendation scenarios at 100% |
+| Dependency security | Pass: full and production audits each report 0 vulnerabilities |
+| Release secrets | Pass: five independent production-style values accepted; values not printed or exposed |
+| Source/syntax | Pass: JavaScript syntax, diff whitespace, CSP/source-authority, exact-evidence, localization-completeness, form-persistence, retry, and action-delegation checks |
+| Startup profile | Pass: import 945.9 ms at 53.2 MB RSS; seven-request Overview 187.4 ms at 58.6 MB RSS; 251/263 modules and no Mongoose loaded |
+| Initial payload | Improved from 294,642 to 279,740 raw, 61,938 to 58,547 gzip, and 50,964 to 48,385 Brotli bytes; deferred renderers total 31,512 raw bytes |
+| Browser QA | Pass: real in-app Browser, English/Dutch, one shared-fingerprint script per view, exact evidence, no overlay, no horizontal overflow, zero warning/error logs |
+| Packaged Windows QA | Pass: version 2.3.21, demo health and eight diagnostics, no exposed secrets, HAI `never_direct`, four processes, normal close, port released |
+| Packaged resource sample | Directional pass: 360.5 MB working set, 290.1 MB private bytes, 1.688 cumulative CPU seconds after the repeatable local packaged probe |
+| Windows installer | Pass: 109,479,199 bytes, version 2.3.21, unsigned, SHA-256 `B9E47D19CFA2C65A5263558953DF92351E6DD53F680E7965B71D9887AD2A1587`; archive contains `public/forecastView.js` and `public/reportView.js` |
 | External gates | Live provider/ngrok/HAI acceptance, production-like restore/deployment rollback, code signing, clean-VM scaling, and assistive-technology certification remain external |

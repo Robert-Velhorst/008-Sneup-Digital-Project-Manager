@@ -630,13 +630,15 @@ For issues, questions, or feature requests, please open an issue on GitHub.
 - [x] Policy-controlled daily reconciliation digests
 - [x] Slack, Teams, and generic reconciliation-alert webhooks
 - [ ] Advanced machine learning for predictions
-- [x] English/Dutch shell, help, setup, primary workflow, connector marketplace, Work Signals and graph review, workspace administration, approval ledger, and consequential workspace form/modal localization
+- [x] English/Dutch shell, help, setup, primary workflow, connector marketplace, Work Signals and graph review, workspace administration, approval ledger, Forecasts, Reports, and consequential workspace form/modal localization
 - [ ] Complete a keyboard-only and screen-reader certification pass
 - [ ] Mobile app
 
 ---
 
 **Sneup** - Making project management autonomous and intelligent.
+
+Forecasts and Reports are demand-loaded with their view-specific Dutch copy. Opening either view starts its bounded API read and renderer fetch together; a failed renderer load can be retried by reopening the view. API, session, persistence, capacity/project-mapping mutation, report-download, and provider-write authority remain in the authenticated application controller.
 
 ## Connector Sync Safety
 

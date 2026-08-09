@@ -267,3 +267,14 @@ This worklog records local engineering evidence. Live Trello, production MongoDB
 - Built `Sneup-Setup-2.3.20.exe`, 109,476,907 bytes, unsigned, SHA-256 `3B0E3460D84DAA3BD5CC7E182FA423287C321E4A50B83621E8F0E311450A6D95`. Packaged verification reported version 2.3.20, healthy demo diagnostics, eight checks, no exposed secrets, HAI `never_direct`, normal close, and port release.
 - Published source commit `0b19b13009bae3523d4cdffa14ea630c923b139f`. GitHub run `31327523743` completed successfully: Node.js 24 quality in 1 minute 1 second and Windows installer plus artifact upload in 2 minutes 14 seconds.
 - Artifact `9041970725` (`sneup-windows-installer-unsigned`) is a 109,483,887-byte archive with digest `sha256:7e47e852d4c7a084f5177c2d018aedb4ce5bd949ba9b6a623f6b0ed0d9040cb0`. Its single downloaded installer is 109,477,917 bytes, unsigned, reports version 2.3.20, and has SHA-256 `D245ABBC0D6C6B3D4CDD2DA53DD81A310FA21D798631E05E6A36A0CC7EE8CBDC`.
+
+## 2026-08-09 Forecasts and Reports continuation
+
+- Re-read the governing approval-gated operations-ledger specification and traced Forecasts/Reports rendering, API ownership, form persistence, localization, caching, and retry behavior end to end.
+- Extracted Forecasts and Reports into retry-safe demand-loaded modules while keeping API/session access, capacity and project-mapping mutation, report downloads, and all provider authority in `public/app.js`.
+- Added complete Dutch operator chrome and localized forecast forms while preserving operational risks, assumptions, provider/member/board evidence, report labels, identifiers, and server failures verbatim.
+- Reduced initial app plus localization from 294,642 to 279,740 raw bytes, 61,938 to 58,547 gzip bytes, and 50,964 to 48,385 Brotli bytes. The two deferred modules total 31,512 raw bytes.
+- In-app Browser QA passed Overview non-loading, one-time shared-fingerprint module loads, English/Dutch Forecasts and Reports, exact evidence, containment, and zero current console warnings/errors.
+- Passed lint, 111 suites/830 tests, 5/5 recommendation evaluation, two zero-vulnerability dependency audits, production validation with five independent secrets, diff/source checks, and the startup profile. Demo import used 53.2 MB RSS; the seven-request overview sample ended at 58.6 MB RSS without loading Mongoose.
+- Built and verified unsigned `Sneup-Setup-2.3.21.exe`: 109,479,199 bytes, SHA-256 `B9E47D19CFA2C65A5263558953DF92351E6DD53F680E7965B71D9887AD2A1587`. Four packaged processes used 360.5 MB working set and 290.1 MB private memory, then closed normally and released the loopback port.
+- Live provider/ngrok/HAI authorization, production restore/deployment rollback, publisher signing, clean-VM scaling, and assistive-technology certification remain external gates.

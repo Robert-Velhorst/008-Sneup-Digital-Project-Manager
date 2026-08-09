@@ -44,6 +44,7 @@
 - Isolated workspace administration rendering behind a retry-safe demand-loaded module while keeping every consequential mutation in the existing authenticated controller; browser QA found and fixed missing callback definitions before release.
 - Replaced the eager, unbounded conversational provider call with one lazy response gateway and exhaustive deterministic failure-mode tests while preserving the existing chat response and worker-ledger contracts.
 - Isolated approval and operations-ledger rendering plus approval/workspace-specific Dutch catalogs behind retry-safe demand-loaded modules. API, session, credential, approval, execution, and reconciliation authority remains in the authenticated controller, and exact operational evidence is never machine-translated.
+- Isolated Forecasts and Reports rendering plus view-specific Dutch catalogs behind retry-safe demand-loaded modules. API/session access, form persistence, capacity and project-mapping mutation, report downloads, and provider authority remain in the authenticated controller.
 
 ## Remaining release risks
 
@@ -54,8 +55,8 @@
 | Code signing | External | Provide an organization-owned Windows signing certificate and secure CI signing process. |
 | Deployment/rollback | Partial | Select hosting, provision secrets, run canary, and prove rollback. |
 | Data subject deletion | Implemented locally | Owner-authorized export and permanent archived-workspace deletion pass unit, security, UI-wiring, and real-Mongo verification. Capture an owner-controlled hosted acceptance run before production launch. |
-| Accessibility/i18n | Partial | English/Dutch shell, setup, help, command palette, primary workflow, connector marketplace, workspace administration, approval ledger, and consequential forms/modals pass catalog and targeted responsive checks. Complete an assistive-technology review before claiming conformance. |
-| Desktop resources | Measured | The verified 2.3.19 package used four processes, 359.9 MB working set, 294.2 MB private bytes, and 1.531 cumulative CPU seconds in the repeatable local probe. Collect broader clean-machine traces before setting a hard budget. |
+| Accessibility/i18n | Partial | English/Dutch shell, setup, help, command palette, primary workflow, connector marketplace, workspace administration, approval ledger, Work Signals, Forecasts, Reports, and consequential forms/modals pass catalog and targeted responsive checks. Complete an assistive-technology review before claiming conformance. |
+| Desktop resources | Measured | The verified 2.3.21 package used four processes, 360.5 MB working set, 290.1 MB private bytes, and 1.688 cumulative CPU seconds in the repeatable local probe. Collect broader clean-machine traces before setting a hard budget. |
 | Billing | Not applicable | No billing is required for the local-first product. |
 
 No live credential, provider authorization, deployment, signed binary, or production backup claim is inferred from local tests.
@@ -78,3 +79,23 @@ The previous graph renderer HTML-escaped evidence URLs but did not require HTTPS
 ### Residual risk
 
 No local test proves authorization against real provider accounts, hosted ngrok exposure, a production restore/rollback, publisher signing, clean-machine resource behavior, or assistive-technology conformance. These remain external release gates.
+
+## 2026-08-09 Forecasts and Reports technical continuation
+
+### Finding: eager forecast/report rendering
+
+Forecast, capacity, project-mapping, scenario, and report-list rendering remained in the initial controller even for operators who never opened those views.
+
+**Remediation:** move both renderers and their Dutch catalogs behind shared-fingerprint, retry-safe loaders. Module fetch and bounded API read run concurrently, while every authenticated write/download path stays in the controller.
+
+**Measured result:** initial app plus localization fell from 294,642 to 279,740 raw bytes, 61,938 to 58,547 gzip bytes, and 50,964 to 48,385 Brotli bytes. Forecasts and Reports total 31,512 raw deferred bytes.
+
+### Finding: form-persistence ownership moved with markup
+
+Approved scenario, capacity, and project-mapping form markup moved out of the controller, so the existing integration test initially no longer observed those forms.
+
+**Remediation:** retain persistence authority in the controller through one guarded `enhanceForm` callback and verify both the deferred form allowlists and controller hook. Credential and consequential provider-action forms remain excluded.
+
+### Residual risk
+
+Live provider and report-export acceptance, hosted ngrok/HAI exposure, production restore/rollback, publisher signing, clean-machine resource behavior, and assistive-technology conformance remain external gates.

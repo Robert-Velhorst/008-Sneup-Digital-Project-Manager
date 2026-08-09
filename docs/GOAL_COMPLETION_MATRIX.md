@@ -135,3 +135,15 @@ Repository implementation can close code, test, documentation, and packaging pha
 | Deep regression/security | Verified locally | 110 suites/824 tests, lint, 5/5 safety evaluation, two zero-vulnerability audits, five-secret release validation, and syntax/diff checks passed. |
 | Windows 11 standalone | Verified locally | Packaged 2.3.20 demo boot, diagnostics, HAI boundary, secret redaction, normal close, and port release passed; installer metadata and archive contents were inspected. |
 | Live production acceptance | External | Requires authorized Trello/ngrok/HAI accounts, production-like Mongo restore/deployment, signing certificate, clean VM, and accessibility review. |
+
+## 2.3.21 Forecasts and Reports continuation
+
+| Requirement | State | Evidence |
+| --- | --- | --- |
+| Frontend/backend wiring | Verified locally | Forecasts and Reports start their deferred renderer and bounded versioned API read concurrently; all writes and downloads remain guarded controller actions. |
+| Database/provider safety | Preserved | Renderers have no database, API, session, credential, persistence, approval, or provider-write capability; exact-payload approval and audit controls are unchanged. |
+| Resource efficiency | Improved | Initial app plus localization reduced by 14,902 raw, 3,391 gzip, and 2,579 Brotli bytes; 31,512 raw bytes of view code are paid only when the relevant views open. |
+| Browser experience | Verified | English/Dutch Forecasts and Reports, exact operational evidence, shared fingerprint, no overlay, no document overflow, and zero console warnings/errors passed in the in-app Browser. |
+| Deep regression/security | Verified locally | 111 suites/830 tests, lint, 5/5 safety evaluation, two zero-vulnerability audits, five-secret release validation, and syntax/diff/source-boundary checks passed. |
+| Windows 11 standalone | Verified locally | Packaged 2.3.21 demo boot, diagnostics, HAI boundary, secret redaction, normal close, port release, installer metadata, and deferred archive contents passed. |
+| Live production acceptance | External | Requires authorized Trello/ngrok/HAI accounts, production-like Mongo restore/deployment, signing certificate, clean VM, and accessibility review. |

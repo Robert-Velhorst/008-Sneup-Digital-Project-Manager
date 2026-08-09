@@ -1561,6 +1561,8 @@ describe('dashboard content security policy', () => {
     const appJs = fs.readFileSync(path.join(rootDir, 'public', 'app.js'), 'utf8');
     const approvalViewJs = fs.readFileSync(path.join(rootDir, 'public', 'approvalView.js'), 'utf8');
     const connectorViewJs = fs.readFileSync(path.join(rootDir, 'public', 'connectorView.js'), 'utf8');
+    const forecastViewJs = fs.readFileSync(path.join(rootDir, 'public', 'forecastView.js'), 'utf8');
+    const reportViewJs = fs.readFileSync(path.join(rootDir, 'public', 'reportView.js'), 'utf8');
     const workSignalsViewJs = fs.readFileSync(path.join(rootDir, 'public', 'workSignalsView.js'), 'utf8');
     const workspaceViewJs = fs.readFileSync(path.join(rootDir, 'public', 'workspaceView.js'), 'utf8');
     const styles = fs.readFileSync(path.join(rootDir, 'public', 'styles.css'), 'utf8');
@@ -1584,9 +1586,11 @@ describe('dashboard content security policy', () => {
     expect(appJs).toContain('New accountable owner');
     expect(appJs).toContain('Target Trello list');
     expect(appJs).toContain("fetchApi('/api/forecasts')");
-    expect(appJs).toContain('Map provider projects');
+    expect(forecastViewJs).toContain('Map provider projects');
     expect(appJs).toContain('/project-mappings');
     expect(appJs).toContain('Capacity and delivery forecasts');
+    expect(forecastViewJs).not.toContain('fetchApi(');
+    expect(reportViewJs).not.toContain('fetchApi(');
     expect(workSignalsViewJs).toContain('data-graph-filter');
     expect(workSignalsViewJs).toContain('data-graph-dependency-review');
     expect(workSignalsViewJs).toContain('renderGraphReviewQuality(graph)');
@@ -1630,6 +1634,8 @@ describe('dashboard content security policy', () => {
     expect(appJs).not.toMatch(/\sstyle=/i);
     expect(approvalViewJs).not.toMatch(/\sstyle=/i);
     expect(connectorViewJs).not.toMatch(/\sstyle=/i);
+    expect(forecastViewJs).not.toMatch(/\sstyle=/i);
+    expect(reportViewJs).not.toMatch(/\sstyle=/i);
     expect(workSignalsViewJs).not.toMatch(/\sstyle=/i);
     expect(workspaceViewJs).not.toMatch(/\sstyle=/i);
     expect(styles.length).toBeGreaterThan(1000);

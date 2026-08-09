@@ -67,9 +67,9 @@ Added:
 - Secure preload bridge in `desktop/preload.js`.
 - `npm run desktop` for local desktop testing.
 - `npm run build:installer` / `npm run dist:win` for Windows NSIS packaging.
-- Current release target: `release/Sneup-Setup-2.3.19.exe`.
+- Current release target: `release/Sneup-Setup-2.3.21.exe`.
 
-The verified local 2.3.19 installer is 109,475,145 bytes with SHA-256 `0C38644685A321F887C9B3FF1887EABBDED41723792D72882859AEBF0BC31CB8`. It is intentionally reported as unsigned until an owner-controlled publisher certificate is available. The packaged executable reports product/file version 2.3.19 and retains the Windows x64 native ngrok binding.
+The verified local 2.3.21 installer is 109,479,199 bytes with SHA-256 `B9E47D19CFA2C65A5263558953DF92351E6DD53F680E7965B71D9887AD2A1587`. It is intentionally reported as unsigned until an owner-controlled publisher certificate is available. The packaged executable reports product/file version 2.3.21 and retains the Windows x64 native ngrok binding.
 
 The desktop app starts Sneup on `127.0.0.1` and opens the command center in an app window. On first run it starts in demo mode. The workspace choice stores only the non-secret `demo` or `live` startup preference in the Electron user-data directory, then relaunches before Sneup initializes. Production live mode fails closed before opening the HTTP listener when MongoDB is unavailable. The Windows error dialog can persist an explicit read-only demo choice and relaunch, preventing a failed live preference from trapping the user. An explicitly set `SNEUP_DEMO_MODE` environment variable takes precedence over the local preference until the user chooses the recovery action.
 
@@ -106,3 +106,20 @@ The desktop app starts Sneup on `127.0.0.1` and opens the command center in an a
 - Production-style release security: all five purpose-separated secrets accepted; values not exposed.
 - In-app Browser: English/Dutch, deferred loading, shared fingerprint, filtering, exact evidence, no overlay/overflow, and zero warning/error logs passed.
 - Packaged 2.3.20 runtime: version, eight diagnostics, secret redaction, HAI `never_direct`, clean close, and port release passed.
+
+## 2026-08-09 Forecasts and Reports implementation
+
+### Files and boundaries
+
+- Added `public/forecastView.js` for capacity evidence, board/member forecasts, delivery scenarios, capacity profiles, and provider project mappings.
+- Added `public/reportView.js` for read-only report discovery and guarded downloads.
+- Updated `public/app.js` to load both renderers retry-safely, start module and API reads concurrently, register Dutch view copy lazily, and retain every authenticated action function.
+- Updated the shared asset fingerprint and added renderer, localization, form-persistence, CSP, source-authority, and action-delegation tests.
+
+### Safety, performance, and verification
+
+- Neither renderer can call an API, read sessions or credentials, persist browser state directly, approve recommendations, or execute provider work.
+- Initial app plus localization fell from 294,642 to 279,740 raw bytes, 61,938 to 58,547 gzip bytes, and 50,964 to 48,385 Brotli bytes; the deferred modules total 31,512 raw bytes.
+- `npm run check:ci` passed lint, 111 suites/830 tests, and 5/5 recommendation scenarios. Both dependency audits report zero vulnerabilities and production-style validation accepted five distinct secrets without exposing values.
+- In-app Browser acceptance passed English/Dutch rendering, deferred/fingerprinted loading, exact evidence, containment, and zero warning/error logs.
+- Packaged 2.3.21 verification passed health, eight redacted diagnostics, HAI `never_direct`, normal close, and port release; the archive contains both new modules.

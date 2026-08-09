@@ -40,7 +40,7 @@ The command-center HTML and JavaScript were statically searched for controls, ev
 ## Open UI evidence
 
 - A full keyboard-only and screen-reader pass has not been certified.
-- English/Dutch localization covers the shell, setup, command palette, contextual help, primary mission control, connector marketplace, workspace administration, approval ledger, and consequential workspace form/modal surfaces. Provider, user, audit, free-text, error, identifier, and payload evidence remains verbatim by design.
+- English/Dutch localization covers the shell, setup, command palette, contextual help, primary mission control, connector marketplace, workspace administration, approval ledger, Work Signals, Forecasts, Reports, and consequential workspace form/modal surfaces. Provider, user, audit, free-text, error, identifier, and payload evidence remains verbatim by design.
 - Windows 125% and 200% scaling still need a clean-VM acceptance pass; 150% passed locally in the packaged app.
 - Live OAuth consent and real provider error pages require authorized accounts.
 
@@ -52,3 +52,11 @@ These gaps are release evidence gaps, not silently accepted conformance claims.
 - Switching to Nederlands reloaded the app and rendered Dutch page, metric, filter, empty-state, and adapter-contract chrome while leaving `Trello` and the provider safe-write evidence sentence byte-for-byte unchanged.
 - The interaction pass found no framework error overlay, document-level horizontal overflow, console warning, or console error.
 - Focused DOM tests cover seeded graph metrics, provider/type/direction filters, graph detail, guarded decision and dependency delegation, exact evidence, and unsafe-link inertness. The current demo dataset does not invent graph rows for visual testing.
+
+## 2.3.21 Forecasts and Reports browser evidence
+
+- In-app Browser opened the real local command center and confirmed neither deferred module loaded on Overview.
+- Opening Forecasts loaded exactly one fingerprinted `forecastView.js`; Dutch and English metrics, cards, modes, and analysis-only notices rendered while risks and assumptions remained verbatim.
+- Opening Reports loaded exactly one fingerprinted `reportView.js`; four reports rendered with localized operator chrome and unchanged report labels, and both modules reused the same fingerprint as `app.js`.
+- The interaction pass found no framework error overlay, document-level horizontal overflow, console warning, or console error.
+- Focused DOM tests cover scenario, capacity, and project-mapping forms plus guarded action/download delegation. Demo mode intentionally exposes no capacity mutation buttons, so those protected forms were not fabricated for visual testing.
