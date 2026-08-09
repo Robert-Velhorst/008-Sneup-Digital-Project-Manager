@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "desktop": "electron .",
-    "build:installer": "electron-builder --win nsis --x64",
+    "build:installer": "electron-builder --win nsis --x64 --publish never",
     "dist:win": "npm run build:installer",
     "dev": "nodemon src/index.js",
     "migrate:workspace": "node scripts/migrate-workspace-scope.js",
