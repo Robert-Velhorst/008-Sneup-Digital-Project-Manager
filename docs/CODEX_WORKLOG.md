@@ -19,6 +19,7 @@ This worklog records local engineering evidence. Live Trello, production MongoDB
 - Bound field/value/record/name/preset counts, failed closed on malformed or unavailable storage, fixed workspace scope at form-open time, and clear drafts only after confirmed API success.
 - Added jsdom coverage for storage, controls, browser bootstrap, workspace isolation, corruption, limits, and sensitive-form exclusions.
 - Used a dedicated disposable MongoDB database for in-app Browser QA: draft save, preset save/apply, cancel/reopen restore, API-save cleanup, and mobile stacking passed with no current console errors; the database and both preview processes were removed afterward.
+- Published exact source `72e25a5bcba8a92b424239051529a21c1acd68b0`; GitHub run `31314387786` passed Node 24 quality in 59 seconds and Windows packaging in 2 minutes 19 seconds. Artifact `9038323202` was downloaded and independently verified as one unsigned 2.3.13 installer.
 
 ## 2026-08-09 production lifecycle continuation
 
