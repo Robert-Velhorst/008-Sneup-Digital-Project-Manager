@@ -13,10 +13,10 @@
 | Feature rollouts | Four optional workloads, deterministic subjects, optimistic revisions, bounded cache/history, manager UI, 40-collection real-Mongo verification, and live fail-closed behavior | Complete locally; hosted manager acceptance pending |
 | Data integrity and repair | Bounded dry-run/apply, review-only unsafe findings, all-workspace Trello index migration, audit evidence, and disposable MongoDB verification | Complete locally |
 | Windows package | 2.3.6 NSIS build, demo/fail-closed smoke, native ngrok binding, metadata, SHA-256, idle sample, and clean close | Complete locally; publisher signing external |
-| Fresh clone | 2.3.6 Node 24 quality and Windows installer jobs | Pending publication |
+| Fresh clone | 2.3.6 source `2e1f767b287ff572962d583b19f74b676a84718d`; Node 24 quality and Windows installer jobs in run `31302533822` | Complete |
 | Browser and Windows UI | Integrity empty/finding/confirmation/success states passed at desktop/mobile with zero console warnings via Playwright fallback after the in-app webview failed twice | Complete for integrity flow; screen-reader/clean-VM evidence pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter | Complete locally; live credentials external |
-| GitHub CI | Exact 2.3.6 source, quality, and installer artifact | Pending publication |
+| GitHub CI | Run `31302533822`, zero failures/annotations; artifact `9034945692` and downloaded installer hash recorded | Complete |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |

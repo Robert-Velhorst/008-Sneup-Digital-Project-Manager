@@ -96,7 +96,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 089 Stabilization gates | Implemented | Focused, full, security, installer, and fresh-clone gates. |
 | 090 No vanity work | Implemented | Changes target operability, safety, evidence, and delivery. |
 | 091 Feature definition of done | Implemented | Status requires wiring, reachability, tests, docs, and evidence. |
-| 092 Fresh-clone run | Implemented | 2.3.6 passes 88 local suites/711 tests, lint, evaluation, audits, real-Mongo migration/repair verification, live integrity UI/latency/resource sampling; exact fresh-clone GitHub evidence is recorded after publication. |
+| 092 Fresh-clone run | Implemented | 2.3.6 passes 88 local suites/711 tests, lint, evaluation, audits, real-Mongo migration/repair verification, and live integrity UI/latency/resource sampling; exact source `2e1f767b287ff572962d583b19f74b676a84718d` passed GitHub run `31302533822` with zero failures/annotations and installer artifact `9034945692`. |
 | 093 Manual evidence | Partial | 2.3.6 live browser repair flow passes at 1440x1000 and 390x844 with no console warnings; packaged runtime, installer, live provider, and clean-VM evidence are tracked separately. |
 | 094 No-excuses search | Implemented | No shipped TODO/FIXME/HACK, dynamic-code, child-process, or secret-pattern finding. |
 | 095 Completion matrix | Implemented | This file, with partial/external states retained. |

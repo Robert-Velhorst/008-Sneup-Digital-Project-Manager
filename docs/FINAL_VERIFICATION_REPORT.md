@@ -34,9 +34,9 @@ This report is updated from executed commands at release time. A passing local s
 | Packaged Windows QA | Pass: 2.3.6 served readiness/version/integrity/HAI checks, retained `never_direct`, closed normally, and released port 3198; unavailable live MongoDB kept the port closed |
 | Packaged idle sample | Pass: four processes settled from 405.6/366.2 MB to 399.5/359.5 MB working/private memory over 30 seconds; CPU advanced 1.54 seconds |
 | Windows installer | Pass: local build 109,433,640 bytes, unsigned, SHA-256 `D703178EE0E7A6AC1E853997FF3052EFE11082E550F95B673B05041043244948`; executable metadata reports 2.3.6 and archive contains integrity UI/API plus Windows x64 ngrok binding |
-| Fresh clone | Pending exact 2.3.6 GitHub run |
-| GitHub CI | Pending exact 2.3.6 GitHub run |
-| GitHub installer artifact | Pending exact 2.3.6 GitHub artifact |
+| Fresh clone | Pass: source commit `2e1f767b287ff572962d583b19f74b676a84718d` completed GitHub run `31302533822` from clean runners |
+| GitHub CI | Pass with zero failures/annotations: Node.js 24 quality in 1m12s and Windows installer in 2m17s |
+| GitHub installer artifact | Pass: artifact `9034945692` (`sneup-windows-installer-unsigned`), archive digest `sha256:dcf6f2d80ef6ced46bcc097d11cda4dd2fe5ead71331cd9c46657fe89866ccad`; downloaded executable 109,433,841 bytes, unsigned, version 2.3.6, SHA-256 `6863CE73CB0DD66E024E6C2C2ECF1E028556251E9156354069F3E0A5B96F8AD7` |
 
 ## External gates
 
