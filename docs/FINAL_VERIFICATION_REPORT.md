@@ -5,7 +5,7 @@ This report is updated from executed commands at release time. A passing local s
 ## Baseline
 
 - Branch: `main`
-- Starting commit: `b2e98d16d08e267342e56ede90425eb83fd0d7b1`
+- Starting commit: `95fb6440757918d40a817ac5362147b0b2eb1c8f`
 - Release under verification: `2.3.16`
 - Default remote: `origin`
 
@@ -41,9 +41,9 @@ This report is updated from executed commands at release time. A passing local s
 | Packaged Windows QA | Pass: repeatable verifier confirmed 2.3.16 product metadata, healthy demo state, eight redacted diagnostics, HAI `never_direct`, normal main-window close, and loopback port release |
 | Packaged idle sample | Pass: the four-process build settled to 360.6 MB working set, 292.6 MB private memory, and 1.859 cumulative CPU seconds after 30 seconds. This is a directional local sample rather than a production-scale benchmark. |
 | Windows installer | Pass: local build 109,462,200 bytes, unsigned, SHA-256 `33F959504DAE00AE5F8ED4D5DAB5FC2CA21FDA3B7CAB40BAF1554DE49E6587E5`; executable metadata reports 2.3.16 |
-| Fresh clone | Pass: GitHub checked out exact source `2fa0a91691c74dc68c552e56f6ce08227fbbe826`, installed the lockfile with Node.js 24, and completed quality plus Windows package jobs |
-| GitHub CI | Pass: run `31316707100`; quality completed in 1 minute 9 seconds and Windows installer in 3 minutes 51 seconds; both jobs succeeded |
-| GitHub installer artifact | Pass: artifact `9038991309`, `sneup-windows-installer-unsigned`, 109,460,351-byte archive, digest `sha256:135e228f7902a7023b0cdf9aa568b3aae10928a30039a7b9f580c4ef4ee525e8`; its single downloaded installer is 109,454,450 bytes, unsigned, version 2.3.15, SHA-256 `BF32EAC5996FF5471F4D9D274AE2B78FC974CB7D0518AE06BAE924B5B06B4EC9` |
+| Fresh clone | Pass: GitHub checked out exact source `49af27f6fab19c2bf4e9da6f4da50fd49fbf7044`, installed the lockfile with Node.js 24, and completed quality plus Windows package jobs |
+| GitHub CI | Pass: run `31318682009`; quality completed in 1 minute 1 second and Windows installer in 2 minutes 36 seconds; both jobs succeeded |
+| GitHub installer artifact | Pass: artifact `9039544372`, `sneup-windows-installer-unsigned`, 109,468,258-byte archive, digest `sha256:27d1e1214d8272ad6257d9b757a1f43702c0c4372d4a1803546c8c76713f4eb3`; its single downloaded installer is 109,462,310 bytes, unsigned, version 2.3.16, SHA-256 `7719761E182506337CAA71737C6312479B94552CEF65DA128F892C8EA48943C9` |
 
 ## External gates
 
