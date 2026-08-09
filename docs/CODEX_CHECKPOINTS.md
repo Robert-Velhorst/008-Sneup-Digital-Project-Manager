@@ -15,10 +15,10 @@
 | Data integrity and repair | Bounded dry-run/apply, review-only unsafe findings, all-workspace Trello index migration, audit evidence, and disposable MongoDB verification | Complete locally |
 | Data retention | Owner-only opt-in policy, bounded preview/apply, protected evidence, distributed lease, indexed queries, pre/post audits, real MongoDB proof, and live browser flow | Complete locally |
 | Windows package | 2.3.26 NSIS build, demo diagnostics/HAI smoke, metadata, SHA-256, source-identical changed assets, repeatable resource sample, and clean close | Complete locally; publisher signing external |
-| Fresh clone | 2.3.25 exact source `f2c6bc854739ead5d800a471468bc009a6d6604d`; Node 24 quality and Windows installer jobs in run `31335440803` | Complete |
+| Fresh clone | 2.3.26 exact source `02632fd2ddf1fd034c830d61bfbdf2b5833eff71`; Node 24 quality and Windows installer jobs in run `31336994293` | Complete |
 | Browser and Windows UI | Demand-loaded English/Dutch setup, connector and account-selection, workspace and policy-form, approval, Work Signals, graph, Forecasts, and Reports renderers; exact evidence/payload preservation; shared asset-version reuse; refresh; filtering; and containment passed in the in-app Browser with zero current console errors | Complete for these flows; screen-reader/clean-VM evidence pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter | Complete locally; live credentials external |
-| GitHub CI | 2.3.25 run `31335440803` passed both jobs; artifact `9044199111` was downloaded and independently checked | Complete |
+| GitHub CI | 2.3.26 run `31336994293` passed both jobs; artifact `9044650169` was downloaded and independently checked | Complete |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |
@@ -30,7 +30,7 @@
 - Authority boundary: diagnostics API access, desktop IPC, local completion state, exact startup preference persistence, and connector navigation remain in `public/app.js`; `public/setupView.js` has no fetch, token, cookie, session, storage, or desktop authority.
 - Verification: lint; 112 suites/849 tests; 5/5 recommendation evaluation; two zero-vulnerability audits; five-secret production check; real-Mongo portfolio profile; in-app Browser English/Dutch acceptance; Windows package verification.
 - Installer: `release/Sneup-Setup-2.3.26.exe`, 109,483,564 bytes, unsigned, SHA-256 `6A005D09AEB71E6D15D9E1AC460DCA6D0F5405D35E3A4F9A7F0BF675962B6E7C`.
-- GitHub: source, CI, and independent artifact verification pending publication.
+- GitHub: source `02632fd2ddf1fd034c830d61bfbdf2b5833eff71`; run `31336994293`; quality 56 seconds; Windows package 1 minute 59 seconds; independently verified artifact `9044650169`.
 - External gates remain: authorized live Trello/ngrok/HAI/provider acceptance, production-like restore and deployment rollback, publisher signing, clean-VM scaling, and assistive-technology certification.
 
 ## 2026-08-09 - Notification-policy release checkpoint

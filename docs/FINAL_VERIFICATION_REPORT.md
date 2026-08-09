@@ -41,9 +41,9 @@ This report is updated from executed commands at release time. A passing local s
 | Packaged Windows QA | Pass: repeatable verifier confirmed 2.3.26 product metadata, healthy demo state, eight redacted diagnostics, HAI `never_direct`, normal main-window close, loopback port release, and byte-identical changed runtime files |
 | Packaged resource sample | Pass: four processes used 362 MB working set, 296.7 MB private memory, and 1.812 cumulative CPU seconds in the repeatable probe. This is directional local evidence rather than a production-scale budget. |
 | Windows installer | Pass: local build 109,483,564 bytes, unsigned, SHA-256 `6A005D09AEB71E6D15D9E1AC460DCA6D0F5405D35E3A4F9A7F0BF675962B6E7C`; executable metadata reports 2.3.26 |
-| Fresh clone | Pass: GitHub checked out exact source `f8bb970a6a017a12996ff0f18cfd5933fee89d1f`, installed the lockfile with Node.js 24, and completed quality plus Windows package jobs |
-| GitHub CI | Pass: run `31325790644`; quality completed in 1 minute 2 seconds and Windows installer in 1 minute 58 seconds; both jobs succeeded |
-| GitHub installer artifact | Pass: artifact `9041503855`, `sneup-windows-installer-unsigned`, 109,481,334-byte archive, digest `sha256:75fa96794d960faf9c9df573fdb247e3892f80ae58c163dac3be3393d36373d2`; its single downloaded installer is 109,475,379 bytes, unsigned, version 2.3.19, SHA-256 `BCA37895826912A92AD8ED68C33516194CC1FFA52CEFDC80F29BACC9EAA0DDCF` |
+| Fresh clone | Pass: GitHub checked out exact source `02632fd2ddf1fd034c830d61bfbdf2b5833eff71`, installed the lockfile with Node.js 24, and completed quality plus Windows package jobs |
+| GitHub CI | Pass: run `31336994293`; quality completed in 56 seconds and Windows installer in 1 minute 59 seconds; both jobs succeeded |
+| GitHub installer artifact | Pass: artifact `9044650169`, `sneup-windows-installer-unsigned`, 109,489,825-byte archive, digest `sha256:03d90293036efb3142c66687d4782cda1925a785c470ed118b4c98ab2cb1b2f6`; its single downloaded installer is 109,483,883 bytes, unsigned, version 2.3.26, SHA-256 `3BFF7AD7E90325DE6436BB1674C9ABED6AB1883D4A21439D50D40CEC2D21D8BA` |
 
 ## External gates
 
