@@ -1609,6 +1609,7 @@ describe('dashboard content security policy', () => {
     const connectorViewJs = fs.readFileSync(path.join(rootDir, 'public', 'connectorView.js'), 'utf8');
     const forecastViewJs = fs.readFileSync(path.join(rootDir, 'public', 'forecastView.js'), 'utf8');
     const reportViewJs = fs.readFileSync(path.join(rootDir, 'public', 'reportView.js'), 'utf8');
+    const setupViewJs = fs.readFileSync(path.join(rootDir, 'public', 'setupView.js'), 'utf8');
     const workSignalsViewJs = fs.readFileSync(path.join(rootDir, 'public', 'workSignalsView.js'), 'utf8');
     const workspaceViewJs = fs.readFileSync(path.join(rootDir, 'public', 'workspaceView.js'), 'utf8');
     const styles = fs.readFileSync(path.join(rootDir, 'public', 'styles.css'), 'utf8');
@@ -1666,7 +1667,9 @@ describe('dashboard content security policy', () => {
     expect(appJs).toContain("query.set('readiness', state.connectorReadiness)");
     expect(appJs).toContain('data-connector-readiness');
     expect(appJs).toContain("state.runtimeMode = data.controls?.demoMode ? 'demo' : 'live'");
-    expect(appJs).toContain('Runtime mode is selected when Sneup starts. This browser reflects that active mode and does not change it.');
+    expect(setupViewJs).toContain('Runtime mode is selected when Sneup starts. This browser reflects that active mode and does not change it.');
+    expect(setupViewJs).not.toMatch(/fetchApi|localStorage|sessionStorage|document\.cookie|sneupDesktop/);
+    expect(appJs).toContain("loadBrowserModule('/setupView.js', 'SneupSetupView'");
     expect(appJs).toContain("if (!state.setupMode && window.sneupDesktop?.saveStartupMode) openFirstRunSetup();");
     expect(html).toContain('Connector readiness filter');
     expect(server).toContain("['work-signals', () => require('./routes/workSignals')]");
@@ -1684,6 +1687,7 @@ describe('dashboard content security policy', () => {
     expect(connectorViewJs).not.toMatch(/\sstyle=/i);
     expect(forecastViewJs).not.toMatch(/\sstyle=/i);
     expect(reportViewJs).not.toMatch(/\sstyle=/i);
+    expect(setupViewJs).not.toMatch(/\sstyle=/i);
     expect(workSignalsViewJs).not.toMatch(/\sstyle=/i);
     expect(workspaceViewJs).not.toMatch(/\sstyle=/i);
     expect(styles.length).toBeGreaterThan(1000);

@@ -2,7 +2,7 @@
 
 Status meanings: **Implemented** is present and locally verified; **Partial** has useful implementation but an identified gap; **External** requires owner-controlled accounts or infrastructure; **N/A** is outside the product's current surface. No phase is marked complete from documentation alone.
 
-2.3.25 also keeps notification policy creation, editing, activation, pausing, and test delivery demand-loaded. Its renderer has no API, credential, cookie, session, or storage authority; exact request bodies, authenticated writes, encrypted destinations, refreshes, and provider boundaries remain in the controller.
+2.3.26 also keeps first-run setup demand-loaded. Its renderer has no API, credential, cookie, session, storage, or desktop authority; diagnostics reads, desktop settings/restart IPC, local completion state, and connector navigation remain in the controller. Completion is recorded only after the desktop settings write commits, while failed saves remain retryable and post-commit restart failures remain truthful.
 
 | Phase | Status | Evidence or remaining gate |
 | --- | --- | --- |

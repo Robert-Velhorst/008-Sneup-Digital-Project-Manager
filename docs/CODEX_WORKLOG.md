@@ -12,6 +12,17 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-09 first-run setup continuation
+
+- Re-audited first-run setup against the approval-gated operations contract and found eager Overview parsing, premature completion markers, non-retryable save failures, ambiguous saved-but-restart-failed messaging, and stale diagnostics responses.
+- Moved setup rendering, Dutch copy, transient diagnostics state, and desktop action locks into `public/setupView.js`. Diagnostics reads, desktop settings and restart IPC, local completion state, and connector navigation remain in `public/app.js`.
+- Persisted setup state now changes only after the desktop settings write commits. Pre-commit failures stay inline and retryable; a post-commit restart failure remains a truthful saved state; stale diagnostics requests are cancelled or ignored.
+- Initial app plus localization fell by 9,040 raw, 2,554 gzip, and 2,087 Brotli bytes. Startup imported 251 modules at 64.6 MB RSS without Mongoose; Overview reached 68.7 MB RSS with Mongoose still unloaded.
+- Local quality passed 112 suites/849 tests, 5/5 recommendation evaluation, both zero-vulnerability audits, five-secret production validation, and a 15,000-card profile at 797.8 ms p95 and 426.6 MB peak RSS with no provider writes.
+- In-app Browser passed setup exclusion from Overview, one shared-fingerprint load, eight English/Dutch diagnostics, refresh, responsive containment, and zero current console warnings/errors.
+- Built and verified unsigned `Sneup-Setup-2.3.26.exe`: 109,483,564 bytes, SHA-256 `6A005D09AEB71E6D15D9E1AC460DCA6D0F5405D35E3A4F9A7F0BF675962B6E7C`. Four packaged processes used 362 MB working set and 296.7 MB private memory, then closed normally and released the loopback port; all four changed runtime files were byte-identical in the archive.
+- GitHub source, CI, and independently downloaded artifact evidence are pending publication of this release. Live provider/ngrok/HAI acceptance, production deployment and restore, publisher signing, clean-VM scaling, and assistive-technology certification remain external.
+
 ## 2026-08-09 notification-policy continuation
 
 - Fixed the notification service to preserve `dailyBriefSchedule` during partial updates and reject activation unless the request contains explicit server-authoritative confirmation.

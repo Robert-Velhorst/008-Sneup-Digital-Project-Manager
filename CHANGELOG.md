@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.3.26 - 2026-08-09
+
+### Demand-loaded and truthful first-run setup
+
+- Moved the complete browser and Windows first-run setup renderer, Dutch catalog, diagnostics presentation, and support-file controls into a retry-safe module that loads only when **Set up** is opened.
+- Kept diagnostics API access, desktop IPC, persisted startup settings, local completion state, and connector navigation in `public/app.js`; the deferred renderer has no fetch, credential, cookie, session, storage, or desktop authority.
+- Fixed startup-mode commit semantics so a failed desktop save remains retryable and cannot mark setup complete. A committed preference followed by a failed restart is reported as saved without inviting a duplicate write.
+- Added cancellation and generation guards for stale diagnostics, plus duplicate-action locks for desktop save and support-file creation.
+
+### Resource, security, browser, and Windows verification
+
+- Reduced initial app-plus-localization delivery by 9,040 raw, 2,554 gzip, and 2,087 Brotli bytes compared with 2.3.25. The 15,025-byte setup module remains absent from Overview.
+- The full local gate passes 112 suites/849 tests, the 5/5 recommendation safety evaluation, two zero-vulnerability audits, five-secret production validation, and a real-Mongo 15,000-card profile at 797.8 ms p95 and 426.6 MB peak RSS with no provider writes.
+- In-app Browser acceptance passed deferred one-time fingerprinted loading, eight English/Dutch diagnostics, refresh, responsive containment, safe evidence escaping, and zero current console warnings or errors.
+- Built and verified unsigned `Sneup-Setup-2.3.26.exe`: 109,483,564 bytes, SHA-256 `6A005D09AEB71E6D15D9E1AC460DCA6D0F5405D35E3A4F9A7F0BF675962B6E7C`. Packaged verification passed product metadata, eight diagnostics, no secret exposure, HAI `never_direct`, normal close, port release, and byte-identical changed runtime files.
+
 ## 2.3.25 - 2026-08-09
 
 ### Notification policy correctness and deferred controls

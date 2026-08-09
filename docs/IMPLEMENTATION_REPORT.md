@@ -1,5 +1,15 @@
 # Sneup Implementation Report
 
+## 2.3.26 continuation
+
+Sneup now constructs browser and Windows first-run setup only after the operator opens **Set up**. The deferred module owns localized, escaped, bounded DOM plus transient diagnostics and action state; the application controller continues to own authenticated diagnostics reads, desktop settings and restart IPC, the local completion marker, and connector navigation.
+
+Desktop setup is now transactional at the user-visible boundary: Sneup records completion only after the settings write commits, leaves pre-commit failures inline and retryable, and reports a saved preference truthfully if the subsequent restart request fails. Diagnostics refreshes cancel or ignore stale requests, and desktop save/support actions reject duplicate submissions.
+
+Initial app plus localization is 9,040 raw, 2,554 gzip, and 2,087 Brotli bytes smaller than 2.3.25. The full local gate passes 112 suites/849 tests, two zero-vulnerability audits, five-secret production validation, real-Mongo portfolio budgets, in-app Browser acceptance, and packaged Windows verification.
+
+The verified local installer is `release/Sneup-Setup-2.3.26.exe`, 109,483,564 bytes, unsigned, with SHA-256 `6A005D09AEB71E6D15D9E1AC460DCA6D0F5405D35E3A4F9A7F0BF675962B6E7C`.
+
 ## 2.3.25 continuation
 
 Sneup now constructs notification policy create/edit, activation, pause, and external test controls only after Approvals opens. The deferred module owns localized bounded DOM and transient action locks; the authenticated controller owns exact request bodies, encoded API routes, ledger reads, encrypted destinations, sessions, and every provider boundary.

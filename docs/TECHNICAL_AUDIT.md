@@ -1,5 +1,13 @@
 # Technical Audit
 
+## 2.3.26 first-run setup audit
+
+- Found and fixed eager setup parsing, a premature local completion marker before desktop persistence, modal replacement that prevented failed-save retry, ambiguous committed-save/restart-failure handling, and stale diagnostics responses.
+- Moved setup DOM, Dutch copy, diagnostics presentation, and transient action state into a retry-safe deferred module while keeping API, storage, desktop IPC, and navigation authority in the application controller.
+- Added duplicate save/support locks, abortable diagnostics, generation-based stale-response rejection, bounded escaped server evidence, and source-boundary regressions.
+- Measured a 9,040 raw, 2,554 gzip, and 2,087 Brotli byte reduction in initial app-plus-localization delivery. Startup retained 251 import modules without Mongoose; the real-Mongo 15,000-card profile measured 797.8 ms p95 and 426.6 MB peak RSS within budget.
+- Verified 112 suites/849 tests, zero dependency vulnerabilities, production secret separation, English/Dutch browser containment, and the 2.3.26 Windows package. Live provider/ngrok/HAI acceptance, signing, production rollback, clean-VM scaling, and assistive-technology evidence remain external.
+
 ## 2.3.25 notification-policy audit
 
 - Fixed a partial-update defect that omitted `dailyBriefSchedule`, which could reject or reset a configured daily operations brief when only status changed.
