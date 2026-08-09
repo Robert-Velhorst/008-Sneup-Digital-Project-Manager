@@ -81,6 +81,11 @@ function loadConnectorView() {
             openNotice,
             closeModal,
             saveConnectorSelection,
+            loadWorkerResponseOptions,
+            saveWorkerResponseBindings,
+            registerModalCleanup: (cleanup) => {
+              state.modalCleanup = cleanup;
+            },
             openWorkerResponseBindingsModal,
             openJiraSiteModal,
             openConfluenceSiteModal,
@@ -3576,205 +3581,35 @@ async function openWorkerResponseBindingsModal(accountId) {
   if (!account) return;
 
   try {
-    const [bindingData, optionData] = await Promise.all([
-      fetchApi(`/api/connectors/accounts/${accountId}/inbound-worker-response-bindings`),
-      fetchApi(`/api/connectors/accounts/${accountId}/inbound-worker-response-options?limit=100`)
+    const [bindingData, optionData, connectorView] = await Promise.all([
+      fetchApi(`/api/connectors/accounts/${encodeURIComponent(accountId)}/inbound-worker-response-bindings`),
+      loadWorkerResponseOptions(accountId),
+      loadConnectorView()
     ]);
-    let bindings = bindingData.bindings || [];
-    let members = optionData.members || [];
-    let cards = [];
-    let memberSearchTimer;
-    let cardSearchTimer;
-    let memberOptionRequest = null;
-    let cardOptionRequest = null;
-    let memberRequestId = 0;
-    let cardRequestId = 0;
-    const memberNames = new Map(members.map(member => [member.id, member.name]));
-    const sourceLabels = {
-      slack: 'Slack', teams: 'Microsoft Teams', google_chat: 'Google Chat', discord: 'Discord',
-      mattermost: 'Mattermost', webex: 'Webex', email: 'Email'
-    };
-
-    els.modalTitle.textContent = 'Configure inbound worker responses';
-    els.modalBody.innerHTML = `
-      <form id="workerResponseBindingsForm" class="worker-response-bindings-form">
-        <div class="notice">A signed response only records accountability against an already-executed Sneup request. It never sends a provider write or creates a task. Each mapping needs an exact source worker and source card identifier.</div>
-        <div id="workerResponseBindingList" class="worker-response-binding-list"></div>
-        <fieldset class="worker-response-binding-editor">
-          <legend>Add exact mapping</legend>
-          <label for="workerResponseSource">Source
-            <select id="workerResponseSource" required>
-              ${Object.entries(sourceLabels).map(([source, label]) => `<option value="${source}">${label}</option>`).join('')}
-            </select>
-          </label>
-          <label for="workerResponseSourceMember">Source worker identifier<input id="workerResponseSourceMember" type="text" maxlength="160" autocomplete="off" required></label>
-          <label for="workerResponseSourceCard">Source card identifier<input id="workerResponseSourceCard" type="text" maxlength="160" autocomplete="off" required></label>
-          <label for="workerResponseMemberSearch">Find Sneup member<input id="workerResponseMemberSearch" type="search" maxlength="80" autocomplete="off" placeholder="Search name or username"></label>
-          <label for="workerResponseMember">Sneup member
-            <select id="workerResponseMember" required></select>
-          </label>
-          <label for="workerResponseCardSearch">Find assigned card<input id="workerResponseCardSearch" type="search" maxlength="80" autocomplete="off" placeholder="Search card name" disabled></label>
-          <label for="workerResponseCard">Assigned Sneup card
-            <select id="workerResponseCard" required disabled><option value="" selected>Select a member first</option></select>
-          </label>
-          <button class="button" id="addWorkerResponseBinding" type="button">Add mapping</button>
-        </fieldset>
-        <div class="toolbar modal-actions">
-          <button class="button" id="cancelWorkerResponseBindings" type="button">Cancel</button>
-          <button class="button primary" id="saveWorkerResponseBindings" type="submit">Save mappings</button>
-        </div>
-      </form>
-    `;
-    els.modal.classList.add('open');
-
-    const list = document.getElementById('workerResponseBindingList');
-    const memberSearch = document.getElementById('workerResponseMemberSearch');
-    const memberSelect = document.getElementById('workerResponseMember');
-    const cardSearch = document.getElementById('workerResponseCardSearch');
-    const cardSelect = document.getElementById('workerResponseCard');
-    const disposeSearchRequests = () => {
-      clearTimeout(memberSearchTimer);
-      clearTimeout(cardSearchTimer);
-      memberOptionRequest?.abort();
-      cardOptionRequest?.abort();
-      memberOptionRequest = null;
-      cardOptionRequest = null;
-    };
-    state.modalCleanup = disposeSearchRequests;
-    const renderBindings = () => {
-      list.innerHTML = bindings.length
-        ? bindings.map((binding, index) => `
-          <div class="worker-response-binding-row">
-            <div>
-              <strong>${escapeHtml(sourceLabels[binding.source] || binding.source)}: ${escapeHtml(binding.sourceMemberId)} / ${escapeHtml(binding.sourceCardId)}</strong>
-              <span>${escapeHtml(memberNames.get(binding.memberId) || `Member ${binding.memberId}`)} to card ${escapeHtml(binding.cardId)}</span>
-            </div>
-            <button class="button" data-remove-worker-response-binding="${index}" type="button">Remove</button>
-          </div>
-        `).join('')
-        : '<div class="empty">No inbound worker response mappings are saved for this account.</div>';
-      document.querySelectorAll('[data-remove-worker-response-binding]').forEach((button) => {
-        button.addEventListener('click', () => {
-          bindings = bindings.filter((_, index) => index !== Number(button.dataset.removeWorkerResponseBinding));
-          renderBindings();
-        });
-      });
-    };
-    const renderMembers = () => {
-      memberSelect.innerHTML = `<option value="" selected disabled>${members.length ? 'Select assigned member' : 'No matching members'}</option>${members.map(member => `<option value="${escapeHtml(member.id)}">${escapeHtml(member.name)}${member.username ? ` (${escapeHtml(member.username)})` : ''}</option>`).join('')}`;
-      memberSelect.disabled = members.length === 0;
-    };
-    const renderCards = () => {
-      cardSelect.disabled = cards.length === 0;
-      cardSelect.innerHTML = cards.length
-        ? `<option value="" selected disabled>Select assigned card</option>${cards.map(card => `<option value="${escapeHtml(card.id)}">${escapeHtml(card.name)}${card.closed ? ' (closed)' : ''}</option>`).join('')}`
-        : '<option value="" selected>No assigned cards available</option>';
-    };
-    const loadMembers = async () => {
-      const query = memberSearch.value.trim();
-      const requestId = ++memberRequestId;
-      memberOptionRequest?.abort();
-      const request = new AbortController();
-      memberOptionRequest = request;
-      memberSelect.disabled = true;
-      memberSelect.innerHTML = '<option value="" selected>Loading members...</option>';
-      try {
-        const data = await fetchApi(`/api/connectors/accounts/${accountId}/inbound-worker-response-options?query=${encodeURIComponent(query)}&limit=100`, { signal: request.signal });
-        if (requestId !== memberRequestId || memberOptionRequest !== request) return;
-        members = data.members || [];
-        members.forEach(member => memberNames.set(member.id, member.name));
-        renderMembers();
-      } catch (error) {
-        if (error.name === 'AbortError' || requestId !== memberRequestId || memberOptionRequest !== request) return;
-        members = [];
-        renderMembers();
-        openNotice('Response mapping members', error.message);
-      } finally {
-        if (memberOptionRequest === request) memberOptionRequest = null;
-      }
-    };
-    const loadCards = async () => {
-      const memberId = memberSelect.value;
-      cards = [];
-      renderCards();
-      cardSearch.disabled = !memberId;
-      if (!memberId) return;
-      const requestId = ++cardRequestId;
-      cardOptionRequest?.abort();
-      const request = new AbortController();
-      cardOptionRequest = request;
-      cardSelect.innerHTML = '<option value="" selected>Loading assigned cards...</option>';
-      try {
-        const data = await fetchApi(`/api/connectors/accounts/${accountId}/inbound-worker-response-options?memberId=${encodeURIComponent(memberId)}&query=${encodeURIComponent(cardSearch.value.trim())}&limit=100`, { signal: request.signal });
-        if (requestId !== cardRequestId || cardOptionRequest !== request) return;
-        cards = data.cards || [];
-        renderCards();
-      } catch (error) {
-        if (error.name === 'AbortError' || requestId !== cardRequestId || cardOptionRequest !== request) return;
-        cardSelect.innerHTML = '<option value="" selected>Assigned cards unavailable</option>';
-        openNotice('Response mapping cards', error.message);
-      } finally {
-        if (cardOptionRequest === request) cardOptionRequest = null;
-      }
-    };
-
-    renderBindings();
-    renderMembers();
-    memberSearch.addEventListener('input', () => {
-      clearTimeout(memberSearchTimer);
-      memberSearchTimer = setTimeout(() => loadMembers(), 180);
-    });
-    memberSelect.addEventListener('change', loadCards);
-    cardSearch.addEventListener('input', () => {
-      clearTimeout(cardSearchTimer);
-      cardSearchTimer = setTimeout(() => loadCards(), 180);
-    });
-    document.getElementById('cancelWorkerResponseBindings').addEventListener('click', closeModal);
-    document.getElementById('addWorkerResponseBinding').addEventListener('click', () => {
-      const source = document.getElementById('workerResponseSource').value;
-      const sourceMemberId = document.getElementById('workerResponseSourceMember').value.trim();
-      const sourceCardId = document.getElementById('workerResponseSourceCard').value.trim();
-      const memberId = memberSelect.value;
-      const cardId = cardSelect.value;
-      if (!source || !sourceMemberId || !sourceCardId || !memberId || !cardId) {
-        openNotice('Response mapping', 'Choose a source, exact source identifiers, an assigned member, and an assigned card.');
-        return;
-      }
-      if (bindings.some(binding => binding.source === source && binding.sourceMemberId === sourceMemberId && binding.sourceCardId === sourceCardId)) {
-        openNotice('Response mapping', 'This source worker and card pair is already mapped.');
-        return;
-      }
-      bindings = [...bindings, { source, sourceMemberId, sourceCardId, memberId, cardId }];
-      document.getElementById('workerResponseSourceMember').value = '';
-      document.getElementById('workerResponseSourceCard').value = '';
-      memberSelect.value = '';
-      cardSearch.value = '';
-      cardSearch.disabled = true;
-      cardOptionRequest?.abort();
-      cardRequestId += 1;
-      cards = [];
-      renderCards();
-      renderBindings();
-    });
-    document.getElementById('workerResponseBindingsForm').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      try {
-        const result = await fetchApi(`/api/connectors/accounts/${accountId}/inbound-worker-response-bindings`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bindings })
-        });
-        bindings = result.bindings || [];
-        closeModal();
-        await loadConnectors();
-        openNotice('Response mappings saved', `${bindings.length} inbound worker response mapping${bindings.length === 1 ? '' : 's'} saved with audit evidence.`);
-      } catch (error) {
-        openNotice('Response mappings', error.message);
-      }
-    });
+    connectorView.openWorkerResponseBindings({ accountId, account, bindingData, optionData });
   } catch (error) {
-    openNotice('Inbound worker responses', error.message);
+    openNotice(t('Inbound worker responses'), error.message);
   }
+}
+
+function loadWorkerResponseOptions(accountId, { memberId = '', query = '', signal } = {}) {
+  if (!accountId) throw new Error(t('Inbound worker responses'));
+  const params = new URLSearchParams({ limit: '100' });
+  if (memberId) params.set('memberId', memberId);
+  if (query) params.set('query', query);
+  return fetchApi(
+    `/api/connectors/accounts/${encodeURIComponent(accountId)}/inbound-worker-response-options?${params}`,
+    signal ? { signal } : undefined
+  );
+}
+
+function saveWorkerResponseBindings(accountId, bindings) {
+  if (!accountId) throw new Error(t('Inbound worker responses'));
+  return fetchApi(`/api/connectors/accounts/${encodeURIComponent(accountId)}/inbound-worker-response-bindings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bindings })
+  });
 }
 
 const CONNECTOR_SELECTION_API = Object.freeze({

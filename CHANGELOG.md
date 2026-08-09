@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.3.24 - 2026-08-09
+
+### Demand-loaded inbound worker-response mapping
+
+- Moved the Generic Webhook inbound worker-response mapping editor into the existing deferred Connector module, while authenticated reads, encoded account routing, exact save payloads, refreshes, and all credential/provider authority remain in `public/app.js`.
+- Added complete English/Dutch rendering, bounded and escaped options, exact source-ID validation, stale-search cancellation, member/card reset semantics, duplicate-pair and 100-mapping limits, modal cleanup, and duplicate-submit protection.
+- Fixed post-commit refresh handling across worker-response and all ten account-selection saves: a successful write followed by a failed list refresh is now reported as saved, so operators are not invited to repeat an already-committed mutation.
+
+### Resource, security, browser, and Windows verification
+
+- Reduced the initial app-plus-localization payload by 9,524 raw, 1,920 gzip, and 1,556 Brotli bytes compared with 2.3.23. The expanded Connector module remains absent from Overview and is fetched only when Connectors opens.
+- The full local gate passes 111 suites/838 tests, the 5/5 recommendation safety evaluation, two zero-vulnerability audits, five-secret production validation, and a 15,000-card real-Mongo profile with 526 ms measured p95 and 328.3 MB peak RSS.
+- In-app Browser acceptance passed Overview exclusion, one shared-fingerprint Connector load, 117 catalog entries, English/Dutch rendering, layout containment, and zero current console errors. Seeded DOM coverage verifies the connected-account-only mapping editor without inventing provider state.
+- Built and verified unsigned `Sneup-Setup-2.3.24.exe`: 109,481,903 bytes, SHA-256 `77240C43039263D0C785471BA44148272ABE3E533B4D18AD9041F516DCC21D6E`. Packaged verification passed eight diagnostics, no secret exposure, HAI `never_direct`, normal close, and port release.
+
 ## 2.3.23 - 2026-08-09
 
 ### Demand-loaded connector account selection

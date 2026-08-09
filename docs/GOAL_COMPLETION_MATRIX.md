@@ -2,7 +2,7 @@
 
 Status meanings: **Implemented** is present and locally verified; **Partial** has useful implementation but an identified gap; **External** requires owner-controlled accounts or infrastructure; **N/A** is outside the product's current surface. No phase is marked complete from documentation alone.
 
-2.3.23 also keeps all ten connector account-selection forms demand-loaded. Their renderer has no API, credential, cookie, session, or storage authority; authenticated reads, exact endpoint/body construction, and provider boundaries remain in the controller.
+2.3.24 also keeps the inbound worker-response mapping editor demand-loaded. Its renderer has no API, credential, cookie, session, or storage authority; authenticated reads, encoded routing, exact save bodies, and provider boundaries remain in the controller.
 
 | Phase | Status | Evidence or remaining gate |
 | --- | --- | --- |
@@ -149,3 +149,15 @@ Repository implementation can close code, test, documentation, and packaging pha
 | Deep regression/security | Verified locally | 111 suites/830 tests, lint, 5/5 safety evaluation, two zero-vulnerability audits, five-secret release validation, and syntax/diff/source-boundary checks passed. |
 | Windows 11 standalone | Verified locally | Packaged 2.3.21 demo boot, diagnostics, HAI boundary, secret redaction, normal close, port release, installer metadata, and deferred archive contents passed. |
 | Live production acceptance | External | Requires authorized Trello/ngrok/HAI accounts, production-like Mongo restore/deployment, signing certificate, clean VM, and accessibility review. |
+
+## 2.3.24 worker-response mapping continuation
+
+| Requirement | State | Evidence |
+| --- | --- | --- |
+| Frontend/backend wiring | Verified locally | Connected-account mapping markup and transient search state are deferred; encoded API reads, exact saves, post-commit refreshes, and session authority remain in the controller. |
+| Database/provider safety | Preserved | Existing server-side workspace, account, member/card assignment, identifier, 100-item, rollback, and audit-evidence checks remain authoritative; provider writes remain approval-gated. |
+| Resource efficiency | Improved | Initial app plus localization reduced by 9,524 raw, 1,920 gzip, and 1,556 Brotli bytes; the expanded Connector module remains demand-loaded. |
+| Browser experience | Verified | English/Dutch catalog loading, shared fingerprint, 117 entries, containment, and zero current console errors passed; seeded DOM tests cover the connected-account-only editor. |
+| Deep regression/security | Verified locally | 111 suites/838 tests, lint, 5/5 safety evaluation, two zero-vulnerability audits, five-secret validation, startup and real-Mongo scale profiles passed. |
+| Windows 11 standalone | Verified locally | Packaged 2.3.24 health, eight diagnostics, HAI boundary, secret redaction, source-identical bundled assets, normal close, port release, and installer metadata passed. |
+| Live production acceptance | External | Requires authorized Trello/ngrok/HAI/provider accounts, production-like Mongo restore/deployment, signing certificate, clean VM, and accessibility review. |

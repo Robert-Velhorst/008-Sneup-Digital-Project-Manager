@@ -1,5 +1,15 @@
 # Sneup Implementation Report
 
+## 2.3.24 continuation
+
+Sneup now constructs the Generic Webhook inbound worker-response mapping editor only after Account connectors is opened for a real connected account. The deferred module owns localized, escaped, bounded DOM and transient search state; the authenticated controller owns option reads, encoded endpoint routing, exact save bodies, connector refreshes, credentials, sessions, and provider authority.
+
+Searches abort stale requests, clear stale member/card choices, and ignore out-of-order results. Exact source identifiers, duplicate source pairs, the 100-mapping bound, modal cleanup, duplicate submits, and explicit failed-save retries are enforced in the UI in addition to the existing server checks. A committed save followed by a failed connector-list refresh now remains a truthful success across this editor and all ten selection forms.
+
+Initial app plus localization is 9,524 raw, 1,920 gzip, and 1,556 Brotli bytes smaller than 2.3.23. The full local gate passes 111 suites/838 tests, two zero-vulnerability audits, five-secret production validation, real-Mongo portfolio budgets, in-app Browser acceptance, and packaged Windows verification.
+
+The verified local installer is `release/Sneup-Setup-2.3.24.exe`, 109,481,903 bytes, unsigned, with SHA-256 `77240C43039263D0C785471BA44148272ABE3E533B4D18AD9041F516DCC21D6E`.
+
 ## 2.3.23 continuation
 
 Sneup now constructs its ten connector account-selection editors only after Account connectors is opened. The deferred renderer owns localized, escaped, bounded form markup and guarded UI delegation; the authenticated controller continues to own option reads, exact endpoint and body construction, API writes, refreshes, credentials, and every provider boundary.

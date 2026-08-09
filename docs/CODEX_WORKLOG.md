@@ -12,6 +12,17 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-09 inbound worker-response continuation
+
+- Re-audited the remaining eager Connector surface and moved the connected Generic Webhook worker-response mapping editor into `public/connectorView.js`.
+- Kept authenticated option reads, encoded account routing, exact save bodies, connector refreshes, credentials, sessions, and provider authority in `public/app.js`; the renderer owns only bounded DOM and transient search state.
+- Added Dutch coverage, safe dynamic escaping, source-ID validation, 100-item bounds, stale request cancellation, member/card reset, cleanup, duplicate mapping and submit guards, and explicit failed-save retry.
+- Corrected successful-save/failed-refresh behavior for this editor and all ten account-selection forms so committed writes are never presented as failed writes.
+- Initial app plus localization fell by 9,524 raw, 1,920 gzip, and 1,556 Brotli bytes. Startup sampled 69.8 MB RSS on import and 72.7 MB after Overview with Mongoose still unloaded.
+- Local quality passed 111 suites/838 tests, 5/5 recommendation evaluation, both zero-vulnerability audits, five-secret production validation, and a 15,000-card profile at 526 ms p95 and 328.3 MB peak RSS with no provider writes.
+- In-app Browser passed deferred loading, shared fingerprint, 117 connectors, English/Dutch rendering, containment, and zero current console errors. The connected-account-only mapping editor is covered by seeded DOM tests rather than fabricated provider state.
+- Built and verified unsigned `Sneup-Setup-2.3.24.exe`: 109,481,903 bytes, SHA-256 `77240C43039263D0C785471BA44148272ABE3E533B4D18AD9041F516DCC21D6E`. Four packaged processes used 362.5 MB working set and 347.7 MB private memory, then closed normally and released the loopback port.
+
 ## 2026-08-09 connector account-selection continuation
 
 - Re-audited the remaining eager connector UI against the approval-gated operations contract and found ten account-selection renderers still loaded on Overview.

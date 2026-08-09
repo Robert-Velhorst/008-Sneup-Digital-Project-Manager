@@ -124,3 +124,23 @@ Live Trello critical-path acceptance, live ngrok/HAI credential acceptance, prod
 | Fresh-clone GitHub CI | Pass: run `31332160310` on source `be0eeb677dbf1049ecfa15d29fe010f44d58f53e`; Node.js 24 quality completed in 1 minute 1 second and Windows packaging/upload in 2 minutes 26 seconds |
 | GitHub installer artifact | Pass: artifact `9043260024`, archive size 109,486,755 bytes, digest `sha256:90fc98a6056c933649b977ea894e64369440cac1a53e85ceab735ecffb6a64a1`; its single installer is 109,480,729 bytes, unsigned, version 2.3.23, SHA-256 `EB60DF80CCDC45699A3254A56B48676E91AAE790C624213A8DD3BE449D1C7923` |
 | External gates | Live provider/ngrok/HAI acceptance, production-like restore/deployment rollback, code signing, clean-VM scaling, and assistive-technology certification remain external |
+
+## 2.3.24 continuation evidence
+
+| Check | Result |
+| --- | --- |
+| Scope | Generic Webhook inbound worker-response mapping moved into the retry-safe deferred Connector module; authenticated reads/writes, exact payloads, refresh, credentials, and provider authority remain in the controller |
+| Correctness fixes | Pass: encoded account routes; stale member/card searches cancelled and ignored; dependent state reset; inline recoverable errors; exact IDs and 100-item limit; duplicate pair/submit guards; successful-write/failed-refresh truthfulness across eleven connector forms |
+| Full quality gate | Pass: lint, 111 suites/838 tests, and 5/5 recommendation scenarios at 100% |
+| Dependency security | Pass: full and production audits each report 0 vulnerabilities |
+| Release secrets | Pass: five independent production-style values accepted; values not printed or exposed |
+| Startup profile | Directional pass: import 8,969.7 ms at 69.8 MB RSS; Overview 563.6 ms at 72.7 MB RSS; 251/263 modules and no Mongoose loaded. Timings were affected by concurrent machine load and are not treated as a controlled regression |
+| Portfolio scale | Pass: 60 boards/300 lists/15,000 cards/100 members; 1,107.6 ms cold, 476.8 ms p50, 526 ms p95, 328.3 MB peak RSS, bounded 10/12/12 output, exact index, approval required, provider writes false |
+| Initial payload | Improved from 243,449 to 233,925 raw, 54,557 to 52,637 gzip, and 45,810 to 44,254 Brotli bytes; Connector remains deferred |
+| Browser QA | Pass: real in-app Browser, Connector absent on Overview then loaded once with the shared fingerprint, 117 connectors, Dutch rendering, no fabricated account state, no visible dialog or horizontal overflow, zero current console errors |
+| Packaged Windows QA | Pass: version 2.3.24, demo health and eight diagnostics, no exposed secrets, HAI `never_direct`, four processes, normal close, port released |
+| Packaged resource sample | Directional pass: 362.5 MB working set, 347.7 MB private bytes, 1.938 cumulative CPU seconds after the repeatable local packaged probe |
+| Windows installer | Pass: 109,481,903 bytes, version 2.3.24, unsigned, SHA-256 `77240C43039263D0C785471BA44148272ABE3E533B4D18AD9041F516DCC21D6E`; packaged `app.js` and `connectorView.js` are byte-identical to verified source |
+| Fresh-clone GitHub CI | Pending publication |
+| GitHub installer artifact | Pending publication and independent download verification |
+| External gates | Live provider/ngrok/HAI acceptance, production-like restore/deployment rollback, code signing, clean-VM scaling, and assistive-technology certification remain external |

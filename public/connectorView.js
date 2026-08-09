@@ -56,6 +56,7 @@
 
   const NL_MESSAGES = Object.freeze({
     'Connector selection unavailable': 'Connectorselectie niet beschikbaar',
+    'The change was saved, but the connector list could not refresh. Reopen Connectors to load the latest state.': 'De wijziging is opgeslagen, maar de koppelingenlijst kon niet worden vernieuwd. Open Koppelingen opnieuw om de nieuwste status te laden.',
     'Configure Figma team': 'Figma-team instellen',
     'Figma team ID': 'Figma-team-ID',
     'Numeric ID from the Figma team URL': 'Numerieke ID uit de Figma-team-URL',
@@ -133,8 +134,58 @@
     'Jira site selected': 'Jira-site geselecteerd',
     'Sneup will use this site for the next read-only sync.': 'Sneup gebruikt deze site voor de volgende alleen-lezen synchronisatie.',
     'Jira site selection': 'Jira-siteselectie',
-    'No Jira sites are currently authorized for this account. Reconnect it with Jira read access.': 'Er zijn momenteel geen Jira-sites geautoriseerd voor dit account. Koppel opnieuw met Jira-leestoegang.'
+    'No Jira sites are currently authorized for this account. Reconnect it with Jira read access.': 'Er zijn momenteel geen Jira-sites geautoriseerd voor dit account. Koppel opnieuw met Jira-leestoegang.',
+    'Configure inbound worker responses': 'Inkomende werkreacties instellen',
+    'A signed response only records accountability against an already-executed Sneup request. It never sends a provider write or creates a task. Each mapping needs an exact source worker and source card identifier.': 'Een ondertekende reactie legt alleen verantwoordelijkheid vast voor een al uitgevoerd Sneup-verzoek. Er wordt nooit naar een provider geschreven of een taak aangemaakt. Elke koppeling vereist een exacte bronmedewerker- en bronkaart-ID.',
+    'Add exact mapping': 'Exacte koppeling toevoegen',
+    'Source': 'Bron',
+    'Source worker identifier': 'Bronmedewerker-ID',
+    'Source card identifier': 'Bronkaart-ID',
+    'Find Sneup member': 'Sneup-lid zoeken',
+    'Search name or username': 'Zoek op naam of gebruikersnaam',
+    'Sneup member': 'Sneup-lid',
+    'Find assigned card': 'Toegewezen kaart zoeken',
+    'Search card name': 'Zoek op kaartnaam',
+    'Assigned Sneup card': 'Toegewezen Sneup-kaart',
+    'closed': 'gesloten',
+    'Select a member first': 'Selecteer eerst een lid',
+    'Add mapping': 'Koppeling toevoegen',
+    'Save mappings': 'Koppelingen opslaan',
+    'No inbound worker response mappings are saved for this account.': 'Voor dit account zijn geen inkomende werkreactiekoppelingen opgeslagen.',
+    'Member {memberId} to card {cardId}': 'Lid {memberId} naar kaart {cardId}',
+    'Remove': 'Verwijderen',
+    'Select assigned member': 'Selecteer toegewezen lid',
+    'No matching members': 'Geen overeenkomende leden',
+    'Select assigned card': 'Selecteer toegewezen kaart',
+    'No assigned cards available': 'Geen toegewezen kaarten beschikbaar',
+    'Loading members...': 'Leden laden...',
+    'Loading assigned cards...': 'Toegewezen kaarten laden...',
+    'Assigned cards unavailable': 'Toegewezen kaarten niet beschikbaar',
+    'Response mapping members': 'Leden voor reactiekoppeling',
+    'Response mapping cards': 'Kaarten voor reactiekoppeling',
+    'Response mapping': 'Reactiekoppeling',
+    'Choose a source, exact source identifiers, an assigned member, and an assigned card.': 'Kies een bron, exacte bron-ID\'s, een toegewezen lid en een toegewezen kaart.',
+    'Source identifiers may contain letters, numbers, dots, underscores, colons, and hyphens, up to 160 characters.': 'Bron-ID\'s mogen letters, cijfers, punten, underscores, dubbele punten en koppeltekens bevatten, tot 160 tekens.',
+    'This source worker and card pair is already mapped.': 'Deze combinatie van bronmedewerker en bronkaart is al gekoppeld.',
+    'A maximum of {count} response mappings can be saved for one account.': 'Per account kunnen maximaal {count} reactiekoppelingen worden opgeslagen.',
+    'Response mappings saved': 'Reactiekoppelingen opgeslagen',
+    '{count} inbound worker response mapping saved with audit evidence.': '{count} inkomende werkreactiekoppeling opgeslagen met auditbewijs.',
+    '{count} inbound worker response mappings saved with audit evidence.': '{count} inkomende werkreactiekoppelingen opgeslagen met auditbewijs.',
+    'Response mappings': 'Reactiekoppelingen',
+    'Inbound worker responses': 'Inkomende werkreacties'
   });
+
+  const WORKER_RESPONSE_SOURCES = Object.freeze({
+    slack: 'Slack',
+    teams: 'Microsoft Teams',
+    google_chat: 'Google Chat',
+    discord: 'Discord',
+    mattermost: 'Mattermost',
+    webex: 'Webex',
+    email: 'Email'
+  });
+  const MAX_WORKER_RESPONSE_BINDINGS = 100;
+  const SOURCE_IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
 
   const SELECTION_FORMS = Object.freeze({
     figma_team: {
@@ -295,16 +346,277 @@
         if (submitButton.disabled) return;
         submitButton.disabled = true;
         submitButton.textContent = t('Saving...');
+        const body = Object.fromEntries(new window.FormData(form).entries());
         try {
-          const body = Object.fromEntries(new window.FormData(form).entries());
           await callbacks.saveConnectorSelection(kind, accountId, body);
-          callbacks.closeModal();
-          callbacks.openNotice(t(config.successTitle), t(config.successMessage));
-          await callbacks.loadConnectors();
         } catch (error) {
           submitButton.disabled = false;
           submitButton.textContent = t(config.submitLabel);
           callbacks.openNotice(t(config.errorTitle), error.message);
+          return;
+        }
+        callbacks.closeModal();
+        try {
+          await callbacks.loadConnectors();
+          callbacks.openNotice(t(config.successTitle), t(config.successMessage));
+        } catch (error) {
+          callbacks.openNotice(
+            t(config.successTitle),
+            t('The change was saved, but the connector list could not refresh. Reopen Connectors to load the latest state.')
+          );
+        }
+      });
+      return true;
+    }
+
+    function openWorkerResponseBindings({ accountId, account, bindingData = {}, optionData = {} } = {}) {
+      if (!accountId || !account || !elements.modal || !elements.modalTitle || !elements.modalBody) return false;
+
+      let bindings = Array.isArray(bindingData.bindings)
+        ? bindingData.bindings.slice(0, MAX_WORKER_RESPONSE_BINDINGS)
+        : [];
+      let members = Array.isArray(optionData.members) ? optionData.members.slice(0, 100) : [];
+      let cards = [];
+      let memberSearchTimer;
+      let cardSearchTimer;
+      let memberOptionRequest = null;
+      let cardOptionRequest = null;
+      let memberRequestId = 0;
+      let cardRequestId = 0;
+      const memberNames = new Map(members.map(member => [String(member.id), member.name]));
+
+      elements.modalTitle.textContent = t('Configure inbound worker responses');
+      elements.modalBody.innerHTML = `
+        <form id="workerResponseBindingsForm" class="worker-response-bindings-form">
+          <div class="notice">${et('A signed response only records accountability against an already-executed Sneup request. It never sends a provider write or creates a task. Each mapping needs an exact source worker and source card identifier.')}</div>
+          <div id="workerResponseBindingStatus" class="notice" hidden></div>
+          <div id="workerResponseBindingList" class="worker-response-binding-list"></div>
+          <fieldset class="worker-response-binding-editor">
+            <legend>${et('Add exact mapping')}</legend>
+            <label for="workerResponseSource">${et('Source')}
+              <select id="workerResponseSource" required>
+                ${Object.entries(WORKER_RESPONSE_SOURCES).map(([source, label]) => `<option value="${source}">${escapeHtml(label)}</option>`).join('')}
+              </select>
+            </label>
+            <label for="workerResponseSourceMember">${et('Source worker identifier')}<input id="workerResponseSourceMember" type="text" maxlength="160" pattern="[A-Za-z0-9][A-Za-z0-9._:-]{0,159}" autocomplete="off" required></label>
+            <label for="workerResponseSourceCard">${et('Source card identifier')}<input id="workerResponseSourceCard" type="text" maxlength="160" pattern="[A-Za-z0-9][A-Za-z0-9._:-]{0,159}" autocomplete="off" required></label>
+            <label for="workerResponseMemberSearch">${et('Find Sneup member')}<input id="workerResponseMemberSearch" type="search" maxlength="80" autocomplete="off" placeholder="${et('Search name or username')}"></label>
+            <label for="workerResponseMember">${et('Sneup member')}
+              <select id="workerResponseMember" required></select>
+            </label>
+            <label for="workerResponseCardSearch">${et('Find assigned card')}<input id="workerResponseCardSearch" type="search" maxlength="80" autocomplete="off" placeholder="${et('Search card name')}" disabled></label>
+            <label for="workerResponseCard">${et('Assigned Sneup card')}
+              <select id="workerResponseCard" required disabled><option value="" selected>${et('Select a member first')}</option></select>
+            </label>
+            <button class="button" id="addWorkerResponseBinding" type="button">${et('Add mapping')}</button>
+          </fieldset>
+          <div class="toolbar modal-actions">
+            <button class="button" id="cancelWorkerResponseBindings" type="button">${et('Cancel')}</button>
+            <button class="button primary" id="saveWorkerResponseBindings" type="submit">${et('Save mappings')}</button>
+          </div>
+        </form>
+      `;
+      elements.modal.classList.add('open');
+
+      const form = document.getElementById('workerResponseBindingsForm');
+      const list = document.getElementById('workerResponseBindingList');
+      const status = document.getElementById('workerResponseBindingStatus');
+      const memberSearch = document.getElementById('workerResponseMemberSearch');
+      const memberSelect = document.getElementById('workerResponseMember');
+      const cardSearch = document.getElementById('workerResponseCardSearch');
+      const cardSelect = document.getElementById('workerResponseCard');
+      const submitButton = document.getElementById('saveWorkerResponseBindings');
+      const setStatus = (title, message) => {
+        status.textContent = `${t(title)}: ${message}`;
+        status.hidden = false;
+      };
+      const clearStatus = () => {
+        status.textContent = '';
+        status.hidden = true;
+      };
+      const disposeSearchRequests = () => {
+        window.clearTimeout(memberSearchTimer);
+        window.clearTimeout(cardSearchTimer);
+        memberOptionRequest?.abort();
+        cardOptionRequest?.abort();
+        memberOptionRequest = null;
+        cardOptionRequest = null;
+      };
+      callbacks.registerModalCleanup(disposeSearchRequests);
+
+      const renderBindings = () => {
+        list.innerHTML = bindings.length
+          ? bindings.map((binding, index) => `
+            <div class="worker-response-binding-row">
+              <div>
+                <strong>${escapeHtml(WORKER_RESPONSE_SOURCES[binding.source] || binding.source)}: ${escapeHtml(binding.sourceMemberId)} / ${escapeHtml(binding.sourceCardId)}</strong>
+                <span>${et('Member {memberId} to card {cardId}', {
+                  memberId: memberNames.get(String(binding.memberId)) || binding.memberId,
+                  cardId: binding.cardId
+                })}</span>
+              </div>
+              <button class="button" data-remove-worker-response-binding="${index}" type="button">${et('Remove')}</button>
+            </div>
+          `).join('')
+          : `<div class="empty">${et('No inbound worker response mappings are saved for this account.')}</div>`;
+        document.querySelectorAll('[data-remove-worker-response-binding]').forEach((button) => {
+          button.addEventListener('click', () => {
+            bindings = bindings.filter((_, index) => index !== Number(button.dataset.removeWorkerResponseBinding));
+            clearStatus();
+            renderBindings();
+          });
+        });
+      };
+      const renderMembers = () => {
+        memberSelect.innerHTML = `<option value="" selected disabled>${et(members.length ? 'Select assigned member' : 'No matching members')}</option>${members.map(member => `<option value="${escapeHtml(member.id)}">${escapeHtml(member.name)}${member.username ? ` (${escapeHtml(member.username)})` : ''}</option>`).join('')}`;
+        memberSelect.disabled = members.length === 0;
+      };
+      const renderCards = () => {
+        cardSelect.disabled = cards.length === 0;
+        cardSelect.innerHTML = cards.length
+          ? `<option value="" selected disabled>${et('Select assigned card')}</option>${cards.map(card => `<option value="${escapeHtml(card.id)}">${escapeHtml(card.name)}${card.closed ? ` (${et('closed')})` : ''}</option>`).join('')}`
+          : `<option value="" selected>${et('No assigned cards available')}</option>`;
+      };
+      const resetCards = () => {
+        cardOptionRequest?.abort();
+        cardOptionRequest = null;
+        cardRequestId += 1;
+        cards = [];
+        cardSearch.value = '';
+        cardSearch.disabled = true;
+        renderCards();
+      };
+      const loadMembers = async () => {
+        const query = memberSearch.value.trim();
+        const requestId = ++memberRequestId;
+        memberOptionRequest?.abort();
+        const request = new window.AbortController();
+        memberOptionRequest = request;
+        resetCards();
+        memberSelect.disabled = true;
+        memberSelect.innerHTML = `<option value="" selected>${et('Loading members...')}</option>`;
+        try {
+          const data = await callbacks.loadWorkerResponseOptions(accountId, { query, signal: request.signal });
+          if (requestId !== memberRequestId || memberOptionRequest !== request) return;
+          members = Array.isArray(data.members) ? data.members.slice(0, 100) : [];
+          members.forEach(member => memberNames.set(String(member.id), member.name));
+          clearStatus();
+          renderMembers();
+        } catch (error) {
+          if (error.name === 'AbortError' || requestId !== memberRequestId || memberOptionRequest !== request) return;
+          members = [];
+          renderMembers();
+          setStatus('Response mapping members', error.message);
+        } finally {
+          if (memberOptionRequest === request) memberOptionRequest = null;
+        }
+      };
+      const loadCards = async () => {
+        const memberId = memberSelect.value;
+        cardOptionRequest?.abort();
+        const requestId = ++cardRequestId;
+        cards = [];
+        renderCards();
+        cardSearch.disabled = !memberId;
+        if (!memberId) return;
+        const request = new window.AbortController();
+        cardOptionRequest = request;
+        cardSelect.disabled = true;
+        cardSelect.innerHTML = `<option value="" selected>${et('Loading assigned cards...')}</option>`;
+        try {
+          const data = await callbacks.loadWorkerResponseOptions(accountId, {
+            memberId,
+            query: cardSearch.value.trim(),
+            signal: request.signal
+          });
+          if (requestId !== cardRequestId || cardOptionRequest !== request) return;
+          cards = Array.isArray(data.cards) ? data.cards.slice(0, 100) : [];
+          clearStatus();
+          renderCards();
+        } catch (error) {
+          if (error.name === 'AbortError' || requestId !== cardRequestId || cardOptionRequest !== request) return;
+          cardSelect.disabled = true;
+          cardSelect.innerHTML = `<option value="" selected>${et('Assigned cards unavailable')}</option>`;
+          setStatus('Response mapping cards', error.message);
+        } finally {
+          if (cardOptionRequest === request) cardOptionRequest = null;
+        }
+      };
+
+      renderBindings();
+      renderMembers();
+      memberSearch.addEventListener('input', () => {
+        window.clearTimeout(memberSearchTimer);
+        memberSearchTimer = window.setTimeout(loadMembers, 180);
+      });
+      memberSelect.addEventListener('change', loadCards);
+      cardSearch.addEventListener('input', () => {
+        window.clearTimeout(cardSearchTimer);
+        cardSearchTimer = window.setTimeout(loadCards, 180);
+      });
+      document.getElementById('cancelWorkerResponseBindings').addEventListener('click', callbacks.closeModal);
+      document.getElementById('addWorkerResponseBinding').addEventListener('click', () => {
+        clearStatus();
+        const source = document.getElementById('workerResponseSource').value;
+        const sourceMemberId = document.getElementById('workerResponseSourceMember').value.trim();
+        const sourceCardId = document.getElementById('workerResponseSourceCard').value.trim();
+        const memberId = memberSelect.value;
+        const cardId = cardSelect.value;
+        if (!source || !sourceMemberId || !sourceCardId || !memberId || !cardId) {
+          setStatus('Response mapping', t('Choose a source, exact source identifiers, an assigned member, and an assigned card.'));
+          return;
+        }
+        if (!SOURCE_IDENTIFIER_PATTERN.test(sourceMemberId) || !SOURCE_IDENTIFIER_PATTERN.test(sourceCardId)) {
+          setStatus('Response mapping', t('Source identifiers may contain letters, numbers, dots, underscores, colons, and hyphens, up to 160 characters.'));
+          return;
+        }
+        if (bindings.length >= MAX_WORKER_RESPONSE_BINDINGS) {
+          setStatus('Response mapping', t('A maximum of {count} response mappings can be saved for one account.', { count: MAX_WORKER_RESPONSE_BINDINGS }));
+          return;
+        }
+        if (bindings.some(binding => binding.source === source && binding.sourceMemberId === sourceMemberId && binding.sourceCardId === sourceCardId)) {
+          setStatus('Response mapping', t('This source worker and card pair is already mapped.'));
+          return;
+        }
+        bindings = [...bindings, { source, sourceMemberId, sourceCardId, memberId, cardId }];
+        document.getElementById('workerResponseSourceMember').value = '';
+        document.getElementById('workerResponseSourceCard').value = '';
+        memberSelect.value = '';
+        resetCards();
+        renderBindings();
+      });
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (submitButton.disabled) return;
+        clearStatus();
+        submitButton.disabled = true;
+        submitButton.textContent = t('Saving...');
+        let result;
+        try {
+          result = await callbacks.saveWorkerResponseBindings(accountId, bindings);
+        } catch (error) {
+          submitButton.disabled = false;
+          submitButton.textContent = t('Save mappings');
+          setStatus('Response mappings', error.message);
+          return;
+        }
+        bindings = Array.isArray(result.bindings) ? result.bindings : [];
+        callbacks.closeModal();
+        try {
+          await callbacks.loadConnectors();
+          callbacks.openNotice(
+            t('Response mappings saved'),
+            plural(
+              '{count} inbound worker response mapping saved with audit evidence.',
+              '{count} inbound worker response mappings saved with audit evidence.',
+              bindings.length
+            )
+          );
+        } catch (error) {
+          callbacks.openNotice(
+            t('Response mappings saved'),
+            t('The change was saved, but the connector list could not refresh. Reopen Connectors to load the latest state.')
+          );
         }
       });
       return true;
@@ -515,8 +827,17 @@
       bindActions();
     }
 
-    return { openSelectionForm, render };
+    return { openSelectionForm, openWorkerResponseBindings, render };
   }
 
-  return { createController, SELECTION_ACTIONS, SELECTION_FORMS, SYNC_COUNT_FIELDS, DYNAMIC_OPERATOR_MESSAGES, NL_MESSAGES };
+  return {
+    createController,
+    SELECTION_ACTIONS,
+    SELECTION_FORMS,
+    SYNC_COUNT_FIELDS,
+    DYNAMIC_OPERATOR_MESSAGES,
+    NL_MESSAGES,
+    WORKER_RESPONSE_SOURCES,
+    MAX_WORKER_RESPONSE_BINDINGS
+  };
 });

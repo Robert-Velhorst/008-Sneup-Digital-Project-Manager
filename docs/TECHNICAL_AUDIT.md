@@ -44,6 +44,7 @@
 - Isolated workspace administration rendering behind a retry-safe demand-loaded module while keeping every consequential mutation in the existing authenticated controller; browser QA found and fixed missing callback definitions before release.
 - Moved all five remaining workspace policy form renderers into that deferred module while keeping exact payload construction, authenticated updates, fixed high/critical Robert ownership, and provider authority in the controller. The module remains unable to fetch, read credentials, or persist state directly.
 - Moved all ten connector account-selection form renderers into the deferred Connector module. The controller retains authenticated option reads, encoded account routing, exact POST bodies, refreshes, and every credential/provider boundary; the renderer has no network, session, cookie, token, or storage capability.
+- Moved inbound worker-response mapping into the same deferred module, added bounded race-safe searches and exact identifier checks, and fixed successful-write/failed-refresh handling across eleven connector forms so an already-committed mutation is never presented as a failed save.
 - Replaced the eager, unbounded conversational provider call with one lazy response gateway and exhaustive deterministic failure-mode tests while preserving the existing chat response and worker-ledger contracts.
 - Isolated approval and operations-ledger rendering plus approval/workspace-specific Dutch catalogs behind retry-safe demand-loaded modules. API, session, credential, approval, execution, and reconciliation authority remains in the authenticated controller, and exact operational evidence is never machine-translated.
 - Isolated Forecasts and Reports rendering plus view-specific Dutch catalogs behind retry-safe demand-loaded modules. API/session access, form persistence, capacity and project-mapping mutation, report downloads, and provider authority remain in the authenticated controller.
@@ -58,10 +59,18 @@
 | Deployment/rollback | Partial | Select hosting, provision secrets, run canary, and prove rollback. |
 | Data subject deletion | Implemented locally | Owner-authorized export and permanent archived-workspace deletion pass unit, security, UI-wiring, and real-Mongo verification. Capture an owner-controlled hosted acceptance run before production launch. |
 | Accessibility/i18n | Partial | English/Dutch shell, setup, help, command palette, primary workflow, connector marketplace, workspace administration, approval ledger, Work Signals, Forecasts, Reports, and consequential forms/modals pass catalog and targeted responsive checks. Complete an assistive-technology review before claiming conformance. |
-| Desktop resources | Measured | The verified 2.3.23 package used four processes, 360.5 MB working set, 290.4 MB private bytes, and 2.281 cumulative CPU seconds in the repeatable local probe. Collect broader clean-machine traces before setting a hard budget. |
+| Desktop resources | Measured | The verified 2.3.24 package used four processes, 362.5 MB working set, 347.7 MB private bytes, and 1.938 cumulative CPU seconds in the repeatable local probe. Collect broader clean-machine traces before setting a hard budget. |
 | Billing | Not applicable | No billing is required for the local-first product. |
 
 No live credential, provider authorization, deployment, signed binary, or production backup claim is inferred from local tests.
+
+## 2026-08-09 Worker-response mapping technical continuation
+
+**Finding:** the inbound worker-response editor remained in the eager controller and mixed DOM construction with authenticated request orchestration. Out-of-order search results could restore stale choices, failed searches replaced useful context, duplicate submits were possible, account IDs were not encoded on these routes, and a successful write followed by a failed refresh was presented as a failed save.
+
+**Remediation:** move rendering and bounded transient search state into `connectorView.js`; keep fetch, session, exact endpoint/body, and provider authority in `app.js`. Abort and version searches, reset dependent card state, retain the form on recoverable failures, enforce server-matching ID and count bounds, lock active submits, encode account routes, and distinguish save failure from post-commit refresh failure.
+
+**Measured result:** initial app plus localization fell from 243,449 to 233,925 raw bytes, 54,557 to 52,637 gzip bytes, and 45,810 to 44,254 Brotli bytes. The Connector module grows only on demand. The real-Mongo profile returned 15,000 cards at 476.8 ms p50/526 ms p95 with 328.3 MB peak RSS and no provider writes.
 
 ## 2026-08-09 Connector selection technical continuation
 

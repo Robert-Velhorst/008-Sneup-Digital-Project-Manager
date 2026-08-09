@@ -26,6 +26,9 @@ const makeCallbacks = () => ({
   openNotice: jest.fn(),
   closeModal: jest.fn(),
   saveConnectorSelection: jest.fn().mockResolvedValue({}),
+  loadWorkerResponseOptions: jest.fn().mockResolvedValue({ members: [], cards: [] }),
+  saveWorkerResponseBindings: jest.fn().mockResolvedValue({ bindings: [] }),
+  registerModalCleanup: jest.fn(),
   openWorkerResponseBindingsModal: jest.fn(),
   openJiraSiteModal: jest.fn(),
   openConfluenceSiteModal: jest.fn(),
@@ -232,6 +235,159 @@ describe('demand-loaded connector view', () => {
     harness.dom.window.close();
   });
 
+  test('does not repeat a committed selection when only the follow-up refresh fails', async () => {
+    const harness = createHarness('nl');
+    const account = { id: 'account-1', metadata: { fields: { figmaTeamId: '12345' } } };
+    harness.callbacks.loadConnectors.mockRejectedValueOnce(new Error('Refresh unavailable'));
+    harness.controller.openSelectionForm({ kind: 'figma_team', accountId: account.id, account });
+    const form = harness.dom.window.document.getElementById('connectorSelectionForm');
+    const submitButton = form.querySelector('button[type="submit"]');
+    form.dispatchEvent(new harness.dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(harness.callbacks.saveConnectorSelection).toHaveBeenCalledTimes(1);
+    expect(harness.callbacks.closeModal).toHaveBeenCalledTimes(1);
+    expect(submitButton.disabled).toBe(true);
+    expect(harness.callbacks.openNotice).toHaveBeenCalledWith(
+      'Figma-team ingesteld',
+      'De wijziging is opgeslagen, maar de koppelingenlijst kon niet worden vernieuwd. Open Koppelingen opnieuw om de nieuwste status te laden.'
+    );
+    form.dispatchEvent(new harness.dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    await Promise.resolve();
+    expect(harness.callbacks.saveConnectorSelection).toHaveBeenCalledTimes(1);
+    harness.dom.window.close();
+  });
+
+  test('renders, validates, and saves worker response mappings through guarded callbacks', async () => {
+    const harness = createHarness('nl');
+    const memberId = '507f1f77bcf86cd799439011';
+    const cardId = '507f1f77bcf86cd799439012';
+    const account = { id: 'account/one', connectorId: 'webhook_generic' };
+    let resolveSave;
+    harness.callbacks.loadWorkerResponseOptions.mockResolvedValue({
+      cards: [{ id: cardId, name: 'Card <safe>', closed: false }]
+    });
+    harness.callbacks.saveWorkerResponseBindings.mockImplementation(() => new Promise(resolve => {
+      resolveSave = resolve;
+    }));
+
+    expect(harness.controller.openWorkerResponseBindings({
+      accountId: account.id,
+      account,
+      bindingData: { bindings: [] },
+      optionData: { members: [{ id: memberId, name: 'Robert <safe>', username: 'robert' }] }
+    })).toBe(true);
+    expect(harness.elements.modalTitle.textContent).toBe('Inkomende werkreacties instellen');
+    expect(harness.callbacks.registerModalCleanup).toHaveBeenCalledWith(expect.any(Function));
+    expect(harness.elements.modalBody.querySelector('script')).toBeNull();
+    expect(harness.elements.modalBody.querySelector('img')).toBeNull();
+    expect(harness.elements.modalBody.textContent).toContain('Robert <safe>');
+
+    const sourceMember = harness.dom.window.document.getElementById('workerResponseSourceMember');
+    const sourceCard = harness.dom.window.document.getElementById('workerResponseSourceCard');
+    const memberSelect = harness.dom.window.document.getElementById('workerResponseMember');
+    const cardSelect = harness.dom.window.document.getElementById('workerResponseCard');
+    const status = harness.dom.window.document.getElementById('workerResponseBindingStatus');
+    sourceMember.value = 'bad value';
+    sourceCard.value = 'card:1';
+    memberSelect.value = memberId;
+    memberSelect.dispatchEvent(new harness.dom.window.Event('change'));
+    await Promise.resolve();
+    await Promise.resolve();
+    cardSelect.value = cardId;
+    harness.dom.window.document.getElementById('addWorkerResponseBinding').click();
+    expect(status.hidden).toBe(false);
+    expect(status.textContent).toContain('Bron-ID');
+
+    sourceMember.value = 'worker:1';
+    harness.dom.window.document.getElementById('addWorkerResponseBinding').click();
+    expect(harness.elements.modalBody.textContent).toContain('worker:1 / card:1');
+    expect(harness.elements.modalBody.textContent).toContain('Robert <safe>');
+
+    const form = harness.dom.window.document.getElementById('workerResponseBindingsForm');
+    const submitButton = harness.dom.window.document.getElementById('saveWorkerResponseBindings');
+    form.dispatchEvent(new harness.dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    form.dispatchEvent(new harness.dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    expect(submitButton.disabled).toBe(true);
+    expect(harness.callbacks.saveWorkerResponseBindings).toHaveBeenCalledTimes(1);
+    expect(harness.callbacks.saveWorkerResponseBindings).toHaveBeenCalledWith(account.id, [{
+      source: 'slack',
+      sourceMemberId: 'worker:1',
+      sourceCardId: 'card:1',
+      memberId,
+      cardId
+    }]);
+
+    resolveSave({ bindings: [{ source: 'slack', sourceMemberId: 'worker:1', sourceCardId: 'card:1', memberId, cardId }] });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(harness.callbacks.closeModal).toHaveBeenCalledTimes(1);
+    expect(harness.callbacks.loadConnectors).toHaveBeenCalledTimes(1);
+    expect(harness.callbacks.openNotice).toHaveBeenCalledWith(
+      'Reactiekoppelingen opgeslagen',
+      '1 inkomende werkreactiekoppeling opgeslagen met auditbewijs.'
+    );
+    harness.dom.window.close();
+  });
+
+  test('keeps latest worker search results, cleans up requests, and restores failed saves', async () => {
+    jest.useFakeTimers();
+    const harness = createHarness('nl');
+    const account = { id: 'account-1', connectorId: 'webhook_generic' };
+    const requests = new Map();
+    harness.callbacks.loadWorkerResponseOptions.mockImplementation((_accountId, options) => new Promise(resolve => {
+      requests.set(options.query, { resolve, signal: options.signal });
+    }));
+    harness.callbacks.saveWorkerResponseBindings
+      .mockRejectedValueOnce(new Error('Audit unavailable'))
+      .mockResolvedValueOnce({ bindings: [] });
+    harness.controller.openWorkerResponseBindings({
+      accountId: account.id,
+      account,
+      bindingData: { bindings: [] },
+      optionData: { members: [] }
+    });
+
+    const search = harness.dom.window.document.getElementById('workerResponseMemberSearch');
+    search.value = 'old';
+    search.dispatchEvent(new harness.dom.window.Event('input'));
+    jest.advanceTimersByTime(180);
+    await Promise.resolve();
+    search.value = 'new';
+    search.dispatchEvent(new harness.dom.window.Event('input'));
+    jest.advanceTimersByTime(180);
+    await Promise.resolve();
+    expect(requests.get('old').signal.aborted).toBe(true);
+    requests.get('new').resolve({ members: [{ id: '507f1f77bcf86cd799439011', name: 'Newest' }] });
+    await Promise.resolve();
+    await Promise.resolve();
+    requests.get('old').resolve({ members: [{ id: '507f1f77bcf86cd799439013', name: 'Stale' }] });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(harness.dom.window.document.getElementById('workerResponseMember').textContent).toContain('Newest');
+    expect(harness.dom.window.document.getElementById('workerResponseMember').textContent).not.toContain('Stale');
+
+    const form = harness.dom.window.document.getElementById('workerResponseBindingsForm');
+    const submitButton = harness.dom.window.document.getElementById('saveWorkerResponseBindings');
+    form.dispatchEvent(new harness.dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(submitButton.disabled).toBe(false);
+    expect(submitButton.textContent).toBe('Koppelingen opslaan');
+    expect(harness.dom.window.document.getElementById('workerResponseBindingStatus').textContent).toContain('Audit unavailable');
+
+    form.dispatchEvent(new harness.dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(harness.callbacks.saveWorkerResponseBindings).toHaveBeenCalledTimes(2);
+    harness.callbacks.registerModalCleanup.mock.calls[0][0]();
+    harness.dom.window.document.getElementById('cancelWorkerResponseBindings').click();
+    expect(harness.callbacks.closeModal).toHaveBeenCalled();
+    harness.dom.window.close();
+    jest.useRealTimers();
+  });
+
   test('keeps every connector operator message in the Dutch catalog', () => {
     const runtime = createRuntime({ root: null, language: 'nl', storage: null });
     runtime.registerMessages('nl', NL_MESSAGES);
@@ -267,12 +423,19 @@ describe('demand-loaded connector view', () => {
 
   test('keeps selection markup capability-poor and API authority in the application controller', () => {
     expect(moduleSource).toContain('function openSelectionForm(');
+    expect(moduleSource).toContain('function openWorkerResponseBindings(');
     expect(moduleSource).toContain('callbacks.saveConnectorSelection(kind, accountId, body)');
+    expect(moduleSource).toContain('callbacks.saveWorkerResponseBindings(accountId, bindings)');
+    expect(moduleSource).toContain('callbacks.loadWorkerResponseOptions(accountId, { query, signal: request.signal })');
     expect(moduleSource).not.toMatch(/\bfetchApi\b|\bfetch\s*\(|sessionStorage|localStorage|document\.cookie/);
     expect(appSource).toContain('const CONNECTOR_SELECTION_API = Object.freeze({');
     expect(appSource).toContain('return fetchApi(`/api/connectors/accounts/${encodeURIComponent(accountId)}/${config.saveSuffix}`');
     expect(appSource).not.toContain('<form id="figmaTeamForm">');
     expect(appSource).not.toContain('<form id="jiraSiteForm">');
+    expect(appSource).not.toContain('<form id="workerResponseBindingsForm"');
     expect(appSource).not.toContain('Sneup verifies project-read access before saving this company.');
+    expect(appSource).not.toContain('Loading assigned cards...');
+    expect(appSource).toContain('encodeURIComponent(accountId)}/inbound-worker-response-options?');
+    expect(appSource).toContain('encodeURIComponent(accountId)}/inbound-worker-response-bindings');
   });
 });
