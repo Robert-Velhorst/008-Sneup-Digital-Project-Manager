@@ -11,6 +11,7 @@ This backlog turns the high-level improvement plan into concrete engineering fin
 
 ## Latest updates
 
+- ENH-020: The five workspace policy forms now load with Workspace administration instead of Overview. Exact payloads and authenticated writes remain in the trusted controller; initial app-plus-localization transfer fell by 14,798 raw, 2,140 gzip, and 1,673 Brotli bytes without weakening fixed-owner, approval, draft-recovery, or provider-write boundaries.
 - ENH-020: Connector, workspace, and approval rendering are now retry-safe demand-loaded modules. Each API read and module fetch run concurrently, guarded mutations remain in the trusted controller, view-specific Dutch catalogs load with their views, the initial payload is smaller, operational evidence stays verbatim, and the shared immutable-cache fingerprint covers every initial and deferred command-center asset.
 - ENH-006: Setup now joins demo/live mode selection with eight live runtime and provider-write safety checks, prioritized remediation, and a desktop-only redacted support-file action. The file contains no environment values, credentials, logs, connection strings, or user data.
 - ENH-011: Trello card and attachment short links are now canonical, exact dependency identifiers. Core critical-blocker detection no longer searches descriptions for card titles, graph edges resolve across full and short Trello identifiers, and board/card reads request only attachment link metadata instead of full preview payloads.

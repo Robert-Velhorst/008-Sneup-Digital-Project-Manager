@@ -2,6 +2,8 @@
 
 Status meanings: **Implemented** is present and locally verified; **Partial** has useful implementation but an identified gap; **External** requires owner-controlled accounts or infrastructure; **N/A** is outside the product's current surface. No phase is marked complete from documentation alone.
 
+2.3.22 keeps all five reviewed workspace policy forms demand-loaded. Their renderer has no API, credential, cookie, session, or storage authority; exact payload construction and authenticated writes remain in the controller, including fixed Robert ownership for high/critical routing.
+
 | Phase | Status | Evidence or remaining gate |
 | --- | --- | --- |
 | 000 Repository integrity | Implemented | Baseline commit/branch/remote recorded; unrelated worktree artifacts preserved. |

@@ -23,7 +23,9 @@ const makeCallbacks = () => ({
   openPolicyRuleEditor: jest.fn(),
   openFeatureFlagEditor: jest.fn(),
   openFeatureFlagHistory: jest.fn(),
-  loadPolicyHistory: jest.fn()
+  loadPolicyHistory: jest.fn(),
+  closeModal: jest.fn(),
+  enhanceForm: jest.fn()
 });
 
 const elementIds = [
@@ -32,7 +34,8 @@ const elementIds = [
   'workspaceInviteCount', 'workspaceInvitations', 'workspaceInviteButton', 'policyRuleCount',
   'policyRuleList', 'policyHistoryCount', 'policyHistoryList', 'policyHistoryActionFilter',
   'policyHistoryActorFilter', 'policyHistoryRangeFilter', 'featureFlagCount', 'featureFlagList',
-  'integrityCount', 'integrityList', 'retentionCount', 'retentionList'
+  'integrityCount', 'integrityList', 'retentionCount', 'retentionList',
+  'modal', 'modalTitle', 'modalBody'
 ];
 
 const createHarness = (locale = 'nl') => {
@@ -187,6 +190,56 @@ describe('demand-loaded workspace view', () => {
     harness.dom.window.close();
   });
 
+  test('builds all five localized policy forms without gaining API authority', () => {
+    const harness = createHarness('nl');
+    const variants = [
+      {
+        actionType: 'scheduled_intervention_timing', label: 'Timing evidence', policyKind: 'workflow',
+        workflowType: 'scheduled_intervention_timing', followUpAfterHours: 36, escalationAfterHours: 72,
+        expectedKind: 'scheduled_intervention_timing', field: 'followUpAfterHours', value: '36'
+      },
+      {
+        actionType: 'scheduled_intervention_cooldown', label: 'Cooldown evidence', policyKind: 'workflow',
+        workflowType: 'scheduled_intervention_cooldown', cooldownHoursByTrigger: { no_activity: 72 },
+        expectedKind: 'scheduled_intervention_cooldown', field: 'no_activityCooldownHours', value: '72'
+      },
+      {
+        actionType: 'decision_queue_routing', label: 'Routing evidence', policyKind: 'workflow',
+        workflowType: 'decision_queue_routing', routingByRisk: {
+          low: { ownerType: 'va', escalationHours: 12 }, medium: { ownerType: 'team', escalationHours: 24 },
+          high: { ownerType: 'robert', escalationHours: 48 }, critical: { ownerType: 'robert', escalationHours: 8 }
+        },
+        expectedKind: 'decision_queue_routing', field: 'lowOwnerType', value: 'va'
+      },
+      {
+        actionType: 'decision_queue_snooze', label: 'Snooze evidence', policyKind: 'workflow',
+        defaultSnoozeHours: 48, expectedKind: 'decision_queue_snooze', field: 'defaultSnoozeHours', value: '48'
+      },
+      {
+        actionType: 'move_card', label: 'Move evidence', policyKind: 'provider_action', enabled: false,
+        baselineRiskLevel: 'medium', baselineOwnerType: 'team', riskLevel: 'high', ownerType: 'robert',
+        expectedKind: 'provider_action', field: 'riskLevel', value: 'high'
+      }
+    ];
+
+    variants.forEach((variant) => {
+      harness.state.policyRules = [variant];
+      const opened = harness.controller.openPolicyRuleForm(variant.actionType);
+      expect(opened.kind).toBe(variant.expectedKind);
+      expect(opened.form.dataset.draftKey).toBe(`policy-rule:${variant.actionType}`);
+      expect(opened.form.elements[variant.field].value).toBe(variant.value);
+      expect(harness.callbacks.enhanceForm).toHaveBeenLastCalledWith(opened.form);
+    });
+
+    const text = harness.elements.modalBody.textContent;
+    expect(harness.elements.modalTitle.textContent).toBe('Actieveiligheid: Move evidence');
+    expect(text).toContain('Elke Trello-schrijfactie blijft goedkeuringsplichtig.');
+    harness.dom.window.document.getElementById('cancelPolicyRule').click();
+    expect(harness.callbacks.closeModal).toHaveBeenCalledTimes(1);
+    expect(harness.controller.openPolicyRuleForm('unknown')).toBeNull();
+    harness.dom.window.close();
+  });
+
   test('keeps every workspace operator message in the Dutch catalog', () => {
     const runtime = createRuntime({ root: null, language: 'nl', storage: null });
     runtime.registerMessages('nl', WORKSPACE_NL_MESSAGES);
@@ -235,7 +288,14 @@ describe('demand-loaded workspace view', () => {
     expect(appSource).toContain('function openIntegrityRepair()');
     expect(appSource).toContain('function openRetentionPolicy()');
     expect(appSource).toContain('function openRetentionApply()');
+    expect(appSource).toContain('function buildPolicyRuleUpdateBody(');
+    expect(appSource).toContain('workspaceViewController?.openPolicyRuleForm(actionType)');
+    expect(appSource).toContain("fetchApi(`/api/policy-rules/${encodeURIComponent(actionType)}`");
+    expect(appSource).toContain("ownerType: ['high', 'critical'].includes(risk) ? 'robert'");
+    expect(appSource).not.toContain('id="policyRuleForm"');
     expect(appSource).not.toContain('function renderWorkspace(workspace)');
+    expect(moduleSource).toContain('id="policyRuleForm"');
     expect(moduleSource).not.toContain('fetchApi(');
+    expect(moduleSource).not.toMatch(/SESSION_TOKEN|localStorage|sessionStorage|document\.cookie/);
   });
 });

@@ -6,7 +6,7 @@ This report is updated from executed commands at release time. A passing local s
 
 - Branch: `main`
 - Starting commit: `d58266bb982e560ac1324f51eb487ea30665d507`
-- Release under verification: `2.3.21`
+- Release under verification: `2.3.22`
 - Default remote: `origin`
 
 ## Verification ledger
@@ -84,4 +84,21 @@ Live Trello critical-path acceptance, live ngrok/HAI credential acceptance, prod
 | Windows installer | Pass: 109,479,199 bytes, version 2.3.21, unsigned, SHA-256 `B9E47D19CFA2C65A5263558953DF92351E6DD53F680E7965B71D9887AD2A1587`; archive contains `public/forecastView.js` and `public/reportView.js` |
 | Fresh-clone GitHub CI | Pass: run `31329172266` on source `431e99dbfeef8e11105b079c620f101db338cf83`; Node.js 24 quality completed in 49 seconds and Windows packaging/upload in 2 minutes 15 seconds |
 | GitHub installer artifact | Pass: artifact `9042435236`, archive size 109,485,393 bytes, digest `sha256:349a257ffc1cadbdaa37d45cc8e88695fcfa27ecb6fe86c3dc34cd99ef26d79a`; its single installer is 109,479,402 bytes, unsigned, version 2.3.21, SHA-256 `D41A927DDD85B0CC487F092DA3E856ECA4CCD9F6923EB0FE37094D283B023A1F` |
+| External gates | Live provider/ngrok/HAI acceptance, production-like restore/deployment rollback, code signing, clean-VM scaling, and assistive-technology certification remain external |
+
+## 2.3.22 continuation evidence
+
+| Check | Result |
+| --- | --- |
+| Scope | Five workspace policy form renderers moved into the retry-safe deferred Workspace module; exact payload, API, persistence, refresh, and provider authority remains in the controller |
+| Full quality gate | Pass: lint, 111 suites/831 tests, and 5/5 recommendation scenarios at 100% |
+| Dependency security | Pass: full and production audits each report 0 vulnerabilities |
+| Release secrets | Pass: five independent production-style values accepted; values not printed or exposed |
+| Source/syntax | Pass: JavaScript syntax, diff whitespace, CSP/source-authority, five-form rendering, localization, fixed-owner, persistence, retry, and action-delegation checks |
+| Startup profile | Directional pass: import 297.6 ms at 64.4 MB RSS; Overview 94.6 ms at 68.3 MB RSS; 251/263 modules and no Mongoose loaded |
+| Initial payload | Improved from 279,740 to 264,942 raw, 58,547 to 56,407 gzip, and 48,385 to 46,712 Brotli bytes; Workspace remains deferred and combined source after opening is 2,533 raw bytes smaller |
+| Browser QA | Pass: real in-app Browser, English/Dutch, Workspace absent on Overview then loaded once with the shared fingerprint, read-only demo controls, no visible dialog or horizontal overflow, zero warning/error logs |
+| Packaged Windows QA | Pass: version 2.3.22, demo health and eight diagnostics, no exposed secrets, HAI `never_direct`, four processes, normal close, port released |
+| Packaged resource sample | Directional pass: 361.1 MB working set, 292.3 MB private bytes, 1.688 cumulative CPU seconds after the repeatable local packaged probe |
+| Windows installer | Pass: 109,479,448 bytes, version 2.3.22, unsigned, SHA-256 `7AEF17707C0B79EE7832C8AB321228172544E3C386529957B28B9E0498923E21`; archive contains updated `public/workspaceView.js` |
 | External gates | Live provider/ngrok/HAI acceptance, production-like restore/deployment rollback, code signing, clean-VM scaling, and assistive-technology certification remain external |

@@ -12,6 +12,16 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-09 workspace policy-form continuation
+
+- Re-audited the workspace policy UI boundary against the approval-gated operations contract and found five form renderers still paid for on initial dashboard load.
+- Moved timing, cooldown, decision-routing, decision-snooze, and provider-safety form construction into the retry-safe Workspace module while retaining exact payload construction and all authenticated writes in `public/app.js`.
+- Preserved fixed Robert ownership for high/critical queues, guarded form persistence, successful-save cleanup, localized failures, and the rule that policies cannot directly perform provider writes.
+- Reduced initial app-plus-localization transfer by 14,798 raw, 2,140 gzip, and 1,673 Brotli bytes compared with 2.3.21; even after Workspaces opens, combined source is 2,533 raw bytes smaller.
+- In-app Browser QA passed deferred exclusion/loading, shared fingerprint, English/Dutch read-only workspace rendering, containment, and zero current console warnings/errors.
+- Local quality passed 111 suites/831 tests, 5/5 recommendation evaluation, both zero-vulnerability dependency audits, and purpose-separated five-secret validation.
+- Built and verified unsigned `Sneup-Setup-2.3.22.exe`: 109,479,448 bytes, SHA-256 `7AEF17707C0B79EE7832C8AB321228172544E3C386529957B28B9E0498923E21`. Four packaged processes used 361.1 MB working set and 292.3 MB private memory, then closed normally and released the loopback port.
+
 ## 2026-08-09 approval operations continuation
 
 - Re-read the governing operations-ledger specification and traced approval rendering, protected evidence, localization, guarded actions, asset caching, and modal ownership end to end.

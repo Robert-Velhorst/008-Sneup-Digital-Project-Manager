@@ -7,21 +7,30 @@
 | Operational controls | Doctor, readiness, support bundle, emergency stop | Complete |
 | Focused verification | Runtime/security tests and lint | Complete |
 | Traceability | Required document set and completion matrix | Complete |
-| Full regression | 111 suites/830 tests, lint, 5/5 evaluation, two zero-vulnerability dependency audits, and positive five-secret release verification | Complete |
+| Full regression | 111 suites/831 tests, lint, 5/5 evaluation, two zero-vulnerability dependency audits, and positive five-secret release verification | Complete |
 | Portfolio scale | Real mission-control path over 60 boards/15,000 cards; bounded output/evidence, exact compound index, 1.26 s cold, 1.11 s measured p95, no provider writes | Complete locally |
 | Multi-instance jobs | Unit coverage plus disposable MongoDB 7 simultaneous acquisition, token, release, and expiry verification | Complete locally |
 | API contract | `/api/v1` envelope, request correlation, dashboard parser, HAI OpenAPI, live demo HTTP matrix, and compatibility tests | Complete locally |
 | Feature rollouts | Four optional workloads, deterministic subjects, optimistic revisions, bounded cache/history, manager UI, 40-collection real-Mongo verification, and live fail-closed behavior | Complete locally; hosted manager acceptance pending |
 | Data integrity and repair | Bounded dry-run/apply, review-only unsafe findings, all-workspace Trello index migration, audit evidence, and disposable MongoDB verification | Complete locally |
 | Data retention | Owner-only opt-in policy, bounded preview/apply, protected evidence, distributed lease, indexed queries, pre/post audits, real MongoDB proof, and live browser flow | Complete locally |
-| Windows package | 2.3.21 NSIS build, demo diagnostics/HAI smoke, metadata, SHA-256, deferred-module archive check, repeatable resource sample, and clean close | Complete locally; publisher signing external |
+| Windows package | 2.3.22 NSIS build, demo diagnostics/HAI smoke, metadata, SHA-256, deferred-module archive check, repeatable resource sample, and clean close | Complete locally; publisher signing external |
 | Fresh clone | 2.3.21 exact source `431e99dbfeef8e11105b079c620f101db338cf83`; Node 24 quality and Windows installer jobs in run `31329172266` | Complete |
-| Browser and Windows UI | Demand-loaded English/Dutch connector, workspace, approval, Work Signals, graph, Forecasts, and Reports renderers; exact evidence/payload preservation; shared asset-version reuse; refresh; filtering; and containment passed in the in-app Browser with zero current console errors | Complete for these flows; screen-reader/clean-VM evidence pending |
+| Browser and Windows UI | Demand-loaded English/Dutch connector, workspace and policy-form, approval, Work Signals, graph, Forecasts, and Reports renderers; exact evidence/payload preservation; shared asset-version reuse; refresh; filtering; and containment passed in the in-app Browser with zero current console errors | Complete for these flows; screen-reader/clean-VM evidence pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter | Complete locally; live credentials external |
 | GitHub CI | 2.3.21 run `31329172266` passed both jobs; artifact `9042435236` was downloaded and independently checked | Complete |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |
+
+## 2026-08-09 - Workspace policy-form release checkpoint
+
+- Release: 2.3.22
+- Scope: all five workspace policy form renderers moved behind the existing retry-safe deferred Workspace module.
+- Authority boundary: exact payload construction, authentication, API writes, save cleanup, refresh, and provider authority remain in `public/app.js`; `public/workspaceView.js` has no fetch, token, cookie, or storage authority.
+- Verification: lint; 111 suites/831 tests; 5/5 recommendation evaluation; two zero-vulnerability audits; five-secret production check; in-app Browser English/Dutch acceptance; Windows package verification.
+- Installer: `release/Sneup-Setup-2.3.22.exe`, 109,479,448 bytes, unsigned, SHA-256 `7AEF17707C0B79EE7832C8AB321228172544E3C386529957B28B9E0498923E21`.
+- External gates remain: authorized live Trello/ngrok/HAI acceptance, production-like restore and deployment rollback, publisher signing, clean-VM scaling, and assistive-technology certification.
 ## 2026-08-09 - Work Signals renderer release checkpoint
 
 - Release: 2.3.20

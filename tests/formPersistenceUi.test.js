@@ -184,6 +184,7 @@ describe('workspace-scoped form persistence', () => {
 describe('form persistence integration boundaries', () => {
   const appSource = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
   const forecastViewSource = fs.readFileSync(path.join(__dirname, '..', 'public', 'forecastView.js'), 'utf8');
+  const workspaceViewSource = fs.readFileSync(path.join(__dirname, '..', 'public', 'workspaceView.js'), 'utf8');
   const htmlSource = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
 
   test('loads persistence before the application and wires approved operational forms', () => {
@@ -194,7 +195,7 @@ describe('form persistence integration boundaries', () => {
     expect(forecastViewSource).toContain('id="boardProjectMappingsForm" data-draft-key=');
     expect(appSource).toContain('id="retentionPolicyForm" data-draft-key=');
     expect(appSource).toContain('id="featureFlagForm" class="notice-stack" data-draft-key=');
-    expect(appSource).toContain('id="policyRuleForm" class="notice-stack" data-draft-key=');
+    expect(workspaceViewSource).toContain('id="policyRuleForm" class="notice-stack" data-draft-key=');
     expect(appSource).toContain('enhanceForm: form => formPersistence?.enhanceForm(form)');
     expect(appSource).toContain('formPersistence?.markSaved(form)');
   });

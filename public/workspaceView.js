@@ -449,6 +449,160 @@
       document.querySelector('[data-retention-apply]')?.addEventListener('click', callbacks.openRetentionApply);
     }
 
+    function toDateTimeLocalValue(value) {
+      if (!value) return '';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '';
+      const offset = date.getTimezoneOffset() * 60 * 1000;
+      return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+    }
+
+    function mountPolicyRuleForm({ actionType, policy, kind, title, html, submitLabel, blockedTitle, triggers = [], risks = [] }) {
+      if (!elements.modal || !elements.modalTitle || !elements.modalBody) return null;
+      elements.modalTitle.textContent = title;
+      elements.modalBody.innerHTML = html;
+      elements.modal.classList.add('open');
+      const form = document.getElementById('policyRuleForm');
+      if (!form) return null;
+      callbacks.enhanceForm?.(form);
+      document.getElementById('cancelPolicyRule')?.addEventListener('click', callbacks.closeModal);
+      return { actionType, policy, kind, form, submitLabel, blockedTitle, triggers, risks };
+    }
+
+    function openPolicyRuleForm(actionType) {
+      const policy = (state.policyRules || []).find(item => item.actionType === actionType);
+      if (!policy) return null;
+      const draftKey = `policy-rule:${escapeHtml(actionType)}`;
+
+      if (policy.workflowType === 'scheduled_intervention_timing') {
+        return mountPolicyRuleForm({
+          actionType,
+          policy,
+          kind: 'scheduled_intervention_timing',
+          title: policy.label,
+          submitLabel: 'Save timing defaults',
+          blockedTitle: 'Timing defaults blocked',
+          html: `
+            <form id="policyRuleForm" class="notice-stack" data-draft-key="${draftKey}" data-draft-fields="followUpAfterHours,escalationAfterHours,reason" data-template-fields="followUpAfterHours,escalationAfterHours">
+              <div class="notice">${et('This policy only controls when Sneup creates internal follow-up or escalation candidates. It can retain or lengthen the 24-hour follow-up and 48-hour escalation baselines up to 7 days. Escalation cannot precede follow-up, and this policy never prepares or performs a provider write.')}</div>
+              <div class="workflow-routing-grid">
+                <fieldset class="workflow-routing-row"><legend>${et('Follow-up candidate')}</legend><label>${et('Create after no response (hours)')}<input name="followUpAfterHours" type="number" min="24" max="168" step="1" value="${escapeHtml(String(policy.followUpAfterHours || 24))}" required></label></fieldset>
+                <fieldset class="workflow-routing-row"><legend>${et('Escalation candidate')}</legend><label>${et('Create after no response (hours)')}<input name="escalationAfterHours" type="number" min="48" max="168" step="1" value="${escapeHtml(String(policy.escalationAfterHours || 48))}" required></label></fieldset>
+              </div>
+              <label>${et('Reason')}<textarea name="reason" rows="3" maxlength="500" placeholder="${et('Why this workspace needs longer follow-up timing')}">${escapeHtml(policy.reason || '')}</textarea></label>
+              <div class="toolbar modal-actions"><button class="button" type="button" id="cancelPolicyRule">${et('Cancel')}</button><button class="button primary" type="submit">${et('Save timing defaults')}</button></div>
+            </form>
+          `
+        });
+      }
+
+      if (policy.workflowType === 'scheduled_intervention_cooldown') {
+        const cooldowns = policy.cooldownHoursByTrigger || {};
+        const labels = {
+          card_stuck: 'Stuck card', no_activity: 'No activity', overdue: 'Overdue card',
+          member_overloaded: 'Member overloaded', blocking_others: 'Blocking other work',
+          no_response_to_followup: 'No response to follow-up', performance_milestone: 'Performance milestone'
+        };
+        const triggers = Object.keys(labels);
+        const cooldownFields = triggers.map(trigger => `${trigger}CooldownHours`);
+        const rows = triggers.map(trigger => `
+          <fieldset class="workflow-routing-row"><legend>${et(labels[trigger])}</legend><label>${et('Suppress equivalent scheduled recommendations for (hours)')}<input name="${trigger}CooldownHours" type="number" min="24" max="168" step="1" value="${escapeHtml(String(cooldowns[trigger] || 24))}" required></label></fieldset>
+        `).join('');
+        return mountPolicyRuleForm({
+          actionType,
+          policy,
+          kind: 'scheduled_intervention_cooldown',
+          title: policy.label,
+          submitLabel: 'Save cooldown defaults',
+          blockedTitle: 'Cooldown defaults blocked',
+          triggers,
+          html: `
+            <form id="policyRuleForm" class="notice-stack" data-draft-key="${draftKey}" data-draft-fields="${cooldownFields.join(',')},reason" data-template-fields="${cooldownFields.join(',')}">
+              <div class="notice">${et('This policy only suppresses duplicate scheduled intervention candidates. It can lengthen the 24-hour baseline up to 7 days, never shortens it, and never prepares or performs a provider write. Manual requests are not suppressed.')}</div>
+              <div class="workflow-routing-grid">${rows}</div>
+              <label>${et('Reason')}<textarea name="reason" rows="3" maxlength="500" placeholder="${et('Why this workspace needs longer signal cooldowns')}">${escapeHtml(policy.reason || '')}</textarea></label>
+              <div class="toolbar modal-actions"><button class="button" type="button" id="cancelPolicyRule">${et('Cancel')}</button><button class="button primary" type="submit">${et('Save cooldown defaults')}</button></div>
+            </form>
+          `
+        });
+      }
+
+      if (policy.workflowType === 'decision_queue_routing') {
+        const routing = policy.routingByRisk || {};
+        const risks = ['low', 'medium', 'high', 'critical'];
+        const routingFields = risks.flatMap(risk => [`${risk}OwnerType`, `${risk}EscalationHours`]);
+        const riskLabels = { low: 'Low-risk queue', medium: 'Medium-risk queue', high: 'High-risk queue', critical: 'Critical queue' };
+        const rows = risks.map((risk) => {
+          const entry = routing[risk] || {};
+          const ownerControl = ['high', 'critical'].includes(risk)
+            ? `<span class="workflow-fixed-owner">${et('Robert only')}</span>`
+            : `<select name="${risk}OwnerType">${['va', 'team', 'robert'].map(owner => `<option value="${owner}" ${owner === entry.ownerType ? 'selected' : ''}>${et(owner)}</option>`).join('')}</select>`;
+          return `<fieldset class="workflow-routing-row"><legend>${et(riskLabels[risk])}</legend><label>${et('Decision owner')}${ownerControl}</label><label>${et('Escalate to Robert after (hours)')}<input name="${risk}EscalationHours" type="number" min="1" max="168" step="1" value="${escapeHtml(String(entry.escalationHours || 24))}" required></label></fieldset>`;
+        }).join('');
+        return mountPolicyRuleForm({
+          actionType,
+          policy,
+          kind: 'decision_queue_routing',
+          title: policy.label,
+          submitLabel: 'Save queue defaults',
+          blockedTitle: 'Queue defaults blocked',
+          risks,
+          html: `
+            <form id="policyRuleForm" class="notice-stack" data-draft-key="${draftKey}" data-draft-fields="${routingFields.join(',')},reason" data-template-fields="${routingFields.join(',')}">
+              <div class="notice">${et('This policy only routes internal decision queue items. When a VA or team item reaches its review deadline, Sneup records the escalation and moves it to Robert. It never prepares or performs a provider write.')}</div>
+              <div class="workflow-routing-grid">${rows}</div>
+              <label>${et('Reason')}<textarea name="reason" rows="3" maxlength="500" placeholder="${et('Why this workspace needs these queue defaults')}">${escapeHtml(policy.reason || '')}</textarea></label>
+              <div class="toolbar modal-actions"><button class="button" type="button" id="cancelPolicyRule">${et('Cancel')}</button><button class="button primary" type="submit">${et('Save queue defaults')}</button></div>
+            </form>
+          `
+        });
+      }
+
+      if (policy.policyKind === 'workflow') {
+        return mountPolicyRuleForm({
+          actionType,
+          policy,
+          kind: 'decision_queue_snooze',
+          title: policy.label,
+          submitLabel: 'Save workflow default',
+          blockedTitle: 'Workflow default blocked',
+          html: `
+            <form id="policyRuleForm" class="notice-stack" data-draft-key="${draftKey}" data-draft-fields="defaultSnoozeHours,reason" data-template-fields="defaultSnoozeHours">
+              <div class="notice">${et('This default only reschedules internal decision queue items. It never prepares or performs a provider write.')}</div>
+              <label>${et('Default snooze duration (hours)')}<input name="defaultSnoozeHours" type="number" min="1" max="168" step="1" value="${escapeHtml(String(policy.defaultSnoozeHours || 24))}" required><small>${et('Choose between 1 hour and 7 days. People can still choose an explicit future deadline where the API permits it.')}</small></label>
+              <label>${et('Reason')}<textarea name="reason" rows="3" maxlength="500" placeholder="${et('Why this workspace needs this default')}">${escapeHtml(policy.reason || '')}</textarea></label>
+              <div class="toolbar modal-actions"><button class="button" type="button" id="cancelPolicyRule">${et('Cancel')}</button><button class="button primary" type="submit">${et('Save workflow default')}</button></div>
+            </form>
+          `
+        });
+      }
+
+      const riskLevels = ['low', 'medium', 'high', 'critical'];
+      const ownerStrictness = { system: 0, va: 1, team: 1, robert: 2 };
+      const availableRisks = riskLevels.filter(level => riskLevels.indexOf(level) >= riskLevels.indexOf(policy.baselineRiskLevel));
+      const availableOwners = ['system', 'va', 'team', 'robert'].filter(owner => ownerStrictness[owner] >= ownerStrictness[policy.baselineOwnerType]);
+      return mountPolicyRuleForm({
+        actionType,
+        policy,
+        kind: 'provider_action',
+        title: t('Action safety: {label}', { label: policy.label }),
+        submitLabel: 'Save safety rule',
+        blockedTitle: 'Safety rule blocked',
+        html: `
+          <form id="policyRuleForm" class="notice-stack" data-draft-key="${draftKey}" data-draft-fields="enabled,pauseExpiresAt,riskLevel,ownerType,reason" data-template-fields="enabled,pauseExpiresAt,riskLevel,ownerType">
+            <div class="notice">${et('Every Trello write remains approval-gated. This workspace rule can pause this action type or make its risk and decision owner stricter.')}</div>
+            <label><input name="enabled" type="checkbox" ${policy.enabled ? 'checked' : ''}> ${et('Allow approved {label} actions to execute', { label: policy.label })}</label>
+            <label>${et('Pause review time')}<input name="pauseExpiresAt" type="datetime-local" value="${escapeHtml(toDateTimeLocalValue(policy.pauseExpiresAt))}"><small>${et('An expired pause stays paused until a manager reviews it; Sneup never re-enables it automatically.')}</small></label>
+            <label>${et('Risk level')}<select name="riskLevel">${availableRisks.map(level => `<option value="${escapeHtml(level)}" ${level === policy.riskLevel ? 'selected' : ''}>${et(level)}</option>`).join('')}</select></label>
+            <label>${et('Decision owner')}<select name="ownerType">${availableOwners.map(owner => `<option value="${escapeHtml(owner)}" ${owner === policy.ownerType ? 'selected' : ''}>${et(owner)}</option>`).join('')}</select></label>
+            <label>${et('Reason')}<textarea name="reason" rows="3" maxlength="500" placeholder="${et('Why this action needs this safety posture')}">${escapeHtml(policy.reason || '')}</textarea></label>
+            <label><input name="confirmRelaxation" type="checkbox"> ${et('I confirm that this may relax an existing workspace safety rule.')}</label>
+            <div class="toolbar modal-actions"><button class="button" type="button" id="cancelPolicyRule">${et('Cancel')}</button><button class="button primary" type="submit">${et('Save safety rule')}</button></div>
+          </form>
+        `
+      });
+    }
+
     function bindActions() {
       document.querySelectorAll('[data-workspace-user-sessions]').forEach((button) => {
         button.addEventListener('click', () => callbacks.openWorkspaceUserSessions(button.dataset.workspaceUserSessions));
@@ -563,7 +717,7 @@
       bindActions();
     }
 
-    return { render, renderIntegrityReport, renderRetentionReport };
+    return { openPolicyRuleForm, render, renderIntegrityReport, renderRetentionReport };
   }
 
   return { createController, DYNAMIC_OPERATOR_MESSAGES, NL_MESSAGES };

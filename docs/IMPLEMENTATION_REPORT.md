@@ -1,5 +1,9 @@
 # Sneup Implementation Report
 
+## 2.3.22 continuation
+
+Sneup now constructs its five workspace policy editors only after Workspace administration is opened. The deferred renderer owns localized, escaped form markup and guarded UI delegation; the authenticated controller continues to own exact payload construction, API writes, successful-save cleanup, errors, refreshes, and every provider boundary. This removes 14,798 raw bytes from initial app-plus-localization delivery and adds complete seeded DOM/source regressions for each policy form.
+
 ## Connector Coverage
 
 Sneup now includes an account connector marketplace for project-management tools used by human project managers from 2015 through 2026.

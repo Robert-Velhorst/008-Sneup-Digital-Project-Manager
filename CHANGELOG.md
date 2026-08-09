@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.3.22 - 2026-08-09
+
+### Demand-loaded workspace policy forms
+
+- Moved all five workspace policy form renderers into the existing retry-safe Workspace module, so Overview no longer downloads their markup, Dutch catalog strings, or form-construction code.
+- Kept exact update-payload construction, authenticated API writes, saved-draft cleanup, error handling, and workspace refresh authority in the application controller. The deferred module can only render a form and delegate guarded UI callbacks.
+- Preserved the fixed Robert ownership boundary for high- and critical-risk decision queues and the approval-only, no-direct-provider-write behavior of every policy.
+
+### Resource, security, browser, and Windows verification
+
+- Reduced the initial app-plus-localization payload by 14,798 raw, 2,140 gzip, and 1,673 Brotli bytes compared with 2.3.21. The Workspace module remains deferred and the combined source is still 2,533 raw bytes smaller after it is opened.
+- Added five-form rendering, localization, values, draft-key, cancellation, persistence-hook, retry, source-authority, and fixed-owner regressions. The full local gate passes 111 suites/831 tests, the 5/5 recommendation safety evaluation, two zero-vulnerability audits, and five-secret production-style validation.
+- In-app Browser acceptance passed Overview exclusion, one-time shared-fingerprint Workspace loading, English/Dutch rendering, read-only demo controls, layout containment, and zero current console warnings/errors.
+- Built and verified unsigned `Sneup-Setup-2.3.22.exe`: 109,479,448 bytes, SHA-256 `7AEF17707C0B79EE7832C8AB321228172544E3C386529957B28B9E0498923E21`. Packaged verification passed eight diagnostics, no secret exposure, HAI `never_direct`, normal close, and port release.
+
 ## 2.3.21 - 2026-08-09
 
 ### Demand-loaded Forecasts and Reports
