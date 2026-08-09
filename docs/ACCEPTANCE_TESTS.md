@@ -15,6 +15,6 @@
 | A11 | Connector read-only guarantee | adapter tests and safety profiles | Provider consent review | Pass for code; consent external |
 | A12 | Notifications require explicit policy | notification tests | Verified sender and destination | Automated pass, delivery pending |
 | A13 | Redacted support evidence | `runtimeDiagnostics.test.js`; `npm run support:bundle` | Inspect generated JSON | Pass locally |
-| A14 | CI and installer | `.github/workflows/ci.yml` | Green GitHub run and downloaded artifact | Local 2.3.2 installer pass; exact GitHub run pending |
+| A14 | CI and installer | `.github/workflows/ci.yml` | Green GitHub run and installer artifact | Pass: 2.3.2 run `31295756051` |
 
 Production acceptance requires all pending live cells to be executed with organization-owned accounts. Demo data is not evidence of live-provider success.
