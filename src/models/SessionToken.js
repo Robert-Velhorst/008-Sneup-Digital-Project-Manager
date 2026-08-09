@@ -67,6 +67,7 @@ const tokenPepper = () => getTokenPepper(
 sessionTokenSchema.index({ workspaceId: 1, userId: 1, status: 1 });
 sessionTokenSchema.index({ tokenPrefix: 1, status: 1 });
 sessionTokenSchema.index({ status: 1, expiresAt: 1 });
+sessionTokenSchema.index({ workspaceId: 1, status: 1, updatedAt: 1 });
 
 sessionTokenSchema.statics.generateRawToken = function() {
   return `sneup_session_${crypto.randomBytes(32).toString('base64url')}`;

@@ -129,6 +129,8 @@ Runtime logs redact credentials, authorization headers, cookies, credential-bear
 
 Terminal workspace invitations are retained as lifecycle evidence only. The daily `identity.invitation_retention` job redacts the invite email, display name, token prefix, token hash, and delivery failure code after `SNEUP_INVITE_RETENTION_DAYS` (default `90`, bounded from `7` to `3650`) while preserving status, role, dates, and aggregate workspace audit evidence. Tune the bounded batch with `SNEUP_INVITE_RETENTION_BATCH_SIZE` (default `100`, maximum `250`) and the scheduled run with `SNEUP_INVITE_RETENTION_CRON`.
 
+Workspace owners can preview and opt into bounded Data Retention from Workspace Administration. The policy covers only terminal job history, old board-health snapshots, performance history, finalized notification receipts, and revoked or expired credentials. It is off by default, records a high-risk audit before and after each category batch, uses a distributed workspace lease, and never prunes audit events, approvals, recommendations, Trello action attempts, active credentials, pending deliveries, or current project/work-graph data. Manual pruning requires the exact workspace slug; `npm run verify:data-retention` proves the deletion and exclusion boundaries against a dedicated disposable MongoDB database.
+
 The Windows installer uses the bundled Sneup icon. Release signing and automatic updates remain release-infrastructure tasks: configure a publisher certificate and update feed in the release environment before distributing a trusted production build.
 
 ### Authenticated ngrok cloud access

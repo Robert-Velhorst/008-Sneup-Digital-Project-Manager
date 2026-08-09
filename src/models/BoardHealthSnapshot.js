@@ -63,5 +63,6 @@ const boardHealthSnapshotSchema = new mongoose.Schema({
 
 boardHealthSnapshotSchema.index({ boardId: 1, generatedAt: -1 });
 boardHealthSnapshotSchema.index({ workspaceId: 1, boardId: 1, generatedAt: -1 });
+boardHealthSnapshotSchema.index({ workspaceId: 1, generatedAt: 1 });
 
 module.exports = mongoose.models.BoardHealthSnapshot || mongoose.model('BoardHealthSnapshot', boardHealthSnapshotSchema);

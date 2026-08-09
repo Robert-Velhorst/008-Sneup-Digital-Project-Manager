@@ -154,6 +154,7 @@ const performanceSchema = new mongoose.Schema({
 // Indexes
 performanceSchema.index({ workspaceId: 1, memberId: 1, period: 1, startDate: -1 });
 performanceSchema.index({ workspaceId: 1, boardId: 1, period: 1, startDate: -1 });
+performanceSchema.index({ workspaceId: 1, endDate: 1 });
 performanceSchema.index({ memberId: 1, period: 1, startDate: -1 });
 performanceSchema.index({ boardId: 1, period: 1, startDate: -1 });
 performanceSchema.index({ 'calculated.performanceScore': -1 });

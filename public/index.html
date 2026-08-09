@@ -492,6 +492,19 @@
 
           <section class="panel">
             <div class="panel-head">
+              <h2>Data Retention</h2>
+              <div class="toolbar">
+                <span class="pill review" id="retentionCount">not scanned</span>
+                <button class="button" id="retentionScanButton" type="button">Scan</button>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="list" id="retentionList"></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
               <h2>Safety History</h2>
               <div class="toolbar">
                 <select id="policyHistoryActionFilter" aria-label="Safety history policy filter"></select>

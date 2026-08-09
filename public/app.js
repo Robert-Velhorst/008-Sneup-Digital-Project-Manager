@@ -35,6 +35,8 @@ const state = {
   featureFlagError: '',
   integrityReport: null,
   integrityError: '',
+  retentionReport: null,
+  retentionError: '',
   policyHistoryFilters: {
     actionType: '',
     actor: '',
@@ -179,6 +181,9 @@ const els = {
   integrityCount: document.getElementById('integrityCount'),
   integrityList: document.getElementById('integrityList'),
   integrityScanButton: document.getElementById('integrityScanButton'),
+  retentionCount: document.getElementById('retentionCount'),
+  retentionList: document.getElementById('retentionList'),
+  retentionScanButton: document.getElementById('retentionScanButton'),
   setupButton: document.getElementById('setupButton'),
   commandPaletteButton: document.getElementById('commandPaletteButton'),
   commandPalette: document.getElementById('commandPalette'),
@@ -228,6 +233,7 @@ els.workspaceInviteButton.addEventListener('click', openWorkspaceInvite);
 els.workspaceExportButton.addEventListener('click', downloadWorkspaceExport);
 els.workspaceDeleteButton.addEventListener('click', openWorkspaceDeletion);
 els.integrityScanButton.addEventListener('click', () => loadIntegrityReport({ announce: true }));
+els.retentionScanButton.addEventListener('click', () => loadRetentionReport({ announce: true }));
 els.workspaceSelect.addEventListener('change', async (event) => {
   state.activeWorkspaceId = event.target.value;
   if (state.activeWorkspaceId) {
@@ -1132,10 +1138,15 @@ async function loadWorkspaceAdmin() {
       state.policyHistoryError = '';
       state.integrityReport = null;
       state.integrityError = 'Demo workspace is read-only.';
+      state.retentionReport = null;
+      state.retentionError = 'Demo workspace is read-only.';
       renderWorkspaces();
       return;
     }
-    await loadIntegrityReport({ render: false });
+    await Promise.all([
+      loadIntegrityReport({ render: false }),
+      loadRetentionReport({ render: false })
+    ]);
     try {
       const [policyData, historyData] = await Promise.all([
         fetchApi('/api/policy-rules'),
@@ -1208,6 +1219,23 @@ async function loadIntegrityReport(options = {}) {
   } finally {
     els.integrityScanButton.disabled = false;
     if (options.render !== false) renderIntegrityReport();
+  }
+}
+
+async function loadRetentionReport(options = {}) {
+  els.retentionScanButton.disabled = true;
+  try {
+    const data = await fetchApi('/api/data-retention?limit=200');
+    state.retentionReport = data.report;
+    state.retentionError = '';
+    if (options.announce) openNotice('Retention scan complete', `${data.report.summary.due} old record(s) are currently due.`);
+  } catch (error) {
+    state.retentionReport = null;
+    state.retentionError = error.message;
+    if (options.announce) openNotice('Retention scan failed', error.message);
+  } finally {
+    els.retentionScanButton.disabled = false;
+    if (options.render !== false) renderRetentionReport();
   }
 }
 
@@ -3098,6 +3126,7 @@ function renderWorkspaces(errorMessage = '') {
     ? `<div class="notice">${escapeHtml(state.featureFlagError)}</div>`
     : listOrEmpty(featureFlags, renderFeatureFlag);
   renderIntegrityReport();
+  renderRetentionReport();
   bindWorkspaceIdentityActions();
   bindPolicyRuleActions();
   bindPolicyHistoryActions();
@@ -3170,6 +3199,118 @@ function openIntegrityRepair() {
       event.currentTarget.disabled = false;
       event.currentTarget.textContent = `Repair ${repairable.length}`;
       openNotice('Repair failed', error.message);
+    }
+  });
+}
+
+function renderRetentionReport() {
+  const report = state.retentionReport;
+  if (state.retentionError) {
+    els.retentionCount.textContent = 'scan unavailable';
+    els.retentionList.innerHTML = `<div class="notice">${escapeHtml(state.retentionError)}</div>`;
+    return;
+  }
+  if (!report) {
+    els.retentionCount.textContent = 'not scanned';
+    els.retentionList.innerHTML = '<div class="empty">Run a bounded retention scan.</div>';
+    return;
+  }
+  const owner = !state.securityContext?.demoMode
+    && (state.securityContext?.roles || []).includes('owner')
+    && state.securityContext?.permissions?.includes('data-retention:manage');
+  els.retentionCount.textContent = `${report.summary.due} due`;
+  const policyState = report.policy.enabled ? 'active' : 'off';
+  const summary = `
+    <div class="item">
+      <div class="item-title"><strong>Retention policy</strong><span class="pill ${report.policy.enabled ? 'healthy' : 'review'}">${policyState}</span></div>
+      <div class="meta"><span>Operations ${report.policy.operationalDays}d</span><span>Performance ${report.policy.performanceDays}d</span><span>Notifications ${report.policy.notificationDays}d</span><span>Credentials ${report.policy.credentialDays}d</span></div>
+      <div class="meta"><span>Audit, approvals, actions, active credentials, pending deliveries, and current project data stay protected</span></div>
+      ${owner ? `<div class="item-actions"><button class="button" data-retention-configure type="button">Configure</button>${report.policy.enabled && report.summary.due > 0 ? '<button class="button danger" data-retention-apply type="button">Prune due records</button>' : ''}</div>` : ''}
+    </div>`;
+  const rows = report.categories.map(item => `
+    <div class="item">
+      <div class="item-title"><strong>${escapeHtml(item.label)}</strong><span class="pill ${item.due ? 'review' : 'healthy'}">${item.due} due${item.truncated ? '+' : ''}</span></div>
+      <div class="meta"><span>${item.retentionDays} days</span><span>Before ${escapeHtml(formatDate(item.cutoff))}</span><span>${item.truncated ? 'More remain for a later bounded pass' : 'Complete bounded result'}</span></div>
+    </div>`).join('');
+  els.retentionList.innerHTML = summary + rows;
+  document.querySelector('[data-retention-configure]')?.addEventListener('click', openRetentionPolicy);
+  document.querySelector('[data-retention-apply]')?.addEventListener('click', openRetentionApply);
+}
+
+function openRetentionPolicy() {
+  const policy = state.retentionReport?.policy;
+  if (!policy) return;
+  els.modalTitle.textContent = 'Data retention policy';
+  els.modalBody.innerHTML = `
+    <form class="form-grid" id="retentionPolicyForm">
+      <label class="checkbox-row"><input id="retentionEnabled" type="checkbox" ${policy.enabled ? 'checked' : ''}> <span>Run scheduled retention</span></label>
+      <label>Operational history days<input id="retentionOperationalDays" type="number" min="30" max="730" value="${policy.operationalDays}" required></label>
+      <label>Performance history days<input id="retentionPerformanceDays" type="number" min="180" max="2555" value="${policy.performanceDays}" required></label>
+      <label>Notification receipt days<input id="retentionNotificationDays" type="number" min="90" max="2555" value="${policy.notificationDays}" required></label>
+      <label>Revoked credential days<input id="retentionCredentialDays" type="number" min="30" max="730" value="${policy.credentialDays}" required></label>
+      <div class="toolbar modal-actions"><button class="button" id="cancelRetentionPolicy" type="button">Cancel</button><button class="button primary" type="submit">Save policy</button></div>
+    </form>`;
+  els.modal.classList.add('open');
+  document.getElementById('cancelRetentionPolicy').addEventListener('click', closeModal);
+  document.getElementById('retentionPolicyForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    const submit = event.currentTarget.querySelector('[type="submit"]');
+    submit.disabled = true;
+    try {
+      await fetchApi('/api/data-retention/policy', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enabled: document.getElementById('retentionEnabled').checked,
+          operationalDays: Number(document.getElementById('retentionOperationalDays').value),
+          performanceDays: Number(document.getElementById('retentionPerformanceDays').value),
+          notificationDays: Number(document.getElementById('retentionNotificationDays').value),
+          credentialDays: Number(document.getElementById('retentionCredentialDays').value)
+        })
+      });
+      closeModal();
+      await loadRetentionReport();
+      openNotice('Retention policy saved', 'The workspace retention policy is active with the reviewed limits.');
+    } catch (error) {
+      submit.disabled = false;
+      openNotice('Policy update failed', error.message);
+    }
+  });
+}
+
+function openRetentionApply() {
+  const report = state.retentionReport;
+  if (!report?.policy?.enabled || report.summary.due === 0) return;
+  els.modalTitle.textContent = 'Prune expired history';
+  els.modalBody.innerHTML = `
+    <form class="form-grid" id="retentionApplyForm">
+      <div class="notice">This permanently removes up to ${report.summary.due} due operational record(s). Provider actions, approvals, audit events, active credentials, pending notifications, and current project data are excluded.</div>
+      <label>Workspace slug<input id="retentionWorkspaceConfirmation" type="text" autocomplete="off" placeholder="${escapeHtml(report.workspaceSlug)}" required></label>
+      <div class="toolbar modal-actions"><button class="button" id="cancelRetentionApply" type="button">Cancel</button><button class="button danger" type="submit">Prune due records</button></div>
+    </form>`;
+  els.modal.classList.add('open');
+  document.getElementById('cancelRetentionApply').addEventListener('click', closeModal);
+  document.getElementById('retentionApplyForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    const submit = event.currentTarget.querySelector('[type="submit"]');
+    submit.disabled = true;
+    try {
+      const data = await fetchApi('/api/data-retention/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          confirm: 'prune-expired-history',
+          workspaceConfirmation: document.getElementById('retentionWorkspaceConfirmation').value,
+          limit: report.limit,
+          categories: report.categories.filter(item => item.due > 0).map(item => item.key)
+        })
+      });
+      closeModal();
+      await loadRetentionReport();
+      openNotice('Retention complete', `${data.result.deleted} old record(s) removed with audit evidence.`);
+    } catch (error) {
+      submit.disabled = false;
+      openNotice('Retention failed', error.message);
     }
   });
 }

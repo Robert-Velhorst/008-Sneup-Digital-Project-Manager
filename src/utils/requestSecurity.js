@@ -18,6 +18,7 @@ const ALL_PERMISSIONS = Object.freeze([
   'capacity:manage',
   'chat:write',
   'connectors:manage',
+  'data-retention:manage',
   'decision-queue:manage',
   'feature-flags:manage',
   'follow-ups:manage',

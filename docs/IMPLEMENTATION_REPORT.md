@@ -26,6 +26,7 @@ Fixed or mitigated:
 - OAuth redirect URI host hardening.
 - Regex escaping for card-name dependency searches.
 - Optional OpenAI startup, with local fallback responses.
+- Owner-controlled data retention is disabled by default, range-bounded, preview-first, protected by a cross-process workspace lease, and audited before and after every destructive category batch. It cannot target audit, approval, recommendation, provider-action, active credential, pending delivery, or current project/work-graph evidence.
 
 Remaining hardening:
 
@@ -46,6 +47,7 @@ Reduced avoidable resource use:
 - API rate limiting has a hard bounded bucket map, expires stale state first, evicts least-recently-used pressure state only when needed, and exposes aggregate capacity metrics without request identifiers.
 - NLP imports only the tokenization, sentence splitting, TF-IDF, English AFINN sentiment, and Porter stemming modules used by Sneup. The Windows build excludes Natural's unused language packs, classifiers, WordNet, and unused storage-client dependencies while preserving the existing NLP implementations.
 - NLP is now demand-loaded only when card-content analysis runs, so normal server and desktop startup do not initialize Natural. Routine successful requests also avoid disk logging unless explicitly enabled; rejected, failed, and slow requests remain visible.
+- Retention scans use compound workspace/status/date indexes and cap each category at 500 records per pass, preventing indefinite operational-history growth without introducing an unbounded cleanup query.
 
 Installer footprint:
 
@@ -60,9 +62,9 @@ Added:
 - Secure preload bridge in `desktop/preload.js`.
 - `npm run desktop` for local desktop testing.
 - `npm run build:installer` / `npm run dist:win` for Windows NSIS packaging.
-- Current release target: `release/Sneup-Setup-2.3.6.exe`.
+- Current release target: `release/Sneup-Setup-2.3.7.exe`.
 
-The verified 2.3.6 installer is 109,433,640 bytes with SHA-256 `D703178EE0E7A6AC1E853997FF3052EFE11082E550F95B673B05041043244948`. It is intentionally reported as unsigned until an owner-controlled publisher certificate is available. The packaged executable reports product/file version 2.3.6 and carries the Windows x64 native ngrok binding.
+The verified 2.3.7 installer is 109,437,557 bytes with SHA-256 `49FDDB4A27C250FFDD23586E71AB37A1F7FD332CF5AACA2662C2AE42471E8087`. It is intentionally reported as unsigned until an owner-controlled publisher certificate is available. The packaged executable reports product/file version 2.3.7, and its 65,833,187-byte archive carries the retention UI/API/worker code and Windows x64 native ngrok binding.
 
 The desktop app starts Sneup on `127.0.0.1` and opens the command center in an app window. On first run it starts in demo mode. The workspace choice stores only the non-secret `demo` or `live` startup preference in the Electron user-data directory, then relaunches before Sneup initializes. Production live mode fails closed before opening the HTTP listener when MongoDB is unavailable. The Windows error dialog can persist an explicit read-only demo choice and relaunch, preventing a failed live preference from trapping the user. An explicitly set `SNEUP_DEMO_MODE` environment variable takes precedence over the local preference until the user chooses the recovery action.
 
@@ -70,9 +72,9 @@ The desktop app starts Sneup on `127.0.0.1` and opens the command center in an a
 
 - Syntax checks passed for changed JavaScript files.
 - `npm run lint` passed with the new Node/ES2022 ESLint config.
-- `npm test -- --runInBand` passed 711 tests across 88 suites.
+- `npm test -- --runInBand` passed 721 tests across 91 suites.
 - `npm audit --omit=dev` reported 0 vulnerabilities.
 - Local HTTP smoke tests passed for health, connector catalog, and mission control.
-- The in-app Browser connected but its webview did not attach on two fresh tabs. The documented Playwright fallback passed the full integrity scan/confirmation/repair/rescan flow at 1440x1000 and 390x844 with zero console warnings or errors.
+- The in-app Browser webview did not attach, then connected Chrome passed retention preview, exact-slug confirmation, 2/2 disposable pruning, zero rescan, and desktop/mobile policy-modal measurements with zero console warnings or errors.
 - The current resource pass passed `npm run lint`, a production-only `npm audit` with zero findings, and a fresh Windows NSIS build after inspecting its packaged archive.
-- The packaged 2.3.6 demo used four processes and settled to 399.5 MB working set and 359.5 MB private memory; CPU advanced 1.54 seconds over a 30-second idle sample. It then closed normally and released port 3198.
+- The final packaged 2.3.7 demo used four processes and stayed effectively flat from 415.6/380.7 MB to 415.8/380.7 MB working/private memory over 15 seconds; CPU advanced 0.02 seconds while a separate standalone-backend sample advanced 0.00 seconds over 15 seconds. It then closed normally and released port 3199.

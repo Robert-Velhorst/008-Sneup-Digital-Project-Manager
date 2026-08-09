@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.3.7 - 2026-08-09
+
+### Added
+
+- Added owner-controlled workspace retention policies for terminal job history, board-health snapshots, performance history, finalized notification receipts, and revoked or expired credentials.
+- Added a bounded preview, exact-workspace manual confirmation, daily opt-in worker, distributed lease protection, and `npm run verify:data-retention` real-Mongo proof.
+
+### Security and resilience
+
+- Retention is disabled by default, owner-only, range-bounded, and audited before and after every destructive category batch.
+- Audit events, approvals, recommendations, Trello action attempts, active credentials, non-final notification deliveries, and current project/work-graph records are never retention candidates.
+- The worker and manual API share one workspace lease; failed pre-delete audit storage blocks deletion and every delete re-applies the workspace, status, and cutoff query to the exact previewed IDs.
+
+### Performance
+
+- Each retention category uses a compound workspace/status/date index and reads at most 501 IDs per pass, with a 200-record default.
+- Retention data loads only with Workspace Administration and performs no provider reads or writes.
+
 ## 2.3.6 - 2026-08-09
 
 ### Added

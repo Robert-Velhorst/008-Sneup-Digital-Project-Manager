@@ -52,6 +52,17 @@ npm.cmd run repair:data -- --workspace default --apply --confirm repair-derived-
 
 Apply mode re-scans, skips changed fingerprints, writes an audit event for each successful internal update, and never contacts a provider or retries a delivery.
 
+## Data retention
+
+Workspace owners configure retention in Workspace Administration. Keep the policy disabled until its four windows have been reviewed. The preview and each scheduled or manual pass are bounded; manual pruning additionally requires the exact workspace slug. `SNEUP_DATA_RETENTION_CRON` controls the daily worker schedule.
+
+The policy can remove only terminal job history, old board-health snapshots, performance history, finalized notification receipts, and revoked or expired credentials. Audit events, approvals, recommendations, Trello action attempts, active credentials, pending deliveries, and current project/work-graph records are excluded. A failed pre-delete audit blocks the category batch. Validate the boundary against a dedicated disposable database with:
+
+```powershell
+$env:SNEUP_DATA_RETENTION_VERIFICATION_MONGO_URI='mongodb://127.0.0.1:27017/sneup_data_retention_verification_local'
+npm.cmd run verify:data-retention
+```
+
 ## Backup and restore
 
 Use MongoDB-native, encrypted, access-controlled backups. Before a release, restore the backup into an isolated database, run workspace migration preflight, compare collection counts and critical indexes, and execute read-only acceptance checks. Never use a production restore target for rehearsal.

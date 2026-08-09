@@ -32,6 +32,37 @@ const workspaceSchema = new mongoose.Schema({
       type: String,
       enum: ['robert', 'va', 'team', 'system'],
       default: 'robert'
+    },
+    dataRetention: {
+      enabled: {
+        type: Boolean,
+        default: false
+      },
+      operationalDays: {
+        type: Number,
+        min: 30,
+        max: 730,
+        default: 90
+      },
+      performanceDays: {
+        type: Number,
+        min: 180,
+        max: 2555,
+        default: 730
+      },
+      notificationDays: {
+        type: Number,
+        min: 90,
+        max: 2555,
+        default: 365
+      },
+      credentialDays: {
+        type: Number,
+        min: 30,
+        max: 730,
+        default: 90
+      },
+      lastProcessedAt: Date
     }
   },
   metadata: {
@@ -44,6 +75,7 @@ const workspaceSchema = new mongoose.Schema({
 
 workspaceSchema.index({ slug: 1 }, { unique: true });
 workspaceSchema.index({ status: 1, updatedAt: -1 });
+workspaceSchema.index({ status: 1, 'settings.dataRetention.enabled': 1, 'settings.dataRetention.lastProcessedAt': 1 });
 
 workspaceSchema.statics.defaultWorkspaceKey = function() {
   return process.env.SNEUP_DEFAULT_WORKSPACE_ID || 'default';

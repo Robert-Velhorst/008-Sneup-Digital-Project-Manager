@@ -5,8 +5,8 @@ This report is updated from executed commands at release time. A passing local s
 ## Baseline
 
 - Branch: `main`
-- Starting commit: `de76a7decbe3a713a8b590419ac9544950bd826d`
-- Release under verification: `2.3.6`
+- Starting commit: `9af51b5fc17959d28a33ca62272c5b5998b1cb29`
+- Release under verification: `2.3.7`
 - Default remote: `origin`
 
 ## Verification ledger
@@ -14,9 +14,10 @@ This report is updated from executed commands at release time. A passing local s
 | Check | Result |
 | --- | --- |
 | Focused integrity/migration tests | Pass; dry-run, confirmation, permission, atomic-drift, audit, review-only, CLI, and all-workspace Trello-index migration boundaries covered |
+| Focused retention tests | Pass: owner permissions, policy bounds, dry-run exclusions, exact confirmation, pre-delete audit failure, distributed worker lease, UI wiring, and rotation across bounded workspace batches |
 | ESLint | Pass |
 | Doctor | Pass with expected local warnings for absent MongoDB/Trello configuration; no errors; ngrok disabled locally |
-| Full regression | Pass: 88 suites, 711 tests |
+| Full regression | Pass: 91 suites, 721 tests |
 | Recommendation evaluation | Pass: 5/5 scenarios, score 100% |
 | Production and full dependency audit | Pass: 0 vulnerabilities after lockfile remediation |
 | Release security positive check | Pass: five purpose-separated production secrets, no values exposed |
@@ -28,15 +29,17 @@ This report is updated from executed commands at release time. A passing local s
 | HAI HTTP smoke | Pass: versioned manifest/OpenAPI paths, capabilities `snapshot,propose`, provider writes `never_direct`, structured demo snapshot with stable board/card identifiers |
 | ngrok packaging/safety | Pass: official Windows x64 native binding bundled; missing, weak, or placeholder remote credentials fail closed |
 | Real MongoDB integrity repair | Pass: 40 collections migrated; two safe derived-state findings repaired with two audits; ambiguous Trello attempt remained review-only; provider writes false |
+| Real MongoDB data retention | Pass: six eligible categories deleted, six protected records retained, six pre/post audit pairs stored, six query indexes verified, provider writes false |
+| Retention performance sample | Pass: six-category preview 35.09 ms, six audited category batches 936.39 ms, verifier RSS 94.1 MB; seven supporting indexes verified |
 | Integrity API performance sample | Pass: 30 live requests measured 14.01 ms p50 and 23.71 ms p95; server working set 119.5 MB after browser QA |
-| Browser QA | Pass via local Playwright fallback after the in-app Browser webview failed twice: 1440x1000 and 390x844, zero console warnings/errors, two faults scanned, confirmation opened, 2/2 repaired, zero-finding rescan |
+| Browser QA | Pass: after the in-app Browser webview did not attach, connected Chrome previewed two due retention categories, confirmed the exact workspace, pruned 2/2 disposable records, rescanned to zero, and reported no console warnings/errors, overflow, or mobile modal overlap |
 | Windows UI automation | The installed Windows-control package did not expose its required guidance interface; no undocumented input was attempted and visual evidence is not inferred from HTTP or window metadata |
-| Packaged Windows QA | Pass: 2.3.6 served readiness/version/integrity/HAI checks, retained `never_direct`, closed normally, and released port 3198; unavailable live MongoDB kept the port closed |
-| Packaged idle sample | Pass: four processes settled from 405.6/366.2 MB to 399.5/359.5 MB working/private memory over 30 seconds; CPU advanced 1.54 seconds |
-| Windows installer | Pass: local build 109,433,640 bytes, unsigned, SHA-256 `D703178EE0E7A6AC1E853997FF3052EFE11082E550F95B673B05041043244948`; executable metadata reports 2.3.6 and archive contains integrity UI/API plus Windows x64 ngrok binding |
-| Fresh clone | Pass: source commit `2e1f767b287ff572962d583b19f74b676a84718d` completed GitHub run `31302533822` from clean runners |
-| GitHub CI | Pass with zero failures/annotations: Node.js 24 quality in 1m12s and Windows installer in 2m17s |
-| GitHub installer artifact | Pass: artifact `9034945692` (`sneup-windows-installer-unsigned`), archive digest `sha256:dcf6f2d80ef6ced46bcc097d11cda4dd2fe5ead71331cd9c46657fe89866ccad`; downloaded executable 109,433,841 bytes, unsigned, version 2.3.6, SHA-256 `6863CE73CB0DD66E024E6C2C2ECF1E028556251E9156354069F3E0A5B96F8AD7` |
+| Packaged Windows QA | Pass: 2.3.7 served readiness/version/retention/HAI metadata in explicit demo mode, retained `never_direct`, closed normally, and released port 3199 |
+| Packaged idle sample | Pass: the final four-process build stayed effectively flat from 415.6/380.7 MB to 415.8/380.7 MB working/private memory over 15 seconds; CPU advanced 0.02 seconds. A separate standalone-backend sample advanced 0.00 seconds over 15 seconds. |
+| Windows installer | Pass: local build 109,437,557 bytes, unsigned, SHA-256 `49FDDB4A27C250FFDD23586E71AB37A1F7FD332CF5AACA2662C2AE42471E8087`; executable metadata reports 2.3.7 and the 65,833,187-byte archive contains retention UI/API/worker plus Windows x64 ngrok binding |
+| Fresh clone | Pending exact 2.3.7 GitHub run |
+| GitHub CI | Pending exact 2.3.7 GitHub run |
+| GitHub installer artifact | Pending exact 2.3.7 GitHub artifact |
 
 ## External gates
 

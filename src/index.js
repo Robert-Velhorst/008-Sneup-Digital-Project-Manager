@@ -25,6 +25,8 @@ const { validateRuntimeSecurityConfiguration } = require('./utils/securityConfig
 const { getRuntimeReadiness } = require('./services/runtimeDiagnosticsService');
 const ngrokTunnelService = require('./services/ngrokTunnelService');
 const workspaceDeletionWorker = require('./workers/workspaceDeletionWorker');
+const identityRetentionWorker = require('./workers/identityRetentionWorker');
+const dataRetentionWorker = require('./workers/dataRetentionWorker');
 const { RequestLoggingService } = require('./services/requestLoggingService');
 const {
   DATABASE_FAILURE_MODES,
@@ -62,6 +64,7 @@ const operationsLedgerRoutes = require('./routes/operationsLedger');
 const haiIntegrationRoutes = require('./routes/haiIntegration');
 const featureFlagRoutes = require('./routes/featureFlags');
 const integrityRoutes = require('./routes/integrity');
+const dataRetentionRoutes = require('./routes/dataRetention');
 
 // Initialize Express app
 const app = express();
@@ -178,6 +181,7 @@ app.use('/api/v1/operations-ledger', operationsLedgerRoutes);
 app.use('/api/v1/integrations/hai', haiIntegrationRoutes);
 app.use('/api/v1/feature-flags', featureFlagRoutes);
 app.use('/api/v1/integrity', integrityRoutes);
+app.use('/api/v1/data-retention', dataRetentionRoutes);
 
 // Backward-compatible API routes.
 app.use('/api/boards', boardRoutes);
@@ -209,6 +213,7 @@ app.use('/api/operations-ledger', operationsLedgerRoutes);
 app.use('/api/integrations/hai', haiIntegrationRoutes);
 app.use('/api/feature-flags', featureFlagRoutes);
 app.use('/api/integrity', integrityRoutes);
+app.use('/api/data-retention', dataRetentionRoutes);
 
 // Machine-readable product metadata; the command center owns the browser root.
 const productMetadata = (req, res) => {
@@ -232,7 +237,8 @@ const productMetadata = (req, res) => {
       'HAI approval-gated integration',
       'Authenticated ngrok ingress',
       'Capacity-aware P50/P80 delivery forecasts',
-      'Audited internal data integrity repair'
+      'Audited internal data integrity repair',
+      'Owner-controlled bounded data retention'
     ]
   });
 };
@@ -349,8 +355,8 @@ const initApp = async () => {
       const notificationWorker = require('./workers/notificationWorker');
       notificationWorker.init();
 
-      const identityRetentionWorker = require('./workers/identityRetentionWorker');
       identityRetentionWorker.init();
+      dataRetentionWorker.init();
 
       workspaceDeletionWorker.init();
     } else {
@@ -397,6 +403,8 @@ const closeServer = () => new Promise((resolve, reject) => {
 
 const shutdown = async () => {
   workspaceDeletionWorker.stop();
+  identityRetentionWorker.stop();
+  dataRetentionWorker.stop();
   await ngrokTunnelService.stop();
   await closeServer();
   if (isDatabaseConnected()) await disconnectDatabase();

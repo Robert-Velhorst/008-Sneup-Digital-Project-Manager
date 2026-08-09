@@ -96,8 +96,8 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 089 Stabilization gates | Implemented | Focused, full, security, installer, and fresh-clone gates. |
 | 090 No vanity work | Implemented | Changes target operability, safety, evidence, and delivery. |
 | 091 Feature definition of done | Implemented | Status requires wiring, reachability, tests, docs, and evidence. |
-| 092 Fresh-clone run | Implemented | 2.3.6 passes 88 local suites/711 tests, lint, evaluation, audits, real-Mongo migration/repair verification, and live integrity UI/latency/resource sampling; exact source `2e1f767b287ff572962d583b19f74b676a84718d` passed GitHub run `31302533822` with zero failures/annotations and installer artifact `9034945692`. |
-| 093 Manual evidence | Partial | 2.3.6 live browser repair flow passes at 1440x1000 and 390x844 with no console warnings; packaged runtime, installer, live provider, and clean-VM evidence are tracked separately. |
+| 092 Fresh-clone run | Implemented | 2.3.7 passes 91 local suites/721 tests, lint, evaluation, audits, real-Mongo retention verification, live retention UI, and installer/resource sampling; exact fresh-clone GitHub evidence is recorded after publication. |
+| 093 Manual evidence | Partial | 2.3.7 live browser retention preview/prune/rescan and policy editor pass desktop/mobile measurements with no console warnings; packaged runtime and installer pass locally while live provider and clean-VM evidence remain external. |
 | 094 No-excuses search | Implemented | No shipped TODO/FIXME/HACK, dynamic-code, child-process, or secret-pattern finding. |
 | 095 Completion matrix | Implemented | This file, with partial/external states retained. |
 | 096 Verification report | Implemented | Final commands, clean-checkout result, installer hash, browser QA, and packaged Windows QA are recorded. |
@@ -106,7 +106,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 099 Roadmap/blocked items | Implemented | External and partial gates named here and in technical audit. |
 | 100 Provider cleanup/account safety | Partial | Revoke/stop process documented; owner account execution external. |
 | 101 Support/debug bundle | Implemented | Redacted `support:bundle`; no logs/user data/secrets. |
-| 102 Retention/archive | Partial | Invitation retention exists; all-domain retention controls are missing. |
+| 102 Retention/archive | Implemented | Invitation PII redaction plus owner-controlled, opt-in, bounded workspace retention cover terminal operations, snapshots, performance history, finalized notification receipts, and revoked credentials while preserving audit/provider-action/current-work evidence. |
 | 103 Prototype-to-production migration | Partial | Workspace migration exists; hosted production migration rehearsal pending. |
 | 104 Safety stop/emergency | Implemented | Audited global provider-write stop and workspace action pauses. |
 | 105 Onboarding/first run | Partial | Workspace invitations/demo exist; guided wizard is limited. |

@@ -70,6 +70,7 @@ const tokenPepper = () => getTokenPepper(
 
 apiTokenSchema.index({ workspaceId: 1, tokenPrefix: 1 });
 apiTokenSchema.index({ status: 1, expiresAt: 1 });
+apiTokenSchema.index({ workspaceId: 1, status: 1, updatedAt: 1 });
 
 apiTokenSchema.statics.prefixFor = function(token) {
   return String(token || '').slice(0, 10);

@@ -79,5 +79,6 @@ const notificationDeliverySchema = new mongoose.Schema({
 notificationDeliverySchema.index({ workspaceId: 1, policyId: 1, dedupeKey: 1 }, { unique: true });
 notificationDeliverySchema.index({ workspaceId: 1, status: 1, createdAt: -1 });
 notificationDeliverySchema.index({ workspaceId: 1, policyId: 1, eventType: 1, status: 1, createdAt: 1 });
+notificationDeliverySchema.index({ workspaceId: 1, status: 1, updatedAt: 1 });
 
 module.exports = mongoose.models.NotificationDelivery || mongoose.model('NotificationDelivery', notificationDeliverySchema);

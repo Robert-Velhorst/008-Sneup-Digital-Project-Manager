@@ -129,6 +129,13 @@ const trackedJobs = [
     label: 'Invitation privacy retention',
     staleAfterMinutes: 26 * 60,
     manualTriggerAllowed: false
+  },
+  {
+    jobName: 'privacy.data_retention',
+    jobType: 'security',
+    label: 'Workspace data retention',
+    staleAfterMinutes: 26 * 60,
+    manualTriggerAllowed: false
   }
 ];
 
