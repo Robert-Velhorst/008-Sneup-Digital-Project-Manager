@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.3.18 - 2026-08-09
+
+### Demand-loaded workspace administration
+
+- Moved workspace, people, invitation, action-policy, safety-history, feature-rollout, integrity, and retention rendering out of the eager command-center bundle into a retry-safe module loaded only when Workspace administration opens.
+- Kept every consequential API mutation in the existing trusted controller. The renderer receives only explicit callbacks and has no API, session-token, or persistence access of its own.
+- Localized the complete workspace administration renderer in English and Dutch while preserving workspace names, people, provider identities, policy labels, audit actors, feature descriptions/reasons, and integrity evidence verbatim.
+
+### Resource, browser, and release verification
+
+- Reduced the eager app script from 310,673 to 291,628 bytes. Despite the larger localization catalog, the initial app-plus-localization payload is 13,128 raw, 2,062 gzip, and 1,350 Brotli bytes smaller; the 25,229-byte workspace renderer is fetched only on demand.
+- Added renderer, action-delegation, localization-completeness, guarded-callback, CSP, and shared-cache-fingerprint regressions. In-app Browser QA caught and fixed missing guarded callback definitions before release, then passed English/Dutch, refresh, fingerprint reuse, and 480x844 containment with zero current console warnings/errors.
+- The full gate passes 108 suites/809 tests, the 5/5 safety evaluation, two zero-vulnerability dependency audits, purpose-separated production-secret validation, and the verified 2.3.18 Windows package.
+
 ## 2.3.17 - 2026-08-09
 
 ### Demand-loaded connector marketplace

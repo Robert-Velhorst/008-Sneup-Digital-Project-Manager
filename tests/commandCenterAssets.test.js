@@ -10,6 +10,7 @@ describe('command-center asset fingerprint coverage', () => {
     const expected = [
       'app.js',
       'connectorView.js',
+      'workspaceView.js',
       'formPersistence.js',
       'helpCenter.js',
       'i18n.js',

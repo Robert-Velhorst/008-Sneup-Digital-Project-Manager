@@ -41,6 +41,7 @@
 - Removed the production database-outage demo fallback, added clean startup-error propagation and Windows recovery, and corrected populated HAI identifiers at the public snapshot boundary.
 - Replaced process-only scheduled-job overlap guards with reusable MongoDB leases for startup, scheduled, worker, API, and manual runs; webhook concurrency and provider-write claims remain independent.
 - Added `/api/v1`, centralized frontend response parsing, request/header/log correlation, and versioned HAI discovery without changing provider callback, webhook, streamed export, report, or legacy contracts.
+- Isolated workspace administration rendering behind a retry-safe demand-loaded module while keeping every consequential mutation in the existing authenticated controller; browser QA found and fixed missing callback definitions before release.
 - Replaced the eager, unbounded conversational provider call with one lazy response gateway and exhaustive deterministic failure-mode tests while preserving the existing chat response and worker-ledger contracts.
 
 ## Remaining release risks
@@ -52,7 +53,7 @@
 | Code signing | External | Provide an organization-owned Windows signing certificate and secure CI signing process. |
 | Deployment/rollback | Partial | Select hosting, provision secrets, run canary, and prove rollback. |
 | Data subject deletion | Implemented locally | Owner-authorized export and permanent archived-workspace deletion pass unit, security, UI-wiring, and real-Mongo verification. Capture an owner-controlled hosted acceptance run before production launch. |
-| Accessibility/i18n | Partial | English/Dutch shell, setup, help, command-palette, primary workflow, and connector-marketplace catalogs pass accessible-name and responsive browser checks. Complete approval/workspace dynamic copy and an assistive-technology review before claiming conformance. |
+| Accessibility/i18n | Partial | English/Dutch shell, setup, help, command-palette, primary workflow, connector marketplace, and workspace renderer pass accessible-name and responsive browser checks. Complete approval and consequential workspace modal/form copy plus an assistive-technology review before claiming conformance. |
 | Desktop resources | Measured | The final 2.3.3 package used four processes, 408.5 MB working set, 340.3 MB private bytes, and 6.30 cumulative CPU seconds after startup plus 30 seconds idle. Collect broader clean-machine traces before setting a hard budget. |
 | Billing | Not applicable | No billing is required for the local-first product. |
 

@@ -47,8 +47,8 @@ Reduced avoidable resource use:
 - Duplicate Mongoose index declarations were removed to reduce startup warnings and index churn.
 - The command center loads hidden views on demand and exposes bounded, recent response-time p50/p95 summaries for the known view APIs. The telemetry retains neither request data nor unbounded history.
 - Context-sensitive help is a separate static browser module covering all command-center views, setup, decision safety, and privacy. It builds no hidden topic DOM until first open, and its search and rendering use no API request, storage, database work, provider traffic, polling, or new dependency.
-- English/Dutch localization is a standalone 42,522-byte browser module with exact-message translation, local date/number/plural formatting, and one bounded local-storage preference. It now covers complete connector operator chrome while never auto-translating provider, user, audit, or source-evidence text.
-- Connector catalog rendering is a separate 21,089-byte demand-loaded browser module. Sneup starts its module fetch and catalog request concurrently, reuses one controller, and clears failed loads for retry. The eager app is 18,823 bytes smaller; all seven initial/deferred assets share a content-derived immutable-cache version.
+- English/Dutch localization is a standalone 48,439-byte browser module with exact-message translation, local date/number/plural formatting, and one bounded local-storage preference. It now covers complete connector and workspace renderer chrome while never auto-translating provider, user, audit, or source-evidence text.
+- Connector and workspace rendering use separate demand-loaded browser modules. Sneup starts each module fetch and API request concurrently, reuses each controller, and clears failed loads for retry. The eager app is 19,045 bytes smaller than 2.3.17; even with the expanded catalog, initial app-plus-localization is 13,128 raw and 2,062 gzip bytes smaller. All eight initial/deferred assets share a content-derived immutable-cache version.
 - API rate limiting has a hard bounded bucket map, expires stale state first, evicts least-recently-used pressure state only when needed, and exposes aggregate capacity metrics without request identifiers.
 - NLP imports only the tokenization, sentence splitting, TF-IDF, English AFINN sentiment, and Porter stemming modules used by Sneup. The Windows build excludes Natural's unused language packs, classifiers, WordNet, and unused storage-client dependencies while preserving the existing NLP implementations.
 - NLP is now demand-loaded only when card-content analysis runs, so normal server and desktop startup do not initialize Natural. Routine successful requests also avoid disk logging unless explicitly enabled; rejected, failed, and slow requests remain visible.
@@ -76,10 +76,10 @@ The desktop app starts Sneup on `127.0.0.1` and opens the command center in an a
 ## Verification
 
 - Syntax checks passed for changed JavaScript files.
-- The final quality gate passed 107 suites/805 tests, lint, and the 5/5 recommendation evaluation.
-- The current demo startup profile imported 251 modules at 67.5 MB RSS and served the complete initial overview at 71.5 MB RSS without loading Mongoose.
+- The final quality gate passed 108 suites/809 tests, lint, and the 5/5 recommendation evaluation.
+- The current demo startup profile imported 251 modules at 67.0 MB RSS and served the complete initial overview at 71.2 MB RSS without loading Mongoose.
 - The guarded real-Mongo scale profile passed 60 boards and 15,000 cards at 1.26 seconds cold and 0.61-1.11 seconds repeated-read latency; its exact query index was selected and provider writes remained false.
-- The in-app Browser passed demand-loaded connector behavior, English/Dutch restoration, search, readiness filtering, all four catalog-only entries, provider-evidence preservation, shared asset versioning, desktop/compact containment, and zero current console errors.
-- The packaged 2.3.17 demo settled to four processes, 360.5 MB working set, 294.6 MB private memory, and 1.406 cumulative CPU seconds after 30 seconds; normal close released every process and the loopback port.
+- The in-app Browser passed demand-loaded connector and workspace behavior, English/Dutch restoration, refresh/module reuse, provider/user/evidence preservation, shared asset versioning, desktop/480x844 containment, and zero current console errors.
+- The packaged 2.3.18 demo settled to four processes, 361.9 MB working set, 295.3 MB private memory, and 1.328 cumulative CPU seconds after 30 seconds; normal close released every process and the loopback port.
 - Production-only and complete dependency audits both reported zero vulnerabilities; the five-secret production release check passed without exposing values.
 - Prior live disposable-workspace draft and preset coverage remains part of the browser acceptance evidence.

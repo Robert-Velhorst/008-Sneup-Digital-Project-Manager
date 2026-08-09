@@ -20,8 +20,10 @@ const appAssetVersion = (() => {
   }
 })();
 let connectorViewPromise;
+let workspaceViewPromise;
+let workspaceViewController;
 
-function loadBrowserModule(path, globalName) {
+function loadBrowserModule(path, globalName, messages = {}) {
   if (window[globalName]) return Promise.resolve(window[globalName]);
   return new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -36,11 +38,11 @@ function loadBrowserModule(path, globalName) {
         return;
       }
       script.remove();
-      reject(new Error(t('The connector view loaded without its runtime. Try again.')));
+      reject(new Error(t(messages.runtime || 'This view loaded without its runtime. Try again.')));
     }, { once: true });
     script.addEventListener('error', () => {
       script.remove();
-      reject(new Error(t('The connector view could not be loaded. Check the connection and try again.')));
+      reject(new Error(t(messages.load || 'This view could not be loaded. Check the connection and try again.')));
     }, { once: true });
     document.head.appendChild(script);
   });
@@ -48,7 +50,10 @@ function loadBrowserModule(path, globalName) {
 
 function loadConnectorView() {
   if (!connectorViewPromise) {
-    connectorViewPromise = loadBrowserModule('/connectorView.js', 'SneupConnectorView')
+    connectorViewPromise = loadBrowserModule('/connectorView.js', 'SneupConnectorView', {
+      runtime: 'The connector view loaded without its runtime. Try again.',
+      load: 'The connector view could not be loaded. Check the connection and try again.'
+    })
       .then(module => module.createController({
         document,
         window,
@@ -83,6 +88,47 @@ function loadConnectorView() {
       });
   }
   return connectorViewPromise;
+}
+
+function loadWorkspaceView() {
+  if (!workspaceViewPromise) {
+    workspaceViewPromise = loadBrowserModule('/workspaceView.js', 'SneupWorkspaceView', {
+      runtime: 'The workspace view loaded without its runtime. Try again.',
+      load: 'The workspace view could not be loaded. Check the connection and try again.'
+    })
+      .then(module => module.createController({
+        document,
+        state,
+        elements: els,
+        t,
+        plural: tp,
+        escapeHtml,
+        formatDate,
+        severityClass,
+        callbacks: {
+          openIntegrityRepair,
+          openRetentionPolicy,
+          openRetentionApply,
+          openWorkspaceUserSessions,
+          openInviteRevocationConfirmation,
+          openInviteDeliveryRetryConfirmation,
+          openPolicyRuleEditor,
+          openFeatureFlagEditor,
+          openFeatureFlagHistory,
+          loadPolicyHistory
+        }
+      }))
+      .then((controller) => {
+        workspaceViewController = controller;
+        return controller;
+      })
+      .catch((error) => {
+        workspaceViewPromise = null;
+        workspaceViewController = null;
+        throw error;
+      });
+  }
+  return workspaceViewPromise;
 }
 
 const state = {
@@ -1351,7 +1397,10 @@ async function loadWorkSignals() {
 
 async function loadWorkspaceAdmin() {
   try {
-    const current = await fetchApi('/api/workspaces/current');
+    const [current] = await Promise.all([
+      fetchApi('/api/workspaces/current'),
+      loadWorkspaceView()
+    ]);
     state.currentWorkspace = current.workspace;
     if (current.auth?.demoMode) {
       state.activeWorkspaceId = current.workspace.id;
@@ -1427,7 +1476,11 @@ async function loadWorkspaceAdmin() {
     state.policyHistory = [];
     state.policyHistoryError = error.message;
     state.workspaces = state.currentWorkspace ? [state.currentWorkspace] : [];
-    renderWorkspaces(error.message);
+    if (workspaceViewController) {
+      renderWorkspaces(error.message);
+    } else {
+      els.workspaceList.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
+    }
   }
 }
 
@@ -3282,121 +3335,15 @@ function renderBoard(board) {
 }
 
 function renderWorkspaces(errorMessage = '') {
-  const workspaces = state.workspaces || [];
-  const currentWorkspaceId = state.activeWorkspaceId || state.currentWorkspace?.id || '';
-  const currentWorkspace = workspaces.find(workspace => workspace.id === currentWorkspaceId)
-    || state.currentWorkspace
-    || workspaces[0];
-
-  els.workspaceCount.textContent = workspaces.length || 1;
-  els.workspaceMode.textContent = state.securityContext?.workspaceOverrideAllowed ? 'switchable' : 'locked';
-
-  const options = workspaces.length > 0
-    ? workspaces.map(workspace => `
-      <option value="${escapeHtml(workspace.id)}" ${workspace.id === currentWorkspaceId ? 'selected' : ''}>
-        ${escapeHtml(workspace.name)}
-      </option>
-    `).join('')
-    : `<option value="${escapeHtml(currentWorkspaceId)}">${escapeHtml(state.currentWorkspace?.name || 'Current workspace')}</option>`;
-
-  els.workspaceSelect.innerHTML = options;
-  els.workspaceSelect.disabled = !state.securityContext?.workspaceOverrideAllowed || workspaces.length <= 1;
-
-  const users = state.workspaceUsers || [];
-  const invitations = state.workspaceInvitations || [];
-  const policyRules = state.policyRules || [];
-  const policyHistory = state.policyHistory || [];
-  const featureFlags = state.featureFlags || [];
-  renderPolicyHistoryFilters(policyRules);
-  const pendingInvitations = invitations.filter(invite => invite.status === 'pending');
-  els.workspaceMetrics.innerHTML = [
-    ['Workspace', currentWorkspace?.name || 'Current'],
-    ['Status', currentWorkspace?.status || 'active'],
-    ['Plan', currentWorkspace?.plan || 'local'],
-    ['Users', users.length],
-    ['Pending invites', pendingInvitations.length],
-    ['Override', state.securityContext?.workspaceOverrideAllowed ? 'Allowed' : 'Locked'],
-    ['Actor', state.securityContext?.displayName || state.securityContext?.actorId || 'Sneup']
-  ].map(([label, value]) => `
-    <div class="metric">
-      <span>${escapeHtml(label)}</span>
-      <strong>${escapeHtml(value)}</strong>
-    </div>
-  `).join('');
-
-  const notice = errorMessage
-    ? `<div class="notice">${escapeHtml(errorMessage)}</div>`
-    : '';
-  const demoNotice = state.securityContext?.demoMode || currentWorkspace?.demoMode
-    ? '<div class="notice">Demo workspace is read-only. Connect a database and sign in to manage people, invitations, and action safety.</div>'
-    : '';
-  els.workspaceList.innerHTML = demoNotice + notice + listOrEmpty(workspaces, renderWorkspace);
-  const canExportWorkspace = Boolean(
-    currentWorkspace?.id
-    && !state.securityContext?.demoMode
-    && (state.securityContext?.roles || []).includes('owner')
-  );
-  els.workspaceExportButton.disabled = !canExportWorkspace;
-  const canDeleteWorkspace = Boolean(
-    canExportWorkspace
-    && ['archived', 'deleting'].includes(currentWorkspace?.status)
-  );
-  els.workspaceDeleteButton.disabled = !canDeleteWorkspace;
-  els.workspaceUserCount.textContent = `${users.length} user${users.length === 1 ? '' : 's'}`;
-  els.workspaceUsers.innerHTML = listOrEmpty(users, renderWorkspaceUser);
-  els.workspaceInviteCount.textContent = `${pendingInvitations.length} pending`;
-  els.workspaceInvitations.innerHTML = listOrEmpty(invitations, renderWorkspaceInvitation);
-  els.workspaceInviteButton.disabled = !currentWorkspace?.id || !state.securityContext?.permissions?.includes('identity:manage');
-  els.policyRuleCount.textContent = `${policyRules.length} action${policyRules.length === 1 ? '' : 's'}`;
-  els.policyRuleList.innerHTML = state.policyRuleError
-    ? `<div class="notice">${escapeHtml(state.policyRuleError)}</div>`
-    : listOrEmpty(policyRules, renderPolicyRule);
-  els.policyHistoryCount.textContent = `${policyHistory.length} change${policyHistory.length === 1 ? '' : 's'}`;
-  els.policyHistoryList.innerHTML = state.policyHistoryError
-    ? `<div class="notice">${escapeHtml(state.policyHistoryError)}</div>`
-    : listOrEmpty(policyHistory, renderPolicyHistory);
-  els.featureFlagCount.textContent = `${featureFlags.filter(flag => flag.configured).length}/${featureFlags.length} configured`;
-  els.featureFlagList.innerHTML = state.featureFlagError
-    ? `<div class="notice">${escapeHtml(state.featureFlagError)}</div>`
-    : listOrEmpty(featureFlags, renderFeatureFlag);
-  renderIntegrityReport();
-  renderRetentionReport();
-  bindWorkspaceIdentityActions();
-  bindPolicyRuleActions();
-  bindPolicyHistoryActions();
-  bindFeatureFlagActions();
+  workspaceViewController?.render(errorMessage);
 }
 
 function renderIntegrityReport() {
-  const report = state.integrityReport;
-  if (state.integrityError) {
-    els.integrityCount.textContent = 'scan unavailable';
-    els.integrityList.innerHTML = `<div class="notice">${escapeHtml(state.integrityError)}</div>`;
-    return;
-  }
-  if (!report) {
-    els.integrityCount.textContent = 'not scanned';
-    els.integrityList.innerHTML = '<div class="empty">Run a bounded workspace scan.</div>';
-    return;
-  }
-  const canRepair = !state.securityContext?.demoMode
-    && state.securityContext?.permissions?.includes('integrity:repair');
-  const repairable = report.findings.filter(item => item.repairable);
-  els.integrityCount.textContent = `${report.summary.findings} finding${report.summary.findings === 1 ? '' : 's'}`;
-  const summary = `
-    <div class="item">
-      <div class="item-title"><strong>${report.summary.repairable} repairable, ${report.summary.reviewRequired} need review</strong><span class="pill ${report.summary.findings ? 'review' : 'healthy'}">${report.truncated ? 'bounded result' : 'complete result'}</span></div>
-      <div class="meta"><span>Internal database only</span><span>No provider writes</span><span>${escapeHtml(formatDate(report.scannedAt))}</span></div>
-      ${canRepair && repairable.length > 0 ? '<div class="item-actions"><button class="button primary" data-integrity-repair type="button">Repair derived state</button></div>' : ''}
-    </div>`;
-  const rows = report.findings.map(item => `
-    <div class="item">
-      <div class="item-title"><strong>${escapeHtml(item.label)}</strong><span class="pill ${item.repairable ? 'healthy' : severityClass(item.severity)}">${item.repairable ? 'repairable' : 'review required'}</span></div>
-      <p>${escapeHtml(item.reason)}</p>
-      <div class="meta"><span>${escapeHtml(item.category.replaceAll('_', ' '))}</span><span>${escapeHtml(item.entityType)}</span></div>
-    </div>`).join('');
-  els.integrityList.innerHTML = summary + (rows || '<div class="empty">No integrity drift found.</div>');
-  document.querySelector('[data-integrity-repair]')?.addEventListener('click', openIntegrityRepair);
+  workspaceViewController?.renderIntegrityReport();
+}
+
+function renderRetentionReport() {
+  workspaceViewController?.renderRetentionReport();
 }
 
 function openIntegrityRepair() {
@@ -3437,39 +3384,6 @@ function openIntegrityRepair() {
   });
 }
 
-function renderRetentionReport() {
-  const report = state.retentionReport;
-  if (state.retentionError) {
-    els.retentionCount.textContent = 'scan unavailable';
-    els.retentionList.innerHTML = `<div class="notice">${escapeHtml(state.retentionError)}</div>`;
-    return;
-  }
-  if (!report) {
-    els.retentionCount.textContent = 'not scanned';
-    els.retentionList.innerHTML = '<div class="empty">Run a bounded retention scan.</div>';
-    return;
-  }
-  const owner = !state.securityContext?.demoMode
-    && (state.securityContext?.roles || []).includes('owner')
-    && state.securityContext?.permissions?.includes('data-retention:manage');
-  els.retentionCount.textContent = `${report.summary.due} due`;
-  const policyState = report.policy.enabled ? 'active' : 'off';
-  const summary = `
-    <div class="item">
-      <div class="item-title"><strong>Retention policy</strong><span class="pill ${report.policy.enabled ? 'healthy' : 'review'}">${policyState}</span></div>
-      <div class="meta"><span>Operations ${report.policy.operationalDays}d</span><span>Performance ${report.policy.performanceDays}d</span><span>Notifications ${report.policy.notificationDays}d</span><span>Credentials ${report.policy.credentialDays}d</span></div>
-      <div class="meta"><span>Audit, approvals, actions, active credentials, pending deliveries, and current project data stay protected</span></div>
-      ${owner ? `<div class="item-actions"><button class="button" data-retention-configure type="button">Configure</button>${report.policy.enabled && report.summary.due > 0 ? '<button class="button danger" data-retention-apply type="button">Prune due records</button>' : ''}</div>` : ''}
-    </div>`;
-  const rows = report.categories.map(item => `
-    <div class="item">
-      <div class="item-title"><strong>${escapeHtml(item.label)}</strong><span class="pill ${item.due ? 'review' : 'healthy'}">${item.due} due${item.truncated ? '+' : ''}</span></div>
-      <div class="meta"><span>${item.retentionDays} days</span><span>Before ${escapeHtml(formatDate(item.cutoff))}</span><span>${item.truncated ? 'More remain for a later bounded pass' : 'Complete bounded result'}</span></div>
-    </div>`).join('');
-  els.retentionList.innerHTML = summary + rows;
-  document.querySelector('[data-retention-configure]')?.addEventListener('click', openRetentionPolicy);
-  document.querySelector('[data-retention-apply]')?.addEventListener('click', openRetentionApply);
-}
 
 function openRetentionPolicy() {
   const policy = state.retentionReport?.policy;
@@ -3552,228 +3466,6 @@ function openRetentionApply() {
   });
 }
 
-function renderPolicyHistoryFilters(policyRules = []) {
-  if (!els.policyHistoryActionFilter || !els.policyHistoryActorFilter || !els.policyHistoryRangeFilter) return;
-  const actions = policyRules
-    .map(policy => ({ actionType: String(policy.actionType || ''), label: policy.label || policy.actionType }))
-    .filter(policy => policy.actionType)
-    .sort((left, right) => left.label.localeCompare(right.label));
-  const selectedAction = actions.some(policy => policy.actionType === state.policyHistoryFilters.actionType)
-    ? state.policyHistoryFilters.actionType
-    : '';
-  state.policyHistoryFilters.actionType = selectedAction;
-  els.policyHistoryActionFilter.innerHTML = [
-    '<option value="">All policies</option>',
-    ...actions.map(policy => `<option value="${escapeHtml(policy.actionType)}">${escapeHtml(policy.label)}</option>`)
-  ].join('');
-  els.policyHistoryActionFilter.value = selectedAction;
-  els.policyHistoryActorFilter.value = String(state.policyHistoryFilters.actor || '').slice(0, 160);
-  els.policyHistoryRangeFilter.value = ['all', '7', '30', '90'].includes(String(state.policyHistoryFilters.rangeDays))
-    ? String(state.policyHistoryFilters.rangeDays)
-    : 'all';
-}
-
-function renderWorkspace(workspace) {
-  const selected = workspace.id === state.activeWorkspaceId;
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>${escapeHtml(workspace.name)}</strong>
-        <span class="pill ${workspace.status === 'active' ? 'healthy' : workspace.status === 'deleting' ? 'critical' : 'review'}">${escapeHtml(workspace.status)}</span>
-      </div>
-      <div class="meta">
-        <span>${escapeHtml(workspace.slug)}</span>
-        <span>${escapeHtml(workspace.plan)}</span>
-        <span>${selected ? 'selected' : 'available'}</span>
-      </div>
-    </div>
-  `;
-}
-
-function renderWorkspaceUser(user) {
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>${escapeHtml(user.displayName)}</strong>
-        <span class="pill ${user.status === 'active' ? 'healthy' : 'review'}">${escapeHtml(user.role)}</span>
-      </div>
-      <div class="meta">
-        <span>${escapeHtml(user.status)}</span>
-        <span>${escapeHtml(user.provider)}</span>
-        <span>${escapeHtml(user.email || 'No email')}</span>
-      </div>
-      <div class="item-actions">
-        <button class="button" data-workspace-user-sessions="${escapeHtml(user.id)}" type="button">Review sessions</button>
-      </div>
-    </div>
-  `;
-}
-
-function renderWorkspaceInvitation(invitation) {
-  const canRevoke = invitation.status === 'pending';
-  const canRetryDelivery = canRevoke
-    && invitation.delivery?.mode === 'email'
-    && ['failed', 'not_sent'].includes(invitation.delivery?.status);
-  const delivery = invitation.delivery?.status === 'sent' ? 'email sent' : invitation.delivery?.status === 'failed' ? 'email failed' : 'manual link';
-  const retentionNotice = invitation.redactedAt ? '<span>personal data removed</span>' : '';
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>${escapeHtml(invitation.displayName || 'Invitation record')}</strong>
-        <span class="pill ${invitation.status === 'accepted' ? 'healthy' : invitation.status === 'pending' ? 'review' : 'critical'}">${escapeHtml(invitation.status)}</span>
-      </div>
-      <div class="meta">
-        <span>${escapeHtml(invitation.email || 'Personal data removed')}</span>
-        <span>${escapeHtml(invitation.role)}</span>
-        <span>${escapeHtml(delivery)}</span>
-        <span>Expires ${escapeHtml(formatDate(invitation.expiresAt))}</span>
-        ${retentionNotice}
-      </div>
-      ${canRevoke ? `
-        <div class="item-actions">
-          ${canRetryDelivery ? `<button class="button" data-retry-workspace-invite-delivery="${escapeHtml(invitation.id)}" type="button">Retry email</button>` : ''}
-          <button class="button danger" data-revoke-workspace-invite="${escapeHtml(invitation.id)}" type="button">Revoke invitation</button>
-        </div>
-      ` : ''}
-    </div>
-  `;
-}
-
-function renderPolicyRule(policy) {
-  const canManage = state.securityContext?.permissions?.includes('policy-rules:manage');
-  const isWorkflowPolicy = policy.policyKind === 'workflow';
-  const isRoutingPolicy = policy.workflowType === 'decision_queue_routing';
-  const isCooldownPolicy = policy.workflowType === 'scheduled_intervention_cooldown';
-  const isTimingPolicy = policy.workflowType === 'scheduled_intervention_timing';
-  const stateLabel = policy.enabled ? 'active' : 'paused';
-  const stateClass = policy.enabled ? 'healthy' : 'critical';
-  const riskClass = policy.riskLevel === 'critical' ? 'critical' : policy.riskLevel === 'high' ? 'high' : 'review';
-  const pauseReview = !policy.enabled && policy.pauseReviewOverdue
-    ? '<span>pause review overdue</span>'
-    : !policy.enabled && policy.pauseExpiresAt
-      ? `<span>review by ${escapeHtml(formatDate(policy.pauseExpiresAt))}</span>`
-      : '';
-  const routing = policy.routingByRisk || {};
-  const routingSummary = ['low', 'medium', 'high', 'critical']
-    .map((risk) => {
-      const entry = routing[risk];
-      return entry ? `${risk}: ${entry.ownerType} / ${entry.escalationHours}h` : null;
-    })
-    .filter(Boolean)
-    .join(' | ');
-  const cooldowns = Object.values(policy.cooldownHoursByTrigger || {}).map(Number).filter(Number.isFinite);
-  const cooldownSummary = cooldowns.length > 0
-    ? `${cooldowns.length} signals, ${Math.min(...cooldowns)}-${Math.max(...cooldowns)}h suppression`
-    : 'scheduled duplicate suppression';
-  const timingSummary = `${Number(policy.followUpAfterHours || 24)}h follow-up / ${Number(policy.escalationAfterHours || 48)}h escalation`;
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>${escapeHtml(policy.label || String(policy.actionType || '').replaceAll('_', ' '))}</strong>
-        <span class="pill ${stateClass}">${escapeHtml(stateLabel)}</span>
-      </div>
-      <div class="meta">
-        ${isTimingPolicy
-          ? `<span>${escapeHtml(timingSummary)}</span><span>scheduled candidates only</span>`
-          : isCooldownPolicy
-          ? `<span>${escapeHtml(cooldownSummary)}</span><span>scheduled signals only</span>`
-          : isRoutingPolicy
-          ? `<span>${escapeHtml(routingSummary || 'internal queue routing')}</span><span>overdue VA/team work goes to Robert</span>`
-          : isWorkflowPolicy
-          ? `<span>${escapeHtml(String(policy.defaultSnoozeHours || 24))}-hour default</span><span>internal queue only</span>`
-          : `<span class="pill ${riskClass}">${escapeHtml(policy.riskLevel)} risk</span><span>${escapeHtml(policy.ownerType)} decides</span><span>approval required</span>`}
-        <span>${policy.configured ? 'workspace rule set' : 'baseline rule'}</span>
-        ${pauseReview}
-      </div>
-      ${canManage ? `<div class="item-actions"><button class="button" data-policy-rule="${escapeHtml(policy.actionType)}" type="button">Configure</button></div>` : ''}
-    </div>
-  `;
-}
-
-function renderPolicyHistory(event) {
-  const after = event.afterState || {};
-  const before = event.beforeState || {};
-  const action = after.label || before.label || 'Trello action';
-  const state = after.enabled === false ? 'paused' : after.enabled === true ? 'active' : 'updated';
-  const stateClass = state === 'paused' ? 'critical' : state === 'active' ? 'healthy' : 'review';
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>${escapeHtml(action)}</strong>
-        <span class="pill ${stateClass}">${escapeHtml(state)}</span>
-      </div>
-      <div class="meta">
-        <span>${formatDate(event.createdAt)}</span>
-        <span>${escapeHtml(event.actor || 'sneup')}</span>
-        <span>${escapeHtml(after.riskLevel || before.riskLevel || 'risk unchanged')}</span>
-        ${after.relaxationConfirmed ? '<span>relaxation confirmed</span>' : ''}
-      </div>
-    </div>
-  `;
-}
-
-function renderFeatureFlag(flag) {
-  const canManage = !state.securityContext?.demoMode
-    && state.securityContext?.permissions?.includes('feature-flags:manage');
-  const canReadHistory = !state.securityContext?.demoMode
-    && flag.configured
-    && state.securityContext?.permissions?.includes('audit:read');
-  const stateLabel = !flag.enabled ? 'paused' : flag.effective ? 'active' : 'outside rollout';
-  const stateClass = !flag.enabled ? 'critical' : flag.effective ? 'healthy' : 'review';
-  const rolloutLabel = flag.rolloutPercentage >= 100
-    ? 'all eligible use'
-    : flag.rolloutPercentage <= 0
-      ? 'no eligible use'
-      : `${flag.rolloutPercentage}% ${flag.rolloutSubject === 'workspace' ? 'workspace' : 'operator'} rollout`;
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>${escapeHtml(flag.label)}</strong>
-        <span class="pill ${stateClass}">${escapeHtml(stateLabel)}</span>
-      </div>
-      <p>${escapeHtml(flag.description)}</p>
-      <div class="meta">
-        <span>${escapeHtml(rolloutLabel)}</span>
-        <span>${flag.configured ? `revision ${escapeHtml(flag.revision)}` : 'default control'}</span>
-        ${flag.updatedAt ? `<span>updated ${escapeHtml(formatDate(flag.updatedAt))}</span>` : ''}
-      </div>
-      ${flag.reason ? `<div class="notice">${escapeHtml(flag.reason)}</div>` : ''}
-      ${canManage || canReadHistory ? `<div class="item-actions">
-        ${canReadHistory ? `<button class="button" data-feature-history="${escapeHtml(flag.key)}" type="button">History</button>` : ''}
-        ${canManage ? `<button class="button" data-feature-flag="${escapeHtml(flag.key)}" type="button">Configure</button>` : ''}
-      </div>` : ''}
-    </div>
-  `;
-}
-
-function bindWorkspaceIdentityActions() {
-  document.querySelectorAll('[data-workspace-user-sessions]').forEach((button) => {
-    button.addEventListener('click', () => openWorkspaceUserSessions(button.dataset.workspaceUserSessions));
-  });
-  document.querySelectorAll('[data-revoke-workspace-invite]').forEach((button) => {
-    const invitation = state.workspaceInvitations.find(item => item.id === button.dataset.revokeWorkspaceInvite);
-    button.addEventListener('click', () => openInviteRevocationConfirmation(invitation));
-  });
-  document.querySelectorAll('[data-retry-workspace-invite-delivery]').forEach((button) => {
-    const invitation = state.workspaceInvitations.find(item => item.id === button.dataset.retryWorkspaceInviteDelivery);
-    button.addEventListener('click', () => openInviteDeliveryRetryConfirmation(invitation));
-  });
-}
-
-function bindPolicyRuleActions() {
-  document.querySelectorAll('[data-policy-rule]').forEach((button) => {
-    button.addEventListener('click', () => openPolicyRuleEditor(button.dataset.policyRule));
-  });
-}
-
-function bindFeatureFlagActions() {
-  document.querySelectorAll('[data-feature-flag]').forEach((button) => {
-    button.addEventListener('click', () => openFeatureFlagEditor(button.dataset.featureFlag));
-  });
-  document.querySelectorAll('[data-feature-history]').forEach((button) => {
-    button.addEventListener('click', () => openFeatureFlagHistory(button.dataset.featureHistory));
-  });
-}
 
 async function openFeatureFlagHistory(key) {
   const flag = (state.featureFlags || []).find(item => item.key === key);
@@ -3865,28 +3557,6 @@ function openFeatureFlagEditor(key) {
       openNotice('Rollout update blocked', error.message);
     }
   });
-}
-
-function bindPolicyHistoryActions() {
-  if (!els.policyHistoryActionFilter || !els.policyHistoryActorFilter || !els.policyHistoryRangeFilter) return;
-  els.policyHistoryActionFilter.onchange = () => {
-    state.policyHistoryFilters.actionType = els.policyHistoryActionFilter.value;
-    loadPolicyHistory();
-  };
-  els.policyHistoryRangeFilter.onchange = () => {
-    state.policyHistoryFilters.rangeDays = els.policyHistoryRangeFilter.value;
-    loadPolicyHistory();
-  };
-  const applyActorFilter = () => {
-    state.policyHistoryFilters.actor = els.policyHistoryActorFilter.value.trim();
-    loadPolicyHistory();
-  };
-  els.policyHistoryActorFilter.onchange = applyActorFilter;
-  els.policyHistoryActorFilter.onkeydown = (event) => {
-    if (event.key !== 'Enter') return;
-    event.preventDefault();
-    applyActorFilter();
-  };
 }
 
 function openPolicyRuleEditor(actionType) {

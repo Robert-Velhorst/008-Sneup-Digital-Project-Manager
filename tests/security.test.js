@@ -1560,6 +1560,7 @@ describe('dashboard content security policy', () => {
     const html = fs.readFileSync(path.join(rootDir, 'public', 'index.html'), 'utf8');
     const appJs = fs.readFileSync(path.join(rootDir, 'public', 'app.js'), 'utf8');
     const connectorViewJs = fs.readFileSync(path.join(rootDir, 'public', 'connectorView.js'), 'utf8');
+    const workspaceViewJs = fs.readFileSync(path.join(rootDir, 'public', 'workspaceView.js'), 'utf8');
     const styles = fs.readFileSync(path.join(rootDir, 'public', 'styles.css'), 'utf8');
     const server = fs.readFileSync(path.join(rootDir, 'src', 'index.js'), 'utf8');
     const recommendationRoutes = fs.readFileSync(path.join(rootDir, 'src', 'routes', 'recommendations.js'), 'utf8');
@@ -1593,6 +1594,8 @@ describe('dashboard content security policy', () => {
     expect(appJs).toContain('it will not send a provider message');
     expect(appJs).toContain('provider retries');
     expect(connectorViewJs).toContain('data-connector-sync');
+    expect(workspaceViewJs).toContain('data-integrity-repair');
+    expect(workspaceViewJs).not.toContain('fetchApi(');
     expect(appJs).toContain('renderGraphLedgerFilters(graphContext)');
     expect(appJs).toContain('data-notification-policy-edit');
     expect(appJs).toContain('openNotificationPolicyEditor');
@@ -1621,6 +1624,7 @@ describe('dashboard content security policy', () => {
     expect(html).not.toMatch(/\sstyle=/i);
     expect(appJs).not.toMatch(/\sstyle=/i);
     expect(connectorViewJs).not.toMatch(/\sstyle=/i);
+    expect(workspaceViewJs).not.toMatch(/\sstyle=/i);
     expect(styles.length).toBeGreaterThan(1000);
     expect(appJs.length).toBeGreaterThan(1000);
     expect(server).not.toContain("'unsafe-inline'");

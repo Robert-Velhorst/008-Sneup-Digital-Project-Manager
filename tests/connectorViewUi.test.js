@@ -165,7 +165,7 @@ describe('demand-loaded connector view', () => {
 
   test('loads the module only on demand with the current asset fingerprint and retry reset', () => {
     expect(htmlSource).not.toContain('/connectorView.js');
-    expect(appSource).toContain("loadBrowserModule('/connectorView.js', 'SneupConnectorView')");
+    expect(appSource).toContain("loadBrowserModule('/connectorView.js', 'SneupConnectorView', {");
     expect(appSource).toContain("if (appAssetVersion) url.searchParams.set('v', appAssetVersion)");
     expect(appSource).toContain('connectorViewPromise = null');
     expect(appSource).toContain('const [data, connectorView] = await Promise.all([');

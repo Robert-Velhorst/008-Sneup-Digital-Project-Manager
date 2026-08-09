@@ -6,6 +6,7 @@ const ASSET_VERSION_TOKEN = '__SNEUP_ASSET_VERSION__';
 const FINGERPRINTED_ASSETS = Object.freeze([
   'app.js',
   'connectorView.js',
+  'workspaceView.js',
   'formPersistence.js',
   'helpCenter.js',
   'i18n.js',

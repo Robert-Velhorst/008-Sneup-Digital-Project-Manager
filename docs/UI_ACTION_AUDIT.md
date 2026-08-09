@@ -39,7 +39,7 @@ The command-center HTML and JavaScript were statically searched for controls, ev
 ## Open UI evidence
 
 - A full keyboard-only and screen-reader pass has not been certified.
-- English/Dutch localization covers the shell, setup, command palette, contextual help, primary mission control, and the complete connector marketplace. Approval/workspace dynamic operator surfaces still require explicit catalog coverage; provider/user/audit evidence remains verbatim by design.
+- English/Dutch localization covers the shell, setup, command palette, contextual help, primary mission control, complete connector marketplace, and workspace administration renderer. Approval and consequential workspace modal/form surfaces still require explicit catalog coverage; provider/user/audit evidence remains verbatim by design.
 - Windows 125% and 200% scaling still need a clean-VM acceptance pass; 150% passed locally in the packaged app.
 - Live OAuth consent and real provider error pages require authorized accounts.
 

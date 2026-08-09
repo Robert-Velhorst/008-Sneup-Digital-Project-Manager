@@ -12,6 +12,18 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-09 workspace administration continuation
+
+- Re-read the governing operations-ledger specification and audited the remaining localization, maintenance, browser-load, cache, action-safety, and resource gaps around Workspace administration.
+- Extracted the workspace, identity, policy, rollout, integrity, retention, and safety-history renderer into a 25,229-byte browser module loaded concurrently with the first workspace API read and reused across refreshes.
+- Kept every consequential mutation in the existing controller and exposed only named callbacks to the renderer; the module has no direct API, session-token, credential, or persistence access.
+- Added Dutch semantic copy for the complete renderer while preserving workspace/person/provider names, policy labels, audit actors, rollout descriptions/reasons, server errors, and integrity evidence verbatim.
+- Browser QA found that three guarded action callbacks had been removed with the renderer. Restored them to the trusted controller, added source-boundary regressions, restarted under a new shared asset fingerprint, and reran the full English/Dutch flow successfully.
+- The eager app fell from 310,673 to 291,628 bytes. The initial app-plus-localization payload fell by 13,128 raw, 2,062 gzip, and 1,350 Brotli bytes; a directional 100-sample parser benchmark moved from 0.210 to 0.143 ms median.
+- In-app Browser QA proved the module is absent on Overview, loads once on Workspace administration, retains one instance after refresh, restores English/Dutch, and stays contained at 480x844 with no overflowing controls or current console warnings/errors.
+- Final local quality passed 108 suites/809 tests, 5/5 recommendation evaluation, both zero-vulnerability dependency audits, synthetic purpose-separated release-secret validation, and a 67.0 MB RSS startup import with MongoDB still deferred.
+- Built and verified the unsigned `Sneup-Setup-2.3.18.exe`: 109,466,199 bytes, SHA-256 `507A16FB942B959B0EC46991E57F97C7A7093CFAA6FD755AFC85CBD522B2D3CE`. Four packaged processes settled to 361.9 MB working set and 295.3 MB private memory, then closed normally and released the loopback port.
+
 ## 2026-08-09 connector marketplace continuation
 
 - Re-read the governing operations-ledger specification and audited the remaining code-owned completion gaps, connector catalog path, eager browser bundle, localization boundary, and shared asset-fingerprint contract.
