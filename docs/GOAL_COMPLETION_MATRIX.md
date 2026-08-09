@@ -58,7 +58,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 051 Performance/indexing | Implemented | Bounded queries, indexes, concurrency, batching, response timing, and cross-process duplicate-work suppression. |
 | 052 Large data/pagination | Partial | Provider caps/pages are tested; production-scale load test pending. |
 | 053 Backup/restore | Partial | Runbook is defined; production-like restore evidence is external. |
-| 054 Reconciliation/repair | Partial | Trello reconciliation exists; generalized repair CLI does not. |
+| 054 Reconciliation/repair | Implemented | Trello reconciliation remains evidence-gated; the generalized dry-run-first repair CLI and administration UI repair only bounded internal derived state, re-scan before atomic apply, and audit every successful change. |
 | 055 Local-first analytics | Implemented | Local response/job/recommendation metrics; no forced telemetry. |
 | 056 SaaS without billing | Implemented | Multi-workspace identity exists; billing is not required. |
 | 057 Dutch/English readiness | Partial | UI is English; Dutch message catalog is not implemented. |
@@ -96,8 +96,8 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 089 Stabilization gates | Implemented | Focused, full, security, installer, and fresh-clone gates. |
 | 090 No vanity work | Implemented | Changes target operability, safety, evidence, and delivery. |
 | 091 Feature definition of done | Implemented | Status requires wiring, reachability, tests, docs, and evidence. |
-| 092 Fresh-clone run | Implemented | 2.3.5 passes 86 local suites/704 tests, lint, evaluation, audits, real-Mongo migration, live rollout/HAI smoke, latency/resource sampling, and exact Node.js 24 plus Windows GitHub run 31300449925. |
-| 093 Manual evidence | Partial | Exact 2.3.5 packaged demo runtime, fail-closed recovery dialog, rollout/HAI boundary, resource sample, normal close, and installer dialog pass; rendered capture and live provider/clean-VM evidence remain pending. |
+| 092 Fresh-clone run | Implemented | 2.3.6 passes 88 local suites/711 tests, lint, evaluation, audits, real-Mongo migration/repair verification, live integrity UI/latency/resource sampling; exact fresh-clone GitHub evidence is recorded after publication. |
+| 093 Manual evidence | Partial | 2.3.6 live browser repair flow passes at 1440x1000 and 390x844 with no console warnings; packaged runtime, installer, live provider, and clean-VM evidence are tracked separately. |
 | 094 No-excuses search | Implemented | No shipped TODO/FIXME/HACK, dynamic-code, child-process, or secret-pattern finding. |
 | 095 Completion matrix | Implemented | This file, with partial/external states retained. |
 | 096 Verification report | Implemented | Final commands, clean-checkout result, installer hash, browser QA, and packaged Windows QA are recorded. |

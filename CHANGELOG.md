@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.3.6 - 2026-08-09
+
+### Added
+
+- Added a workspace-scoped data-integrity scanner and guarded repair workflow to Workspace Administration.
+- Added `npm run repair:data` as a dry-run-first support command; apply mode requires `--apply --confirm repair-derived-state`.
+- Added real-Mongo verification for list counts, member assignment/workload caches, audit evidence, and review-only provider ambiguity.
+
+### Security and resilience
+
+- Repairs are bounded, fingerprinted, re-scanned immediately before apply, atomically skipped on drift, and limited to derived internal state.
+- Trello reconciliation, notification delivery claims, executing recommendations, and stale job runs remain review-only; the repair path never imports a provider client or retries an external action.
+- Trello board, list, card, comment, and member identifiers are now unique per Sneup workspace instead of globally, with fail-closed duplicate preflight and guarded legacy-index removal.
+
+### Performance
+
+- Integrity scans query independent collections concurrently, aggregate card sources in two bounded database operations, return at most 500 findings, and load only with Workspace Administration.
+- A 30-request local live sample measured 14.01 ms p50 and 23.71 ms p95 with a 119.5 MB server working set after browser QA.
+
 ## 2.3.5 - 2026-08-09
 
 ### Added

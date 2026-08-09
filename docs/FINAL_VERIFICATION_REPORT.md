@@ -5,18 +5,18 @@ This report is updated from executed commands at release time. A passing local s
 ## Baseline
 
 - Branch: `main`
-- Starting commit: `470d0a35ca712a3c12473a5c8cccb2118092d3ed`
-- Release under verification: `2.3.5`
+- Starting commit: `de76a7decbe3a713a8b590419ac9544950bd826d`
+- Release under verification: `2.3.6`
 - Default remote: `origin`
 
 ## Verification ledger
 
 | Check | Result |
 | --- | --- |
-| Focused rollout/migration/deletion/export tests | Pass; disposable MongoDB detected and backfilled all 40 workspace collections and created the feature-flag workspace/key index |
+| Focused integrity/migration tests | Pass; dry-run, confirmation, permission, atomic-drift, audit, review-only, CLI, and all-workspace Trello-index migration boundaries covered |
 | ESLint | Pass |
 | Doctor | Pass with expected local warnings for absent MongoDB/Trello configuration; no errors; ngrok disabled locally |
-| Full regression | Pass: 86 suites, 704 tests |
+| Full regression | Pass: 88 suites, 711 tests |
 | Recommendation evaluation | Pass: 5/5 scenarios, score 100% |
 | Production and full dependency audit | Pass: 0 vulnerabilities after lockfile remediation |
 | Release security positive check | Pass: five purpose-separated production secrets, no values exposed |
@@ -27,16 +27,16 @@ This report is updated from executed commands at release time. A passing local s
 | Production database outage | Pass: packaged live mode kept port 3197 closed and displayed a stable, non-secret Windows recovery dialog with explicit demo or close choices |
 | HAI HTTP smoke | Pass: versioned manifest/OpenAPI paths, capabilities `snapshot,propose`, provider writes `never_direct`, structured demo snapshot with stable board/card identifiers |
 | ngrok packaging/safety | Pass: official Windows x64 native binding bundled; missing, weak, or placeholder remote credentials fail closed |
-| Rollout API performance sample | Pass: 80 versioned rollout requests averaged 4.016 ms with 5.804 ms p95; an attempted 800-request burst was correctly rate-limited at HTTP 429 |
-| Browser QA | The requested in-app Browser connected on two fresh tabs but its webview did not attach; rendered evidence remains pending |
+| Real MongoDB integrity repair | Pass: 40 collections migrated; two safe derived-state findings repaired with two audits; ambiguous Trello attempt remained review-only; provider writes false |
+| Integrity API performance sample | Pass: 30 live requests measured 14.01 ms p50 and 23.71 ms p95; server working set 119.5 MB after browser QA |
+| Browser QA | Pass via local Playwright fallback after the in-app Browser webview failed twice: 1440x1000 and 390x844, zero console warnings/errors, two faults scanned, confirmation opened, 2/2 repaired, zero-finding rescan |
 | Windows UI automation | The installed Windows-control package did not expose its required guidance interface; no undocumented input was attempted and visual evidence is not inferred from HTTP or window metadata |
-| Packaged Windows QA | Pass: 2.3.5 opened `Sneup Command Center`, served readiness/version/rollout/HAI checks, closed normally, and released port 3197 |
-| Packaged idle sample | Pass: four processes settled to 396.0 MB working set, 304.8 MB private memory, and 2.83 cumulative CPU seconds after load plus 30 seconds idle |
-| Installer UI | Pass: exact 2.3.5 `Sneup Setup` window opened and was closed without installing |
-| Windows installer | Pass: local build 109,429,244 bytes, unsigned, SHA-256 `A158F9FB1AF01F9506670139E817901B3AAA0B2B3C68DCB250340E1665927383`; executable metadata reports 2.3.5 |
-| Fresh clone | Pass: exact 2.3.5 source commit completed clean Node.js 24 quality and Windows installer jobs |
-| GitHub CI | Pass: run `31300449925`, source `2ae4f982020f1b1cdfa840bf29ee28e281edae1e`, zero annotations; quality 1m08s, Windows artifact 2m20s |
-| GitHub installer artifact | Pass: artifact `9034341974` (`sneup-windows-installer-unsigned`), archive digest `sha256:cd8ac5757c553d2714e4b03085405a5927f6d1b8913b92b5691e213633bc91c9`; downloaded installer 109,429,289 bytes, unsigned, SHA-256 `6731019A65C3587E4360D799D66F59D1336DC56740356050782B974A3EAEF8F3` |
+| Packaged Windows QA | Pass: 2.3.6 served readiness/version/integrity/HAI checks, retained `never_direct`, closed normally, and released port 3198; unavailable live MongoDB kept the port closed |
+| Packaged idle sample | Pass: four processes settled from 405.6/366.2 MB to 399.5/359.5 MB working/private memory over 30 seconds; CPU advanced 1.54 seconds |
+| Windows installer | Pass: local build 109,433,640 bytes, unsigned, SHA-256 `D703178EE0E7A6AC1E853997FF3052EFE11082E550F95B673B05041043244948`; executable metadata reports 2.3.6 and archive contains integrity UI/API plus Windows x64 ngrok binding |
+| Fresh clone | Pending exact 2.3.6 GitHub run |
+| GitHub CI | Pending exact 2.3.6 GitHub run |
+| GitHub installer artifact | Pending exact 2.3.6 GitHub artifact |
 
 ## External gates
 

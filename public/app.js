@@ -33,6 +33,8 @@ const state = {
   policyHistoryError: '',
   featureFlags: [],
   featureFlagError: '',
+  integrityReport: null,
+  integrityError: '',
   policyHistoryFilters: {
     actionType: '',
     actor: '',
@@ -174,6 +176,9 @@ const els = {
   policyHistoryRangeFilter: document.getElementById('policyHistoryRangeFilter'),
   featureFlagCount: document.getElementById('featureFlagCount'),
   featureFlagList: document.getElementById('featureFlagList'),
+  integrityCount: document.getElementById('integrityCount'),
+  integrityList: document.getElementById('integrityList'),
+  integrityScanButton: document.getElementById('integrityScanButton'),
   setupButton: document.getElementById('setupButton'),
   commandPaletteButton: document.getElementById('commandPaletteButton'),
   commandPalette: document.getElementById('commandPalette'),
@@ -222,6 +227,7 @@ els.notificationPolicyButton.addEventListener('click', openNotificationPolicy);
 els.workspaceInviteButton.addEventListener('click', openWorkspaceInvite);
 els.workspaceExportButton.addEventListener('click', downloadWorkspaceExport);
 els.workspaceDeleteButton.addEventListener('click', openWorkspaceDeletion);
+els.integrityScanButton.addEventListener('click', () => loadIntegrityReport({ announce: true }));
 els.workspaceSelect.addEventListener('change', async (event) => {
   state.activeWorkspaceId = event.target.value;
   if (state.activeWorkspaceId) {
@@ -1124,9 +1130,12 @@ async function loadWorkspaceAdmin() {
       state.policyRuleError = '';
       state.policyHistory = [];
       state.policyHistoryError = '';
+      state.integrityReport = null;
+      state.integrityError = 'Demo workspace is read-only.';
       renderWorkspaces();
       return;
     }
+    await loadIntegrityReport({ render: false });
     try {
       const [policyData, historyData] = await Promise.all([
         fetchApi('/api/policy-rules'),
@@ -1182,6 +1191,23 @@ async function loadWorkspaceAdmin() {
     state.policyHistoryError = error.message;
     state.workspaces = state.currentWorkspace ? [state.currentWorkspace] : [];
     renderWorkspaces(error.message);
+  }
+}
+
+async function loadIntegrityReport(options = {}) {
+  els.integrityScanButton.disabled = true;
+  try {
+    const data = await fetchApi('/api/integrity?limit=200');
+    state.integrityReport = data.report;
+    state.integrityError = '';
+    if (options.announce) openNotice('Integrity scan complete', `${data.report.summary.findings} finding(s), ${data.report.summary.repairable} safely repairable.`);
+  } catch (error) {
+    state.integrityReport = null;
+    state.integrityError = error.message;
+    if (options.announce) openNotice('Integrity scan failed', error.message);
+  } finally {
+    els.integrityScanButton.disabled = false;
+    if (options.render !== false) renderIntegrityReport();
   }
 }
 
@@ -3071,10 +3097,81 @@ function renderWorkspaces(errorMessage = '') {
   els.featureFlagList.innerHTML = state.featureFlagError
     ? `<div class="notice">${escapeHtml(state.featureFlagError)}</div>`
     : listOrEmpty(featureFlags, renderFeatureFlag);
+  renderIntegrityReport();
   bindWorkspaceIdentityActions();
   bindPolicyRuleActions();
   bindPolicyHistoryActions();
   bindFeatureFlagActions();
+}
+
+function renderIntegrityReport() {
+  const report = state.integrityReport;
+  if (state.integrityError) {
+    els.integrityCount.textContent = 'scan unavailable';
+    els.integrityList.innerHTML = `<div class="notice">${escapeHtml(state.integrityError)}</div>`;
+    return;
+  }
+  if (!report) {
+    els.integrityCount.textContent = 'not scanned';
+    els.integrityList.innerHTML = '<div class="empty">Run a bounded workspace scan.</div>';
+    return;
+  }
+  const canRepair = !state.securityContext?.demoMode
+    && state.securityContext?.permissions?.includes('integrity:repair');
+  const repairable = report.findings.filter(item => item.repairable);
+  els.integrityCount.textContent = `${report.summary.findings} finding${report.summary.findings === 1 ? '' : 's'}`;
+  const summary = `
+    <div class="item">
+      <div class="item-title"><strong>${report.summary.repairable} repairable, ${report.summary.reviewRequired} need review</strong><span class="pill ${report.summary.findings ? 'review' : 'healthy'}">${report.truncated ? 'bounded result' : 'complete result'}</span></div>
+      <div class="meta"><span>Internal database only</span><span>No provider writes</span><span>${escapeHtml(formatDate(report.scannedAt))}</span></div>
+      ${canRepair && repairable.length > 0 ? '<div class="item-actions"><button class="button primary" data-integrity-repair type="button">Repair derived state</button></div>' : ''}
+    </div>`;
+  const rows = report.findings.map(item => `
+    <div class="item">
+      <div class="item-title"><strong>${escapeHtml(item.label)}</strong><span class="pill ${item.repairable ? 'healthy' : severityClass(item.severity)}">${item.repairable ? 'repairable' : 'review required'}</span></div>
+      <p>${escapeHtml(item.reason)}</p>
+      <div class="meta"><span>${escapeHtml(item.category.replaceAll('_', ' '))}</span><span>${escapeHtml(item.entityType)}</span></div>
+    </div>`).join('');
+  els.integrityList.innerHTML = summary + (rows || '<div class="empty">No integrity drift found.</div>');
+  document.querySelector('[data-integrity-repair]')?.addEventListener('click', openIntegrityRepair);
+}
+
+function openIntegrityRepair() {
+  const repairable = (state.integrityReport?.findings || []).filter(item => item.repairable);
+  if (repairable.length === 0) return;
+  els.modalTitle.textContent = 'Repair derived state';
+  els.modalBody.innerHTML = `
+    <div class="notice-stack">
+      <div class="notice">This repairs ${repairable.length} current list or member cache finding(s). It does not contact Trello, retry notifications, alter approvals, or resolve ambiguous executions.</div>
+      <div class="toolbar modal-actions">
+        <button class="button" id="cancelIntegrityRepair" type="button">Cancel</button>
+        <button class="button primary" id="confirmIntegrityRepair" type="button">Repair ${repairable.length}</button>
+      </div>
+    </div>`;
+  els.modal.classList.add('open');
+  document.getElementById('cancelIntegrityRepair').addEventListener('click', closeModal);
+  document.getElementById('confirmIntegrityRepair').addEventListener('click', async event => {
+    event.currentTarget.disabled = true;
+    event.currentTarget.textContent = 'Repairing...';
+    try {
+      const data = await fetchApi('/api/integrity/repair', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          confirm: 'repair-derived-state',
+          limit: state.integrityReport.limit,
+          fingerprints: repairable.map(item => item.fingerprint)
+        })
+      });
+      closeModal();
+      await loadIntegrityReport();
+      openNotice('Repair complete', `${data.result.repaired} repaired, ${data.result.skipped} skipped because their state changed.`);
+    } catch (error) {
+      event.currentTarget.disabled = false;
+      event.currentTarget.textContent = `Repair ${repairable.length}`;
+      openNotice('Repair failed', error.message);
+    }
+  });
 }
 
 function renderPolicyHistoryFilters(policyRules = []) {

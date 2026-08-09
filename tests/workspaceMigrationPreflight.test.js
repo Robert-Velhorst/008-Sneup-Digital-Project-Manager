@@ -39,6 +39,7 @@ describe('workspace migration preflight', () => {
       policyRuleModel: policyRules,
       jobControlModel: jobControls,
       featureFlagModel: featureFlags
+      , providerModels: []
     });
 
     expect(preflight).toMatchObject({
@@ -74,6 +75,7 @@ describe('workspace migration preflight', () => {
       policyRuleModel: namespaceMissing,
       jobControlModel: model(),
       featureFlagModel: model()
+      , providerModels: []
     });
 
     expect(preflight.indexPreflight).toMatchObject({ canApply: true, duplicateGroups: 0, duplicateRecords: 0 });
@@ -85,6 +87,43 @@ describe('workspace migration preflight', () => {
 
     await expect(workspaceScopeService.ensureFeatureFlagIndexes({ Model }))
       .resolves.toEqual({ workspaceKeyIndexReady: true });
+    expect(Model.createIndexes).toHaveBeenCalledTimes(1);
+  });
+
+  test('preflights and migrates Trello identifiers to workspace-scoped uniqueness', async () => {
+    const provider = model({ conflicts: [{ duplicateGroups: 1, duplicateRecords: 2 }] });
+    const preflight = await workspaceScopeService.inspectDefaultWorkspaceMigration({
+      models: [],
+      workspaceId: '507f1f77bcf86cd799439011',
+      policyRuleModel: model(),
+      jobControlModel: model(),
+      featureFlagModel: model(),
+      providerModels: [['cards', provider]]
+    });
+    expect(preflight.indexPreflight).toMatchObject({
+      canApply: false,
+      providerEntities: { cards: { duplicateGroups: 1, duplicateRecords: 2 } }
+    });
+    expect(provider.aggregate).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.objectContaining({ $project: expect.objectContaining({
+        workspaceId: { $ifNull: ['$workspaceId', '507f1f77bcf86cd799439011'] },
+        trelloId: 1
+      }) }),
+      expect.objectContaining({ $group: expect.objectContaining({
+        _id: { workspaceId: '$workspaceId', trelloId: '$trelloId' }
+      }) })
+    ]));
+
+    const Model = {
+      collection: {
+        indexes: jest.fn().mockResolvedValue([{ name: 'trelloId_1', key: { trelloId: 1 }, unique: true }]),
+        dropIndex: jest.fn().mockResolvedValue(undefined)
+      },
+      createIndexes: jest.fn().mockResolvedValue(undefined)
+    };
+    await expect(workspaceScopeService.ensureProviderEntityIndexes({ models: [['cards', Model]] }))
+      .resolves.toEqual({ cards: { removedLegacyTrelloIdIndexes: 1 } });
+    expect(Model.collection.dropIndex).toHaveBeenCalledWith('trelloId_1');
     expect(Model.createIndexes).toHaveBeenCalledTimes(1);
   });
 });

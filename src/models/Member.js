@@ -8,9 +8,7 @@ const memberSchema = new mongoose.Schema({
   },
   trelloId: {
     type: String,
-    required: true,
-    unique: true,
-    index: true
+    required: true
   },
   username: {
     type: String,
@@ -95,6 +93,7 @@ const memberSchema = new mongoose.Schema({
 
 // Indexes for efficient queries
 memberSchema.index({ workspaceId: 1, boards: 1 });
+memberSchema.index({ workspaceId: 1, trelloId: 1 }, { unique: true });
 memberSchema.index({ workspaceId: 1, username: 1 });
 memberSchema.index({ boards: 1 });
 

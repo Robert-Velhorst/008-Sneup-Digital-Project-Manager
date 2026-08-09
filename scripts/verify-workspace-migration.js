@@ -34,6 +34,7 @@ const run = async () => {
 
   const result = await workspaceScopeService.backfillDefaultWorkspace();
   await workspaceScopeService.ensureFeatureFlagIndexes();
+  await workspaceScopeService.ensureProviderEntityIndexes();
   const workspaceId = workspaceScopeService.getDefaultWorkspaceObjectId();
   assert.equal(result.totalModified, WORKSPACE_COLLECTIONS.length);
   assert.equal(await Workspace.countDocuments({ _id: workspaceId }), 1);
@@ -48,6 +49,16 @@ const run = async () => {
   assert.equal(featureFlagIndexes.some(index => index.unique === true
     && index.key.workspaceId === 1
     && index.key.key === 1), true, 'feature flag workspace/key index was not created');
+
+  for (const [name, model] of workspaceScopeService.providerEntityModels) {
+    const indexes = await model.collection.indexes();
+    assert.equal(indexes.some(index => index.unique === true
+      && index.key.workspaceId === 1
+      && index.key.trelloId === 1), true, `${name} workspace/Trello index was not created`);
+    assert.equal(indexes.some(index => index.unique === true
+      && Object.keys(index.key || {}).length === 1
+      && index.key.trelloId === 1), false, `${name} retained global Trello uniqueness`);
+  }
 
   process.stdout.write(`${JSON.stringify({
     verified: true,

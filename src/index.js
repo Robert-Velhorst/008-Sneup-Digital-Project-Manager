@@ -61,6 +61,7 @@ const outcomeRoutes = require('./routes/outcomes');
 const operationsLedgerRoutes = require('./routes/operationsLedger');
 const haiIntegrationRoutes = require('./routes/haiIntegration');
 const featureFlagRoutes = require('./routes/featureFlags');
+const integrityRoutes = require('./routes/integrity');
 
 // Initialize Express app
 const app = express();
@@ -176,6 +177,7 @@ app.use('/api/v1/outcomes', outcomeRoutes);
 app.use('/api/v1/operations-ledger', operationsLedgerRoutes);
 app.use('/api/v1/integrations/hai', haiIntegrationRoutes);
 app.use('/api/v1/feature-flags', featureFlagRoutes);
+app.use('/api/v1/integrity', integrityRoutes);
 
 // Backward-compatible API routes.
 app.use('/api/boards', boardRoutes);
@@ -206,6 +208,7 @@ app.use('/api/outcomes', outcomeRoutes);
 app.use('/api/operations-ledger', operationsLedgerRoutes);
 app.use('/api/integrations/hai', haiIntegrationRoutes);
 app.use('/api/feature-flags', featureFlagRoutes);
+app.use('/api/integrity', integrityRoutes);
 
 // Machine-readable product metadata; the command center owns the browser root.
 const productMetadata = (req, res) => {
@@ -228,7 +231,8 @@ const productMetadata = (req, res) => {
       'Accountability reports',
       'HAI approval-gated integration',
       'Authenticated ngrok ingress',
-      'Capacity-aware P50/P80 delivery forecasts'
+      'Capacity-aware P50/P80 delivery forecasts',
+      'Audited internal data integrity repair'
     ]
   });
 };
@@ -282,6 +286,7 @@ const initApp = async () => {
         const policyRuleIndexMigration = await workspaceScopeService.ensurePolicyRuleIndexes();
         const jobControlIndexMigration = await workspaceScopeService.ensureJobControlIndexes();
         await workspaceScopeService.ensureFeatureFlagIndexes();
+        const providerEntityIndexMigration = await workspaceScopeService.ensureProviderEntityIndexes();
         if (workspaceBackfill.totalModified > 0) {
           logger.info('Default workspace migration applied', workspaceBackfill);
         }
@@ -296,6 +301,12 @@ const initApp = async () => {
         }
         if (jobControlIndexMigration.removedLegacyJobNameIndex) {
           logger.info('Migrated legacy global JobControl jobName index');
+        }
+        const migratedProviderIndexes = Object.entries(providerEntityIndexMigration)
+          .filter(([, result]) => result.removedLegacyTrelloIdIndexes > 0)
+          .map(([name]) => name);
+        if (migratedProviderIndexes.length > 0) {
+          logger.info('Migrated legacy global Trello entity indexes', { collections: migratedProviderIndexes });
         }
       } catch (error) {
         if (databaseConnected) {

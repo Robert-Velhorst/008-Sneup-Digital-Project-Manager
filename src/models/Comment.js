@@ -8,9 +8,7 @@ const commentSchema = new mongoose.Schema({
   },
   trelloId: {
     type: String,
-    required: true,
-    unique: true,
-    index: true
+    required: true
   },
   cardId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -70,6 +68,7 @@ const commentSchema = new mongoose.Schema({
 
 // Indexes for efficient queries
 commentSchema.index({ workspaceId: 1, cardId: 1, createdAt: -1 });
+commentSchema.index({ workspaceId: 1, trelloId: 1 }, { unique: true });
 commentSchema.index({ workspaceId: 1, memberId: 1, createdAt: -1 });
 commentSchema.index({ cardId: 1, createdAt: -1 });
 commentSchema.index({ memberId: 1, createdAt: -1 });

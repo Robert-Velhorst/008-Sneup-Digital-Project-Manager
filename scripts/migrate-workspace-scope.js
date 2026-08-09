@@ -7,7 +7,7 @@ const usage = () => [
   'Usage: npm run migrate:workspace [-- --apply] [-- --concurrency <1-16>]',
   '',
   'Without --apply, Sneup reads legacy workspace gaps and future workspace-scoped index conflicts.',
-  '--apply refuses index conflicts, then creates the default workspace if needed, backfills legacy records, and creates workspace-scoped control indexes.'
+  '--apply refuses index conflicts, then creates the default workspace if needed, backfills legacy records, and creates workspace-scoped control and Trello entity indexes.'
 ].join('\n');
 
 const parseArgs = (args) => {
@@ -60,7 +60,8 @@ const main = async () => {
         preflight: preflight.indexPreflight,
         policyRuleIndexes: await workspaceScopeService.ensurePolicyRuleIndexes(),
         jobControlIndexes: await workspaceScopeService.ensureJobControlIndexes(),
-        featureFlagIndexes: await workspaceScopeService.ensureFeatureFlagIndexes()
+        featureFlagIndexes: await workspaceScopeService.ensureFeatureFlagIndexes(),
+        providerEntityIndexes: await workspaceScopeService.ensureProviderEntityIndexes()
       };
     }
     process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);

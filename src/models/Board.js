@@ -13,9 +13,7 @@ const boardSchema = new mongoose.Schema({
   },
   trelloId: {
     type: String,
-    required: true,
-    unique: true,
-    index: true
+    required: true
   },
   name: {
     type: String,
@@ -64,6 +62,7 @@ const boardSchema = new mongoose.Schema({
 
 // Indexes for efficient queries
 boardSchema.index({ workspaceId: 1, closed: 1 });
+boardSchema.index({ workspaceId: 1, trelloId: 1 }, { unique: true });
 boardSchema.index({ closed: 1 });
 boardSchema.index({ lastSync: 1 });
 

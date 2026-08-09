@@ -4,10 +4,22 @@ const Workspace = require('../models/Workspace');
 const PolicyRule = require('../models/PolicyRule');
 const JobControl = require('../models/JobControl');
 const FeatureFlag = require('../models/FeatureFlag');
+const Board = require('../models/Board');
+const Card = require('../models/Card');
+const Comment = require('../models/Comment');
+const List = require('../models/List');
+const Member = require('../models/Member');
 const { WORKSPACE_COLLECTIONS } = require('./workspaceCollectionRegistry');
 
 const OBJECT_ID_PATTERN = /^[a-f0-9]{24}$/i;
 const DEFAULT_BACKFILL_CONCURRENCY = 4;
+const providerEntityModels = Object.freeze([
+  ['boards', Board],
+  ['cards', Card],
+  ['comments', Comment],
+  ['lists', List],
+  ['members', Member]
+]);
 
 const getDefaultWorkspaceKey = () => Workspace.defaultWorkspaceKey();
 const getDefaultWorkspaceName = () => Workspace.defaultWorkspaceName();
@@ -174,6 +186,27 @@ const inspectWorkspaceScopedUniqueness = async ({ Model, workspaceId, fields }) 
   };
 };
 
+const inspectProviderEntityUniqueness = async ({ Model, workspaceId }) => {
+  let rows = [];
+  try {
+    rows = await Model.aggregate([
+      { $match: { trelloId: { $exists: true, $ne: null } } },
+      { $project: { workspaceId: { $ifNull: ['$workspaceId', workspaceId] }, trelloId: 1 } },
+      { $group: { _id: { workspaceId: '$workspaceId', trelloId: '$trelloId' }, count: { $sum: 1 } } },
+      { $match: { count: { $gt: 1 } } },
+      { $group: { _id: null, duplicateGroups: { $sum: 1 }, duplicateRecords: { $sum: '$count' } } },
+      { $project: { _id: 0, duplicateGroups: 1, duplicateRecords: 1 } }
+    ]);
+  } catch (error) {
+    if (error.code !== 26 && error.codeName !== 'NamespaceNotFound') throw error;
+  }
+  const summary = rows[0] || {};
+  return {
+    duplicateGroups: Number(summary.duplicateGroups) || 0,
+    duplicateRecords: Number(summary.duplicateRecords) || 0
+  };
+};
+
 const inspectDefaultWorkspaceMigration = async ({
   models = workspaceScopedModels,
   workspaceId = getDefaultWorkspaceObjectId(),
@@ -181,9 +214,10 @@ const inspectDefaultWorkspaceMigration = async ({
   concurrency = getBackfillConcurrency(),
   policyRuleModel = PolicyRule,
   jobControlModel = JobControl,
-  featureFlagModel = FeatureFlag
+  featureFlagModel = FeatureFlag,
+  providerModels = providerEntityModels
 } = {}) => {
-  const [backfill, policyRules, jobControls, featureFlags] = await Promise.all([
+  const [backfill, policyRules, jobControls, featureFlags, providerEntities] = await Promise.all([
     inspectDefaultWorkspaceBackfill({ models, workspaceId, workspaceKey, concurrency }),
     inspectWorkspaceScopedUniqueness({
       Model: policyRuleModel,
@@ -199,10 +233,14 @@ const inspectDefaultWorkspaceMigration = async ({
       Model: featureFlagModel,
       workspaceId,
       fields: ['key']
-    })
+    }),
+    Promise.all(providerModels.map(async ([name, Model]) => [name, await inspectProviderEntityUniqueness({ Model, workspaceId })]))
   ]);
-  const duplicateGroups = policyRules.duplicateGroups + jobControls.duplicateGroups + featureFlags.duplicateGroups;
-  const duplicateRecords = policyRules.duplicateRecords + jobControls.duplicateRecords + featureFlags.duplicateRecords;
+  const providerEntitySummary = Object.fromEntries(providerEntities);
+  const providerDuplicateGroups = providerEntities.reduce((total, [, item]) => total + item.duplicateGroups, 0);
+  const providerDuplicateRecords = providerEntities.reduce((total, [, item]) => total + item.duplicateRecords, 0);
+  const duplicateGroups = policyRules.duplicateGroups + jobControls.duplicateGroups + featureFlags.duplicateGroups + providerDuplicateGroups;
+  const duplicateRecords = policyRules.duplicateRecords + jobControls.duplicateRecords + featureFlags.duplicateRecords + providerDuplicateRecords;
 
   return {
     ...backfill,
@@ -212,7 +250,8 @@ const inspectDefaultWorkspaceMigration = async ({
       duplicateRecords,
       policyRules,
       jobControls,
-      featureFlags
+      featureFlags,
+      providerEntities: providerEntitySummary
     }
   };
 };
@@ -296,6 +335,25 @@ const ensureFeatureFlagIndexes = async ({ Model = FeatureFlag } = {}) => {
   return { workspaceKeyIndexReady: true };
 };
 
+const ensureProviderEntityIndexes = async ({ models = providerEntityModels } = {}) => {
+  const results = {};
+  for (const [name, Model] of models) {
+    let indexes = [];
+    try {
+      indexes = await Model.collection.indexes();
+    } catch (error) {
+      if (error.code !== 26 && error.codeName !== 'NamespaceNotFound') throw error;
+    }
+    const legacyIndexes = indexes.filter(index => index.unique === true
+      && Object.keys(index.key || {}).length === 1
+      && index.key.trelloId === 1);
+    for (const index of legacyIndexes) await Model.collection.dropIndex(index.name);
+    await Model.createIndexes();
+    results[name] = { removedLegacyTrelloIdIndexes: legacyIndexes.length };
+  }
+  return results;
+};
+
 module.exports = {
   assertWorkspaceMigrationReady,
   backfillDefaultWorkspace,
@@ -303,6 +361,7 @@ module.exports = {
   ensurePolicyRuleIndexes,
   ensureJobControlIndexes,
   ensureFeatureFlagIndexes,
+  ensureProviderEntityIndexes,
   ensureDefaultWorkspace,
   getBackfillConcurrency,
   getDefaultWorkspaceKey,
@@ -311,6 +370,7 @@ module.exports = {
   getRequestWorkspaceObjectId,
   inspectDefaultWorkspaceBackfill,
   inspectDefaultWorkspaceMigration,
+  inspectProviderEntityUniqueness,
   inspectWorkspaceScopedUniqueness,
   listActiveWorkspaceIds,
   mapWithConcurrency,
@@ -318,6 +378,7 @@ module.exports = {
   normalizeWorkspaceObjectId,
   objectIdFromWorkspaceKey,
   plannedDefaultWorkspaceQuery,
+  providerEntityModels,
   scopeQuery,
   slugifyWorkspaceKey,
   workspaceScopedModels

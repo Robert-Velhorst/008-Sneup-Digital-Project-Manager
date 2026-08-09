@@ -36,6 +36,22 @@ npm.cmd run support:bundle
 
 The support bundle is written under `output/support`, contains configuration state only, and excludes environment values, credentials, logs, and user data.
 
+## Data integrity
+
+Run a read-only, workspace-scoped integrity scan first:
+
+```powershell
+npm.cmd run repair:data -- --workspace default --json
+```
+
+Only cached list counts and member assignment/workload state are eligible for automatic repair. Trello action reconciliation, notification delivery claims, executing recommendations, and stale job runs require operator evidence. After reviewing the current scan, apply only its current safe findings with:
+
+```powershell
+npm.cmd run repair:data -- --workspace default --apply --confirm repair-derived-state --json
+```
+
+Apply mode re-scans, skips changed fingerprints, writes an audit event for each successful internal update, and never contacts a provider or retries a delivery.
+
 ## Backup and restore
 
 Use MongoDB-native, encrypted, access-controlled backups. Before a release, restore the backup into an isolated database, run workspace migration preflight, compare collection counts and critical indexes, and execute read-only acceptance checks. Never use a production restore target for rehearsal.

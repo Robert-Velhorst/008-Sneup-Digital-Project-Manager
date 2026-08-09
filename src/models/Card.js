@@ -8,9 +8,7 @@ const cardSchema = new mongoose.Schema({
   },
   trelloId: {
     type: String,
-    required: true,
-    unique: true,
-    index: true
+    required: true
   },
   name: {
     type: String,
@@ -124,6 +122,7 @@ const cardSchema = new mongoose.Schema({
 
 // Indexes for efficient queries
 cardSchema.index({ workspaceId: 1, boardId: 1, listId: 1 });
+cardSchema.index({ workspaceId: 1, trelloId: 1 }, { unique: true });
 cardSchema.index({ boardId: 1, listId: 1 });
 cardSchema.index({ closed: 1, due: 1 });
 cardSchema.index({ members: 1, closed: 1 });
