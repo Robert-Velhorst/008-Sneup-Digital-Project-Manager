@@ -6,7 +6,7 @@ This report is updated from executed commands at release time. A passing local s
 
 - Branch: `main`
 - Starting commit: `70d792c8ae68528269f0d8d2320c45ca83535512`
-- Release under verification: `2.3.9`
+- Release under verification: `2.3.10`
 - Default remote: `origin`
 
 ## Verification ledger
@@ -17,7 +17,7 @@ This report is updated from executed commands at release time. A passing local s
 | Focused retention tests | Pass: owner permissions, policy bounds, dry-run exclusions, exact confirmation, pre-delete audit failure, distributed worker lease, UI wiring, and rotation across bounded workspace batches |
 | ESLint | Pass |
 | Doctor | Pass with expected local warnings for absent MongoDB/Trello configuration; no errors; ngrok disabled locally |
-| Full regression | Pass: 94 suites, 738 tests |
+| Full regression | Pass: 97 suites, 745 tests |
 | Recommendation evaluation | Pass: 5/5 scenarios, score 100% |
 | Production and full dependency audit | Pass: 0 vulnerabilities after lockfile remediation |
 | Release security positive check | Pass: five purpose-separated production secrets, no values exposed |
@@ -32,14 +32,14 @@ This report is updated from executed commands at release time. A passing local s
 | Real MongoDB data retention | Pass: six eligible categories deleted, six protected records retained, six pre/post audit pairs stored, seven query indexes verified, provider writes false |
 | Retention performance sample | Pass: six-category preview 35.09 ms, six audited category batches 936.39 ms, verifier RSS 94.1 MB; seven supporting indexes verified |
 | Integrity API performance sample | Pass: 30 live requests measured 14.01 ms p50 and 23.71 ms p95; server working set 119.5 MB after browser QA |
-| Browser QA | Pass: after the in-app Browser webview did not attach, connected Chrome previewed two due retention categories, confirmed the exact workspace, pruned 2/2 disposable records, rescanned to zero, and reported no console warnings/errors, overflow, or mobile modal overlap |
+| Browser QA | Pass: the in-app Browser opened the live demo command center, rendered and refreshed all eight setup diagnostics, reported no console warnings/errors or row overlap, had no horizontal overflow at desktop or narrow mobile breakpoints, and resolved the shared drawer as a labelled modal dialog |
 | Windows UI automation | The installed Windows-control package did not expose its required guidance interface; no undocumented input was attempted and visual evidence is not inferred from HTTP or window metadata |
-| Packaged Windows QA | Pass: 2.3.9 served healthy versioned metadata, retained HAI `never_direct`, returned the Trello connector query, closed through its main window, and released port 3209 |
-| Packaged idle sample | Pass: the four-process build settled to 370.9 MB working set, 323.0 MB private memory, and 3.156 cumulative CPU seconds after 30 seconds. This is a local sample rather than a production-scale benchmark. |
-| Windows installer | Pass: local build 109,440,956 bytes, unsigned, SHA-256 `F011C6F19BEA4C8489FBADA0B70E25CBFD402390730FDE0871799FBF7BE19EFB`; executable metadata reports 2.3.9, the 65,856,376-byte archive includes the canonical Trello dependency path, and the installer opened and cancelled normally |
-| Fresh clone | Pass: GitHub checked out exact source `8a430c30ecfb1cd5cda729a5fb0689d508b8e1df`, installed the lockfile with Node.js 24, and completed quality plus Windows package jobs |
-| GitHub CI | Pass: run `31308308438`; quality in 49 seconds and Windows installer in 2 minutes 17 seconds; both checks succeeded with zero annotations |
-| GitHub installer artifact | Pass: artifact `9036645854`, `sneup-windows-installer-unsigned`, 109,446,471-byte archive, digest `sha256:f7e5b0c33ae74fc530deb824ccc321eea2702daf6157cf95a59ba10985fdcf9c`; its single downloaded installer is 109,440,523 bytes, unsigned, version 2.3.9, SHA-256 `50BFA7B5D711E1FD4BBC3A363BDF1BF9CFFBC6D52697AC013A995A9902D8208E` |
+| Packaged Windows QA | Pass: repeatable verifier confirmed 2.3.10 product metadata, healthy demo state, eight redacted diagnostics, HAI `never_direct`, normal main-window close, and port 3213 release |
+| Packaged idle sample | Pass: the four-process build settled to 392.4 MB working set, 338.7 MB private memory, and 2.656 cumulative CPU seconds after 30 seconds. This is a local sample rather than a production-scale benchmark. |
+| Windows installer | Pass: local build 109,443,541 bytes, unsigned, SHA-256 `B935C2D4992BB159212680C7B48D6D4FC424A2E2927C3FDB9CB7EE057119AA37`; executable metadata reports 2.3.10 |
+| Fresh clone | Pass: GitHub checked out exact source `5bf29b79f1b7779d243ea4812ff53b09fe103e28`, installed the lockfile with Node.js 24, and completed quality plus Windows package jobs |
+| GitHub CI | Pass: run `31309758407`; quality in 1 minute 8 seconds and Windows installer in 1 minute 58 seconds; both jobs succeeded |
+| GitHub installer artifact | Pass: artifact `9037035047`, `sneup-windows-installer-unsigned`, 109,449,397-byte archive, digest `sha256:7933205589ee2678c403c07e228f9b8afed0937a296038b56694c6ffd31a8f57`; its single downloaded installer is 109,443,477 bytes, unsigned, version 2.3.10, SHA-256 `6B87407EC9CE0BC73790056F1AA5E58CA69DAE2FC1A3FFBEFAF7F32C517BCB40` |
 
 ## External gates
 
