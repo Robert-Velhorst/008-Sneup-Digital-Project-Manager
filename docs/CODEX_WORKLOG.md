@@ -126,3 +126,12 @@ This worklog records local engineering evidence. Live Trello, production MongoDB
 - The packaged demo used four processes, 412.1 MB working set, 375.1 MB private memory, and 2.562 cumulative CPU seconds after 30 seconds. Adobe remains lazy and adds about 64 KB RSS after the shared connector stack is loaded. Packaged and installer processes closed and port 3199 was released.
 - Published source commit `988f9a8f3abed7ec39b2b5718d5a67d8479c6f37`. GitHub run `31307217856` completed with zero annotations: Node.js 24 quality in 54 seconds and Windows installer plus artifact upload in 2 minutes 16 seconds.
 - Artifact `9036334669` (`sneup-windows-installer-unsigned`) has GitHub archive digest `sha256:8edad301ab6f0ed809c6d72e1d77296cee42579aed80f074079114f17f7ceed0`. Its single downloaded installer is 109,440,023 bytes, unsigned, reports version 2.3.8, and has SHA-256 `D8E96FB7B82C7756C99D3C014F82E3E8EA71C445A695F6EB259BA485BD21E96B`.
+
+### 2026-08-09 - Exact Trello dependency evidence and 2.3.9 release
+
+- Replaced description-title blocker guesses with exact official Trello card short-link evidence, persisted stable card and attachment identifiers, and added graph aliases so full and short Trello identifiers resolve to the same work item.
+- Reduced core and connector Trello card reads to attachment link metadata and selected member fields; no attachment preview/body data or provider write was added.
+- Passed lint, 94 suites/738 tests, 5/5 recommendation evaluation, two zero-vulnerability dependency audits, five-secret production verification, and a zero-finding tracked non-fixture secret scan.
+- The local `Sneup-Setup-2.3.9.exe` is 109,440,956 bytes, unsigned, SHA-256 `F011C6F19BEA4C8489FBADA0B70E25CBFD402390730FDE0871799FBF7BE19EFB`. The packaged four-process demo sampled 370.9 MB working set, 323.0 MB private memory, and 3.156 CPU seconds after 30 seconds, closed normally, and released port 3209.
+- Published source commit `8a430c30ecfb1cd5cda729a5fb0689d508b8e1df`. GitHub run `31308308438` completed with zero annotations: Node.js 24 quality in 49 seconds and Windows installer plus artifact upload in 2 minutes 17 seconds.
+- Artifact `9036645854` (`sneup-windows-installer-unsigned`) has GitHub archive digest `sha256:f7e5b0c33ae74fc530deb824ccc321eea2702daf6157cf95a59ba10985fdcf9c`. Its single downloaded installer is 109,440,523 bytes, unsigned, reports version 2.3.9, and has SHA-256 `50BFA7B5D711E1FD4BBC3A363BDF1BF9CFFBC6D52697AC013A995A9902D8208E`.
