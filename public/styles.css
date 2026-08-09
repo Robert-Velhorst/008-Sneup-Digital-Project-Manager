@@ -213,7 +213,7 @@ h1 {
 
 .metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 18px;
   min-width: 0;
@@ -252,6 +252,12 @@ h1 {
 
 .grid > * {
   min-width: 0;
+}
+
+@media (min-width: 1041px) {
+  .main {
+    width: calc(100vw - 248px);
+  }
 }
 
 .panel {
