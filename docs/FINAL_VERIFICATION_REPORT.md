@@ -32,8 +32,9 @@ This report is updated from executed commands at release time. A passing local s
 | Installer UI | Pass: Windows exposed `Sneup Setup` from the 2.3.3 installer; it closed normally without installing |
 | Windows installer | Pass: `Sneup-Setup-2.3.3.exe`, 109,423,235 bytes, unsigned; executable metadata reports Sneup 2.3.3 and Noodzakelijk Online |
 | Installer SHA-256 | `CA4B1EF0F34E1EB47BC5EDBE1BA5E77A2BE61070557A5F19D764094EE9D254B6` |
-| Fresh clone | Pending: exact 2.3.3 Node.js 24 quality and Windows installer jobs after push |
-| GitHub CI | Pending exact 2.3.3 run after push |
+| Fresh clone | Pass: 2.3.3 quality and Windows installer jobs ran from clean Node.js 24 checkouts |
+| GitHub CI | Pass: run `31296974370`, commit `f45ba4e50253648fea2c1c4f40c37005701c3a80`, zero annotations; quality in 1m02s and Windows installer plus artifact upload in 2m39s |
+| GitHub artifact | Pass: artifact `9033286273`, `sneup-windows-installer-unsigned`, 109,429,416-byte archive, GitHub digest `sha256:09181328ab552a79a057ff2b3ded0e97a1efd3ef7f10619cf46474e6dee5d95a` |
 
 ## External gates
 
