@@ -131,6 +131,8 @@ Terminal workspace invitations are retained as lifecycle evidence only. The dail
 
 Workspace owners can preview and opt into bounded Data Retention from Workspace Administration. The policy covers only terminal job history, old board-health snapshots, performance history, finalized notification receipts, and revoked or expired credentials. It is off by default, records a high-risk audit before and after each category batch, uses a distributed workspace lease, and never prunes audit events, approvals, recommendations, Trello action attempts, active credentials, pending deliveries, or current project/work-graph data. Manual pruning requires the exact workspace slug; `npm run verify:data-retention` proves the deletion and exclusion boundaries against a dedicated disposable MongoDB database.
 
+Reviewed operational forms preserve bounded drafts inside the current browser session and workspace. Capacity, forecast, project-mapping, retention, rollout, and internal policy forms can also expose capped named presets where reusable defaults are safe. Sneup never includes credentials, tokens, email or notification destinations, external-action payloads, evidence, responses, invitations, destructive confirmations, or safety-relaxation confirmations in this storage. Canceling or a failed request keeps the draft; a confirmed API success clears it.
+
 The Windows installer uses the bundled Sneup icon. Release signing and automatic updates remain release-infrastructure tasks: configure a publisher certificate and update feed in the release environment before distributing a trusted production build.
 
 ### Authenticated ngrok cloud access

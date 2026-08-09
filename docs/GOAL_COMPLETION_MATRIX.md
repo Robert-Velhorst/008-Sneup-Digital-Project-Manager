@@ -25,10 +25,10 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 018 Rate limits/quotas | Implemented | Request limits, provider bounds, pacing, retry caps, visible truncation failures. |
 | 019 Audit history | Implemented | Workspace audit events and operations-ledger timelines. |
 | 020 Dashboard/next action | Implemented | Decision, exception, policy, health, report, and ledger views. |
-| 021 Forms/validation/autosave | Partial | Validation and stable forms exist; universal autosave does not. |
+| 021 Forms/validation/autosave | Partial | Reviewed non-sensitive operational forms have bounded workspace/session draft recovery with success-only cleanup; credential, consequential-confirmation, evidence, response, destination, and provider-action forms are deliberately excluded. |
 | 022 Search/filter/sort/page | Implemented | Bounded list APIs and command-center filters. |
 | 023 Import/export | Implemented | Provider ingestion, PDF reports, and owner-only streamed workspace export exist. |
-| 024 Templates/presets/defaults | Partial | Policy defaults and report presets exist; reusable user templates are limited. |
+| 024 Templates/presets/defaults | Partial | Policy/report defaults plus up to eight workspace-scoped named presets exist for reviewed reusable form fields; arbitrary or sensitive form templating is deliberately excluded. |
 | 025 AI abstraction/fallback | Implemented | Every model call uses one demand-loaded, timeout-bounded, no-retry gateway. Missing credentials, initialization/auth/rate-limit/timeout/provider failures, malformed output, and oversized output return bounded deterministic responses with explicit provenance and redacted failure logs. |
 | 026 Human review/approval | Implemented | Queue, protected payload review, approval expiry, policy gates. |
 | 027 Notifications/reminders | Implemented | Explicit policies, claims, delivery evidence, quiet hours, digests. |
@@ -45,7 +45,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 038 Fake provider lab | Implemented | Provider mocks are test-only and cannot activate production success. |
 | 039 Test factories/fixtures | Implemented | Deterministic service/provider fixtures across test suites. |
 | 040 Backend tests | Implemented | Jest regression suite and CI gate. |
-| 041 Frontend/component tests | Partial | Static/UI assertions and focused export-control wiring coverage exist; no isolated component framework. |
+| 041 Frontend/component tests | Partial | Static/UI assertions plus isolated jsdom coverage verify draft/preset controls, workspace isolation, bounds, corrupt storage, sensitive-field rejection, and browser initialization; broader component coverage remains backlog. |
 | 042 Worker/job tests | Implemented | Sync, notification, retention, outcome, job execution coverage. |
 | 043 End-to-end tests | Partial | Local browser flows exist; live-provider E2E is external. |
 | 044 Acceptance matrix | Implemented | `ACCEPTANCE_TESTS.md`. |
@@ -97,7 +97,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 090 No vanity work | Implemented | Changes target operability, safety, evidence, and delivery. |
 | 091 Feature definition of done | Implemented | Status requires wiring, reachability, tests, docs, and evidence. |
 | 092 Fresh-clone run | Implemented | Exact 2.3.12 source `b4aaf365ba40d825c1825ff74807ebf29f08f2ae` passed GitHub run `31312592810`; both Node 24 quality and Windows installer jobs completed successfully, and artifact `9037819305` was independently downloaded and verified. |
-| 093 Manual evidence | Partial | The 2.3.12 in-app Browser overview/approvals/connectors flow and packaged runtime diagnostics, HAI policy, resource sample, normal close, port release, and installer pass locally while live provider and clean-VM evidence remain external. |
+| 093 Manual evidence | Partial | The 2.3.13 in-app Browser live disposable-workspace flow verified draft save, preset apply, cancel/reopen recovery, success-only cleanup, mobile stacking, and zero current console errors; packaged runtime and live-provider/clean-VM evidence retain their separate gates. |
 | 094 No-excuses search | Implemented | No shipped TODO/FIXME/HACK, dynamic-code, child-process, or secret-pattern finding. |
 | 095 Completion matrix | Implemented | This file, with partial/external states retained. |
 | 096 Verification report | Implemented | Final commands, clean-checkout result, installer hash, browser QA, and packaged Windows QA are recorded. |
@@ -118,7 +118,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 111 Ambiguous external actions | Implemented | Claimed state, partial-step evidence, manual reconciliation. |
 | 112 Version/changelog | Implemented | Semantic package release and `CHANGELOG.md`. |
 | 113 Regression baseline | Implemented | Full Jest/lint/evaluation commands and CI. |
-| 114 Maintenance/refactor review | Partial | High-risk boundaries reviewed; broader modularization remains backlog. |
+| 114 Maintenance/refactor review | Partial | Form persistence is isolated from the 6,500-line command-center script behind a small bounded module; broader command-center modularization remains backlog. |
 | 115 Human operator readiness | External | Requires signed clean-VM install and authorized live Trello acceptance. |
 
 ## Honest completion boundary

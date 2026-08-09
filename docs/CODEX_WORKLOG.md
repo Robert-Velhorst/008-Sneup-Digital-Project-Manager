@@ -12,6 +12,14 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-09 bounded form persistence continuation
+
+- Added a standalone browser module for workspace-scoped session drafts and capped named presets, wired only to reviewed forecast, capacity, project-mapping, retention, rollout, and internal policy forms.
+- Excluded credentials, invitations, notification destinations, provider-action payloads, reconciliation evidence, worker responses, destructive confirmations, and safety-relaxation confirmation from persistence; a defense-in-depth field-name filter rejects these categories even if requested.
+- Bound field/value/record/name/preset counts, failed closed on malformed or unavailable storage, fixed workspace scope at form-open time, and clear drafts only after confirmed API success.
+- Added jsdom coverage for storage, controls, browser bootstrap, workspace isolation, corruption, limits, and sensitive-form exclusions.
+- Used a dedicated disposable MongoDB database for in-app Browser QA: draft save, preset save/apply, cancel/reopen restore, API-save cleanup, and mobile stacking passed with no current console errors; the database and both preview processes were removed afterward.
+
 ## 2026-08-09 production lifecycle continuation
 
 - Re-audited the active objective against the current pushed worktree and the Trello operations-ledger specification.

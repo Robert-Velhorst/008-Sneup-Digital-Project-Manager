@@ -62,9 +62,9 @@ Added:
 - Secure preload bridge in `desktop/preload.js`.
 - `npm run desktop` for local desktop testing.
 - `npm run build:installer` / `npm run dist:win` for Windows NSIS packaging.
-- Current release target: `release/Sneup-Setup-2.3.12.exe`.
+- Current release target: `release/Sneup-Setup-2.3.13.exe`.
 
-The verified local 2.3.12 installer is 109,445,733 bytes with SHA-256 `4633D51C277CBF462163A915694D2BC1B1D82A8E2F2D242335A032E1D13D0C60`. It is intentionally reported as unsigned until an owner-controlled publisher certificate is available. The packaged executable reports product/file version 2.3.12 and retains the Windows x64 native ngrok binding.
+The verified local 2.3.13 installer is 109,449,215 bytes with SHA-256 `AE640C1E1FCF5983B4DCE5050C8956082F9D441B5E3C707A7DF8AC60A6CDD268`. It is intentionally reported as unsigned until an owner-controlled publisher certificate is available. The packaged executable reports product/file version 2.3.13 and retains the Windows x64 native ngrok binding.
 
 The desktop app starts Sneup on `127.0.0.1` and opens the command center in an app window. On first run it starts in demo mode. The workspace choice stores only the non-secret `demo` or `live` startup preference in the Electron user-data directory, then relaunches before Sneup initializes. Production live mode fails closed before opening the HTTP listener when MongoDB is unavailable. The Windows error dialog can persist an explicit read-only demo choice and relaunch, preventing a failed live preference from trapping the user. An explicitly set `SNEUP_DEMO_MODE` environment variable takes precedence over the local preference until the user chooses the recovery action.
 
@@ -75,6 +75,6 @@ The desktop app starts Sneup on `127.0.0.1` and opens the command center in an a
 - `npm test -- --runInBand` passed 765 tests across 101 suites.
 - `npm audit --omit=dev` reported 0 vulnerabilities.
 - Local HTTP smoke tests passed for health, connector catalog, and mission control.
-- The in-app Browser passed the 2.3.12 overview, approvals-ledger, and 117-card connector-marketplace flow: refresh completed, the page had no horizontal overflow or visible failure, and the console had zero warnings or errors.
+- The in-app Browser passed the 2.3.13 live disposable-workspace form flow: draft save, named preset save/apply, cancel/reopen recovery, successful API-save cleanup, and narrow responsive stacking completed without horizontal overflow or current console errors.
 - The current resource pass passed `npm run lint`, a production-only `npm audit` with zero findings, and a fresh Windows NSIS build after inspecting its packaged archive.
-- The final packaged 2.3.12 demo settled to four processes, 357.6 MB working set, 290.0 MB private memory, and 1.438 cumulative CPU seconds after 30 seconds. The repeatable verifier confirmed product metadata, eight redacted diagnostics, HAI `never_direct`, normal close, and port release. The sample is directional rather than a production-scale benchmark.
+- The final packaged 2.3.13 demo settled to four processes, 362.2 MB working set, 292.8 MB private memory, and 1.672 cumulative CPU seconds after 30 seconds. The repeatable verifier confirmed product metadata, eight redacted diagnostics, HAI `never_direct`, normal close, and port release. The sample is directional rather than a production-scale benchmark.

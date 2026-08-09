@@ -5,8 +5,8 @@ This report is updated from executed commands at release time. A passing local s
 ## Baseline
 
 - Branch: `main`
-- Starting commit: `22a7cb958ff83acc75594a22e28070caaa2d1a2a`
-- Release under verification: `2.3.12`
+- Starting commit: `b2e98d16d08e267342e56ede90425eb83fd0d7b1`
+- Release under verification: `2.3.13`
 - Default remote: `origin`
 
 ## Verification ledger
@@ -17,7 +17,7 @@ This report is updated from executed commands at release time. A passing local s
 | Focused retention tests | Pass: owner permissions, policy bounds, dry-run exclusions, exact confirmation, pre-delete audit failure, distributed worker lease, UI wiring, and rotation across bounded workspace batches |
 | ESLint | Pass |
 | Doctor | Pass with expected local warnings for absent MongoDB/Trello configuration; no errors; ngrok disabled locally |
-| Full regression | Pass: 101 suites, 765 tests, including missing-provider, initialization, authentication, rate-limit, timeout, outage, malformed-output, oversized-output, provenance, API validation, lazy-load, and ledger-compatibility paths |
+| Full regression | Pass: 102 suites, 779 tests, including workspace-scoped form storage, sensitive-field rejection, browser bootstrap, provider failure, provenance, API validation, lazy-load, and ledger-compatibility paths |
 | Recommendation evaluation | Pass: 5/5 scenarios, score 100% |
 | Production and full dependency audit | Pass: 0 vulnerabilities after lockfile remediation |
 | Release security positive check | Pass: five purpose-separated production secrets, no values exposed |
@@ -32,16 +32,16 @@ This report is updated from executed commands at release time. A passing local s
 | Real MongoDB data retention | Pass: six eligible categories deleted, six protected records retained, six pre/post audit pairs stored, seven query indexes verified, provider writes false |
 | Retention performance sample | Pass: six-category preview 35.09 ms, six audited category batches 936.39 ms, verifier RSS 94.1 MB; seven supporting indexes verified |
 | Integrity API performance sample | Pass: 30 live requests measured 14.01 ms p50 and 23.71 ms p95; server working set 119.5 MB after browser QA |
-| Startup profile | Pass: repeatable demo profile imported 251 modules in 422.0 ms at 70.6 MB RSS, served health plus the complete initial overview in 112.3 ms at 75.4 MB RSS, and never loaded MongoDB |
+| Startup profile | Pass: repeatable demo profile imported 251 modules in 261.2 ms at 68.9 MB RSS, served health plus the complete initial overview in 77.8 ms at 73.5 MB RSS, and never loaded MongoDB |
 | Optional AI resource profile | Pass: loading offline chat did not load OpenAI; loading the deferred SDK afterward added 122 modules, 6.0 MB RSS, and 4.65 seconds in this cold local sample |
-| Browser QA | Pass: the in-app Browser opened and refreshed the live 2.3.12 overview, approvals ledger, and 117-card connector marketplace with no visible failure notice, horizontal overflow, console warning, or console error |
+| Browser QA | Pass: the in-app Browser used a dedicated disposable live workspace to save and restore a draft, save/apply a named preset, clear the draft after a successful API write, and verify the narrow stacked layout without horizontal overflow or current console errors; the QA database was then dropped |
 | Windows UI automation | The installed Windows-control package did not expose its required guidance interface; no undocumented input was attempted and visual evidence is not inferred from HTTP or window metadata |
-| Packaged Windows QA | Pass: repeatable verifier confirmed 2.3.12 product metadata, healthy demo state, eight redacted diagnostics, HAI `never_direct`, normal main-window close, and loopback port release |
-| Packaged idle sample | Pass: the four-process build settled to 357.6 MB working set, 290.0 MB private memory, and 1.438 cumulative CPU seconds after 30 seconds. Against 2.3.11 this local sample is 0.4% higher working set, 0.6% lower private memory, and 29.8% lower cumulative CPU. This is a local sample rather than a production-scale benchmark. |
-| Windows installer | Pass: local build 109,445,733 bytes, unsigned, SHA-256 `4633D51C277CBF462163A915694D2BC1B1D82A8E2F2D242335A032E1D13D0C60`; executable metadata reports 2.3.12 |
-| Fresh clone | Pass: GitHub checked out exact source `b4aaf365ba40d825c1825ff74807ebf29f08f2ae`, installed the lockfile with Node.js 24, and completed quality plus Windows package jobs |
-| GitHub CI | Pass: run `31312592810`; quality in 61 seconds and Windows installer in 2 minutes 23 seconds; both jobs succeeded |
-| GitHub installer artifact | Pass: artifact `9037819305`, `sneup-windows-installer-unsigned`, 109,451,792-byte archive, digest `sha256:3ec405ac02310b5344389196958ec2e2e84939b657012b5615ad790e8bec3b44`; its single downloaded installer is 109,445,824 bytes, unsigned, version 2.3.12, SHA-256 `F105AE98192C38C897065ADD0B01869137CE766802CEA03AF986E354B23778E2` |
+| Packaged Windows QA | Pass: repeatable verifier confirmed 2.3.13 product metadata, healthy demo state, eight redacted diagnostics, HAI `never_direct`, normal main-window close, and loopback port release |
+| Packaged idle sample | Pass: the four-process build settled to 362.2 MB working set, 292.8 MB private memory, and 1.672 cumulative CPU seconds after 30 seconds. This is a directional local sample rather than a production-scale benchmark. |
+| Windows installer | Pass: local build 109,449,215 bytes, unsigned, SHA-256 `AE640C1E1FCF5983B4DCE5050C8956082F9D441B5E3C707A7DF8AC60A6CDD268`; executable metadata reports 2.3.13 |
+| Fresh clone | Pending for the 2.3.13 source push; the prior 2.3.12 fresh-clone gate remains historical evidence only |
+| GitHub CI | Pending for the 2.3.13 source push |
+| GitHub installer artifact | Pending for the 2.3.13 source push; the local installer is not treated as remote artifact evidence |
 
 ## External gates
 

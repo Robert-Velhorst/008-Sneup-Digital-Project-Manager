@@ -195,6 +195,10 @@ const els = {
   modalBody: document.getElementById('modalBody')
 };
 
+const formPersistence = window.SneupFormPersistence?.init({
+  getScope: () => state.activeWorkspaceId || state.currentWorkspace?.id || 'current'
+});
+
 document.querySelectorAll('[data-view-button]').forEach((button) => {
   button.addEventListener('click', () => showView(button.dataset.viewButton));
 });
@@ -790,7 +794,7 @@ function openForecastScenario() {
   const selected = members[0];
   els.modalTitle.textContent = 'Explore capacity scenario';
   els.modalBody.innerHTML = `
-    <form id="forecastScenarioForm">
+    <form id="forecastScenarioForm" data-draft-key="forecast-scenario" data-draft-fields="memberId,weeklyHours,allocationPercent,focusHoursPerWeek,timeOff" data-template-fields="weeklyHours,allocationPercent,focusHoursPerWeek">
       <div class="notice">This is a temporary what-if analysis. It does not save a capacity profile, change provider data, update work, or queue a decision.</div>
       <div class="field"><label for="forecastScenarioMember">Contributor</label><select id="forecastScenarioMember" name="memberId">${members.map(member => `<option value="${escapeHtml(member.memberId)}">${escapeHtml(member.name || 'Team member')}</option>`).join('')}</select></div>
       <div class="field"><label for="forecastScenarioWeeklyHours">Weekly hours</label><input id="forecastScenarioWeeklyHours" name="weeklyHours" type="number" min="1" max="80" value="${escapeHtml(selected.weeklyHours || 32)}" required></div>
@@ -802,6 +806,7 @@ function openForecastScenario() {
   `;
   els.modal.classList.add('open');
   const form = document.getElementById('forecastScenarioForm');
+  formPersistence?.enhanceForm(form);
   const syncMemberInputs = () => {
     const member = members.find(item => String(item.memberId) === String(form.elements.memberId.value));
     if (!member) return;
@@ -836,6 +841,7 @@ function openForecastScenario() {
         })
       });
       state.forecast = data.forecast || null;
+      formPersistence?.markSaved(form);
       closeModal();
       renderForecast();
       openNotice('Scenario ready', 'Sneup calculated this temporary delivery range without changing live capacity.');
@@ -865,15 +871,17 @@ function openBoardProjectMappingsEditor(boardId) {
   const mappings = (board.externalProjectMappings || []).map(item => `${item.provider}: ${item.projectId}`).join('\n');
   els.modalTitle.textContent = `Project mappings: ${board.boardName || 'board'}`;
   els.modalBody.innerHTML = `
-    <form id="boardProjectMappingsForm">
+    <form id="boardProjectMappingsForm" data-draft-key="board-project-mappings:${escapeHtml(boardId)}" data-draft-fields="externalProjectMappings">
       <div class="notice">Only explicit Float, Resource Guru, or Motion project IDs scope schedule evidence to this board. Mapped schedules remain analysis-only and do not change provider data or delivery capacity.</div>
       <div class="field"><label for="boardProjectMappings">Provider project IDs (one provider: ID per line)</label><textarea id="boardProjectMappings" name="externalProjectMappings" placeholder="float: 123&#10;resource_guru: 456&#10;motion: project_123">${escapeHtml(mappings)}</textarea></div>
       <div class="toolbar modal-actions"><button class="button" type="button" id="cancelBoardProjectMappings">Cancel</button><button class="button primary" type="submit">Save project mappings</button></div>
     </form>
   `;
   els.modal.classList.add('open');
+  const form = document.getElementById('boardProjectMappingsForm');
+  formPersistence?.enhanceForm(form);
   document.getElementById('cancelBoardProjectMappings').addEventListener('click', closeModal);
-  document.getElementById('boardProjectMappingsForm').addEventListener('submit', async (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
     const submit = form.querySelector('button[type="submit"]');
@@ -889,6 +897,7 @@ function openBoardProjectMappingsEditor(boardId) {
           }).filter(Boolean)
         })
       });
+      formPersistence?.markSaved(form);
       closeModal();
       await loadForecast();
       openNotice('Project mappings saved', 'Sneup refreshed board-scoped schedule evidence without changing provider data.');
@@ -917,7 +926,7 @@ function openCapacityEditor(memberId) {
   const externalIdentities = (member.externalIdentities || []).map(item => `${item.provider}: ${item.externalId}`).join('\n');
   els.modalTitle.textContent = `Capacity: ${member.name || 'team member'}`;
   els.modalBody.innerHTML = `
-    <form id="capacityProfileForm">
+    <form id="capacityProfileForm" data-draft-key="capacity-profile:${escapeHtml(memberId)}" data-draft-fields="weeklyHours,allocationPercent,focusHoursPerWeek,skills,externalIdentities,timeOff" data-template-fields="weeklyHours,allocationPercent,focusHoursPerWeek">
       <div class="notice">Capacity updates are analysis inputs only. They do not change any provider account or work item.</div>
       <div class="field"><label for="capacityWeeklyHours">Weekly hours</label><input id="capacityWeeklyHours" name="weeklyHours" type="number" min="1" max="80" value="${escapeHtml(member.weeklyHours || 32)}" required></div>
       <div class="field"><label for="capacityAllocation">Allocation percentage</label><input id="capacityAllocation" name="allocationPercent" type="number" min="0" max="100" value="${escapeHtml(member.allocationPercent ?? 100)}" required></div>
@@ -929,8 +938,10 @@ function openCapacityEditor(memberId) {
     </form>
   `;
   els.modal.classList.add('open');
+  const form = document.getElementById('capacityProfileForm');
+  formPersistence?.enhanceForm(form);
   document.getElementById('cancelCapacityEdit').addEventListener('click', closeModal);
-  document.getElementById('capacityProfileForm').addEventListener('submit', async (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
     const submit = form.querySelector('button[type="submit"]');
@@ -955,6 +966,7 @@ function openCapacityEditor(memberId) {
           }).filter(Boolean)
         })
       });
+      formPersistence?.markSaved(form);
       closeModal();
       await loadForecast();
       openNotice('Capacity saved', 'Sneup refreshed the analysis-only delivery forecast.');
@@ -3345,17 +3357,19 @@ function openRetentionPolicy() {
   if (!policy) return;
   els.modalTitle.textContent = 'Data retention policy';
   els.modalBody.innerHTML = `
-    <form class="form-grid" id="retentionPolicyForm">
-      <label class="checkbox-row"><input id="retentionEnabled" type="checkbox" ${policy.enabled ? 'checked' : ''}> <span>Run scheduled retention</span></label>
-      <label>Operational history days<input id="retentionOperationalDays" type="number" min="30" max="730" value="${policy.operationalDays}" required></label>
-      <label>Performance history days<input id="retentionPerformanceDays" type="number" min="180" max="2555" value="${policy.performanceDays}" required></label>
-      <label>Notification receipt days<input id="retentionNotificationDays" type="number" min="90" max="2555" value="${policy.notificationDays}" required></label>
-      <label>Revoked credential days<input id="retentionCredentialDays" type="number" min="30" max="730" value="${policy.credentialDays}" required></label>
+    <form class="form-grid" id="retentionPolicyForm" data-draft-key="retention-policy" data-draft-fields="enabled,operationalDays,performanceDays,notificationDays,credentialDays" data-template-fields="enabled,operationalDays,performanceDays,notificationDays,credentialDays">
+      <label class="checkbox-row"><input id="retentionEnabled" name="enabled" type="checkbox" ${policy.enabled ? 'checked' : ''}> <span>Run scheduled retention</span></label>
+      <label>Operational history days<input id="retentionOperationalDays" name="operationalDays" type="number" min="30" max="730" value="${policy.operationalDays}" required></label>
+      <label>Performance history days<input id="retentionPerformanceDays" name="performanceDays" type="number" min="180" max="2555" value="${policy.performanceDays}" required></label>
+      <label>Notification receipt days<input id="retentionNotificationDays" name="notificationDays" type="number" min="90" max="2555" value="${policy.notificationDays}" required></label>
+      <label>Revoked credential days<input id="retentionCredentialDays" name="credentialDays" type="number" min="30" max="730" value="${policy.credentialDays}" required></label>
       <div class="toolbar modal-actions"><button class="button" id="cancelRetentionPolicy" type="button">Cancel</button><button class="button primary" type="submit">Save policy</button></div>
     </form>`;
   els.modal.classList.add('open');
+  const form = document.getElementById('retentionPolicyForm');
+  formPersistence?.enhanceForm(form);
   document.getElementById('cancelRetentionPolicy').addEventListener('click', closeModal);
-  document.getElementById('retentionPolicyForm').addEventListener('submit', async event => {
+  form.addEventListener('submit', async event => {
     event.preventDefault();
     const submit = event.currentTarget.querySelector('[type="submit"]');
     submit.disabled = true;
@@ -3371,6 +3385,7 @@ function openRetentionPolicy() {
           credentialDays: Number(document.getElementById('retentionCredentialDays').value)
         })
       });
+      formPersistence?.markSaved(form);
       closeModal();
       await loadRetentionReport();
       openNotice('Retention policy saved', 'The workspace retention policy is active with the reviewed limits.');
@@ -3679,7 +3694,7 @@ function openFeatureFlagEditor(key) {
   if (!flag) return;
   els.modalTitle.textContent = flag.label;
   els.modalBody.innerHTML = `
-    <form id="featureFlagForm" class="notice-stack">
+    <form id="featureFlagForm" class="notice-stack" data-draft-key="feature-flag:${escapeHtml(flag.key)}" data-draft-fields="enabled,rolloutPercentage,reason" data-template-fields="enabled,rolloutPercentage">
       <div class="notice">Rollout controls can pause optional workloads or expose them gradually. They cannot grant permissions, approve recommendations, execute Trello writes, disable audits, or weaken workspace isolation.</div>
       <label class="checkbox-row"><input name="enabled" type="checkbox" ${flag.enabled ? 'checked' : ''}> Enable this capability</label>
       <label>Rollout percentage
@@ -3694,11 +3709,16 @@ function openFeatureFlagEditor(key) {
     </form>
   `;
   els.modal.classList.add('open');
+  const form = document.getElementById('featureFlagForm');
+  formPersistence?.enhanceForm(form);
   const rollout = document.getElementById('featureFlagRollout');
   const rolloutValue = document.getElementById('featureFlagRolloutValue');
-  rollout.addEventListener('input', () => { rolloutValue.textContent = `${rollout.value}%`; });
+  const syncRolloutValue = () => { rolloutValue.textContent = `${rollout.value}%`; };
+  rollout.addEventListener('input', syncRolloutValue);
+  form.addEventListener('sneup:preset-applied', syncRolloutValue);
+  syncRolloutValue();
   document.getElementById('cancelFeatureFlag').addEventListener('click', closeModal);
-  document.getElementById('featureFlagForm').addEventListener('submit', async (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
     const submitButton = form.querySelector('button[type="submit"]');
@@ -3717,6 +3737,7 @@ function openFeatureFlagEditor(key) {
         })
       });
       state.featureFlags = state.featureFlags.map(item => item.key === flag.key ? result.flag : item);
+      formPersistence?.markSaved(form);
       closeModal();
       renderWorkspaces();
     } catch (error) {
@@ -3756,7 +3777,7 @@ function openPolicyRuleEditor(actionType) {
   if (policy.workflowType === 'scheduled_intervention_timing') {
     els.modalTitle.textContent = policy.label;
     els.modalBody.innerHTML = `
-      <form id="policyRuleForm" class="notice-stack">
+      <form id="policyRuleForm" class="notice-stack" data-draft-key="policy-rule:${escapeHtml(actionType)}" data-draft-fields="followUpAfterHours,escalationAfterHours,reason" data-template-fields="followUpAfterHours,escalationAfterHours">
         <div class="notice">This policy only controls when Sneup creates internal follow-up or escalation candidates. It can retain or lengthen the 24-hour follow-up and 48-hour escalation baselines up to 7 days. Escalation cannot precede follow-up, and this policy never prepares or performs a provider write.</div>
         <div class="workflow-routing-grid">
           <fieldset class="workflow-routing-row">
@@ -3780,8 +3801,10 @@ function openPolicyRuleEditor(actionType) {
       </form>
     `;
     els.modal.classList.add('open');
+    const form = document.getElementById('policyRuleForm');
+    formPersistence?.enhanceForm(form);
     document.getElementById('cancelPolicyRule').addEventListener('click', closeModal);
-    document.getElementById('policyRuleForm').addEventListener('submit', async (event) => {
+    form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.currentTarget;
       const submitButton = form.querySelector('button[type="submit"]');
@@ -3798,6 +3821,7 @@ function openPolicyRuleEditor(actionType) {
             reason: values.get('reason')
           })
         });
+        formPersistence?.markSaved(form);
         closeModal();
         await loadWorkspaceAdmin();
       } catch (error) {
@@ -3821,6 +3845,7 @@ function openPolicyRuleEditor(actionType) {
       performance_milestone: 'Performance milestone'
     };
     const triggers = Object.keys(labels);
+    const cooldownFields = triggers.map(trigger => `${trigger}CooldownHours`);
     const rows = triggers.map((trigger) => `
       <fieldset class="workflow-routing-row">
         <legend>${escapeHtml(labels[trigger])}</legend>
@@ -3831,7 +3856,7 @@ function openPolicyRuleEditor(actionType) {
     `).join('');
     els.modalTitle.textContent = policy.label;
     els.modalBody.innerHTML = `
-      <form id="policyRuleForm" class="notice-stack">
+      <form id="policyRuleForm" class="notice-stack" data-draft-key="policy-rule:${escapeHtml(actionType)}" data-draft-fields="${cooldownFields.join(',')},reason" data-template-fields="${cooldownFields.join(',')}">
         <div class="notice">This policy only suppresses duplicate scheduled intervention candidates. It can lengthen the 24-hour baseline up to 7 days, never shortens it, and never prepares or performs a provider write. Manual requests are not suppressed.</div>
         <div class="workflow-routing-grid">${rows}</div>
         <label>Reason<textarea name="reason" rows="3" maxlength="500" placeholder="Why this workspace needs longer signal cooldowns">${escapeHtml(policy.reason || '')}</textarea></label>
@@ -3842,8 +3867,10 @@ function openPolicyRuleEditor(actionType) {
       </form>
     `;
     els.modal.classList.add('open');
+    const form = document.getElementById('policyRuleForm');
+    formPersistence?.enhanceForm(form);
     document.getElementById('cancelPolicyRule').addEventListener('click', closeModal);
-    document.getElementById('policyRuleForm').addEventListener('submit', async (event) => {
+    form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.currentTarget;
       const submitButton = form.querySelector('button[type="submit"]');
@@ -3862,6 +3889,7 @@ function openPolicyRuleEditor(actionType) {
             reason: values.get('reason')
           })
         });
+        formPersistence?.markSaved(form);
         closeModal();
         await loadWorkspaceAdmin();
       } catch (error) {
@@ -3876,6 +3904,7 @@ function openPolicyRuleEditor(actionType) {
   if (policy.workflowType === 'decision_queue_routing') {
     const routing = policy.routingByRisk || {};
     const risks = ['low', 'medium', 'high', 'critical'];
+    const routingFields = risks.flatMap(risk => [`${risk}OwnerType`, `${risk}EscalationHours`]);
     const riskLabels = { low: 'Low-risk queue', medium: 'Medium-risk queue', high: 'High-risk queue', critical: 'Critical queue' };
     const rows = risks.map((risk) => {
       const entry = routing[risk] || {};
@@ -3896,7 +3925,7 @@ function openPolicyRuleEditor(actionType) {
     }).join('');
     els.modalTitle.textContent = policy.label;
     els.modalBody.innerHTML = `
-      <form id="policyRuleForm" class="notice-stack">
+      <form id="policyRuleForm" class="notice-stack" data-draft-key="policy-rule:${escapeHtml(actionType)}" data-draft-fields="${routingFields.join(',')},reason" data-template-fields="${routingFields.join(',')}">
         <div class="notice">This policy only routes internal decision queue items. When a VA or team item reaches its review deadline, Sneup records the escalation and moves it to Robert. It never prepares or performs a provider write.</div>
         <div class="workflow-routing-grid">${rows}</div>
         <label>Reason<textarea name="reason" rows="3" maxlength="500" placeholder="Why this workspace needs these queue defaults">${escapeHtml(policy.reason || '')}</textarea></label>
@@ -3907,8 +3936,10 @@ function openPolicyRuleEditor(actionType) {
       </form>
     `;
     els.modal.classList.add('open');
+    const form = document.getElementById('policyRuleForm');
+    formPersistence?.enhanceForm(form);
     document.getElementById('cancelPolicyRule').addEventListener('click', closeModal);
-    document.getElementById('policyRuleForm').addEventListener('submit', async (event) => {
+    form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.currentTarget;
       const submitButton = form.querySelector('button[type="submit"]');
@@ -3927,6 +3958,7 @@ function openPolicyRuleEditor(actionType) {
             reason: values.get('reason')
           })
         });
+        formPersistence?.markSaved(form);
         closeModal();
         await loadWorkspaceAdmin();
       } catch (error) {
@@ -3941,7 +3973,7 @@ function openPolicyRuleEditor(actionType) {
   if (policy.policyKind === 'workflow') {
     els.modalTitle.textContent = policy.label;
     els.modalBody.innerHTML = `
-      <form id="policyRuleForm" class="notice-stack">
+      <form id="policyRuleForm" class="notice-stack" data-draft-key="policy-rule:${escapeHtml(actionType)}" data-draft-fields="defaultSnoozeHours,reason" data-template-fields="defaultSnoozeHours">
         <div class="notice">This default only reschedules internal decision queue items. It never prepares or performs a provider write.</div>
         <label>Default snooze duration (hours)
           <input name="defaultSnoozeHours" type="number" min="1" max="168" step="1" value="${escapeHtml(String(policy.defaultSnoozeHours || 24))}" required>
@@ -3955,8 +3987,10 @@ function openPolicyRuleEditor(actionType) {
       </form>
     `;
     els.modal.classList.add('open');
+    const form = document.getElementById('policyRuleForm');
+    formPersistence?.enhanceForm(form);
     document.getElementById('cancelPolicyRule').addEventListener('click', closeModal);
-    document.getElementById('policyRuleForm').addEventListener('submit', async (event) => {
+    form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.currentTarget;
       const submitButton = form.querySelector('button[type="submit"]');
@@ -3972,6 +4006,7 @@ function openPolicyRuleEditor(actionType) {
             reason: values.get('reason')
           })
         });
+        formPersistence?.markSaved(form);
         closeModal();
         await loadWorkspaceAdmin();
       } catch (error) {
@@ -3990,7 +4025,7 @@ function openPolicyRuleEditor(actionType) {
 
   els.modalTitle.textContent = `Action safety: ${policy.label}`;
   els.modalBody.innerHTML = `
-    <form id="policyRuleForm" class="notice-stack">
+    <form id="policyRuleForm" class="notice-stack" data-draft-key="policy-rule:${escapeHtml(actionType)}" data-draft-fields="enabled,pauseExpiresAt,riskLevel,ownerType,reason" data-template-fields="enabled,pauseExpiresAt,riskLevel,ownerType">
       <div class="notice">Every Trello write remains approval-gated. This workspace rule can pause this action type or make its risk and decision owner stricter.</div>
       <label><input name="enabled" type="checkbox" ${policy.enabled ? 'checked' : ''}> Allow approved ${escapeHtml(policy.label)} actions to execute</label>
       <label>Pause review time
@@ -4016,8 +4051,10 @@ function openPolicyRuleEditor(actionType) {
     </form>
   `;
   els.modal.classList.add('open');
+  const form = document.getElementById('policyRuleForm');
+  formPersistence?.enhanceForm(form);
   document.getElementById('cancelPolicyRule').addEventListener('click', closeModal);
-  document.getElementById('policyRuleForm').addEventListener('submit', async (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
     const submitButton = form.querySelector('button[type="submit"]');
@@ -4037,6 +4074,7 @@ function openPolicyRuleEditor(actionType) {
           confirmRelaxation: values.get('confirmRelaxation') === 'on'
         })
       });
+      formPersistence?.markSaved(form);
       closeModal();
       await loadWorkspaceAdmin();
     } catch (error) {

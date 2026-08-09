@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.3.13 - 2026-08-09
+
+### Draft recovery and presets
+
+- Added workspace-scoped session draft recovery to reviewed forecast, capacity, project-mapping, retention, rollout, and internal policy forms.
+- Added up to eight named local presets per eligible form and workspace, with explicit save, apply, replace, and delete controls.
+- Clear drafts only after a confirmed API success; canceling or a failed request preserves recoverable work.
+
+### Security, compatibility, and resource use
+
+- Restrict persistence to explicit field allowlists and reject credential, token, email, destination, confirmation, evidence, response, comment, and message fields even if a form requests them.
+- Bound records, values, field counts, preset counts, names, and storage failures; malformed, unavailable, or oversized browser storage fails closed.
+- Keep drafts in session storage and load the standalone persistence module before the application without adding database work, provider traffic, polling, or startup dependencies.
+- Added isolated browser-DOM coverage plus a live disposable-workspace browser flow for draft save, preset apply, recovery, successful-save cleanup, and narrow-layout behavior.
+
 ## 2.3.12 - 2026-08-09
 
 ### AI resilience and safety
