@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.3.20 - 2026-08-09
+
+### Demand-loaded Work Signals and graph review
+
+- Moved Work Signals, adapter contracts, normalized graph summaries, decision candidates, dependency review, graph-item detail, and ledger graph context into a retry-safe module loaded only when an operator opens a view that needs it.
+- Kept API, session, credential, recommendation, and dependency-review authority in the authenticated application controller. The renderer receives only guarded callbacks and cannot fetch, persist, approve, or execute provider actions.
+- Added complete English/Dutch Work Signals operator chrome while preserving provider names, descriptions, identifiers, people, evidence, errors, and safe-write contracts verbatim.
+- Rejected non-HTTPS and credential-bearing provider evidence links before rendering them as links; unsafe text remains visible but inert.
+
+### Resource, browser, security, and Windows verification
+
+- Reduced the initial app-plus-localization payload by 23,776 raw, 4,684 gzip, and 3,359 Brotli bytes compared with 2.3.19. The 37,369-byte Work Signals renderer is fetched only when needed and shares the command-center asset fingerprint.
+- Added rendering, local-filter, guarded-action delegation, exact-evidence, URL-safety, localization-completeness, retry, CSP, source-boundary, and fingerprint regressions. The full gate passes 110 suites/824 tests, the 5/5 recommendation safety evaluation, two zero-vulnerability audits, and five-secret production-style validation.
+- In-app Browser acceptance passed English/Dutch rendering, filter interaction, deferred loading, shared fingerprint reuse, exact evidence preservation, layout containment, and zero current console warnings/errors.
+- Built and verified the unsigned Windows 11 installer. The packaged app reports 2.3.20, includes the deferred module, exposes no secrets, keeps HAI at `never_direct`, closes normally, and releases its loopback port.
+
 ## 2.3.19 - 2026-08-09
 
 ### Demand-loaded approval operations

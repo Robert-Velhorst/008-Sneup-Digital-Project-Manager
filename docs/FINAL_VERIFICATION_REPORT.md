@@ -5,8 +5,8 @@ This report is updated from executed commands at release time. A passing local s
 ## Baseline
 
 - Branch: `main`
-- Starting commit: `543bb6deb977469be716ceb4fe0cfc2af4cc1df2`
-- Release under verification: `2.3.19`
+- Starting commit: `d58266bb982e560ac1324f51eb487ea30665d507`
+- Release under verification: `2.3.20`
 - Default remote: `origin`
 
 ## Verification ledger
@@ -48,3 +48,19 @@ This report is updated from executed commands at release time. A passing local s
 ## External gates
 
 Live Trello critical-path acceptance, live ngrok/HAI credential acceptance, production database restore, hosted multi-instance lease observation, hosted canary/rollback, OAuth consent reviews, Windows publisher signing, and assistive-technology certification require owner-controlled accounts or infrastructure and are not reported as complete.
+
+## 2.3.20 continuation evidence
+
+| Check | Result |
+| --- | --- |
+| Scope | Work Signals and normalized graph rendering extracted behind a retry-safe deferred module; guarded API and action authority remains in the controller |
+| Full quality gate | Pass: lint, 110 suites/824 tests, and 5/5 recommendation scenarios at 100% |
+| Dependency security | Pass: full and production audits each report 0 vulnerabilities |
+| Release secrets | Pass: five independent production-style values accepted; values not printed or exposed |
+| Source/syntax | Pass: JavaScript syntax, diff whitespace, CSP/source-boundary, exact-evidence, unsafe-link, and action-delegation checks |
+| Initial payload | Improved from 318,418 to 294,642 raw, 66,622 to 61,938 gzip, and 54,323 to 50,964 Brotli bytes; deferred renderer is 37,369 raw bytes |
+| Browser QA | Pass: real in-app Browser, English/Dutch, one shared-fingerprint deferred script, filter interaction, exact provider evidence, no overlay, no horizontal overflow, zero warning/error logs |
+| Packaged Windows QA | Pass: version 2.3.20, demo health and eight diagnostics, no exposed secrets, HAI `never_direct`, four processes, normal close, port released |
+| Packaged resource sample | Directional pass: 360.8 MB working set, 291.4 MB private bytes, 2.391 cumulative CPU seconds after the repeatable local packaged probe |
+| Windows installer | Pass: 109,476,907 bytes, version 2.3.20, unsigned, SHA-256 `3B0E3460D84DAA3BD5CC7E182FA423287C321E4A50B83621E8F0E311450A6D95`; archive contains `public/workSignalsView.js` |
+| External gates | Live provider/ngrok/HAI acceptance, production-like restore/deployment rollback, code signing, clean-VM scaling, and assistive-technology certification remain external |

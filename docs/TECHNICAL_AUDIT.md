@@ -59,3 +59,22 @@
 | Billing | Not applicable | No billing is required for the local-first product. |
 
 No live credential, provider authorization, deployment, signed binary, or production backup claim is inferred from local tests.
+## 2026-08-09 Work Signals technical continuation
+
+### Finding: eager operator-only graph rendering
+
+The initial command-center controller still parsed Work Signals and normalized graph rendering even when operators never opened that surface. The view also carried its operator localization in the eager catalog.
+
+**Remediation:** move the renderer and its Dutch catalog behind one shared, fingerprinted, retry-safe loader. Module fetch and bounded API reads run concurrently; local filter changes do not contact the API or a provider.
+
+**Measured result:** initial app plus localization fell from 318,418 to 294,642 raw bytes, 66,622 to 61,938 gzip bytes, and 54,323 to 50,964 Brotli bytes. The deferred module is 37,369 raw, 7,847 gzip, and 6,980 Brotli bytes.
+
+### Finding: escaped URLs were not presentation-safe URLs
+
+The previous graph renderer HTML-escaped evidence URLs but did not require HTTPS or reject embedded credentials before creating anchors. Escaping prevented markup injection but did not make an unsafe scheme appropriate to open.
+
+**Remediation:** parse links through the existing safe external URL boundary and render rejected values as inert text. Added regressions for unsafe schemes and credential-bearing URLs.
+
+### Residual risk
+
+No local test proves authorization against real provider accounts, hosted ngrok exposure, a production restore/rollback, publisher signing, clean-machine resource behavior, or assistive-technology conformance. These remain external release gates.

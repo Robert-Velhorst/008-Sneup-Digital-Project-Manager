@@ -84,3 +84,19 @@ This backlog turns the high-level improvement plan into concrete engineering fin
 3. ENH-002 and ENH-004, because autonomy should be reviewable and evidence-backed.
 4. ENH-007, because production sync needs operational visibility.
 5. ENH-006, ENH-008, ENH-009, ENH-010, ENH-012 as polish and workflow expansion.
+## 2026-08-09 Work Signals findings
+
+### Implemented
+
+- Demand-load the complete Work Signals and graph review surface instead of parsing it on every startup.
+- Register the view-specific Dutch catalog only with the view and preserve operational/provider text verbatim.
+- Keep the renderer capability-poor and delegate only named guarded actions to the authenticated controller.
+- Validate evidence links as public-facing presentation links: HTTPS only and no embedded username or password. Previously HTML escaping prevented markup injection but still allowed unsafe schemes to become clickable.
+- Reset failed lazy-load state so reopening the view performs a real retry instead of preserving a rejected promise.
+- Filter normalized graph rows locally without another provider read or API request.
+
+### Next evidence-led opportunities
+
+- Capture authorized live Work Signals from representative Trello and connector accounts and validate stale-edge/recommendation outcomes end to end without widening provider-write authority.
+- Run a clean Windows VM and assistive-technology pass at 100%, 125%, 150%, and 200% scaling before setting accessibility or resource budgets.
+- Continue extracting the remaining large report/forecast surfaces only where measurement shows an initial-load benefit and guarded action ownership can remain explicit.

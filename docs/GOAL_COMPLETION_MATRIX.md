@@ -124,3 +124,14 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 ## Honest completion boundary
 
 Repository implementation can close code, test, documentation, and packaging phases. It cannot fabricate provider consent, production data, owner credentials, a signing identity, deployment infrastructure, independent certification, or a human acceptance result. Those items remain visible above.
+## 2.3.20 Work Signals continuation
+
+| Requirement | State | Evidence |
+| --- | --- | --- |
+| Frontend/backend wiring | Verified locally | Work Signals starts its deferred renderer and four versioned API reads concurrently; guarded controller callbacks own graph detail, recommendation queueing, and dependency review. |
+| Database/provider safety | Preserved | Renderer has no database, API, session, credential, or provider-write capability; consequential paths retain permission, policy, approval, audit, and exact-payload controls. |
+| Resource efficiency | Improved | Initial app plus localization reduced by 23,776 raw, 4,684 gzip, and 3,359 Brotli bytes; view code and Dutch copy are paid only when needed. |
+| Browser experience | Verified | English/Dutch rendering, filtering, exact evidence, shared fingerprint, no overlay, no document overflow, and zero console warnings/errors passed in the in-app Browser. |
+| Deep regression/security | Verified locally | 110 suites/824 tests, lint, 5/5 safety evaluation, two zero-vulnerability audits, five-secret release validation, and syntax/diff checks passed. |
+| Windows 11 standalone | Verified locally | Packaged 2.3.20 demo boot, diagnostics, HAI boundary, secret redaction, normal close, and port release passed; installer metadata and archive contents were inspected. |
+| Live production acceptance | External | Requires authorized Trello/ngrok/HAI accounts, production-like Mongo restore/deployment, signing certificate, clean VM, and accessibility review. |

@@ -11,6 +11,7 @@ describe('command-center asset fingerprint coverage', () => {
       'app.js',
       'approvalView.js',
       'connectorView.js',
+      'workSignalsView.js',
       'workspaceView.js',
       'formPersistence.js',
       'helpCenter.js',

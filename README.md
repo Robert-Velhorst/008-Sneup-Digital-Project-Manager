@@ -135,6 +135,8 @@ Reviewed operational forms preserve bounded drafts inside the current browser se
 
 The command center includes searchable, context-sensitive help for Overview, Approvals, Connectors, Signals, Forecasts, Reports, Enhancements, and Workspace Administration, plus setup, decision safety, and privacy guidance. Select the compact **Help** control or press `F1` to open the topic for the active view. Help search is local to the bundled catalog, stores nothing, and does not contact the API or a provider. Each topic can return directly to its existing Sneup workflow; help content cannot approve or execute an action.
 
+The Work Signals and normalized work-graph interface is loaded only when Signals or graph ledger context is opened. It supports English and Dutch operator chrome, performs status/provider/type/direction filtering locally, preserves provider evidence verbatim, and renders only public HTTPS evidence links without embedded credentials. API reads and every recommendation or dependency-review mutation remain in the authenticated controller and retain their existing approval and permission boundaries.
+
 The Windows installer uses the bundled Sneup icon. Release signing and automatic updates remain release-infrastructure tasks: configure a publisher certificate and update feed in the release environment before distributing a trusted production build.
 
 ### Authenticated ngrok cloud access
@@ -628,7 +630,7 @@ For issues, questions, or feature requests, please open an issue on GitHub.
 - [x] Policy-controlled daily reconciliation digests
 - [x] Slack, Teams, and generic reconciliation-alert webhooks
 - [ ] Advanced machine learning for predictions
-- [x] English/Dutch shell, help, setup, primary workflow, connector marketplace, workspace administration, approval ledger, and consequential workspace form/modal localization
+- [x] English/Dutch shell, help, setup, primary workflow, connector marketplace, Work Signals and graph review, workspace administration, approval ledger, and consequential workspace form/modal localization
 - [ ] Complete a keyboard-only and screen-reader certification pass
 - [ ] Mobile app
 

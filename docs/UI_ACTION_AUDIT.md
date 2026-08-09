@@ -45,3 +45,10 @@ The command-center HTML and JavaScript were statically searched for controls, ev
 - Live OAuth consent and real provider error pages require authorized accounts.
 
 These gaps are release evidence gaps, not silently accepted conformance claims.
+## 2.3.20 Work Signals browser evidence
+
+- In-app Browser opened the real local `Sneup Command Center`, confirmed Overview did not load the Work Signals module, then opened Signals and observed exactly one `workSignalsView.js` request with the same content fingerprint as `app.js`.
+- The screen rendered nonblank metrics, the 117-provider adapter contract catalog, local status filtering, and the expected empty normalized-signal state in explicit demo mode.
+- Switching to Nederlands reloaded the app and rendered Dutch page, metric, filter, empty-state, and adapter-contract chrome while leaving `Trello` and the provider safe-write evidence sentence byte-for-byte unchanged.
+- The interaction pass found no framework error overlay, document-level horizontal overflow, console warning, or console error.
+- Focused DOM tests cover seeded graph metrics, provider/type/direction filters, graph detail, guarded decision and dependency delegation, exact evidence, and unsafe-link inertness. The current demo dataset does not invent graph rows for visual testing.

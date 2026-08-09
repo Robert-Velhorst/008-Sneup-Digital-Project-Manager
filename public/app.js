@@ -24,6 +24,8 @@ let workspaceViewPromise;
 let workspaceViewController;
 let approvalViewPromise;
 let approvalViewController;
+let workSignalsViewPromise;
+let workSignalsViewController;
 
 function loadBrowserModule(path, globalName, messages = {}) {
   if (window[globalName]) return Promise.resolve(window[globalName]);
@@ -185,6 +187,48 @@ function loadApprovalView() {
       });
   }
   return approvalViewPromise;
+}
+
+function loadWorkSignalsView() {
+  if (!workSignalsViewPromise) {
+    workSignalsViewPromise = loadBrowserModule('/workSignalsView.js', 'SneupWorkSignalsView', {
+      runtime: 'The Work Signals view loaded without its runtime. Try again.',
+      load: 'The Work Signals view could not be loaded. Check the connection and try again.'
+    })
+      .then((module) => {
+        i18n.registerMessages('nl', module.NL_MESSAGES);
+        return module.createController({
+          document,
+          window,
+          state,
+          elements: els,
+          t,
+          plural: tp,
+          escapeHtml,
+          formatDate,
+          severityClass,
+          signalClass,
+          isFeatureEnabled,
+          safeExternalUrl,
+          callbacks: {
+            openGraphItemDetail,
+            queueGraphDecision,
+            reviewGraphDependency,
+            closeModal
+          }
+        });
+      })
+      .then((controller) => {
+        workSignalsViewController = controller;
+        return controller;
+      })
+      .catch((error) => {
+        workSignalsViewPromise = null;
+        workSignalsViewController = null;
+        throw error;
+      });
+  }
+  return workSignalsViewPromise;
 }
 
 const state = {
@@ -1426,29 +1470,37 @@ async function loadConnectors({ append = false } = {}) {
 }
 
 async function loadWorkSignals() {
+  const renderer = loadWorkSignalsView();
   try {
     const graphDecisionsEnabled = isFeatureEnabled('work_graph_decisions');
-    const [signalsData, contractsData, graphData, graphDecisionData] = await Promise.all([
+    const [signalsData, contractsData, graphData, graphDecisionData, controller] = await Promise.all([
       fetchApi('/api/work-signals?limit=100'),
       fetchApi('/api/work-signals/contracts'),
       fetchApi('/api/work-signals/graph?limit=20'),
       graphDecisionsEnabled
         ? fetchApi('/api/work-signals/graph/decisions?limit=20')
-        : Promise.resolve({ candidates: [] })
+        : Promise.resolve({ candidates: [] }),
+      renderer
     ]);
     state.workSignals = signalsData.signals || [];
     state.workSignalContracts = contractsData.contracts || [];
     state.workGraph = graphData.graph || null;
     state.workGraphCandidates = graphDecisionData.candidates || [];
     state.workSignalError = '';
-    renderWorkSignals();
+    controller.render();
   } catch (error) {
     state.workSignals = [];
     state.workGraph = null;
     state.workGraphCandidates = [];
     state.workSignalContracts = [];
     state.workSignalError = error.message;
-    renderWorkSignals();
+    try {
+      const controller = await renderer;
+      controller.render();
+    } catch (moduleError) {
+      els.workSignalList.innerHTML = `<div class="empty">${escapeHtml(moduleError.message)}</div>`;
+      throw moduleError;
+    }
   }
 }
 
@@ -2457,7 +2509,7 @@ function bindLedgerDrilldownActions() {
 
 async function openOperatingLedger(type, entityId) {
   if (!entityId) return;
-  await loadApprovalView();
+  await Promise.all([loadApprovalView(), loadWorkSignalsView()]);
 
   if (state.snapshot?.mode === 'demo' || state.ledger.demoMode) {
     openNotice(
@@ -2568,122 +2620,15 @@ function renderLedgerSection(title, items, renderer) {
 }
 
 function renderGraphLedgerContext(graphContext = {}) {
-  const counts = graphContext.counts || {};
-  const hasGraph = (counts.items || 0) > 0 || (counts.dependencies || 0) > 0 || (counts.decisions || 0) > 0;
-  const notice = hasGraph
-    ? ''
-    : '<div class="notice">No normalized graph item is linked to this Trello context yet. Sync connector work signals to enrich dependency context.</div>';
-
-  return `
-    <section>
-      <div class="panel-head evidence-head">
-        <h2>Graph Context</h2>
-        <span class="pill ${hasGraph ? 'healthy' : 'review'}">${hasGraph ? 'linked' : 'empty'}</span>
-      </div>
-      <div class="item">
-        <div class="meta">
-          <span>${counts.items || 0} graph items</span>
-          <span>${counts.dependencies || 0} dependencies</span>
-          <span>${counts.decisions || 0} decisions</span>
-          <span>${counts.recommendations || 0} graph recommendations</span>
-        </div>
-      </div>
-      ${notice}
-      ${renderGraphLedgerFilters(graphContext)}
-      ${renderGraphDetailSection('Linked Source Items', graphContext.sourceLinks || [], renderGraphLinkedItem)}
-      ${renderGraphDetailSection('Linked Graph Items', graphContext.items || [], renderGraphLinkedItem)}
-      ${renderGraphDetailSection('Graph Decision Candidates', graphContext.candidates || [], renderGraphCandidateDetail)}
-      ${renderGraphDetailSection('Graph Dependency Edges', graphContext.dependencies || [], renderGraphDependency)}
-      ${renderGraphDetailSection('Graph Recommendation History', graphContext.recommendations || [], renderGraphRecommendationHistory)}
-    </section>
-  `;
-}
-
-function renderGraphLedgerFilters(graphContext = {}) {
-  const filters = graphContext.filters || {};
-  const providers = filters.providers || [];
-  const dependencyTypes = filters.dependencyTypes || [];
-  const directions = filters.directions || [];
-  if (!providers.length && !dependencyTypes.length && !directions.length) return '';
-
-  return `
-    <div class="graph-filter-panel">
-      ${renderGraphFilterGroup('Provider', 'provider', providers)}
-      ${renderGraphFilterGroup('Type', 'type', dependencyTypes)}
-      ${renderGraphFilterGroup('Direction', 'direction', directions)}
-      <span class="meta graph-filter-count"><span data-graph-filter-count>0</span> visible graph rows</span>
-    </div>
-  `;
-}
-
-function renderGraphFilterGroup(label, group, values = []) {
-  if (!values.length) return '';
-  return `
-    <div class="graph-filter-group">
-      <span>${escapeHtml(label)}</span>
-      <div class="segmented graph-filter-buttons" data-graph-filter-group="${escapeHtml(group)}">
-        <button class="active" data-graph-filter="${escapeHtml(group)}" data-graph-filter-value="all" type="button">All</button>
-        ${values.map(value => `
-          <button data-graph-filter="${escapeHtml(group)}" data-graph-filter-value="${escapeHtml(value)}" type="button">${escapeHtml(value)}</button>
-        `).join('')}
-      </div>
-    </div>
-  `;
+  return workSignalsViewController?.renderGraphLedgerContext(graphContext) || '';
 }
 
 function bindGraphActions() {
-  document.querySelectorAll('[data-graph-detail]').forEach((button) => {
-    button.addEventListener('click', () => openGraphItemDetail(button.dataset.graphDetail));
-  });
-  document.querySelectorAll('[data-graph-queue]').forEach((button) => {
-    button.addEventListener('click', () => queueGraphDecision(button.dataset.graphQueue));
-  });
-  document.querySelectorAll('[data-graph-dependency-review]').forEach((button) => {
-    button.addEventListener('click', () => reviewGraphDependency(
-      button.dataset.graphDependencyReview,
-      button.dataset.graphDependencyAction
-    ));
-  });
+  workSignalsViewController?.bindGraphActions();
 }
 
 function bindGraphLedgerFilters() {
-  document.querySelectorAll('[data-graph-filter]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const group = button.dataset.graphFilter;
-      document.querySelectorAll(`[data-graph-filter="${cssEscape(group)}"]`).forEach((peer) => {
-        peer.classList.toggle('active', peer === button);
-      });
-      applyGraphLedgerFilters();
-    });
-  });
-  applyGraphLedgerFilters();
-}
-
-function applyGraphLedgerFilters() {
-  const provider = activeGraphFilter('provider');
-  const type = activeGraphFilter('type');
-  const direction = activeGraphFilter('direction');
-  let visible = 0;
-
-  document.querySelectorAll('[data-graph-ledger-row]').forEach((row) => {
-    const providers = (row.dataset.graphProviders || '').split('|').filter(Boolean);
-    const dependencyType = row.dataset.graphDependencyType || '';
-    const rowDirection = row.dataset.graphDirection || '';
-    const providerMatches = provider === 'all' || providers.includes(provider);
-    const typeMatches = type === 'all' || dependencyType === type || !dependencyType;
-    const directionMatches = direction === 'all' || rowDirection === direction || !rowDirection;
-    const shouldShow = providerMatches && typeMatches && directionMatches;
-    row.classList.toggle('graph-hidden', !shouldShow);
-    if (shouldShow) visible += 1;
-  });
-
-  document.querySelectorAll('[data-graph-filter-count]').forEach((node) => {
-    node.textContent = visible;
-  });
-}
-
-function activeGraphFilter(group) {
-  return document.querySelector(`[data-graph-filter="${cssEscape(group)}"].active`)?.dataset.graphFilterValue || 'all';
+  workSignalsViewController?.bindGraphLedgerFilters();
 }
 
 function renderEvidenceSection(title, items, renderer) {
@@ -3892,165 +3837,7 @@ function renderEnhancement(item) {
 }
 
 function renderWorkSignals() {
-  document.querySelectorAll('[data-signal-filter]').forEach((button) => {
-    button.classList.toggle('active', button.dataset.signalFilter === state.signalFilter);
-  });
-
-  const signals = state.workSignals || [];
-  const contracts = state.workSignalContracts || [];
-  const graph = state.workGraph || { counts: {}, byStatus: {}, byProvider: {}, reviewMetrics: {}, providerReviewQuality: [], items: [] };
-  const graphCandidates = state.workGraphCandidates || [];
-  const providers = unique(signals.map(signal => signal.provider));
-  const connectedProviderIds = new Set((state.accounts || []).map(account => account.connectorId));
-  const connectedContracts = contracts.filter(contract => connectedProviderIds.has(contract.connectorId));
-  const implementedContracts = contracts.filter(contract => contract.adapterStatus === 'implemented');
-  const openSignals = signals.filter(signal => ['open', 'in_progress'].includes(signal.status));
-  const blockedSignals = signals.filter(signal => signal.status === 'blocked');
-  const criticalSignals = signals.filter(signal => signal.priority === 'critical');
-
-  els.workSignalCount.textContent = signals.length;
-  els.workSignalContractCount.textContent = `${contracts.length} providers`;
-  els.workSignalMetrics.innerHTML = [
-    ['Signals', signals.length],
-    ['Open', openSignals.length],
-    ['Blocked', blockedSignals.length],
-    ['Critical', criticalSignals.length],
-    ['Providers', providers.length],
-    ['Graph items', graph.counts.items || 0],
-    ['Graph actors', graph.counts.actors || 0],
-    ['Graph deps', graph.counts.dependencies || 0],
-    ['Stale graph edges', graph.reviewMetrics?.pendingReview || 0],
-    ['Graph decisions', graphCandidates.length],
-    ['Implemented adapters', implementedContracts.length],
-    ['Connected adapters', connectedContracts.length]
-  ].map(([label, value]) => `
-    <div class="metric">
-      <span>${escapeHtml(label)}</span>
-      <strong>${escapeHtml(value)}</strong>
-    </div>
-  `).join('');
-
-  const filteredSignals = state.signalFilter === 'all'
-    ? signals
-    : signals.filter(signal => signal.status === state.signalFilter);
-  const notice = state.workSignalError
-    ? `<div class="notice">Work signals need MongoDB/live data: ${escapeHtml(state.workSignalError)}</div>`
-    : '';
-
-  const graphNotice = graph.counts.items
-    ? `<div class="notice">Normalized graph: ${escapeHtml(graph.counts.items)} items, ${escapeHtml(graph.counts.containers || 0)} containers, ${escapeHtml(graph.counts.dependencies || 0)} dependencies, ${escapeHtml(graph.counts.events || 0)} events.</div>`
-    : '';
-  const graphReviewNotice = renderGraphReviewQuality(graph);
-  const graphDecisionNotice = graphCandidates.length
-    ? `<div class="notice">Graph decisions: ${escapeHtml(countByOwner(graphCandidates, 'robert'))} Robert, ${escapeHtml(countByOwner(graphCandidates, 'va'))} VA, ${escapeHtml(countByOwner(graphCandidates, 'team'))} team.</div>`
-    : !isFeatureEnabled('work_graph_decisions')
-      ? '<div class="notice">Cross-tool decision generation is paused by this workspace rollout. Synced signals and dependency evidence remain read-only and visible.</div>'
-      : '';
-  const graphDecisionCards = graphCandidates.length
-    ? `<div class="list graph-decision-list">${graphCandidates.map(renderGraphDecisionCandidate).join('')}</div>`
-    : '';
-  els.workSignalList.innerHTML = notice + graphNotice + graphReviewNotice + graphDecisionNotice + graphDecisionCards + listOrEmpty(filteredSignals, renderWorkSignal);
-  els.workSignalContracts.innerHTML = listOrEmpty(
-    connectedContracts.length > 0 ? connectedContracts : contracts.slice(0, 12),
-    contract => renderWorkSignalContract(contract, connectedProviderIds.has(contract.connectorId))
-  );
-
-  document.querySelectorAll('[data-graph-detail]').forEach((button) => {
-    button.addEventListener('click', () => openGraphItemDetail(button.dataset.graphDetail));
-  });
-  document.querySelectorAll('[data-graph-queue]').forEach((button) => {
-    button.addEventListener('click', () => queueGraphDecision(button.dataset.graphQueue));
-  });
-  document.querySelectorAll('[data-graph-dependency-review]').forEach((button) => {
-    button.addEventListener('click', () => reviewGraphDependency(
-      button.dataset.graphDependencyReview,
-      button.dataset.graphDependencyAction
-    ));
-  });
-}
-
-function countByOwner(items, ownerType) {
-  return items.filter(item => item.ownerType === ownerType).length;
-}
-
-function renderGraphReviewQuality(graph = {}) {
-  const metrics = graph.reviewMetrics || {};
-  const providers = (graph.providerReviewQuality || [])
-    .filter(provider => provider.pendingReview || provider.stale || provider.reviewed)
-    .slice(0, 5);
-  if (!metrics.pendingReview && !providers.length) return '';
-
-  const providerSummary = providers.map(provider => {
-    const label = `${provider.provider}: ${provider.stale || 0} stale, ${provider.pendingReview || 0} pending`;
-    return escapeHtml(label);
-  }).join(' | ');
-  const outcomeSummary = [
-    metrics.confirmed ? `${metrics.confirmed} confirmed` : '',
-    metrics.refreshed ? `${metrics.refreshed} refreshed` : '',
-    metrics.dismissed ? `${metrics.dismissed} dismissed` : ''
-  ].filter(Boolean).join(', ');
-
-  return `<div class="notice">Graph trust: ${escapeHtml(metrics.pendingReview || 0)} stale edges need review; ${escapeHtml(metrics.reviewCoverage || 0)}% of reviewable edges have an outcome.${outcomeSummary ? ` Outcomes: ${escapeHtml(outcomeSummary)}.` : ''}${providerSummary ? ` Connector detail: ${providerSummary}.` : ''}</div>`;
-}
-
-function renderWorkSignal(signal) {
-  const evidence = signal.evidenceRefs || [];
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>${escapeHtml(signal.title)}</strong>
-        <span class="pill ${signalClass(signal)}">${escapeHtml(signal.priority || signal.status)}</span>
-      </div>
-      <div class="meta">
-        <span>${escapeHtml(signal.provider)}</span>
-        <span>${escapeHtml(signal.sourceType)}</span>
-        <span>${escapeHtml(signal.status)}</span>
-        <span>${escapeHtml((signal.owners || []).join(', ') || 'No owner')}</span>
-        <span>Due ${formatDate(signal.dueAt)}</span>
-      </div>
-      <div class="meta">${escapeHtml(signal.description || 'No description captured yet.')}</div>
-      ${evidence.length > 0 ? `<div class="meta">${evidence.slice(0, 3).map(item => escapeHtml(item.label || item.type || item.externalId || 'evidence')).join(' | ')}</div>` : ''}
-      ${signal.url ? `<div class="meta"><a href="${escapeHtml(signal.url)}" rel="noreferrer" target="_blank">Open source</a></div>` : ''}
-    </div>
-  `;
-}
-
-function renderGraphDecisionCandidate(candidate) {
-  const dependencySummary = candidate.dependencySummary || candidate.actionPayload?.dependencySummary || {};
-  const itemId = candidate.workItemId || candidate.actionPayload?.workItemId;
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>${escapeHtml(candidate.title || candidate.recommendedAction || 'Graph decision')}</strong>
-        <span class="pill ${severityClass(candidate.riskLevel)}">${escapeHtml(candidate.ownerType || 'team')}</span>
-      </div>
-      <div class="meta">
-        <span>${escapeHtml(candidate.sourceProvider || candidate.actionPayload?.sourceProvider || 'work graph')}</span>
-        <span>${escapeHtml(candidate.findingType || 'decision')}</span>
-        <span>${escapeHtml(candidate.riskLevel || 'medium')} risk</span>
-        <span>${Math.round(candidate.graphScore || 0)} graph score</span>
-      </div>
-      <div class="meta">${escapeHtml(candidate.description || candidate.recommendedAction || 'Review graph evidence before queuing.')}</div>
-      ${renderDependencySummary(dependencySummary)}
-      <div class="item-actions">
-        <button class="button" data-graph-detail="${escapeHtml(itemId)}" type="button" ${itemId ? '' : 'disabled'}>Inspect graph</button>
-        <button class="button primary" data-graph-queue="${escapeHtml(itemId)}" type="button" ${itemId ? '' : 'disabled'}>Queue Yes/No</button>
-      </div>
-    </div>
-  `;
-}
-
-function renderDependencySummary(summary = {}) {
-  const total = Number(summary.dependencyCount) || 0;
-  if (!total) return '';
-  return `
-    <div class="meta">
-      <span>${total} dependencies</span>
-      <span>${Number(summary.blockingCount) || 0} blocking downstream</span>
-      <span>${Number(summary.blockedByCount) || 0} blockers</span>
-      <span>${Number(summary.relatedCount) || 0} related</span>
-    </div>
-  `;
+  workSignalsViewController?.render();
 }
 
 async function openGraphItemDetail(itemId) {
@@ -4112,222 +3899,7 @@ async function reviewGraphDependency(dependencyId, action) {
 }
 
 function renderGraphItemDetailModal(detail = {}) {
-  const item = detail.item || {};
-  const candidate = detail.candidate || null;
-  const recommendations = detail.recommendations || [];
-  els.modalTitle.textContent = 'Work graph detail';
-  els.modalBody.innerHTML = `
-    <div class="notice-stack">
-      <div class="item">
-        <div class="item-title">
-          <strong>${escapeHtml(item.title || 'Work item')}</strong>
-          <span class="pill ${signalClass(item)}">${escapeHtml(item.priority || item.status || 'unknown')}</span>
-        </div>
-        <div class="meta">
-          <span>${escapeHtml(item.sourceProvider || 'provider')}</span>
-          <span>${escapeHtml(item.externalId || item.canonicalKey || 'no external id')}</span>
-          <span>${escapeHtml(item.status || 'unknown')}</span>
-          <span>Due ${formatDate(item.dueAt)}</span>
-        </div>
-        <div class="meta">${escapeHtml(item.description || 'No description captured yet.')}</div>
-        ${item.url ? `<div class="meta"><a href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer">Open source item</a></div>` : ''}
-        ${renderDependencySummary(detail.dependencySummary)}
-      </div>
-      ${renderGraphDetailSection('Decision Candidate', candidate ? [candidate] : [], renderGraphCandidateDetail)}
-      ${renderGraphDetailSection('Dependency Edges', detail.dependencies || [], renderGraphDependency)}
-      ${renderGraphDetailSection('Queued Recommendation History', recommendations, renderGraphRecommendationHistory)}
-      ${renderGraphDetailSection('Recent Graph Events', detail.events || [], renderGraphEvent)}
-      <div class="toolbar modal-actions">
-        <button class="button" type="button" id="graphDetailQueue" ${item.id ? '' : 'disabled'}>Queue Yes/No</button>
-        <button class="button primary" type="button" id="graphDetailClose">Done</button>
-      </div>
-    </div>
-  `;
-  els.modal.classList.add('open');
-  document.getElementById('graphDetailClose').addEventListener('click', closeModal);
-  document.getElementById('graphDetailQueue').addEventListener('click', () => queueGraphDecision(item.id));
-  bindGraphActions();
-}
-
-function renderGraphDetailSection(title, items, renderer) {
-  return `
-    <section>
-      <div class="panel-head evidence-head">
-        <h2>${escapeHtml(title)}</h2>
-        <span class="pill review">${items.length}</span>
-      </div>
-      <div class="list">${listOrEmpty(items.slice(0, 8), renderer)}</div>
-    </section>
-  `;
-}
-
-function graphRowAttrs({ providers = [], dependencyType = '', direction = '' } = {}) {
-  return [
-    'data-graph-ledger-row',
-    `data-graph-providers="${escapeHtml(unique(providers).join('|'))}"`,
-    `data-graph-dependency-type="${escapeHtml(dependencyType)}"`,
-    `data-graph-direction="${escapeHtml(direction)}"`
-  ].join(' ');
-}
-
-function renderGraphLinkedItem(item = {}) {
-  return `
-    <div class="item" ${graphRowAttrs({ providers: [item.sourceProvider] })}>
-      <div class="item-title">
-        <strong>${escapeHtml(item.title || item.externalId || 'Linked source')}</strong>
-        <span class="pill review">${escapeHtml(item.sourceProvider || 'provider')}</span>
-      </div>
-      <div class="meta">
-        <span>${escapeHtml(item.externalId || item.canonicalKey || 'no external id')}</span>
-        <span>${escapeHtml(item.status || 'unknown')}</span>
-      </div>
-      <div class="item-actions">
-        ${item.url ? `<a class="button" href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer">Open source</a>` : ''}
-        ${item.id ? `<button class="button" data-graph-detail="${escapeHtml(item.id)}" type="button">Inspect graph</button>` : ''}
-        ${item.id ? `<button class="button primary" data-graph-queue="${escapeHtml(item.id)}" type="button">Queue Yes/No</button>` : ''}
-      </div>
-    </div>
-  `;
-}
-
-function renderGraphCandidateDetail(candidate) {
-  const provider = candidate.sourceProvider || candidate.actionPayload?.sourceProvider || 'work_graph';
-  const itemId = candidate.workItemId || candidate.actionPayload?.workItemId;
-  const providerUrl = candidate.providerUrl || candidate.actionPayload?.providerUrl;
-  return `
-    <div class="item" ${graphRowAttrs({ providers: [provider] })}>
-      <div class="item-title">
-        <strong>${escapeHtml(candidate.title || candidate.recommendedAction || 'Decision candidate')}</strong>
-        <span class="pill ${severityClass(candidate.riskLevel)}">${escapeHtml(candidate.ownerType || 'team')}</span>
-      </div>
-      <div class="meta">
-        <span>${escapeHtml(provider)}</span>
-        <span>${escapeHtml(candidate.findingType || 'graph_decision')}</span>
-        <span>${escapeHtml(candidate.actionType || 'manual_review')}</span>
-        <span>${Math.round(candidate.graphScore || 0)} score</span>
-        <span>${Math.round((candidate.confidence || 0) * 100)}% confidence</span>
-      </div>
-      <div class="meta">${escapeHtml(candidate.approvalReason || candidate.description || candidate.recommendedAction || 'Review required.')}</div>
-      ${renderDependencySummary(candidate.dependencySummary)}
-      <div class="item-actions">
-        ${providerUrl ? `<a class="button" href="${escapeHtml(providerUrl)}" target="_blank" rel="noreferrer">Open source</a>` : ''}
-        ${itemId ? `<button class="button" data-graph-detail="${escapeHtml(itemId)}" type="button">Inspect graph</button>` : ''}
-        ${itemId ? `<button class="button primary" data-graph-queue="${escapeHtml(itemId)}" type="button">Queue Yes/No</button>` : ''}
-      </div>
-    </div>
-  `;
-}
-
-function renderGraphDependency(dependency) {
-  const peer = dependency.peerItem || dependency.targetItem || dependency.unresolvedTarget || dependency.sourceItem || {};
-  const freshness = dependency.freshnessStatus || 'fresh';
-  const providers = [
-    dependency.sourceProvider,
-    dependency.targetProvider,
-    dependency.sourceItem?.sourceProvider,
-    dependency.targetItem?.sourceProvider,
-    dependency.unresolvedTarget?.sourceProvider,
-    peer.sourceProvider
-  ];
-  const edgeLabel = dependency.sourceItem && dependency.targetItem
-    ? `${dependency.sourceItem.title || dependency.sourceItem.externalId || 'Source'} -> ${dependency.targetItem.title || dependency.targetItem.externalId || 'Target'}`
-    : dependency.externalId;
-  return `
-    <div class="item" ${graphRowAttrs({
-      providers,
-      dependencyType: dependency.dependencyType,
-      direction: dependency.direction
-    })}>
-      <div class="item-title">
-        <strong>${escapeHtml(peer.title || edgeLabel || 'Linked work item')}</strong>
-        <span class="pill review">${escapeHtml(dependency.dependencyType || 'unknown')}</span>
-        ${freshness === 'stale' ? '<span class="pill critical">needs review</span>' : '<span class="pill healthy">fresh</span>'}
-      </div>
-      <div class="meta">
-        <span>${escapeHtml(dependency.direction || 'related')}</span>
-        <span>${escapeHtml(dependency.relationship || 'Dependency relationship')}</span>
-        <span>${escapeHtml(dependency.resolutionStatus || 'resolved')}</span>
-        <span>${escapeHtml(freshness)}</span>
-        <span>${Math.round((dependency.confidence || 0) * 100)}% confidence</span>
-      </div>
-      <div class="meta">
-        <span>${escapeHtml(peer.sourceProvider || dependency.targetProvider || dependency.sourceProvider || 'provider')}</span>
-        <span>${escapeHtml(peer.externalId || dependency.targetExternalId || 'no external id')}</span>
-        <span>${escapeHtml(peer.status || 'unknown')}</span>
-        ${dependency.lastSeenAt ? `<span>seen ${formatDate(dependency.lastSeenAt)}</span>` : ''}
-        <span>${escapeHtml(dependency.reviewStatus || 'unreviewed')}</span>
-      </div>
-      ${dependency.staleReason ? `<div class="meta">${escapeHtml(dependency.staleReason)}</div>` : ''}
-      <div class="item-actions">
-        ${dependency.sourceItem?.url ? `<a class="button" href="${escapeHtml(dependency.sourceItem.url)}" target="_blank" rel="noreferrer">Open source</a>` : ''}
-        ${(dependency.targetItem?.url || dependency.unresolvedTarget?.url || dependency.targetUrl) ? `<a class="button" href="${escapeHtml(dependency.targetItem?.url || dependency.unresolvedTarget?.url || dependency.targetUrl)}" target="_blank" rel="noreferrer">Open target</a>` : ''}
-        ${peer.id ? `<button class="button" data-graph-detail="${escapeHtml(peer.id)}" type="button">Inspect graph</button>` : ''}
-        ${freshness === 'stale' && dependency.id ? `
-          <button class="button" data-graph-dependency-review="${escapeHtml(dependency.id)}" data-graph-dependency-action="confirm" type="button">Confirm edge</button>
-          <button class="button" data-graph-dependency-review="${escapeHtml(dependency.id)}" data-graph-dependency-action="refresh" type="button">Refresh trust</button>
-          <button class="button danger" data-graph-dependency-review="${escapeHtml(dependency.id)}" data-graph-dependency-action="dismiss" type="button">Dismiss edge</button>
-        ` : ''}
-      </div>
-    </div>
-  `;
-}
-
-function renderGraphRecommendationHistory(recommendation) {
-  const provider = recommendation.sourceProvider || 'work_graph';
-  return `
-    <div class="item" ${graphRowAttrs({ providers: [provider] })}>
-      <div class="item-title">
-        <strong>${escapeHtml(recommendation.title || recommendation.recommendedAction || 'Recommendation')}</strong>
-        <span class="pill ${severityClass(recommendation.riskLevel)}">${escapeHtml(recommendation.status || 'pending')}</span>
-      </div>
-      <div class="meta">
-        <span>${escapeHtml(provider)}</span>
-        <span>${escapeHtml(recommendation.actionType || 'manual_review')}</span>
-        <span>${escapeHtml(recommendation.ownerType || 'team')}</span>
-        <span>${formatDate(recommendation.createdAt)}</span>
-      </div>
-      <div class="meta">${escapeHtml(recommendation.approvalReason || recommendation.recommendedAction || 'Review queued recommendation.')}</div>
-      <div class="item-actions">
-        ${recommendation.providerUrl ? `<a class="button" href="${escapeHtml(recommendation.providerUrl)}" target="_blank" rel="noreferrer">Open source</a>` : ''}
-        ${recommendation.workItemId ? `<button class="button" data-graph-detail="${escapeHtml(recommendation.workItemId)}" type="button">Inspect graph</button>` : ''}
-      </div>
-    </div>
-  `;
-}
-
-function renderGraphEvent(event) {
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>${escapeHtml(event.summary || event.eventType || 'Graph event')}</strong>
-        <span class="pill review">${escapeHtml(event.eventType || 'synced')}</span>
-      </div>
-      <div class="meta">
-        <span>${formatDate(event.occurredAt)}</span>
-        <span>${escapeHtml(event.sourceProvider || 'provider')}</span>
-      </div>
-    </div>
-  `;
-}
-
-function renderWorkSignalContract(contract, connected) {
-  const implemented = contract.adapterStatus === 'implemented';
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>${escapeHtml(contract.connectorName)}</strong>
-        <span class="pill ${connected ? 'connected' : implemented ? 'healthy' : 'review'}">${connected ? 'connected' : implemented ? 'adapter' : 'contract'}</span>
-      </div>
-      <div class="meta">
-        <span>${escapeHtml(contract.category)}</span>
-        <span>${escapeHtml(contract.authType)}</span>
-        <span>${escapeHtml(contract.outputModel)}</span>
-        <span>${escapeHtml(contract.adapterStatus || 'contract_only')}</span>
-      </div>
-      <div class="meta">${(contract.syncTargets || []).slice(0, 5).map(escapeHtml).join(' | ') || 'No sync targets declared'}</div>
-      <div class="meta">${escapeHtml(contract.safeWritePolicy)}</div>
-    </div>
-  `;
+  workSignalsViewController?.renderGraphItemDetailModal(detail);
 }
 
 async function openWorkerResponseBindingsModal(accountId) {
@@ -5570,15 +5142,6 @@ function toDateTimeLocalValue(value) {
   if (Number.isNaN(date.getTime())) return '';
   const offset = date.getTimezoneOffset() * 60 * 1000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
-}
-
-function unique(values) {
-  return [...new Set(values.filter(Boolean))];
-}
-
-function cssEscape(value) {
-  if (window.CSS?.escape) return window.CSS.escape(String(value || ''));
-  return String(value || '').replace(/[^a-zA-Z0-9_-]/g, '\\$&');
 }
 
 function clampPercent(value) {

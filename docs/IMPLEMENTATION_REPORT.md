@@ -83,3 +83,26 @@ The desktop app starts Sneup on `127.0.0.1` and opens the command center in an a
 - The packaged 2.3.19 demo used four processes, 359.9 MB working set, 294.2 MB private memory, and 1.531 cumulative CPU seconds in the repeatable verifier; normal close released every process and the loopback port.
 - Production-only and complete dependency audits both reported zero vulnerabilities; the five-secret production release check passed without exposing values.
 - Prior live disposable-workspace draft and preset coverage remains part of the browser acceptance evidence.
+## 2026-08-09 Work Signals implementation
+
+### Files and boundaries
+
+- Added `public/workSignalsView.js` for Work Signals, adapter contracts, normalized graph summaries, graph decisions, dependency review, graph detail, and graph ledger context.
+- Updated `public/app.js` to load the renderer retry-safely, start module and API reads concurrently, register Dutch view copy lazily, and retain all authenticated action functions.
+- Updated `src/services/commandCenterAssetService.js` so the deferred module participates in the shared content fingerprint and immutable cache policy.
+- Added `tests/workSignalsViewUi.test.js` and expanded command-center asset and security regressions.
+
+### Safety and correctness
+
+- The renderer cannot fetch APIs, read sessions or credentials, persist browser state, approve recommendations, or execute provider work.
+- Graph actions delegate only to `openGraphItemDetail`, `queueGraphDecision`, and `reviewGraphDependency` in the controller.
+- Provider and evidence content is escaped and preserved verbatim. Only HTTPS URLs without username/password components become clickable.
+- Failed script loads clear both promise and controller state, allowing a bounded retry when the operator reopens the view.
+
+### Verification
+
+- `npm run check:ci`: 110 suites/824 tests, lint, and 5/5 safety evaluation passed.
+- Full and production dependency audits: zero vulnerabilities.
+- Production-style release security: all five purpose-separated secrets accepted; values not exposed.
+- In-app Browser: English/Dutch, deferred loading, shared fingerprint, filtering, exact evidence, no overlay/overflow, and zero warning/error logs passed.
+- Packaged 2.3.20 runtime: version, eight diagnostics, secret redaction, HAI `never_direct`, clean close, and port release passed.
