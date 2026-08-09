@@ -228,6 +228,6 @@ learningSchema.statics.getSuccessfulRecommendations = function(category) {
   });
 };
 
-const Learning = mongoose.model('Learning', learningSchema);
+const Learning = mongoose.models.Learning || mongoose.model('Learning', learningSchema);
 
 module.exports = Learning;

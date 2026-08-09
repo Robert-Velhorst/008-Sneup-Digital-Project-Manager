@@ -78,4 +78,4 @@ decisionQueueItemSchema.index({ workspaceId: 1, status: 1, ownerType: 1, dueAt: 
 decisionQueueItemSchema.index({ workspaceId: 1, ownerType: 1, status: 1, riskLevel: -1, createdAt: 1 });
 decisionQueueItemSchema.index({ workspaceId: 1, boardId: 1, status: 1, createdAt: -1 });
 
-module.exports = mongoose.model('DecisionQueueItem', decisionQueueItemSchema);
+module.exports = mongoose.models.DecisionQueueItem || mongoose.model('DecisionQueueItem', decisionQueueItemSchema);

@@ -9620,6 +9620,7 @@ describe('intervention outcome verification', () => {
     jest.dontMock('../src/models/Board');
     jest.dontMock('../src/models/Member');
     jest.dontMock('../src/models/WorkItem');
+    jest.dontMock('../src/models/Learning');
     jest.dontMock('../src/services/trelloClient');
     jest.dontMock('../src/services/workspaceScopeService');
     jest.dontMock('../src/services/operationsLedgerService');
@@ -9692,6 +9693,7 @@ describe('intervention outcome verification', () => {
     }));
     jest.doMock('../src/models/AuditEvent', () => ({ create: auditCreate }));
     jest.doMock('../src/models/Intervention', () => ({ findOne: jest.fn().mockResolvedValue(null) }));
+    jest.doMock('../src/models/Learning', () => ({ recordRecommendationFeedback: jest.fn().mockResolvedValue(null) }));
     [
       '../src/models/Approval',
       '../src/models/DecisionQueueItem',

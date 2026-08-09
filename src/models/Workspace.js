@@ -14,7 +14,7 @@ const workspaceSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['active', 'suspended', 'archived'],
+    enum: ['active', 'suspended', 'archived', 'deleting'],
     default: 'active',
     index: true
   },

@@ -21,6 +21,9 @@ The command-center HTML and JavaScript were statically searched for controls, ev
 - Renderer-native capture confirmed all seven metrics, the complete toolbar, Operations Brief, and Job Health render without clipping or overlap.
 - The NSIS installer opened as `Sneup Setup`, showed version `2.1.0`, offered current-user/all-user installation scope, and exposed functional `Next` and `Cancel` controls. It was closed without modifying the machine.
 - The 2.2.0 packaged executable exposed the real `Sneup Command Center` window, remained available after startup, returned healthy explicit demo state on loopback, and closed normally without leaving port 3197 open. The in-app Browser webview did not attach for the current rendering rerun, so the earlier browser layout evidence is retained as prior-release evidence rather than silently relabelled as 2.2.0 evidence.
+- The 2.3.0 workspace control includes an owner-only archived-workspace deletion command, an exact-slug and irreversible-action confirmation modal, disabled live-state boundaries, identity cleanup after success, and a receipt display. Static wiring tests pass, while current visual Browser evidence remains pending because the in-app webview did not attach.
+- The 2.3.0 packaged command-center window remained open through metadata, health, and HAI manifest checks and closed without leaving port 3197 open.
+- Windows exposed the current `Sneup Setup` window from `Sneup-Setup-2.3.0.exe`; it was closed normally without installing or changing the machine.
 
 ## Open UI evidence
 

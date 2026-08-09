@@ -399,6 +399,6 @@ performanceSchema.methods.generateSummary = function() {
   };
 };
 
-const Performance = mongoose.model('Performance', performanceSchema);
+const Performance = mongoose.models.Performance || mongoose.model('Performance', performanceSchema);
 
 module.exports = Performance;

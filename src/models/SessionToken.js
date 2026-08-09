@@ -108,4 +108,4 @@ sessionTokenSchema.methods.revoke = function(actor = 'system') {
   return this.save();
 };
 
-module.exports = mongoose.model('SessionToken', sessionTokenSchema);
+module.exports = mongoose.models.SessionToken || mongoose.model('SessionToken', sessionTokenSchema);

@@ -80,4 +80,4 @@ trelloActionAttemptSchema.index({ workspaceId: 1, status: 1, createdAt: -1 });
 trelloActionAttemptSchema.index({ workspaceId: 1, boardId: 1, createdAt: -1 });
 trelloActionAttemptSchema.index({ workspaceId: 1, 'reconciliation.status': 1, updatedAt: -1 });
 
-module.exports = mongoose.model('TrelloActionAttempt', trelloActionAttemptSchema);
+module.exports = mongoose.models.TrelloActionAttempt || mongoose.model('TrelloActionAttempt', trelloActionAttemptSchema);

@@ -102,6 +102,6 @@ commentSchema.statics.findBySentiment = function(classification) {
   }).populate('cardId memberId');
 };
 
-const Comment = mongoose.model('Comment', commentSchema);
+const Comment = mongoose.models.Comment || mongoose.model('Comment', commentSchema);
 
 module.exports = Comment;

@@ -32,7 +32,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 025 AI abstraction/fallback | Partial | Provider isolation/evaluation exists; deterministic coverage is not universal. |
 | 026 Human review/approval | Implemented | Queue, protected payload review, approval expiry, policy gates. |
 | 027 Notifications/reminders | Implemented | Explicit policies, claims, delivery evidence, quiet hours, digests. |
-| 028 Privacy/deletion | Partial | Redaction, invitation retention, and owner-only workspace export exist; destructive workspace deletion remains missing. |
+| 028 Privacy/deletion | Implemented | Redaction, invitation retention, owner-only streamed export, and owner-confirmed resumable archived-workspace deletion cover local Sneup data. Provider-side grant revocation remains external. |
 | 029 Web security | Implemented | Helmet/CSP, origin controls, bounded bodies, throttling. |
 | 030 Secrets/rotation | Implemented | Purpose-separated secrets, encryption, rotation visibility, release check. |
 | 031 One-command local development | Implemented | `npm ci`, doctor, start/demo paths, Windows installer. |
@@ -96,8 +96,8 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 089 Stabilization gates | Implemented | Focused, full, security, installer, and fresh-clone gates. |
 | 090 No vanity work | Implemented | Changes target operability, safety, evidence, and delivery. |
 | 091 Feature definition of done | Implemented | Status requires wiring, reachability, tests, docs, and evidence. |
-| 092 Fresh-clone run | Implemented | Lockfile-only clean checkout passed 76 suites/648 tests, 5/5 evaluation, and zero-vulnerability audit; final CSS-only changes repeated full regression and packaged QA. |
-| 093 Manual evidence | Partial | Prior browser, packaged Windows, and installer evidence pass; the 2.2.0 in-app Browser attachment failed and requires a later rerun, while live provider and clean-VM evidence remain pending. |
+| 092 Fresh-clone run | Implemented | Prior clean GitHub runners passed; 2.3.0 passes 81 local suites/668 tests, 5/5 evaluation, zero-vulnerability audit, real-Mongo deletion verification, and packaged QA; current clean CI is pending push. |
+| 093 Manual evidence | Partial | Prior browser and installer-dialog evidence pass; 2.3.0 packaged Windows runtime passes, but its in-app Browser attachment failed and live provider/clean-VM evidence remain pending. |
 | 094 No-excuses search | Implemented | No shipped TODO/FIXME/HACK, dynamic-code, child-process, or secret-pattern finding. |
 | 095 Completion matrix | Implemented | This file, with partial/external states retained. |
 | 096 Verification report | Implemented | Final commands, clean-checkout result, installer hash, browser QA, and packaged Windows QA are recorded. |

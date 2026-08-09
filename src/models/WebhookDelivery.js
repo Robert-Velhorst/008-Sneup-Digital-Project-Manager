@@ -50,4 +50,4 @@ const webhookDeliverySchema = new mongoose.Schema({
 webhookDeliverySchema.index({ connectorAccountId: 1, deliveryId: 1 }, { unique: true });
 webhookDeliverySchema.index({ workspaceId: 1, status: 1, updatedAt: -1 });
 
-module.exports = mongoose.model('WebhookDelivery', webhookDeliverySchema);
+module.exports = mongoose.models.WebhookDelivery || mongoose.model('WebhookDelivery', webhookDeliverySchema);

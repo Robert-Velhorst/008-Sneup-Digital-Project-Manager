@@ -73,4 +73,4 @@ const notificationPolicySchema = new mongoose.Schema({
 
 notificationPolicySchema.index({ workspaceId: 1, status: 1, updatedAt: -1 });
 
-module.exports = mongoose.model('NotificationPolicy', notificationPolicySchema);
+module.exports = mongoose.models.NotificationPolicy || mongoose.model('NotificationPolicy', notificationPolicySchema);

@@ -103,6 +103,6 @@ connectorAccountSchema.methods.markValidated = function(metadata = {}) {
   return this.save();
 };
 
-const ConnectorAccount = mongoose.model('ConnectorAccount', connectorAccountSchema);
+const ConnectorAccount = mongoose.models.ConnectorAccount || mongoose.model('ConnectorAccount', connectorAccountSchema);
 
 module.exports = ConnectorAccount;

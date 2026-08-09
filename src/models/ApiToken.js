@@ -107,4 +107,4 @@ apiTokenSchema.methods.revoke = function(actor = 'system') {
   return this.save();
 };
 
-module.exports = mongoose.model('ApiToken', apiTokenSchema);
+module.exports = mongoose.models.ApiToken || mongoose.model('ApiToken', apiTokenSchema);

@@ -103,6 +103,6 @@ boardSchema.statics.findNeedingSync = function(intervalMinutes = 15) {
   });
 };
 
-const Board = mongoose.model('Board', boardSchema);
+const Board = mongoose.models.Board || mongoose.model('Board', boardSchema);
 
 module.exports = Board;

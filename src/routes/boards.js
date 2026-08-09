@@ -6,7 +6,6 @@ const List = require('../models/List');
 const Card = require('../models/Card');
 const trelloSync = require('../services/trelloSync');
 const contextAnalyzer = require('../services/contextAnalyzer');
-const nlpService = require('../services/nlpService');
 const operationsLedgerService = require('../services/operationsLedgerService');
 const operatingLedgerAnalyzer = require('../services/operatingLedgerAnalyzer');
 const CardFinding = require('../models/CardFinding');
@@ -267,7 +266,7 @@ router.get('/:boardId/cards/:cardId', requirePermission('audit:read'), async (re
     const context = await contextAnalyzer.getCardContext(card._id, {
       workspaceId: getRequestWorkspaceObjectId(req)
     });
-    const nlpAnalysis = await nlpService.analyzeCardContent(card._id, {
+    const nlpAnalysis = await require('../services/nlpService').analyzeCardContent(card._id, {
       workspaceId: getRequestWorkspaceObjectId(req)
     });
 

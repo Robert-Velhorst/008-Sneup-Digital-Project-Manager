@@ -252,6 +252,6 @@ cardSchema.statics.findHighRisk = function() {
   }).populate('boardId listId members');
 };
 
-const Card = mongoose.model('Card', cardSchema);
+const Card = mongoose.models.Card || mongoose.model('Card', cardSchema);
 
 module.exports = Card;

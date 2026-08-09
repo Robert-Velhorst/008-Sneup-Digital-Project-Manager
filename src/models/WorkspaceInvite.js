@@ -136,4 +136,4 @@ workspaceInviteSchema.methods.revoke = function(actor = 'system') {
 
 workspaceInviteSchema.statics.statuses = INVITE_STATUSES;
 
-module.exports = mongoose.model('WorkspaceInvite', workspaceInviteSchema);
+module.exports = mongoose.models.WorkspaceInvite || mongoose.model('WorkspaceInvite', workspaceInviteSchema);

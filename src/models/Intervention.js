@@ -299,6 +299,6 @@ interventionSchema.methods.markFailed = function(error) {
   return this.save();
 };
 
-const Intervention = mongoose.model('Intervention', interventionSchema);
+const Intervention = mongoose.models.Intervention || mongoose.model('Intervention', interventionSchema);
 
 module.exports = Intervention;

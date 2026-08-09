@@ -93,4 +93,4 @@ cardFindingSchema.index({ findingType: 1, status: 1, createdAt: -1 });
 cardFindingSchema.index({ workspaceId: 1, boardId: 1, status: 1, severity: -1, lastObservedAt: -1 });
 cardFindingSchema.index({ workspaceId: 1, cardId: 1, status: 1, findingType: 1 });
 
-module.exports = mongoose.model('CardFinding', cardFindingSchema);
+module.exports = mongoose.models.CardFinding || mongoose.model('CardFinding', cardFindingSchema);

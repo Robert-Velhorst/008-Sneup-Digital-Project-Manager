@@ -23,6 +23,8 @@ const commandCenterAssetService = require('./services/commandCenterAssetService'
 const { validateRuntimeSecurityConfiguration } = require('./utils/securityConfiguration');
 const { getRuntimeReadiness } = require('./services/runtimeDiagnosticsService');
 const ngrokTunnelService = require('./services/ngrokTunnelService');
+const workspaceDeletionWorker = require('./workers/workspaceDeletionWorker');
+const { RequestLoggingService } = require('./services/requestLoggingService');
 
 // Import routes
 const boardRoutes = require('./routes/boards');
@@ -112,11 +114,7 @@ app.use(express.static(path.join(__dirname, '../public'), {
   setHeaders: commandCenterAssetService.staticHeaders
 }));
 
-// Request logging
-app.use((req, res, next) => {
-  logger.info(`${req.method} ${req.path}`);
-  next();
-});
+app.use(new RequestLoggingService(logger).middleware());
 app.use(apiRateLimit);
 app.use(requireApiAccess);
 app.use(responseTimingService.middleware());
@@ -169,8 +167,8 @@ app.use('/api/outcomes', outcomeRoutes);
 app.use('/api/operations-ledger', operationsLedgerRoutes);
 app.use('/api/integrations/hai', haiIntegrationRoutes);
 
-// Root endpoint
-app.get('/', (req, res) => {
+// Machine-readable product metadata; the command center owns the browser root.
+app.get('/api', (req, res) => {
   res.json({
     name: 'Sneup',
     version: packageMetadata.version,
@@ -277,6 +275,7 @@ const initApp = async () => {
     }
 
     if (databaseConnected) {
+      await workspaceDeletionWorker.run();
       analyticsService.initAnalytics();
       connectorSyncService.init();
 
@@ -291,6 +290,8 @@ const initApp = async () => {
 
       const identityRetentionWorker = require('./workers/identityRetentionWorker');
       identityRetentionWorker.init();
+
+      workspaceDeletionWorker.init();
     } else {
       logger.warn('Background analytics and intervention workers are paused until MongoDB is connected.');
     }
@@ -324,6 +325,7 @@ const closeServer = () => new Promise((resolve, reject) => {
 });
 
 const shutdown = async () => {
+  workspaceDeletionWorker.stop();
   await ngrokTunnelService.stop();
   await closeServer();
   if (isDatabaseConnected()) await disconnectDatabase();

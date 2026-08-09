@@ -1,46 +1,5 @@
 const crypto = require('crypto');
-
-const EXPORT_COLLECTIONS = Object.freeze([
-  ['analytics', require('../models/Analytics')],
-  ['apiTokens', require('../models/ApiToken')],
-  ['approvals', require('../models/Approval')],
-  ['auditEvents', require('../models/AuditEvent')],
-  ['boardHealthSnapshots', require('../models/BoardHealthSnapshot')],
-  ['boards', require('../models/Board')],
-  ['capacityProfiles', require('../models/CapacityProfile')],
-  ['cardFindings', require('../models/CardFinding')],
-  ['cards', require('../models/Card')],
-  ['comments', require('../models/Comment')],
-  ['connectorAccounts', require('../models/ConnectorAccount')],
-  ['conversations', require('../models/Conversation')],
-  ['decisionQueueItems', require('../models/DecisionQueueItem')],
-  ['followUpPlans', require('../models/FollowUpPlan')],
-  ['interventions', require('../models/Intervention')],
-  ['jobControls', require('../models/JobControl')],
-  ['jobRuns', require('../models/JobRun')],
-  ['learningRecords', require('../models/Learning')],
-  ['lists', require('../models/List')],
-  ['members', require('../models/Member')],
-  ['notificationDeliveries', require('../models/NotificationDelivery')],
-  ['notificationPolicies', require('../models/NotificationPolicy')],
-  ['outcomeRecords', require('../models/OutcomeRecord')],
-  ['performanceRecords', require('../models/Performance')],
-  ['policyRules', require('../models/PolicyRule')],
-  ['recommendations', require('../models/Recommendation')],
-  ['sessionTokens', require('../models/SessionToken')],
-  ['trelloActionAttempts', require('../models/TrelloActionAttempt')],
-  ['users', require('../models/User')],
-  ['webhookDeliveries', require('../models/WebhookDelivery')],
-  ['workActors', require('../models/WorkActor')],
-  ['workComments', require('../models/WorkComment')],
-  ['workContainers', require('../models/WorkContainer')],
-  ['workDependencies', require('../models/WorkDependency')],
-  ['workerResponses', require('../models/WorkerResponse')],
-  ['workEvents', require('../models/WorkEvent')],
-  ['workItems', require('../models/WorkItem')],
-  ['workSignals', require('../models/WorkSignal')],
-  ['workspaceInvitations', require('../models/WorkspaceInvite')]
-]);
+const { WORKSPACE_COLLECTIONS } = require('./workspaceCollectionRegistry');
 
 const SECRET_KEYS = new Set([
   'apikey',
@@ -87,7 +46,7 @@ const assertWorkspaceExportOwner = (auth = {}) => {
 
 class WorkspaceDataExportService {
   constructor(options = {}) {
-    this.collections = options.collections || EXPORT_COLLECTIONS;
+    this.collections = options.collections || WORKSPACE_COLLECTIONS;
     this.batchSize = options.batchSize || 100;
     this.now = options.now || (() => new Date());
   }
@@ -162,6 +121,6 @@ class WorkspaceDataExportService {
 
 module.exports = new WorkspaceDataExportService();
 module.exports.WorkspaceDataExportService = WorkspaceDataExportService;
-module.exports.EXPORT_COLLECTIONS = EXPORT_COLLECTIONS;
+module.exports.EXPORT_COLLECTIONS = WORKSPACE_COLLECTIONS;
 module.exports.assertWorkspaceExportOwner = assertWorkspaceExportOwner;
 module.exports.sanitizeExportValue = sanitizeExportValue;

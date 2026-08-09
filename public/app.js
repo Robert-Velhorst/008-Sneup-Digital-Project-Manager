@@ -157,6 +157,7 @@ const els = {
   workspaceMode: document.getElementById('workspaceMode'),
   workspaceList: document.getElementById('workspaceList'),
   workspaceExportButton: document.getElementById('workspaceExportButton'),
+  workspaceDeleteButton: document.getElementById('workspaceDeleteButton'),
   workspaceUserCount: document.getElementById('workspaceUserCount'),
   workspaceUsers: document.getElementById('workspaceUsers'),
   workspaceInviteCount: document.getElementById('workspaceInviteCount'),
@@ -216,6 +217,7 @@ document.addEventListener('keydown', (event) => {
 els.notificationPolicyButton.addEventListener('click', openNotificationPolicy);
 els.workspaceInviteButton.addEventListener('click', openWorkspaceInvite);
 els.workspaceExportButton.addEventListener('click', downloadWorkspaceExport);
+els.workspaceDeleteButton.addEventListener('click', openWorkspaceDeletion);
 els.workspaceSelect.addEventListener('change', async (event) => {
   state.activeWorkspaceId = event.target.value;
   if (state.activeWorkspaceId) {
@@ -2982,6 +2984,11 @@ function renderWorkspaces(errorMessage = '') {
     && (state.securityContext?.roles || []).includes('owner')
   );
   els.workspaceExportButton.disabled = !canExportWorkspace;
+  const canDeleteWorkspace = Boolean(
+    canExportWorkspace
+    && ['archived', 'deleting'].includes(currentWorkspace?.status)
+  );
+  els.workspaceDeleteButton.disabled = !canDeleteWorkspace;
   els.workspaceUserCount.textContent = `${users.length} user${users.length === 1 ? '' : 's'}`;
   els.workspaceUsers.innerHTML = listOrEmpty(users, renderWorkspaceUser);
   els.workspaceInviteCount.textContent = `${pendingInvitations.length} pending`;
@@ -3027,7 +3034,7 @@ function renderWorkspace(workspace) {
     <div class="item">
       <div class="item-title">
         <strong>${escapeHtml(workspace.name)}</strong>
-        <span class="pill ${workspace.status === 'active' ? 'healthy' : 'review'}">${escapeHtml(workspace.status)}</span>
+        <span class="pill ${workspace.status === 'active' ? 'healthy' : workspace.status === 'deleting' ? 'critical' : 'review'}">${escapeHtml(workspace.status)}</span>
       </div>
       <div class="meta">
         <span>${escapeHtml(workspace.slug)}</span>
@@ -3567,6 +3574,64 @@ async function downloadWorkspaceExport() {
   } finally {
     renderWorkspaces();
   }
+}
+
+function openWorkspaceDeletion() {
+  const workspace = (state.workspaces || []).find(item => item.id === state.activeWorkspaceId)
+    || state.currentWorkspace;
+  const isOwner = (state.securityContext?.roles || []).includes('owner');
+  if (!workspace?.id || !isOwner || !['archived', 'deleting'].includes(workspace.status)) {
+    openNotice('Workspace deletion unavailable', 'Only an archived workspace can be permanently deleted by its owner.');
+    return;
+  }
+
+  els.modalTitle.textContent = 'Delete archived workspace?';
+  els.modalBody.innerHTML = `
+    <form id="workspaceDeletionForm" class="notice-stack">
+      <div class="notice critical">This permanently removes Sneup data, account credentials, access tokens, and audit history for this workspace. Connected provider accounts are not changed.</div>
+      <label>Workspace slug<input name="confirmation" type="text" autocomplete="off" required placeholder="${escapeHtml(workspace.slug)}"></label>
+      <label><input name="acknowledgePermanentDeletion" type="checkbox" required> I understand this deletion cannot be undone.</label>
+      <div class="toolbar modal-actions">
+        <button class="button" id="cancelWorkspaceDeletion" type="button">Cancel</button>
+        <button class="button danger" type="submit">Delete workspace</button>
+      </div>
+    </form>
+  `;
+  els.modal.classList.add('open');
+  document.getElementById('cancelWorkspaceDeletion').addEventListener('click', closeModal);
+  document.getElementById('workspaceDeletionForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = new FormData(form);
+    const submitButton = form.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
+    submitButton.textContent = 'Deleting...';
+    try {
+      const data = await fetchApi(`/api/workspaces/${encodeURIComponent(workspace.id)}/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          confirmation: values.get('confirmation'),
+          acknowledgePermanentDeletion: values.get('acknowledgePermanentDeletion') === 'on'
+        })
+      });
+      state.sessionToken = '';
+      state.activeWorkspaceId = '';
+      state.currentWorkspace = null;
+      state.workspaces = [];
+      state.workspaceUsers = [];
+      state.workspaceInvitations = [];
+      sessionStorage.removeItem(SESSION_TOKEN_KEY);
+      localStorage.removeItem('sneup.workspaceId');
+      closeModal();
+      renderWorkspaces();
+      openNotice('Workspace deleted', `Deletion receipt ${data.receipt.deletionId}. Local Sneup data for the workspace has been removed.`);
+    } catch (error) {
+      submitButton.disabled = false;
+      submitButton.textContent = 'Delete workspace';
+      openNotice('Workspace deletion failed', error.message);
+    }
+  });
 }
 
 function openWorkspaceInvite() {

@@ -6,31 +6,32 @@ This report is updated from executed commands at release time. A passing local s
 
 - Branch: `main`
 - Starting commit: `470d0a35ca712a3c12473a5c8cccb2118092d3ed`
-- Release under verification: `2.2.0`
+- Release under verification: `2.3.0`
 - Default remote: `origin`
 
 ## Verification ledger
 
 | Check | Result |
 | --- | --- |
-| Focused export/desktop/provider-write/security tests | Pass |
+| Focused deletion/export/desktop/provider-write/security tests | Pass; disposable MongoDB verified all 39 workspace collections |
 | ESLint | Pass |
 | Doctor | Pass with expected local warnings for absent MongoDB/Trello configuration; no errors; ngrok disabled locally |
-| Full regression | Pass: 78 suites, 656 tests |
+| Full regression | Pass: 81 suites, 668 tests |
 | Recommendation evaluation | Pass: 5/5 scenarios, score 100% |
 | Production and full dependency audit | Pass: 0 vulnerabilities after lockfile remediation |
 | Release security positive check | Pass: five purpose-separated production secrets, no values exposed |
 | Secret-pattern/source search | Pass: no high-confidence credential, TODO/FIXME/HACK, dynamic-code, or child-process finding |
-| Demo runtime smoke | Pass: `/health` OK; `/ready` HTTP 200, degraded demo, live critical path false |
+| Demo runtime smoke | Pass: `/` HTML, `/api` version 2.3.0 capabilities, `/health` OK; `/ready` HTTP 200, degraded demo, live critical path false |
 | HAI HTTP smoke | Pass: manifest `sneup-hai`, capabilities `snapshot,propose`, provider writes `never_direct`, structured demo snapshot |
 | ngrok packaging/safety | Pass: official Windows x64 native binding bundled; missing, weak, or placeholder remote credentials fail closed |
-| Browser QA | Prior release pass; the 2.2.0 in-app Browser webview failed to attach twice, so current rendered browser evidence is pending |
-| Packaged Windows QA | Pass: 2.2.0 command-center window stayed open, `/health` returned OK in explicit demo mode, normal close released port 3197; four processes used about 410 MB working set after 30 seconds idle |
-| Installer UI | Prior 2.1.0 installer UI pass; 2.2.0 metadata verified, current installer-dialog walkthrough pending |
-| Windows installer | Pass: `Sneup-Setup-2.2.0.exe`, 109,418,326 bytes, unsigned; executable metadata reports Sneup 2.2.0 and Noodzakelijk Online |
-| Installer SHA-256 | `229F9D81398CB3906EC8B5A37EFA17366F2A6920DAA12C5EADDCA1A45F615892` |
-| Fresh clone | Pass on GitHub's clean Linux and Windows runners for commit `e61c77d` |
-| GitHub CI | Pass: run `31291606435`; quality completed in 1m12s and the unsigned Windows installer build/upload completed in 2m16s |
+| Browser QA | Prior release pass; the 2.3.0 in-app Browser webview again failed to attach, so current rendered browser evidence is pending |
+| Packaged Windows QA | Pass: 2.3.0 command-center window stayed open, metadata/health/HAI endpoints passed, and normal close released port 3197; four processes used about 408 MB working set after 30 seconds idle |
+| Packaged resource sample | Pass: 408 MB working set, 336.2 MB private bytes, and 5.16 cumulative CPU seconds after startup plus 30 seconds idle; prior comparable CPU sample was 14.87 seconds |
+| Installer UI | Pass: Windows exposed `Sneup Setup` from the 2.3.0 installer; it closed normally without installing |
+| Windows installer | Pass: `Sneup-Setup-2.3.0.exe`, 109,421,276 bytes, unsigned; executable metadata reports Sneup 2.3.0 and Noodzakelijk Online |
+| Installer SHA-256 | `360D1045322C8BCC673B36842D61CB56A381A501FA52766C9D3039963810FEF8` |
+| Fresh clone | Prior 2.2.0 GitHub runners passed; current 2.3.0 clean-checkout CI pending push |
+| GitHub CI | Prior run `31291606435` passed; current 2.3.0 push pending |
 
 ## External gates
 

@@ -80,4 +80,4 @@ notificationDeliverySchema.index({ workspaceId: 1, policyId: 1, dedupeKey: 1 }, 
 notificationDeliverySchema.index({ workspaceId: 1, status: 1, createdAt: -1 });
 notificationDeliverySchema.index({ workspaceId: 1, policyId: 1, eventType: 1, status: 1, createdAt: 1 });
 
-module.exports = mongoose.model('NotificationDelivery', notificationDeliverySchema);
+module.exports = mongoose.models.NotificationDelivery || mongoose.model('NotificationDelivery', notificationDeliverySchema);

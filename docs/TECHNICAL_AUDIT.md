@@ -16,6 +16,7 @@
 5. Jobs, rate-limit metrics, response timing, audit history, and connector health are visible to authorized operators.
 6. The Windows NSIS installer is reproducible and CI now builds the unsigned artifact on Windows.
 7. Workspace exports are owner-only, audit-recorded, streamed with bounded cursors, and recursively strip credential material.
+8. Archived-workspace deletion is owner-confirmed, exact-slug gated, resumable, registry-complete, and verified against a disposable real MongoDB database.
 
 ## Remediations in this release
 
@@ -28,6 +29,8 @@
 - Made connector credential fields opt-in and added workspace-state enforcement before the only provider-write executor.
 - Added a resource-bounded owner workspace export and corrected security-job observability persistence.
 - Corrected the packaged desktop environment so production file logging is selected before application services load; this removes a startup-time detached-console `EPIPE` shutdown without muting persisted diagnostics.
+- Added a non-reactivatable deleting state, minimal deletion receipts, lease recovery, delayed orphan sweeps, and shared export/deletion collection coverage.
+- Made all Mongoose model exports reload-safe, moved product metadata to the reachable `/api` path, demand-loaded NLP, and reduced routine request-log disk churn.
 
 ## Remaining release risks
 
@@ -37,9 +40,9 @@
 | Live Mongo migration/restore | External | Test on a production-like replica and capture backup/restore evidence. |
 | Code signing | External | Provide an organization-owned Windows signing certificate and secure CI signing process. |
 | Deployment/rollback | Partial | Select hosting, provision secrets, run canary, and prove rollback. |
-| Data subject deletion | Partial | Owner-authorized export now exists; add an archived-workspace deletion workflow before hosted multi-tenant release. |
+| Data subject deletion | Implemented locally | Owner-authorized export and permanent archived-workspace deletion pass unit, security, UI-wiring, and real-Mongo verification. Capture an owner-controlled hosted acceptance run before production launch. |
 | Accessibility/i18n | Partial | Complete assistive-technology review and Dutch copy catalog before claiming conformance. |
-| Desktop memory | Measured | The 2.2.0 package used four processes and about 410 MB total working set after 30 seconds idle on the verification machine; collect broader clean-machine traces before setting a hard budget. |
+| Desktop resources | Measured | The 2.3.0 package used four processes, about 408 MB working set, 336.2 MB private bytes, and 5.16 cumulative CPU seconds after startup plus 30 seconds idle. The comparable 2.2.0 CPU sample was 14.87 seconds; collect broader clean-machine traces before setting a hard budget. |
 | Billing | Not applicable | No billing is required for the local-first product. |
 
 No live credential, provider authorization, deployment, signed binary, or production backup claim is inferred from local tests.

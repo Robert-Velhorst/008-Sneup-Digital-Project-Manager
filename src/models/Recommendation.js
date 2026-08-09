@@ -114,4 +114,4 @@ recommendationSchema.index({ workspaceId: 1, status: 1, riskLevel: -1, createdAt
 recommendationSchema.index({ workspaceId: 1, boardId: 1, status: 1, createdAt: -1 });
 recommendationSchema.index({ workspaceId: 1, status: 1, approvalExpiresAt: 1 });
 
-module.exports = mongoose.model('Recommendation', recommendationSchema);
+module.exports = mongoose.models.Recommendation || mongoose.model('Recommendation', recommendationSchema);

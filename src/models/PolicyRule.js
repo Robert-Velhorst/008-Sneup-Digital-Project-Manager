@@ -56,4 +56,4 @@ const policyRuleSchema = new mongoose.Schema({
 policyRuleSchema.index({ workspaceId: 1, actionType: 1 }, { unique: true });
 policyRuleSchema.index({ workspaceId: 1, enabled: 1, updatedAt: -1 });
 
-module.exports = mongoose.model('PolicyRule', policyRuleSchema);
+module.exports = mongoose.models.PolicyRule || mongoose.model('PolicyRule', policyRuleSchema);

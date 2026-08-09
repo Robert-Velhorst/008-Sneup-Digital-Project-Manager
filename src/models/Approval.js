@@ -66,4 +66,4 @@ approvalSchema.index({ recommendationId: 1, decidedAt: -1 });
 approvalSchema.index({ workspaceId: 1, recommendationId: 1, decidedAt: -1 });
 approvalSchema.index({ workspaceId: 1, recommendationId: 1, decision: 1, expiresAt: 1 });
 
-module.exports = mongoose.model('Approval', approvalSchema);
+module.exports = mongoose.models.Approval || mongoose.model('Approval', approvalSchema);

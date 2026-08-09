@@ -1,5 +1,29 @@
 # Changelog
 
+## 2.3.0 - 2026-08-09
+
+### Added
+
+- Owner-confirmed permanent deletion for archived workspaces, including a minimal deletion receipt and resumable cleanup.
+- Guarded real-Mongo workspace deletion verification across all 39 workspace-scoped collections.
+- Machine-readable product and capability metadata at `GET /api` while `/` remains the command center.
+
+### Fixed
+
+- Workspaces in the irreversible `deleting` state can no longer be changed or reactivated.
+- Every Mongoose model is reload-safe, eliminating model recompilation warnings and hot-reload failures.
+- The formerly unreachable JSON root metadata is now available at its explicit API path.
+
+### Performance
+
+- Natural NLP modules load only when card-content analysis is requested instead of during every server or desktop startup.
+- Routine successful HTTP requests no longer create info-level disk logs by default; rejected, failed, and slow requests remain bounded diagnostics.
+
+### Security
+
+- Workspace credentials and identity tokens are removed before the workspace record completes deletion, with provider writes blocked throughout the deleting state.
+- Cleanup leases, resumable progress, bounded retries, and five delayed orphan sweeps prevent interrupted or in-flight work from silently retaining workspace data.
+
 ## 2.2.0 - 2026-08-09
 
 ### Added

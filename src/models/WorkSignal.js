@@ -141,4 +141,4 @@ workSignalSchema.statics.signalTypes = SIGNAL_TYPES;
 workSignalSchema.statics.signalStatuses = SIGNAL_STATUSES;
 workSignalSchema.statics.signalPriorities = SIGNAL_PRIORITIES;
 
-module.exports = mongoose.model('WorkSignal', workSignalSchema);
+module.exports = mongoose.models.WorkSignal || mongoose.model('WorkSignal', workSignalSchema);

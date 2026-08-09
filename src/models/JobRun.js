@@ -71,4 +71,4 @@ jobRunSchema.index({ workspaceId: 1, jobName: 1, status: 1, startedAt: -1 });
 jobRunSchema.index({ workspaceId: 1, status: 1, startedAt: -1 });
 jobRunSchema.index({ workspaceId: 1, jobType: 1, startedAt: -1 });
 
-module.exports = mongoose.model('JobRun', jobRunSchema);
+module.exports = mongoose.models.JobRun || mongoose.model('JobRun', jobRunSchema);

@@ -32,4 +32,4 @@ const jobControlSchema = new mongoose.Schema({
 jobControlSchema.index({ workspaceId: 1, jobName: 1 }, { unique: true });
 jobControlSchema.index({ workspaceId: 1, status: 1, updatedAt: -1 });
 
-module.exports = mongoose.model('JobControl', jobControlSchema);
+module.exports = mongoose.models.JobControl || mongoose.model('JobControl', jobControlSchema);

@@ -2,11 +2,11 @@
 
 ## Surface
 
-The Express application mounts 27 route modules with 168 declared route handlers. All application routes pass through request authentication, rate limiting, response timing, workspace resolution, and per-handler permissions. Webhook and public invitation exceptions are narrowly matched.
+The Express application mounts 27 route modules with 169 declared route handlers. All application routes pass through request authentication, rate limiting, response timing, workspace resolution, and per-handler permissions. Webhook and public invitation exceptions are narrowly matched.
 
 ## Reachability
 
-The browser command center directly calls workspace, security, operations-ledger, forecast, jobs, notification, policy, report, work-graph, enhancement, and autopilot endpoints. Workspace export uses an owner-only streamed response instead of the ordinary JSON helper. Secondary routes are used by connector OAuth callbacks, workers, webhooks, CLI/operator flows, and detailed board/card views.
+The browser command center directly calls workspace, security, operations-ledger, forecast, jobs, notification, policy, report, work-graph, enhancement, and autopilot endpoints. Workspace export uses an owner-only streamed response instead of the ordinary JSON helper. Archived-workspace deletion uses a separate owner-only exact-confirmation flow and invalidates the current workspace identity. Secondary routes are used by connector OAuth callbacks, workers, webhooks, CLI/operator flows, and detailed board/card views.
 
 ## External writes
 

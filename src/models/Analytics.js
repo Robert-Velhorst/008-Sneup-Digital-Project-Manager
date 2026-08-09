@@ -224,6 +224,6 @@ analyticsSchema.methods.compareWithPrevious = async function() {
   };
 };
 
-const Analytics = mongoose.model('Analytics', analyticsSchema);
+const Analytics = mongoose.models.Analytics || mongoose.model('Analytics', analyticsSchema);
 
 module.exports = Analytics;

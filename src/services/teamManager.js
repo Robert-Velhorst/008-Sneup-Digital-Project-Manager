@@ -3,7 +3,6 @@ const Board = require('../models/Board');
 const Card = require('../models/Card');
 const Member = require('../models/Member');
 const Intervention = require('../models/Intervention');
-const nlpService = require('./nlpService');
 const contextAnalyzer = require('./contextAnalyzer');
 const operationsLedgerService = require('./operationsLedgerService');
 const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');

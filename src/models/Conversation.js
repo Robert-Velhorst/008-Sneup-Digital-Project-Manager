@@ -208,6 +208,6 @@ conversationSchema.methods.getContext = async function() {
   };
 };
 
-const Conversation = mongoose.model('Conversation', conversationSchema);
+const Conversation = mongoose.models.Conversation || mongoose.model('Conversation', conversationSchema);
 
 module.exports = Conversation;

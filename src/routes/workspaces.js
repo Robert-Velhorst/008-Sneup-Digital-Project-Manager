@@ -8,6 +8,7 @@ const SessionToken = require('../models/SessionToken');
 const operationsLedgerService = require('../services/operationsLedgerService');
 const workspaceInviteService = require('../services/workspaceInviteService');
 const workspaceDataExportService = require('../services/workspaceDataExportService');
+const workspaceDeletionService = require('../services/workspaceDeletionService');
 const {
   getDemoSecurityContext,
   getDemoWorkspace,
@@ -257,6 +258,11 @@ router.post('/:workspaceId/update', requirePermission('identity:manage'), async 
   try {
     const workspace = await findWorkspaceOr404(req, req.params.workspaceId);
     const beforeState = publicWorkspace(workspace);
+    if (workspace.status === 'deleting') {
+      const error = new Error('A workspace deletion in progress cannot be changed or reactivated');
+      error.statusCode = 409;
+      throw error;
+    }
 
     if (req.body.name) workspace.name = String(req.body.name).trim();
     if (req.body.status) workspace.status = validateEnum(req.body.status, WORKSPACE_STATUSES, 'status');
@@ -367,6 +373,34 @@ router.get('/:workspaceId/export', requirePermission('identity:manage'), async (
     res.status(error.statusCode || 500).json({
       success: false,
       error: error.statusCode ? error.message : 'Failed to export workspace data'
+    });
+  }
+});
+
+router.post('/:workspaceId/delete', requirePermission('identity:manage'), async (req, res) => {
+  try {
+    if (isDemoMode()) {
+      const error = new Error('Demo workspaces do not contain persistent data to delete');
+      error.statusCode = 409;
+      throw error;
+    }
+    const workspace = await findWorkspaceOr404(req, req.params.workspaceId);
+    const receipt = await workspaceDeletionService.deleteWorkspace({
+      workspace,
+      auth: req.auth,
+      confirmation: req.body.confirmation,
+      acknowledgePermanentDeletion: req.body.acknowledgePermanentDeletion
+    });
+    res.json({ success: true, receipt });
+  } catch (error) {
+    logger.error('Failed to delete workspace data', {
+      code: error.code,
+      statusCode: error.statusCode || 500,
+      message: error.message
+    });
+    res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.statusCode ? error.message : 'Failed to delete workspace data'
     });
   }
 });

@@ -135,6 +135,8 @@ See `docs/CLOUD_AND_HAI.md` for the Windows, ngrok, HAI, and shutdown flow.
 
 ## API Endpoints
 
+- `GET /api` - Read machine-readable Sneup version and capability metadata
+
 ### Boards
 
 - `GET /api/boards` - Get all boards
@@ -175,6 +177,7 @@ See `docs/CLOUD_AND_HAI.md` for the Windows, ngrok, HAI, and shutdown flow.
 - `POST /api/workspaces` - Create a workspace
 - `POST /api/workspaces/:workspaceId/update` - Update workspace metadata, plan, status, or settings
 - `GET /api/workspaces/:workspaceId/export` - Stream an owner-only NDJSON workspace export with credentials and token material removed
+- `POST /api/workspaces/:workspaceId/delete` - Permanently delete an archived workspace after owner-only exact-slug confirmation
 - `GET /api/workspaces/:workspaceId/users` - List workspace users
 - `POST /api/workspaces/:workspaceId/users` - Create a workspace user
 - `POST /api/workspaces/:workspaceId/users/:userId/update` - Update a workspace user
@@ -190,6 +193,8 @@ See `docs/CLOUD_AND_HAI.md` for the Windows, ngrok, HAI, and shutdown flow.
 See `docs/MULTI_WORKSPACE_IDENTITY.md` for workspace selection, session token, and production migration notes.
 
 Workspace exports are generated collection by collection with bounded MongoDB cursors, so Sneup does not buffer a full workspace in server memory. The command center uses a streaming file save when the browser supports it. Every export requires the workspace owner role, records start and completion evidence, and recursively excludes connector credentials, authentication hashes and prefixes, passwords, signing secrets, and encrypted notification destinations. The final `complete` line contains per-collection counts; treat an export without that line as incomplete.
+
+Permanent deletion is available only to the authenticated owner of an archived workspace. It requires the exact workspace slug plus an explicit irreversible-deletion acknowledgement. Sneup locks the workspace in a non-operational `deleting` state, removes all 39 registered workspace collections sequentially, removes identity tokens and the workspace record last, and retains only a non-identifying receipt. Interrupted work is lease-protected and resumable. Five bounded follow-up sweeps catch late in-flight writes before the receipt removes its temporary technical workspace reference. Provider accounts are not changed at the provider; their local encrypted credentials are deleted, and provider-side grant revocation remains an owner action.
 
 ### Workspace Action Safety
 
@@ -530,6 +535,8 @@ pm2 startup
 | `DECISION_QUEUE_SNOOZE_CRON` | Reopens elapsed internal decision-queue snoozes; it never creates a provider write | `*/15 * * * *` |
 | `ANALYTICS_CRON` | Analytics schedule | `0 * * * *` |
 | `LOG_LEVEL` | Logging level | `info` |
+| `SNEUP_HTTP_REQUEST_LOGS` | Log every successful HTTP request instead of only errors and slow requests | `false` |
+| `SNEUP_SLOW_REQUEST_MS` | Slow-request warning threshold, bounded from 100 to 60000 ms | `1000` |
 
 ## Troubleshooting
 

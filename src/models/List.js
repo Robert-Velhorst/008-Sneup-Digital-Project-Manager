@@ -96,6 +96,6 @@ listSchema.methods.isBottleneck = function(averageCycleTime, totalLists) {
   return { isBottleneck: false, severity: 'none' };
 };
 
-const List = mongoose.model('List', listSchema);
+const List = mongoose.models.List || mongoose.model('List', listSchema);
 
 module.exports = List;

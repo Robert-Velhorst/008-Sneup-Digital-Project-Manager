@@ -61,4 +61,4 @@ userSchema.methods.hasRoleAtLeast = function(requiredRole) {
 
 userSchema.statics.roleOrder = ROLE_ORDER;
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.models.User || mongoose.model('User', userSchema);
