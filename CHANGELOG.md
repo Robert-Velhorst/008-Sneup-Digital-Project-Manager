@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.3.23 - 2026-08-09
+
+### Demand-loaded connector account selection
+
+- Moved all ten provider account-selection forms into the existing retry-safe Connector module, so Overview no longer downloads their markup, Dutch copy, option rendering, or form-construction code.
+- Kept authenticated option reads, exact endpoint selection, encoded account identifiers, POST payloads, successful refreshes, and every credential/provider boundary in `public/app.js`. The deferred renderer has no fetch, token, cookie, session, storage, or provider authority.
+- Added bounded option rendering, safe dynamic escaping, sole-option selection, empty-choice handling, duplicate-submit locking, cancellation, and retry after a failed save for Figma, SharePoint, Mural, Xero, Procore, Resource Guru, Basecamp, Asana, Confluence, and Jira.
+
+### Resource, security, browser, and Windows verification
+
+- Reduced the initial app-plus-localization payload by 21,493 raw, 2,131 gzip, and 1,610 Brotli bytes compared with 2.3.22. The Connector module remains deferred; its complete English/Dutch selection UI is fetched only when Connectors opens.
+- Added all-ten-form values, localization, exact-body, empty-choice, cancellation, duplicate-submit, retry, escaping, no-draft, and source-authority regressions. The full local gate passes 111 suites/835 tests, the 5/5 recommendation safety evaluation, two zero-vulnerability audits, and five-secret production-style validation.
+- In-app Browser acceptance passed Overview exclusion, one-time shared-fingerprint Connector loading, 117 connectors, four explicit catalog-only providers, English/Dutch rendering, layout containment, and zero current console errors.
+- Built and verified unsigned `Sneup-Setup-2.3.23.exe`: 109,480,743 bytes, SHA-256 `97EE2D6E07D24B187CB2FCF1A223FF9C01AE1D5191FA37880A1B9FF17B1F3871`. Packaged verification passed eight diagnostics, no secret exposure, HAI `never_direct`, normal close, and port release.
+
 ## 2.3.22 - 2026-08-09
 
 ### Demand-loaded workspace policy forms

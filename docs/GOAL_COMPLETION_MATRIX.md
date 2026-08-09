@@ -2,7 +2,7 @@
 
 Status meanings: **Implemented** is present and locally verified; **Partial** has useful implementation but an identified gap; **External** requires owner-controlled accounts or infrastructure; **N/A** is outside the product's current surface. No phase is marked complete from documentation alone.
 
-2.3.22 keeps all five reviewed workspace policy forms demand-loaded. Their renderer has no API, credential, cookie, session, or storage authority; exact payload construction and authenticated writes remain in the controller, including fixed Robert ownership for high/critical routing.
+2.3.23 also keeps all ten connector account-selection forms demand-loaded. Their renderer has no API, credential, cookie, session, or storage authority; authenticated reads, exact endpoint/body construction, and provider boundaries remain in the controller.
 
 | Phase | Status | Evidence or remaining gate |
 | --- | --- | --- |
@@ -47,7 +47,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 038 Fake provider lab | Implemented | Provider mocks are test-only and cannot activate production success. |
 | 039 Test factories/fixtures | Implemented | Deterministic service/provider fixtures across test suites. |
 | 040 Backend tests | Implemented | Jest regression suite and CI gate. |
-| 041 Frontend/component tests | Partial | Static/UI assertions plus isolated jsdom coverage verify drafts/presets, help, connector, workspace, and approval rendering/action delegation, complete renderer and consequential form/modal localization, exact evidence preservation, guarded callback presence, demand-load boundaries, lazy catalog safety, and per-asset cache fingerprints; full browser automation remains partial. |
+| 041 Frontend/component tests | Partial | Static/UI assertions plus isolated jsdom coverage verify drafts/presets, help, all ten connector account-selection flows, workspace, and approval rendering/action delegation, complete renderer and consequential form/modal localization, exact evidence preservation, guarded callback presence, demand-load boundaries, lazy catalog safety, and per-asset cache fingerprints; full browser automation remains partial. |
 | 042 Worker/job tests | Implemented | Sync, notification, retention, outcome, job execution coverage. |
 | 043 End-to-end tests | Partial | Local browser flows exist; live-provider E2E is external. |
 | 044 Acceptance matrix | Implemented | `ACCEPTANCE_TESTS.md`. |
@@ -120,7 +120,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 111 Ambiguous external actions | Implemented | Claimed state, partial-step evidence, manual reconciliation. |
 | 112 Version/changelog | Implemented | Semantic package release and `CHANGELOG.md`. |
 | 113 Regression baseline | Implemented | Full Jest/lint/evaluation commands and CI. |
-| 114 Maintenance/refactor review | Partial | Form persistence, contextual help, localization, connector, workspace, and approval rendering are isolated behind bounded modules. Deferred modules are retry-safe, guarded mutations remain in the controller, and view-specific Dutch catalogs load with their views; broader controller decomposition remains backlog. |
+| 114 Maintenance/refactor review | Partial | Form persistence, contextual help, localization, connector account-selection, workspace, and approval rendering are isolated behind bounded modules. Deferred modules are retry-safe, guarded mutations remain in the controller, and view-specific Dutch catalogs load with their views; broader controller decomposition remains backlog. |
 | 115 Human operator readiness | External | Requires signed clean-VM install and authorized live Trello acceptance. |
 
 ## Honest completion boundary

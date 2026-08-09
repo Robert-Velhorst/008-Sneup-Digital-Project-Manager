@@ -1,5 +1,13 @@
 # Sneup Implementation Report
 
+## 2.3.23 continuation
+
+Sneup now constructs its ten connector account-selection editors only after Account connectors is opened. The deferred renderer owns localized, escaped, bounded form markup and guarded UI delegation; the authenticated controller continues to own option reads, exact endpoint and body construction, API writes, refreshes, credentials, and every provider boundary.
+
+The initial app plus localization is 21,493 raw, 2,131 gzip, and 1,610 Brotli bytes smaller than 2.3.22. The complete Connector module is 41,759 raw, 9,438 gzip, and 8,365 Brotli bytes and remains absent from Overview. The full local gate passes 111 suites/835 tests, two zero-vulnerability audits, purpose-separated release secrets, real-Mongo portfolio budgets, in-app Browser acceptance, and packaged Windows verification.
+
+The verified local installer is `release/Sneup-Setup-2.3.23.exe`, 109,480,743 bytes, unsigned, with SHA-256 `97EE2D6E07D24B187CB2FCF1A223FF9C01AE1D5191FA37880A1B9FF17B1F3871`.
+
 ## 2.3.22 continuation
 
 Sneup now constructs its five workspace policy editors only after Workspace administration is opened. The deferred renderer owns localized, escaped form markup and guarded UI delegation; the authenticated controller continues to own exact payload construction, API writes, successful-save cleanup, errors, refreshes, and every provider boundary. This removes 14,798 raw bytes from initial app-plus-localization delivery and adds complete seeded DOM/source regressions for each policy form.

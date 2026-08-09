@@ -62,34 +62,39 @@ function loadConnectorView() {
       runtime: 'The connector view loaded without its runtime. Try again.',
       load: 'The connector view could not be loaded. Check the connection and try again.'
     })
-      .then(module => module.createController({
-        document,
-        window,
-        state,
-        elements: els,
-        t,
-        plural: tp,
-        escapeHtml,
-        formatDate,
-        isFeatureEnabled,
-        callbacks: {
-          loadConnectors,
-          startConnection,
-          syncConnectorAccount,
-          openNotice,
-          openWorkerResponseBindingsModal,
-          openJiraSiteModal,
-          openConfluenceSiteModal,
-          openAsanaWorkspaceModal,
-          openBasecampAccountModal,
-          openResourceGuruAccountModal,
-          openFigmaTeamModal,
-          openSharePointSiteModal,
-          openMuralWorkspaceModal,
-          openXeroTenantModal,
-          openProcoreCompanyModal
-        }
-      }))
+      .then((module) => {
+        i18n.registerMessages('nl', module.NL_MESSAGES);
+        return module.createController({
+          document,
+          window,
+          state,
+          elements: els,
+          t,
+          plural: tp,
+          escapeHtml,
+          formatDate,
+          isFeatureEnabled,
+          callbacks: {
+            loadConnectors,
+            startConnection,
+            syncConnectorAccount,
+            openNotice,
+            closeModal,
+            saveConnectorSelection,
+            openWorkerResponseBindingsModal,
+            openJiraSiteModal,
+            openConfluenceSiteModal,
+            openAsanaWorkspaceModal,
+            openBasecampAccountModal,
+            openResourceGuruAccountModal,
+            openFigmaTeamModal,
+            openSharePointSiteModal,
+            openMuralWorkspaceModal,
+            openXeroTenantModal,
+            openProcoreCompanyModal
+          }
+        });
+      })
       .catch((error) => {
         connectorViewPromise = null;
         throw error;
@@ -3772,493 +3777,86 @@ async function openWorkerResponseBindingsModal(accountId) {
   }
 }
 
-async function openFigmaTeamModal(accountId) {
+const CONNECTOR_SELECTION_API = Object.freeze({
+  figma_team: { saveSuffix: 'figma-team' },
+  sharepoint_site: { loadSuffix: 'sharepoint-sites', saveSuffix: 'sharepoint-site' },
+  mural_workspace: { loadSuffix: 'mural-workspaces', saveSuffix: 'mural-workspace' },
+  xero_tenant: { loadSuffix: 'xero-tenants', saveSuffix: 'xero-tenant' },
+  procore_company: { saveSuffix: 'procore-company' },
+  resource_guru_account: { loadSuffix: 'resource-guru-accounts', saveSuffix: 'resource-guru-account' },
+  basecamp_account: { loadSuffix: 'basecamp-accounts', saveSuffix: 'basecamp-account' },
+  asana_workspace: { loadSuffix: 'asana-workspaces', saveSuffix: 'asana-workspace' },
+  confluence_site: { loadSuffix: 'confluence-sites', saveSuffix: 'confluence-site' },
+  jira_site: { loadSuffix: 'jira-sites', saveSuffix: 'jira-site' }
+});
+
+async function openConnectorSelection(kind, accountId) {
+  const config = CONNECTOR_SELECTION_API[kind];
   const account = state.accounts.find(item => item.id === accountId);
-  if (!account) return;
-  const selectedTeamId = account.metadata?.fields?.figmaTeamId || '';
-  els.modalTitle.textContent = 'Configure Figma team';
-  els.modalBody.innerHTML = `
-    <form id="figmaTeamForm">
-      <div class="field">
-        <label for="figmaTeamId">Figma team ID</label>
-        <input id="figmaTeamId" name="figmaTeamId" inputmode="numeric" pattern="[0-9]{1,24}" maxlength="24" required value="${escapeHtml(selectedTeamId)}" placeholder="Numeric ID from the Figma team URL">
-      </div>
-      <div class="notice">Sneup uses the selected team's project and file metadata only. It does not read design content, nodes, comments, users, thumbnails, URLs, or versions.</div>
-      <div class="toolbar modal-actions">
-        <button class="button" type="button" id="cancelFigmaTeam">Cancel</button>
-        <button class="button primary" type="submit">Use this team</button>
-      </div>
-    </form>
-  `;
-  els.modal.classList.add('open');
-  document.getElementById('cancelFigmaTeam').addEventListener('click', closeModal);
-  document.getElementById('figmaTeamForm').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const body = Object.fromEntries(new FormData(event.target).entries());
-    try {
-      await fetchApi(`/api/connectors/accounts/${accountId}/figma-team`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-      });
-      closeModal();
-      openNotice('Figma team configured', 'Sneup will use this team for the next read-only metadata sync.');
-      await loadConnectors();
-    } catch (error) {
-      openNotice('Figma team configuration', error.message);
-    }
+  if (!config || !account) return;
+
+  try {
+    const [data, connectorView] = await Promise.all([
+      config.loadSuffix
+        ? fetchApi(`/api/connectors/accounts/${encodeURIComponent(accountId)}/${config.loadSuffix}`)
+        : Promise.resolve({}),
+      loadConnectorView()
+    ]);
+    connectorView.openSelectionForm({ kind, accountId, account, data });
+  } catch (error) {
+    openNotice(t('Connector selection unavailable'), error.message);
+  }
+}
+
+function saveConnectorSelection(kind, accountId, body) {
+  const config = CONNECTOR_SELECTION_API[kind];
+  if (!config || !accountId) throw new Error(t('Connector selection unavailable'));
+  return fetchApi(`/api/connectors/accounts/${encodeURIComponent(accountId)}/${config.saveSuffix}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
   });
 }
 
-async function openSharePointSiteModal(accountId) {
-  const account = state.accounts.find(item => item.id === accountId);
-  if (!account) return;
-
-  try {
-    const data = await fetchApi(`/api/connectors/accounts/${accountId}/sharepoint-sites`);
-    const sites = data.sites || [];
-    if (sites.length === 0) {
-      openNotice('SharePoint site selection', 'No followed SharePoint sites are available for this account. Follow a site in SharePoint, then reconnect it with the approved read-only scope.');
-      return;
-    }
-
-    const selectedSiteId = account.metadata?.fields?.sharePointSiteId || (sites.length === 1 ? sites[0].sharePointSiteId : '');
-    els.modalTitle.textContent = 'Select SharePoint site';
-    els.modalBody.innerHTML = `
-      <form id="sharePointSiteForm">
-        <div class="field">
-          <label for="sharePointSiteId">Followed SharePoint site</label>
-          <select id="sharePointSiteId" name="sharePointSiteId" required>
-            <option value="" ${selectedSiteId ? '' : 'selected'} disabled>Select a site</option>
-            ${sites.map(site => `<option value="${escapeHtml(site.sharePointSiteId)}" ${site.sharePointSiteId === selectedSiteId ? 'selected' : ''}>${escapeHtml(site.name)}</option>`).join('')}
-          </select>
-        </div>
-        <div class="notice">Sneup reads only root file and folder metadata from this selected followed site. It does not read contents, links, permissions, pages, lists, versions, or sharing details.</div>
-        <div class="toolbar modal-actions">
-          <button class="button" type="button" id="cancelSharePointSite">Cancel</button>
-          <button class="button primary" type="submit">Use this site</button>
-        </div>
-      </form>
-    `;
-    els.modal.classList.add('open');
-    document.getElementById('cancelSharePointSite').addEventListener('click', closeModal);
-    document.getElementById('sharePointSiteForm').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const body = Object.fromEntries(new FormData(event.target).entries());
-      try {
-        await fetchApi(`/api/connectors/accounts/${accountId}/sharepoint-site`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-        });
-        closeModal();
-        openNotice('SharePoint site selected', 'Sneup will use this site for the next read-only metadata sync.');
-        await loadConnectors();
-      } catch (error) {
-        openNotice('SharePoint site selection', error.message);
-      }
-    });
-  } catch (error) {
-    openNotice('SharePoint site selection', error.message);
-  }
+function openFigmaTeamModal(accountId) {
+  return openConnectorSelection('figma_team', accountId);
 }
 
-async function openMuralWorkspaceModal(accountId) {
-  const account = state.accounts.find(item => item.id === accountId);
-  if (!account) return;
-
-  try {
-    const data = await fetchApi(`/api/connectors/accounts/${accountId}/mural-workspaces`);
-    const workspaces = data.workspaces || [];
-    if (workspaces.length === 0) {
-      openNotice('Mural workspace selection', 'No Mural workspaces are available for this account. Reconnect it with the approved read-only scopes.');
-      return;
-    }
-
-    const selectedWorkspaceId = account.metadata?.fields?.muralWorkspaceId || (workspaces.length === 1 ? workspaces[0].muralWorkspaceId : '');
-    els.modalTitle.textContent = 'Select Mural workspace';
-    els.modalBody.innerHTML = `
-      <form id="muralWorkspaceForm">
-        <div class="field">
-          <label for="muralWorkspaceId">Mural workspace</label>
-          <select id="muralWorkspaceId" name="muralWorkspaceId" required>
-            <option value="" ${selectedWorkspaceId ? '' : 'selected'} disabled>Select a workspace</option>
-            ${workspaces.map(workspace => `<option value="${escapeHtml(workspace.muralWorkspaceId)}" ${workspace.muralWorkspaceId === selectedWorkspaceId ? 'selected' : ''}>${escapeHtml(workspace.name)}</option>`).join('')}
-          </select>
-        </div>
-        <div class="notice">Sneup reads active mural metadata from this selected workspace only. It does not read mural content, widgets, comments, templates, rooms, people, URLs, or sharing details.</div>
-        <div class="toolbar modal-actions">
-          <button class="button" type="button" id="cancelMuralWorkspace">Cancel</button>
-          <button class="button primary" type="submit">Use this workspace</button>
-        </div>
-      </form>
-    `;
-    els.modal.classList.add('open');
-    document.getElementById('cancelMuralWorkspace').addEventListener('click', closeModal);
-    document.getElementById('muralWorkspaceForm').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const body = Object.fromEntries(new FormData(event.target).entries());
-      try {
-        await fetchApi(`/api/connectors/accounts/${accountId}/mural-workspace`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-        });
-        closeModal();
-        openNotice('Mural workspace selected', 'Sneup will use this workspace for the next read-only metadata sync.');
-        await loadConnectors();
-      } catch (error) {
-        openNotice('Mural workspace selection', error.message);
-      }
-    });
-  } catch (error) {
-    openNotice('Mural workspace selection', error.message);
-  }
+function openSharePointSiteModal(accountId) {
+  return openConnectorSelection('sharepoint_site', accountId);
 }
 
-async function openXeroTenantModal(accountId) {
-  const account = state.accounts.find(item => item.id === accountId);
-  if (!account) return;
-
-  try {
-    const data = await fetchApi(`/api/connectors/accounts/${accountId}/xero-tenants`);
-    const tenants = data.tenants || [];
-    if (tenants.length === 0) {
-      openNotice('Xero organisation selection', 'No Xero organisations are available for this account. Reconnect it with the approved invoice read scope.');
-      return;
-    }
-
-    const selectedTenantId = account.metadata?.fields?.xeroTenantId || (tenants.length === 1 ? tenants[0].xeroTenantId : '');
-    els.modalTitle.textContent = 'Select Xero organisation';
-    els.modalBody.innerHTML = `
-      <form id="xeroTenantForm">
-        <div class="field">
-          <label for="xeroTenantId">Authorized Xero organisation</label>
-          <select id="xeroTenantId" name="xeroTenantId" required>
-            <option value="" ${selectedTenantId ? '' : 'selected'} disabled>Select an organisation</option>
-            ${tenants.map(tenant => `<option value="${escapeHtml(tenant.xeroTenantId)}" ${tenant.xeroTenantId === selectedTenantId ? 'selected' : ''}>${escapeHtml(tenant.name)}</option>`).join('')}
-          </select>
-        </div>
-        <div class="notice">Sneup reads only capped sales-invoice status and date metadata from this organisation. It does not retain contacts, invoice numbers, amounts, payment details, line items, or links.</div>
-        <div class="toolbar modal-actions">
-          <button class="button" type="button" id="cancelXeroTenant">Cancel</button>
-          <button class="button primary" type="submit">Use this organisation</button>
-        </div>
-      </form>
-    `;
-    els.modal.classList.add('open');
-    document.getElementById('cancelXeroTenant').addEventListener('click', closeModal);
-    document.getElementById('xeroTenantForm').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const body = Object.fromEntries(new FormData(event.target).entries());
-      try {
-        await fetchApi(`/api/connectors/accounts/${accountId}/xero-tenant`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-        });
-        closeModal();
-        openNotice('Xero organisation selected', 'Sneup will use this organisation for the next read-only invoice metadata sync.');
-        await loadConnectors();
-      } catch (error) {
-        openNotice('Xero organisation selection', error.message);
-      }
-    });
-  } catch (error) {
-    openNotice('Xero organisation selection', error.message);
-  }
+function openMuralWorkspaceModal(accountId) {
+  return openConnectorSelection('mural_workspace', accountId);
 }
 
-async function openProcoreCompanyModal(accountId) {
-  const account = state.accounts.find(item => item.id === accountId);
-  if (!account) return;
-
-  const selectedCompanyId = account.metadata?.fields?.procoreCompanyId || '';
-  els.modalTitle.textContent = 'Select Procore company';
-  els.modalBody.innerHTML = `
-    <form id="procoreCompanyForm">
-      <div class="field">
-        <label for="procoreCompanyId">Authorized Procore company ID</label>
-        <input id="procoreCompanyId" name="procoreCompanyId" inputmode="numeric" pattern="[0-9]{1,20}" maxlength="20" value="${escapeHtml(selectedCompanyId)}" required>
-      </div>
-      <div class="notice">Sneup verifies project-read access before saving this company. It then reads only capped active-project name, status, and schedule metadata. Budgets, contracts, RFIs, drawings, people, addresses, descriptions, attachments, links, and provider writes stay out of Sneup.</div>
-      <div class="toolbar modal-actions">
-        <button class="button" type="button" id="cancelProcoreCompany">Cancel</button>
-        <button class="button primary" type="submit">Use this company</button>
-      </div>
-    </form>
-  `;
-  els.modal.classList.add('open');
-  document.getElementById('cancelProcoreCompany').addEventListener('click', closeModal);
-  document.getElementById('procoreCompanyForm').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const body = Object.fromEntries(new FormData(event.target).entries());
-    try {
-      await fetchApi(`/api/connectors/accounts/${accountId}/procore-company`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-      });
-      closeModal();
-      openNotice('Procore company selected', 'Sneup will use this company for the next read-only active-project metadata sync.');
-      await loadConnectors();
-    } catch (error) {
-      openNotice('Procore company selection', error.message);
-    }
-  });
+function openXeroTenantModal(accountId) {
+  return openConnectorSelection('xero_tenant', accountId);
 }
 
-async function openResourceGuruAccountModal(accountId) {
-  const account = state.accounts.find(item => item.id === accountId);
-  if (!account) return;
-
-  try {
-    const data = await fetchApi(`/api/connectors/accounts/${accountId}/resource-guru-accounts`);
-    const accounts = data.accounts || [];
-    if (accounts.length === 0) {
-      openNotice('Resource Guru account selection', 'No Resource Guru accounts are currently authorized for this connection. Reconnect it with Resource Guru access.');
-      return;
-    }
-
-    const selectedAccountId = account.metadata?.fields?.resourceGuruAccountId || (accounts.length === 1 ? accounts[0].resourceGuruAccountId : '');
-    els.modalTitle.textContent = 'Select Resource Guru account';
-    els.modalBody.innerHTML = `
-      <form id="resourceGuruAccountForm">
-        <div class="field">
-          <label for="resourceGuruAccountId">Authorized Resource Guru account</label>
-          <select id="resourceGuruAccountId" name="resourceGuruAccountId" required>
-            <option value="" ${selectedAccountId ? '' : 'selected'} disabled>Select an account</option>
-            ${accounts.map(resourceGuruAccount => `<option value="${escapeHtml(resourceGuruAccount.resourceGuruAccountId)}" ${resourceGuruAccount.resourceGuruAccountId === selectedAccountId ? 'selected' : ''}>${escapeHtml(resourceGuruAccount.name)}</option>`).join('')}
-          </select>
-        </div>
-        <div class="notice">Sneup will only ingest read-only project and booking schedule metadata from this account.</div>
-        <div class="toolbar modal-actions">
-          <button class="button" type="button" id="cancelResourceGuruAccount">Cancel</button>
-          <button class="button primary" type="submit">Use this account</button>
-        </div>
-      </form>
-    `;
-    els.modal.classList.add('open');
-    document.getElementById('cancelResourceGuruAccount').addEventListener('click', closeModal);
-    document.getElementById('resourceGuruAccountForm').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const body = Object.fromEntries(new FormData(event.target).entries());
-      try {
-        await fetchApi(`/api/connectors/accounts/${accountId}/resource-guru-account`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-        });
-        closeModal();
-        openNotice('Resource Guru account selected', 'Sneup will use this account for the next read-only sync.');
-        await loadConnectors();
-      } catch (error) {
-        openNotice('Resource Guru account selection', error.message);
-      }
-    });
-  } catch (error) {
-    openNotice('Resource Guru account selection', error.message);
-  }
+function openProcoreCompanyModal(accountId) {
+  return openConnectorSelection('procore_company', accountId);
 }
 
-async function openBasecampAccountModal(accountId) {
-  const account = state.accounts.find(item => item.id === accountId);
-  if (!account) return;
-
-  try {
-    const data = await fetchApi(`/api/connectors/accounts/${accountId}/basecamp-accounts`);
-    const accounts = data.accounts || [];
-    if (accounts.length === 0) {
-      openNotice('Basecamp account selection', 'No Basecamp 3 accounts are currently authorized for this connection. Reconnect it with Basecamp access.');
-      return;
-    }
-
-    const selectedAccountId = account.metadata?.fields?.basecampAccountId || (accounts.length === 1 ? accounts[0].basecampAccountId : '');
-    els.modalTitle.textContent = 'Select Basecamp account';
-    els.modalBody.innerHTML = `
-      <form id="basecampAccountForm">
-        <div class="field">
-          <label for="basecampAccountId">Authorized Basecamp account</label>
-          <select id="basecampAccountId" name="basecampAccountId" required>
-            <option value="" ${selectedAccountId ? '' : 'selected'} disabled>Select an account</option>
-            ${accounts.map(basecampAccount => `<option value="${escapeHtml(basecampAccount.basecampAccountId)}" ${basecampAccount.basecampAccountId === selectedAccountId ? 'selected' : ''}>${escapeHtml(basecampAccount.name)}</option>`).join('')}
-          </select>
-        </div>
-        <div class="notice">Sneup will only ingest read-only project and to-do metadata from this account.</div>
-        <div class="toolbar modal-actions">
-          <button class="button" type="button" id="cancelBasecampAccount">Cancel</button>
-          <button class="button primary" type="submit">Use this account</button>
-        </div>
-      </form>
-    `;
-    els.modal.classList.add('open');
-    document.getElementById('cancelBasecampAccount').addEventListener('click', closeModal);
-    document.getElementById('basecampAccountForm').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const body = Object.fromEntries(new FormData(event.target).entries());
-      try {
-        await fetchApi(`/api/connectors/accounts/${accountId}/basecamp-account`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-        });
-        closeModal();
-        openNotice('Basecamp account selected', 'Sneup will use this account for the next read-only sync.');
-        await loadConnectors();
-      } catch (error) {
-        openNotice('Basecamp account selection', error.message);
-      }
-    });
-  } catch (error) {
-    openNotice('Basecamp account selection', error.message);
-  }
+function openResourceGuruAccountModal(accountId) {
+  return openConnectorSelection('resource_guru_account', accountId);
 }
 
-async function openAsanaWorkspaceModal(accountId) {
-  const account = state.accounts.find(item => item.id === accountId);
-  if (!account) return;
-
-  try {
-    const data = await fetchApi(`/api/connectors/accounts/${accountId}/asana-workspaces`);
-    const workspaces = data.workspaces || [];
-    if (workspaces.length === 0) {
-      openNotice('Asana workspace selection', 'No Asana workspaces are currently authorized for this account. Reconnect it with workspace read access.');
-      return;
-    }
-
-    const selectedWorkspaceGid = account.metadata?.fields?.asanaWorkspaceGid || (workspaces.length === 1 ? workspaces[0].workspaceGid : '');
-    els.modalTitle.textContent = 'Select Asana workspace';
-    els.modalBody.innerHTML = `
-      <form id="asanaWorkspaceForm">
-        <div class="field">
-          <label for="asanaWorkspaceGid">Authorized workspace</label>
-          <select id="asanaWorkspaceGid" name="workspaceGid" required>
-            <option value="" ${selectedWorkspaceGid ? '' : 'selected'} disabled>Select a workspace</option>
-            ${workspaces.map(workspace => `<option value="${escapeHtml(workspace.workspaceGid)}" ${workspace.workspaceGid === selectedWorkspaceGid ? 'selected' : ''}>${escapeHtml(workspace.name)}${workspace.organization ? ' (organization)' : ''}</option>`).join('')}
-          </select>
-        </div>
-        <div class="notice">Sneup will only ingest read-only project tasks from the selected workspace.</div>
-        <div class="toolbar modal-actions">
-          <button class="button" type="button" id="cancelAsanaWorkspace">Cancel</button>
-          <button class="button primary" type="submit">Use this workspace</button>
-        </div>
-      </form>
-    `;
-    els.modal.classList.add('open');
-    document.getElementById('cancelAsanaWorkspace').addEventListener('click', closeModal);
-    document.getElementById('asanaWorkspaceForm').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const body = Object.fromEntries(new FormData(event.target).entries());
-      try {
-        await fetchApi(`/api/connectors/accounts/${accountId}/asana-workspace`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
-        closeModal();
-        openNotice('Asana workspace selected', 'Sneup will use this workspace for the next read-only sync.');
-        await loadConnectors();
-      } catch (error) {
-        openNotice('Asana workspace selection', error.message);
-      }
-    });
-  } catch (error) {
-    openNotice('Asana workspace selection', error.message);
-  }
+function openBasecampAccountModal(accountId) {
+  return openConnectorSelection('basecamp_account', accountId);
 }
 
-async function openConfluenceSiteModal(accountId) {
-  const account = state.accounts.find(item => item.id === accountId);
-  if (!account) return;
-
-  try {
-    const data = await fetchApi(`/api/connectors/accounts/${accountId}/confluence-sites`);
-    const sites = data.sites || [];
-    if (sites.length === 0) {
-      openNotice('Confluence site selection', 'No Confluence sites are currently authorized for this account. Reconnect it with page and space read access.');
-      return;
-    }
-
-    const selectedCloudId = account.metadata?.fields?.confluenceCloudId || (sites.length === 1 ? sites[0].cloudId : '');
-    els.modalTitle.textContent = 'Select Confluence site';
-    els.modalBody.innerHTML = `
-      <form id="confluenceSiteForm">
-        <div class="field">
-          <label for="confluenceCloudId">Authorized Confluence site</label>
-          <select id="confluenceCloudId" name="cloudId" required>
-            <option value="" ${selectedCloudId ? '' : 'selected'} disabled>Select a site</option>
-            ${sites.map(site => `<option value="${escapeHtml(site.cloudId)}" ${site.cloudId === selectedCloudId ? 'selected' : ''}>${escapeHtml(site.name)}${site.url ? ` (${escapeHtml(site.url)})` : ''}</option>`).join('')}
-          </select>
-        </div>
-        <div class="notice">Sneup will ingest space and page metadata only. It does not read page bodies, comments, attachments, users, descriptions, URLs, or version messages.</div>
-        <div class="toolbar modal-actions">
-          <button class="button" type="button" id="cancelConfluenceSite">Cancel</button>
-          <button class="button primary" type="submit">Use this site</button>
-        </div>
-      </form>
-    `;
-    els.modal.classList.add('open');
-    document.getElementById('cancelConfluenceSite').addEventListener('click', closeModal);
-    document.getElementById('confluenceSiteForm').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const body = Object.fromEntries(new FormData(event.target).entries());
-      try {
-        await fetchApi(`/api/connectors/accounts/${accountId}/confluence-site`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
-        closeModal();
-        openNotice('Confluence site selected', 'Sneup will use this site for the next read-only metadata sync.');
-        await loadConnectors();
-      } catch (error) {
-        openNotice('Confluence site selection', error.message);
-      }
-    });
-  } catch (error) {
-    openNotice('Confluence site selection', error.message);
-  }
+function openAsanaWorkspaceModal(accountId) {
+  return openConnectorSelection('asana_workspace', accountId);
 }
 
-async function openJiraSiteModal(accountId) {
-  const account = state.accounts.find(item => item.id === accountId);
-  if (!account) return;
-
-  try {
-    const data = await fetchApi(`/api/connectors/accounts/${accountId}/jira-sites`);
-    const sites = data.sites || [];
-    if (sites.length === 0) {
-      openNotice('Jira site selection', 'No Jira sites are currently authorized for this account. Reconnect it with Jira read access.');
-      return;
-    }
-
-    const selectedCloudId = account.metadata?.fields?.cloudId || (sites.length === 1 ? sites[0].cloudId : '');
-    els.modalTitle.textContent = 'Select Jira site';
-    els.modalBody.innerHTML = `
-      <form id="jiraSiteForm">
-        <div class="field">
-          <label for="jiraCloudId">Authorized Jira site</label>
-          <select id="jiraCloudId" name="cloudId" required>
-            <option value="" ${selectedCloudId ? '' : 'selected'} disabled>Select a site</option>
-            ${sites.map(site => `<option value="${escapeHtml(site.cloudId)}" ${site.cloudId === selectedCloudId ? 'selected' : ''}>${escapeHtml(site.name)}${site.url ? ` (${escapeHtml(site.url)})` : ''}</option>`).join('')}
-          </select>
-        </div>
-        <div class="notice">Sneup will only ingest read-only work signals from the selected site.</div>
-        <div class="toolbar modal-actions">
-          <button class="button" type="button" id="cancelJiraSite">Cancel</button>
-          <button class="button primary" type="submit">Use this site</button>
-        </div>
-      </form>
-    `;
-    els.modal.classList.add('open');
-    document.getElementById('cancelJiraSite').addEventListener('click', closeModal);
-    document.getElementById('jiraSiteForm').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const body = Object.fromEntries(new FormData(event.target).entries());
-      try {
-        await fetchApi(`/api/connectors/accounts/${accountId}/jira-site`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
-        closeModal();
-        openNotice('Jira site selected', 'Sneup will use this site for the next read-only sync.');
-        await loadConnectors();
-      } catch (error) {
-        openNotice('Jira site selection', error.message);
-      }
-    });
-  } catch (error) {
-    openNotice('Jira site selection', error.message);
-  }
+function openConfluenceSiteModal(accountId) {
+  return openConnectorSelection('confluence_site', accountId);
 }
 
+function openJiraSiteModal(accountId) {
+  return openConnectorSelection('jira_site', accountId);
+}
 async function syncConnectorAccount(accountId) {
   if (!accountId) return;
   if (!isFeatureEnabled('connector_sync')) {

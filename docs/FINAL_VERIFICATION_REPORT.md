@@ -5,8 +5,8 @@ This report is updated from executed commands at release time. A passing local s
 ## Baseline
 
 - Branch: `main`
-- Starting commit: `d58266bb982e560ac1324f51eb487ea30665d507`
-- Release under verification: `2.3.22`
+- Starting commit: `4304744d2bad49fdf33470c7cd402a7166d40736`
+- Release under verification: `2.3.23`
 - Default remote: `origin`
 
 ## Verification ledger
@@ -103,4 +103,24 @@ Live Trello critical-path acceptance, live ngrok/HAI credential acceptance, prod
 | Windows installer | Pass: 109,479,448 bytes, version 2.3.22, unsigned, SHA-256 `7AEF17707C0B79EE7832C8AB321228172544E3C386529957B28B9E0498923E21`; archive contains updated `public/workspaceView.js` |
 | Fresh-clone GitHub CI | Pass: run `31330566354` on source `f5b442e832cae763a33fe6212ed39a91c56024b9`; Node.js 24 quality completed in 1 minute 8 seconds and Windows packaging/upload in 2 minutes 13 seconds |
 | GitHub installer artifact | Pass: artifact `9042817428`, archive size 109,485,528 bytes, digest `sha256:2e3f4a2213d97a47435a25cd9baaed11c1fac9bd51f132e59adabf40d6331114`; its single installer is 109,479,490 bytes, unsigned, version 2.3.22, SHA-256 `1791C0DF6CEA5ABD23572DEC33F997400AD13416A957A101DDFAA608709B1F16` |
+| External gates | Live provider/ngrok/HAI acceptance, production-like restore/deployment rollback, code signing, clean-VM scaling, and assistive-technology certification remain external |
+
+## 2.3.23 continuation evidence
+
+| Check | Result |
+| --- | --- |
+| Scope | Ten connector account-selection form renderers moved into the retry-safe deferred Connector module; authenticated reads/writes, exact payloads, refresh, credentials, and provider authority remain in the controller |
+| Full quality gate | Pass: lint, 111 suites/835 tests, and 5/5 recommendation scenarios at 100% |
+| Dependency security | Pass: full and production audits each report 0 vulnerabilities |
+| Release secrets | Pass: five independent production-style values accepted; values not printed or exposed |
+| Source/syntax | Pass: JavaScript syntax, diff whitespace, source-authority, all-ten-form rendering, localization, values, exact body, no-draft, empty-choice, duplicate-submit, cancellation, retry, and escaping checks |
+| Startup profile | Directional pass: import 480.9 ms at 68.9 MB RSS; Overview 79.3 ms at 72.6 MB RSS; 251/263 modules and no Mongoose loaded |
+| Portfolio scale | Pass: 60 boards/300 lists/15,000 cards/100 members; 1,754.9 ms cold, 761.4 ms p50, 966.6 ms p95, 340.1 MB peak RSS, bounded 10/12/12 output, exact index, approval required, provider writes false |
+| Initial payload | Improved from 264,942 to 243,449 raw, 56,407 to 54,276 gzip, and 46,712 to 45,102 Brotli bytes; Connector remains deferred |
+| Browser QA | Pass: real in-app Browser, English/Dutch, Connector absent on Overview then loaded once with the shared fingerprint, 117 connectors, four catalog-only providers, no horizontal overflow, zero current console errors |
+| Packaged Windows QA | Pass: version 2.3.23, demo health and eight diagnostics, no exposed secrets, HAI `never_direct`, four processes, normal close, port released |
+| Packaged resource sample | Directional pass: 360.5 MB working set, 290.4 MB private bytes, 2.281 cumulative CPU seconds after the repeatable local packaged probe |
+| Windows installer | Pass: 109,480,743 bytes, version 2.3.23, unsigned, SHA-256 `97EE2D6E07D24B187CB2FCF1A223FF9C01AE1D5191FA37880A1B9FF17B1F3871`; archive contains updated `public/connectorView.js` |
+| Fresh-clone GitHub CI | Pending publication of this source commit |
+| GitHub installer artifact | Pending publication and independent download verification |
 | External gates | Live provider/ngrok/HAI acceptance, production-like restore/deployment rollback, code signing, clean-VM scaling, and assistive-technology certification remain external |

@@ -54,6 +54,142 @@
     'Select Procore company', 'Mural workspace selected', 'Select Mural workspace', 'Reconnect', 'Connect'
   ]);
 
+  const NL_MESSAGES = Object.freeze({
+    'Connector selection unavailable': 'Connectorselectie niet beschikbaar',
+    'Configure Figma team': 'Figma-team instellen',
+    'Figma team ID': 'Figma-team-ID',
+    'Numeric ID from the Figma team URL': 'Numerieke ID uit de Figma-team-URL',
+    "Sneup uses the selected team's project and file metadata only. It does not read design content, nodes, comments, users, thumbnails, URLs, or versions.": 'Sneup gebruikt alleen project- en bestandsmetadata van het geselecteerde team. Ontwerpinhoud, nodes, opmerkingen, gebruikers, miniaturen, URL\'s en versies worden niet gelezen.',
+    'Use this team': 'Dit team gebruiken',
+    'Figma team configured': 'Figma-team ingesteld',
+    'Sneup will use this team for the next read-only metadata sync.': 'Sneup gebruikt dit team voor de volgende alleen-lezen metadatasynchronisatie.',
+    'Figma team configuration': 'Figma-teamconfiguratie',
+    'Select SharePoint site': 'SharePoint-site selecteren',
+    'Followed SharePoint site': 'Gevolgde SharePoint-site',
+    'Select a site': 'Selecteer een site',
+    'Sneup reads only root file and folder metadata from this selected followed site. It does not read contents, links, permissions, pages, lists, versions, or sharing details.': 'Sneup leest alleen metadata van bestanden en mappen in de hoofdmap van deze geselecteerde gevolgde site. Inhoud, koppelingen, machtigingen, pagina\'s, lijsten, versies en deelgegevens worden niet gelezen.',
+    'Use this site': 'Deze site gebruiken',
+    'SharePoint site selected': 'SharePoint-site geselecteerd',
+    'Sneup will use this site for the next read-only metadata sync.': 'Sneup gebruikt deze site voor de volgende alleen-lezen metadatasynchronisatie.',
+    'SharePoint site selection': 'SharePoint-siteselectie',
+    'No followed SharePoint sites are available for this account. Follow a site in SharePoint, then reconnect it with the approved read-only scope.': 'Er zijn geen gevolgde SharePoint-sites beschikbaar voor dit account. Volg een site in SharePoint en koppel daarna opnieuw met het goedgekeurde alleen-lezen bereik.',
+    'Select Mural workspace': 'Mural-werkruimte selecteren',
+    'Mural workspace': 'Mural-werkruimte',
+    'Select a workspace': 'Selecteer een werkruimte',
+    'Sneup reads active mural metadata from this selected workspace only. It does not read mural content, widgets, comments, templates, rooms, people, URLs, or sharing details.': 'Sneup leest alleen metadata van actieve murals uit deze geselecteerde werkruimte. Muralinhoud, widgets, opmerkingen, sjablonen, kamers, personen, URL\'s en deelgegevens worden niet gelezen.',
+    'Use this workspace': 'Deze werkruimte gebruiken',
+    'Mural workspace selected': 'Mural-werkruimte geselecteerd',
+    'Sneup will use this workspace for the next read-only metadata sync.': 'Sneup gebruikt deze werkruimte voor de volgende alleen-lezen metadatasynchronisatie.',
+    'Mural workspace selection': 'Mural-werkruimteselectie',
+    'No Mural workspaces are available for this account. Reconnect it with the approved read-only scopes.': 'Er zijn geen Mural-werkruimtes beschikbaar voor dit account. Koppel opnieuw met de goedgekeurde alleen-lezen bereiken.',
+    'Select Xero organisation': 'Xero-organisatie selecteren',
+    'Authorized Xero organisation': 'Geautoriseerde Xero-organisatie',
+    'Select an organisation': 'Selecteer een organisatie',
+    'Sneup reads only capped sales-invoice status and date metadata from this organisation. It does not retain contacts, invoice numbers, amounts, payment details, line items, or links.': 'Sneup leest alleen begrensde status- en datummetadata van verkoopfacturen uit deze organisatie. Contacten, factuurnummers, bedragen, betalingsgegevens, regels en koppelingen worden niet bewaard.',
+    'Use this organisation': 'Deze organisatie gebruiken',
+    'Xero organisation selected': 'Xero-organisatie geselecteerd',
+    'Sneup will use this organisation for the next read-only invoice metadata sync.': 'Sneup gebruikt deze organisatie voor de volgende alleen-lezen synchronisatie van factuurmetadata.',
+    'Xero organisation selection': 'Xero-organisatieselectie',
+    'No Xero organisations are available for this account. Reconnect it with the approved invoice read scope.': 'Er zijn geen Xero-organisaties beschikbaar voor dit account. Koppel opnieuw met het goedgekeurde leesbereik voor facturen.',
+    'Select Procore company': 'Procore-bedrijf selecteren',
+    'Authorized Procore company ID': 'Geautoriseerde Procore-bedrijfs-ID',
+    'Sneup verifies project-read access before saving this company. It then reads only capped active-project name, status, and schedule metadata. Budgets, contracts, RFIs, drawings, people, addresses, descriptions, attachments, links, and provider writes stay out of Sneup.': 'Sneup controleert leestoegang tot projecten voordat dit bedrijf wordt opgeslagen. Daarna worden alleen begrensde naam-, status- en planningsmetadata van actieve projecten gelezen. Budgetten, contracten, RFI\'s, tekeningen, personen, adressen, beschrijvingen, bijlagen, koppelingen en providerschrijfacties blijven buiten Sneup.',
+    'Use this company': 'Dit bedrijf gebruiken',
+    'Procore company selected': 'Procore-bedrijf geselecteerd',
+    'Sneup will use this company for the next read-only active-project metadata sync.': 'Sneup gebruikt dit bedrijf voor de volgende alleen-lezen synchronisatie van actieve-projectmetadata.',
+    'Procore company selection': 'Procore-bedrijfsselectie',
+    'Select Resource Guru account': 'Resource Guru-account selecteren',
+    'Authorized Resource Guru account': 'Geautoriseerd Resource Guru-account',
+    'Select an account': 'Selecteer een account',
+    'Sneup will only ingest read-only project and booking schedule metadata from this account.': 'Sneup verwerkt uit dit account alleen alleen-lezen metadata van projecten en boekingsplanningen.',
+    'Use this account': 'Dit account gebruiken',
+    'Resource Guru account selected': 'Resource Guru-account geselecteerd',
+    'Sneup will use this account for the next read-only sync.': 'Sneup gebruikt dit account voor de volgende alleen-lezen synchronisatie.',
+    'Resource Guru account selection': 'Resource Guru-accountselectie',
+    'No Resource Guru accounts are currently authorized for this connection. Reconnect it with Resource Guru access.': 'Er zijn momenteel geen Resource Guru-accounts geautoriseerd voor deze koppeling. Koppel opnieuw met Resource Guru-toegang.',
+    'Select Basecamp account': 'Basecamp-account selecteren',
+    'Authorized Basecamp account': 'Geautoriseerd Basecamp-account',
+    'Sneup will only ingest read-only project and to-do metadata from this account.': 'Sneup verwerkt uit dit account alleen alleen-lezen project- en taakmetadata.',
+    'Basecamp account selected': 'Basecamp-account geselecteerd',
+    'Basecamp account selection': 'Basecamp-accountselectie',
+    'No Basecamp 3 accounts are currently authorized for this connection. Reconnect it with Basecamp access.': 'Er zijn momenteel geen Basecamp 3-accounts geautoriseerd voor deze koppeling. Koppel opnieuw met Basecamp-toegang.',
+    'Select Asana workspace': 'Asana-werkruimte selecteren',
+    'Authorized workspace': 'Geautoriseerde werkruimte',
+    'organization': 'organisatie',
+    'Sneup will only ingest read-only project tasks from the selected workspace.': 'Sneup verwerkt alleen alleen-lezen projecttaken uit de geselecteerde werkruimte.',
+    'Asana workspace selected': 'Asana-werkruimte geselecteerd',
+    'Sneup will use this workspace for the next read-only sync.': 'Sneup gebruikt deze werkruimte voor de volgende alleen-lezen synchronisatie.',
+    'Asana workspace selection': 'Asana-werkruimteselectie',
+    'No Asana workspaces are currently authorized for this account. Reconnect it with workspace read access.': 'Er zijn momenteel geen Asana-werkruimtes geautoriseerd voor dit account. Koppel opnieuw met leestoegang tot werkruimtes.',
+    'Select Confluence site': 'Confluence-site selecteren',
+    'Authorized Confluence site': 'Geautoriseerde Confluence-site',
+    'Sneup will ingest space and page metadata only. It does not read page bodies, comments, attachments, users, descriptions, URLs, or version messages.': 'Sneup verwerkt alleen ruimte- en paginametadata. Pagina-inhoud, opmerkingen, bijlagen, gebruikers, beschrijvingen, URL\'s en versieberichten worden niet gelezen.',
+    'Confluence site selected': 'Confluence-site geselecteerd',
+    'Confluence site selection': 'Confluence-siteselectie',
+    'No Confluence sites are currently authorized for this account. Reconnect it with page and space read access.': 'Er zijn momenteel geen Confluence-sites geautoriseerd voor dit account. Koppel opnieuw met leestoegang tot pagina\'s en ruimtes.',
+    'Select Jira site': 'Jira-site selecteren',
+    'Authorized Jira site': 'Geautoriseerde Jira-site',
+    'Sneup will only ingest read-only work signals from the selected site.': 'Sneup verwerkt alleen alleen-lezen werksignalen van de geselecteerde site.',
+    'Jira site selected': 'Jira-site geselecteerd',
+    'Sneup will use this site for the next read-only sync.': 'Sneup gebruikt deze site voor de volgende alleen-lezen synchronisatie.',
+    'Jira site selection': 'Jira-siteselectie',
+    'No Jira sites are currently authorized for this account. Reconnect it with Jira read access.': 'Er zijn momenteel geen Jira-sites geautoriseerd voor dit account. Koppel opnieuw met Jira-leestoegang.'
+  });
+
+  const SELECTION_FORMS = Object.freeze({
+    figma_team: {
+      title: 'Configure Figma team', fieldName: 'figmaTeamId', fieldId: 'figmaTeamId', fieldLabel: 'Figma team ID',
+      selectedField: 'figmaTeamId', input: { inputmode: 'numeric', pattern: '[0-9]{1,24}', maxlength: '24', placeholder: 'Numeric ID from the Figma team URL' },
+      notice: "Sneup uses the selected team's project and file metadata only. It does not read design content, nodes, comments, users, thumbnails, URLs, or versions.",
+      submitLabel: 'Use this team', successTitle: 'Figma team configured', successMessage: 'Sneup will use this team for the next read-only metadata sync.', errorTitle: 'Figma team configuration'
+    },
+    sharepoint_site: {
+      title: 'Select SharePoint site', fieldName: 'sharePointSiteId', fieldId: 'sharePointSiteId', fieldLabel: 'Followed SharePoint site', selectedField: 'sharePointSiteId',
+      optionsKey: 'sites', optionId: 'sharePointSiteId', placeholder: 'Select a site', notice: 'Sneup reads only root file and folder metadata from this selected followed site. It does not read contents, links, permissions, pages, lists, versions, or sharing details.',
+      submitLabel: 'Use this site', successTitle: 'SharePoint site selected', successMessage: 'Sneup will use this site for the next read-only metadata sync.', errorTitle: 'SharePoint site selection', emptyMessage: 'No followed SharePoint sites are available for this account. Follow a site in SharePoint, then reconnect it with the approved read-only scope.'
+    },
+    mural_workspace: {
+      title: 'Select Mural workspace', fieldName: 'muralWorkspaceId', fieldId: 'muralWorkspaceId', fieldLabel: 'Mural workspace', selectedField: 'muralWorkspaceId',
+      optionsKey: 'workspaces', optionId: 'muralWorkspaceId', placeholder: 'Select a workspace', notice: 'Sneup reads active mural metadata from this selected workspace only. It does not read mural content, widgets, comments, templates, rooms, people, URLs, or sharing details.',
+      submitLabel: 'Use this workspace', successTitle: 'Mural workspace selected', successMessage: 'Sneup will use this workspace for the next read-only metadata sync.', errorTitle: 'Mural workspace selection', emptyMessage: 'No Mural workspaces are available for this account. Reconnect it with the approved read-only scopes.'
+    },
+    xero_tenant: {
+      title: 'Select Xero organisation', fieldName: 'xeroTenantId', fieldId: 'xeroTenantId', fieldLabel: 'Authorized Xero organisation', selectedField: 'xeroTenantId',
+      optionsKey: 'tenants', optionId: 'xeroTenantId', placeholder: 'Select an organisation', notice: 'Sneup reads only capped sales-invoice status and date metadata from this organisation. It does not retain contacts, invoice numbers, amounts, payment details, line items, or links.',
+      submitLabel: 'Use this organisation', successTitle: 'Xero organisation selected', successMessage: 'Sneup will use this organisation for the next read-only invoice metadata sync.', errorTitle: 'Xero organisation selection', emptyMessage: 'No Xero organisations are available for this account. Reconnect it with the approved invoice read scope.'
+    },
+    procore_company: {
+      title: 'Select Procore company', fieldName: 'procoreCompanyId', fieldId: 'procoreCompanyId', fieldLabel: 'Authorized Procore company ID', selectedField: 'procoreCompanyId',
+      input: { inputmode: 'numeric', pattern: '[0-9]{1,20}', maxlength: '20' }, notice: 'Sneup verifies project-read access before saving this company. It then reads only capped active-project name, status, and schedule metadata. Budgets, contracts, RFIs, drawings, people, addresses, descriptions, attachments, links, and provider writes stay out of Sneup.',
+      submitLabel: 'Use this company', successTitle: 'Procore company selected', successMessage: 'Sneup will use this company for the next read-only active-project metadata sync.', errorTitle: 'Procore company selection'
+    },
+    resource_guru_account: {
+      title: 'Select Resource Guru account', fieldName: 'resourceGuruAccountId', fieldId: 'resourceGuruAccountId', fieldLabel: 'Authorized Resource Guru account', selectedField: 'resourceGuruAccountId',
+      optionsKey: 'accounts', optionId: 'resourceGuruAccountId', placeholder: 'Select an account', notice: 'Sneup will only ingest read-only project and booking schedule metadata from this account.',
+      submitLabel: 'Use this account', successTitle: 'Resource Guru account selected', successMessage: 'Sneup will use this account for the next read-only sync.', errorTitle: 'Resource Guru account selection', emptyMessage: 'No Resource Guru accounts are currently authorized for this connection. Reconnect it with Resource Guru access.'
+    },
+    basecamp_account: {
+      title: 'Select Basecamp account', fieldName: 'basecampAccountId', fieldId: 'basecampAccountId', fieldLabel: 'Authorized Basecamp account', selectedField: 'basecampAccountId',
+      optionsKey: 'accounts', optionId: 'basecampAccountId', placeholder: 'Select an account', notice: 'Sneup will only ingest read-only project and to-do metadata from this account.',
+      submitLabel: 'Use this account', successTitle: 'Basecamp account selected', successMessage: 'Sneup will use this account for the next read-only sync.', errorTitle: 'Basecamp account selection', emptyMessage: 'No Basecamp 3 accounts are currently authorized for this connection. Reconnect it with Basecamp access.'
+    },
+    asana_workspace: {
+      title: 'Select Asana workspace', fieldName: 'workspaceGid', fieldId: 'asanaWorkspaceGid', fieldLabel: 'Authorized workspace', selectedField: 'asanaWorkspaceGid',
+      optionsKey: 'workspaces', optionId: 'workspaceGid', placeholder: 'Select a workspace', organizationSuffix: true, notice: 'Sneup will only ingest read-only project tasks from the selected workspace.',
+      submitLabel: 'Use this workspace', successTitle: 'Asana workspace selected', successMessage: 'Sneup will use this workspace for the next read-only sync.', errorTitle: 'Asana workspace selection', emptyMessage: 'No Asana workspaces are currently authorized for this account. Reconnect it with workspace read access.'
+    },
+    confluence_site: {
+      title: 'Select Confluence site', fieldName: 'cloudId', fieldId: 'confluenceCloudId', fieldLabel: 'Authorized Confluence site', selectedField: 'confluenceCloudId',
+      optionsKey: 'sites', optionId: 'cloudId', placeholder: 'Select a site', urlSuffix: true, notice: 'Sneup will ingest space and page metadata only. It does not read page bodies, comments, attachments, users, descriptions, URLs, or version messages.',
+      submitLabel: 'Use this site', successTitle: 'Confluence site selected', successMessage: 'Sneup will use this site for the next read-only metadata sync.', errorTitle: 'Confluence site selection', emptyMessage: 'No Confluence sites are currently authorized for this account. Reconnect it with page and space read access.'
+    },
+    jira_site: {
+      title: 'Select Jira site', fieldName: 'cloudId', fieldId: 'jiraCloudId', fieldLabel: 'Authorized Jira site', selectedField: 'cloudId',
+      optionsKey: 'sites', optionId: 'cloudId', placeholder: 'Select a site', urlSuffix: true, notice: 'Sneup will only ingest read-only work signals from the selected site.',
+      submitLabel: 'Use this site', successTitle: 'Jira site selected', successMessage: 'Sneup will use this site for the next read-only sync.', errorTitle: 'Jira site selection', emptyMessage: 'No Jira sites are currently authorized for this account. Reconnect it with Jira read access.'
+    }
+  });
+
   const sourceLabel = source => ({
     github_api: 'GitHub API',
     trello_api: 'Trello API',
@@ -108,6 +244,71 @@
     const et = (message, params) => escapeHtml(t(message, params));
     const ep = (singular, pluralMessage, count, params) => escapeHtml(plural(singular, pluralMessage, count, params));
     const spanCount = (count, singular, pluralMessage) => `<span>${ep(singular, pluralMessage, count)}</span>`;
+
+    function openSelectionForm({ kind, accountId, account, data = {} } = {}) {
+      const config = SELECTION_FORMS[kind];
+      if (!config || !accountId || !account || !elements.modal || !elements.modalTitle || !elements.modalBody) return false;
+
+      const availableOptions = config.optionsKey
+        ? (Array.isArray(data[config.optionsKey]) ? data[config.optionsKey].slice(0, 100) : [])
+        : null;
+      if (availableOptions && availableOptions.length === 0) {
+        callbacks.openNotice(t(config.errorTitle), t(config.emptyMessage));
+        return false;
+      }
+
+      const storedValue = account.metadata?.fields?.[config.selectedField] || '';
+      const selectedValue = storedValue || (availableOptions?.length === 1 ? availableOptions[0][config.optionId] : '');
+      const control = availableOptions
+        ? `<select id="${config.fieldId}" name="${config.fieldName}" required>
+            <option value="" ${selectedValue ? '' : 'selected'} disabled>${et(config.placeholder)}</option>
+            ${availableOptions.map((option) => {
+              const value = String(option[config.optionId] || '');
+              const suffix = config.organizationSuffix && option.organization ? ` (${et('organization')})`
+                : config.urlSuffix && option.url ? ` (${escapeHtml(option.url)})` : '';
+              return `<option value="${escapeHtml(value)}" ${value === String(selectedValue) ? 'selected' : ''}>${escapeHtml(option.name || value)}${suffix}</option>`;
+            }).join('')}
+          </select>`
+        : `<input id="${config.fieldId}" name="${config.fieldName}" type="text" required value="${escapeHtml(selectedValue)}" ${Object.entries(config.input || {}).map(([key, value]) => `${key}="${escapeHtml(key === 'placeholder' ? t(value) : value)}"`).join(' ')}>`;
+
+      elements.modalTitle.textContent = t(config.title);
+      elements.modalBody.innerHTML = `
+        <form id="connectorSelectionForm">
+          <div class="field">
+            <label for="${config.fieldId}">${et(config.fieldLabel)}</label>
+            ${control}
+          </div>
+          <div class="notice">${et(config.notice)}</div>
+          <div class="toolbar modal-actions">
+            <button class="button" type="button" id="cancelConnectorSelection">${et('Cancel')}</button>
+            <button class="button primary" type="submit">${et(config.submitLabel)}</button>
+          </div>
+        </form>
+      `;
+      elements.modal.classList.add('open');
+
+      const form = document.getElementById('connectorSelectionForm');
+      const submitButton = form.querySelector('button[type="submit"]');
+      document.getElementById('cancelConnectorSelection').addEventListener('click', callbacks.closeModal);
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (submitButton.disabled) return;
+        submitButton.disabled = true;
+        submitButton.textContent = t('Saving...');
+        try {
+          const body = Object.fromEntries(new window.FormData(form).entries());
+          await callbacks.saveConnectorSelection(kind, accountId, body);
+          callbacks.closeModal();
+          callbacks.openNotice(t(config.successTitle), t(config.successMessage));
+          await callbacks.loadConnectors();
+        } catch (error) {
+          submitButton.disabled = false;
+          submitButton.textContent = t(config.submitLabel);
+          callbacks.openNotice(t(config.errorTitle), error.message);
+        }
+      });
+      return true;
+    }
 
     function renderSafety() {
       const safety = state.connectorSafety;
@@ -314,8 +515,8 @@
       bindActions();
     }
 
-    return { render };
+    return { openSelectionForm, render };
   }
 
-  return { createController, SELECTION_ACTIONS, SYNC_COUNT_FIELDS, DYNAMIC_OPERATOR_MESSAGES };
+  return { createController, SELECTION_ACTIONS, SELECTION_FORMS, SYNC_COUNT_FIELDS, DYNAMIC_OPERATOR_MESSAGES, NL_MESSAGES };
 });

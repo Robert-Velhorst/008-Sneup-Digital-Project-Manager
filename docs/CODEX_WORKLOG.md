@@ -12,6 +12,16 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-09 connector account-selection continuation
+
+- Re-audited the remaining eager connector UI against the approval-gated operations contract and found ten account-selection renderers still loaded on Overview.
+- Moved Figma, SharePoint, Mural, Xero, Procore, Resource Guru, Basecamp, Asana, Confluence, and Jira selection forms into `public/connectorView.js`, including English/Dutch copy, bounded options, escaping, duplicate-submit protection, cancel, and retry behavior.
+- Kept all authenticated option reads, exact endpoint mapping, encoded account identifiers, POST bodies, refreshes, credentials, and provider authority in `public/app.js`; the deferred module cannot fetch or access tokens, cookies, sessions, storage, or providers.
+- Initial app plus localization fell by 21,493 raw, 2,131 gzip, and 1,610 Brotli bytes. Demo startup imported 251 modules at 68.9 MB RSS without Mongoose; the 15,000-card real-Mongo profile measured 761.4 ms p50, 966.6 ms p95, and 340.1 MB peak RSS within its budgets.
+- In-app Browser QA passed Overview exclusion, one shared-fingerprint Connector load, 117 entries, four honest catalog-only entries, English/Dutch rendering, no horizontal overflow, and zero current console errors. Seeded DOM tests cover the ten linked-account form flows because demo mode does not invent provider accounts.
+- Local quality passed 111 suites/835 tests, 5/5 recommendation evaluation, both zero-vulnerability audits, purpose-separated five-secret validation, syntax/source/whitespace checks, and portfolio-scale verification with no provider writes.
+- Built and verified unsigned `Sneup-Setup-2.3.23.exe`: 109,480,743 bytes, SHA-256 `97EE2D6E07D24B187CB2FCF1A223FF9C01AE1D5191FA37880A1B9FF17B1F3871`. Four packaged processes used 360.5 MB working set and 290.4 MB private memory, then closed normally and released the loopback port.
+
 ## 2026-08-09 workspace policy-form continuation
 
 - Re-audited the workspace policy UI boundary against the approval-gated operations contract and found five form renderers still paid for on initial dashboard load.

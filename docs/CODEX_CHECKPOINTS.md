@@ -7,21 +7,31 @@
 | Operational controls | Doctor, readiness, support bundle, emergency stop | Complete |
 | Focused verification | Runtime/security tests and lint | Complete |
 | Traceability | Required document set and completion matrix | Complete |
-| Full regression | 111 suites/831 tests, lint, 5/5 evaluation, two zero-vulnerability dependency audits, and positive five-secret release verification | Complete |
-| Portfolio scale | Real mission-control path over 60 boards/15,000 cards; bounded output/evidence, exact compound index, 1.26 s cold, 1.11 s measured p95, no provider writes | Complete locally |
+| Full regression | 111 suites/835 tests, lint, 5/5 evaluation, two zero-vulnerability dependency audits, and positive five-secret release verification | Complete |
+| Portfolio scale | Real mission-control path over 60 boards/15,000 cards; bounded output/evidence, exact compound index, 1.75 s cold, 966.6 ms measured p95, no provider writes | Complete locally |
 | Multi-instance jobs | Unit coverage plus disposable MongoDB 7 simultaneous acquisition, token, release, and expiry verification | Complete locally |
 | API contract | `/api/v1` envelope, request correlation, dashboard parser, HAI OpenAPI, live demo HTTP matrix, and compatibility tests | Complete locally |
 | Feature rollouts | Four optional workloads, deterministic subjects, optimistic revisions, bounded cache/history, manager UI, 40-collection real-Mongo verification, and live fail-closed behavior | Complete locally; hosted manager acceptance pending |
 | Data integrity and repair | Bounded dry-run/apply, review-only unsafe findings, all-workspace Trello index migration, audit evidence, and disposable MongoDB verification | Complete locally |
 | Data retention | Owner-only opt-in policy, bounded preview/apply, protected evidence, distributed lease, indexed queries, pre/post audits, real MongoDB proof, and live browser flow | Complete locally |
-| Windows package | 2.3.22 NSIS build, demo diagnostics/HAI smoke, metadata, SHA-256, deferred-module archive check, repeatable resource sample, and clean close | Complete locally; publisher signing external |
+| Windows package | 2.3.23 NSIS build, demo diagnostics/HAI smoke, metadata, SHA-256, connector-module archive check, repeatable resource sample, and clean close | Complete locally; publisher signing external |
 | Fresh clone | 2.3.22 exact source `f5b442e832cae763a33fe6212ed39a91c56024b9`; Node 24 quality and Windows installer jobs in run `31330566354` | Complete |
-| Browser and Windows UI | Demand-loaded English/Dutch connector, workspace and policy-form, approval, Work Signals, graph, Forecasts, and Reports renderers; exact evidence/payload preservation; shared asset-version reuse; refresh; filtering; and containment passed in the in-app Browser with zero current console errors | Complete for these flows; screen-reader/clean-VM evidence pending |
+| Browser and Windows UI | Demand-loaded English/Dutch connector and account-selection, workspace and policy-form, approval, Work Signals, graph, Forecasts, and Reports renderers; exact evidence/payload preservation; shared asset-version reuse; refresh; filtering; and containment passed in the in-app Browser with zero current console errors | Complete for these flows; screen-reader/clean-VM evidence pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter | Complete locally; live credentials external |
 | GitHub CI | 2.3.22 run `31330566354` passed both jobs; artifact `9042817428` was downloaded and independently checked | Complete |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |
+
+## 2026-08-09 - Connector selection-form release checkpoint
+
+- Release: 2.3.23
+- Scope: all ten linked-account selection renderers moved behind the existing retry-safe deferred Connector module.
+- Authority boundary: authenticated option reads, exact endpoint mapping, encoded account IDs, POST bodies, refresh, credentials, and provider authority remain in `public/app.js`; `public/connectorView.js` has no fetch, token, cookie, session, or storage authority.
+- Verification: lint; 111 suites/835 tests; 5/5 recommendation evaluation; two zero-vulnerability audits; five-secret production check; real-Mongo portfolio profile; in-app Browser English/Dutch acceptance; Windows package verification.
+- Installer: `release/Sneup-Setup-2.3.23.exe`, 109,480,743 bytes, unsigned, SHA-256 `97EE2D6E07D24B187CB2FCF1A223FF9C01AE1D5191FA37880A1B9FF17B1F3871`.
+- GitHub publication and independent artifact verification are pending this source commit.
+- External gates remain: authorized live Trello/ngrok/HAI/provider acceptance, production-like restore and deployment rollback, publisher signing, clean-VM scaling, and assistive-technology certification.
 
 ## 2026-08-09 - Workspace policy-form release checkpoint
 
