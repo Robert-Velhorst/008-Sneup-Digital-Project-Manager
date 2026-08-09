@@ -33,9 +33,10 @@ This report is updated from executed commands at release time. A passing local s
 | Packaged Windows QA | Pass: 2.3.4 opened the command-center window, served legacy/versioned/readiness/jobs/HAI checks, correlated request IDs, closed normally, and released port 3197 |
 | Packaged idle sample | Pass: four processes used 385.6 MB working set, 307.7 MB private memory, and 3.53 cumulative CPU seconds after load plus idle |
 | Installer UI | Pass: exact 2.3.4 `Sneup Setup` window opened and was closed without installing |
-| Windows installer | Pass: 109,424,462 bytes, unsigned; SHA-256 `6FDB70E399DBD1AEB2A6B669BA370496EAA42478364D50D0056C8B505953B54B`; executable metadata reports 2.3.4 |
-| Fresh clone | Pending exact 2.3.4 Node.js 24 quality and Windows installer jobs after push |
-| GitHub CI | Pending exact 2.3.4 run after push |
+| Windows installer | Pass: local build 109,424,462 bytes, unsigned, SHA-256 `6FDB70E399DBD1AEB2A6B669BA370496EAA42478364D50D0056C8B505953B54B`; executable metadata reports 2.3.4 |
+| Fresh clone | Pass: exact 2.3.4 source commit completed clean Node.js 24 quality and Windows installer jobs |
+| GitHub CI | Pass: run `31298559390`, source `47e6d5d25078590133a066990bc602a40f4ec457`, zero annotations; quality 1m01s, Windows artifact 2m18s |
+| GitHub installer artifact | Pass: artifact `9033774213` (`sneup-windows-installer-unsigned`), archive digest `sha256:ee4a4bf8f66b1e975b63fafb67ff22c3563f26f8f64e2e93fe845248f41ca52c`; downloaded installer 109,424,851 bytes, unsigned, SHA-256 `CFC6ADD1B21DDFE5A2B09CDC51DEBC776A7302E07950077A2E337C7465FEE46F` |
 
 ## External gates
 

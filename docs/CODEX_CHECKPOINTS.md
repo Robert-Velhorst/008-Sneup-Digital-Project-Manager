@@ -11,10 +11,10 @@
 | Multi-instance jobs | Unit coverage plus disposable MongoDB 7 simultaneous acquisition, token, release, and expiry verification | Complete locally |
 | API contract | `/api/v1` envelope, request correlation, dashboard parser, HAI OpenAPI, live demo HTTP matrix, and compatibility tests | Complete locally |
 | Windows package | 2.3.4 NSIS build, installer window, demo and fail-closed live startup, native ngrok binding, metadata, SHA-256, idle sample, and clean close | Complete locally; publisher signing external |
-| Fresh clone | 2.3.4 Node 24 quality and Windows installer jobs | Pending exact GitHub run |
+| Fresh clone | 2.3.4 Node 24 quality and Windows installer jobs | Complete in run 31298559390 |
 | Browser and Windows UI | Prior approval/modal/responsive pass; current packaged demo, fail-closed recovery, metadata, health, HAI, and clean-close pass; current Browser and Computer Use capture bridges failed to return rendered state | Partial: current rendered capture pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter | Complete locally; live credentials external |
-| GitHub CI | Local 2.3.4 release gates pass; exact quality and installer artifact run | Pending push |
+| GitHub CI | Source 47e6d5d; quality 1m01s, installer 2m18s, zero annotations, artifact 9033774213 | Complete |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |
