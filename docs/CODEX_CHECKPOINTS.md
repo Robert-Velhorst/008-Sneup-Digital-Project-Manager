@@ -15,10 +15,10 @@
 | Data integrity and repair | Bounded dry-run/apply, review-only unsafe findings, all-workspace Trello index migration, audit evidence, and disposable MongoDB verification | Complete locally |
 | Data retention | Owner-only opt-in policy, bounded preview/apply, protected evidence, distributed lease, indexed queries, pre/post audits, real MongoDB proof, and live browser flow | Complete locally |
 | Windows package | 2.3.20 NSIS build, demo diagnostics/HAI smoke, metadata, SHA-256, deferred-module archive check, repeatable resource sample, and clean close | Complete locally; publisher signing external |
-| Fresh clone | 2.3.19 exact source `f8bb970a6a017a12996ff0f18cfd5933fee89d1f`; Node 24 quality and Windows installer jobs in run `31325790644` | Complete |
-| Browser and Windows UI | Demand-loaded English/Dutch connector, workspace, and approval renderers; exact evidence/payload preservation; shared asset-version reuse; refresh; and compact containment passed in the in-app Browser with zero current console errors. Final approval/workspace lazy-catalog registration passed focused DOM/source regressions | Complete for these flows; screen-reader/clean-VM evidence pending |
+| Fresh clone | 2.3.20 exact source `0b19b13009bae3523d4cdffa14ea630c923b139f`; Node 24 quality and Windows installer jobs in run `31327523743` | Complete |
+| Browser and Windows UI | Demand-loaded English/Dutch connector, workspace, approval, Work Signals, and graph renderers; exact evidence/payload preservation; shared asset-version reuse; refresh; filtering; and containment passed in the in-app Browser with zero current console errors | Complete for these flows; screen-reader/clean-VM evidence pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter | Complete locally; live credentials external |
-| GitHub CI | 2.3.19 run `31325790644` passed both jobs; artifact `9041503855` was downloaded and independently checked | Complete |
+| GitHub CI | 2.3.20 run `31327523743` passed both jobs; artifact `9041970725` was downloaded and independently checked | Complete |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |

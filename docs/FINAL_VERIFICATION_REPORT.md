@@ -63,4 +63,6 @@ Live Trello critical-path acceptance, live ngrok/HAI credential acceptance, prod
 | Packaged Windows QA | Pass: version 2.3.20, demo health and eight diagnostics, no exposed secrets, HAI `never_direct`, four processes, normal close, port released |
 | Packaged resource sample | Directional pass: 360.8 MB working set, 291.4 MB private bytes, 2.391 cumulative CPU seconds after the repeatable local packaged probe |
 | Windows installer | Pass: 109,476,907 bytes, version 2.3.20, unsigned, SHA-256 `3B0E3460D84DAA3BD5CC7E182FA423287C321E4A50B83621E8F0E311450A6D95`; archive contains `public/workSignalsView.js` |
+| Fresh-clone GitHub CI | Pass: run `31327523743` on source `0b19b13009bae3523d4cdffa14ea630c923b139f`; Node.js 24 quality completed in 1m01s and Windows packaging/upload in 2m14s |
+| GitHub installer artifact | Pass: artifact `9041970725`, archive size 109,483,887 bytes, digest `sha256:7e47e852d4c7a084f5177c2d018aedb4ce5bd949ba9b6a623f6b0ed0d9040cb0`; its single installer is 109,477,917 bytes, unsigned, version 2.3.20, SHA-256 `D245ABBC0D6C6B3D4CDD2DA53DD81A310FA21D798631E05E6A36A0CC7EE8CBDC` |
 | External gates | Live provider/ngrok/HAI acceptance, production-like restore/deployment rollback, code signing, clean-VM scaling, and assistive-technology certification remain external |
