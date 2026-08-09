@@ -23,6 +23,8 @@ This worklog records local engineering evidence. Live Trello, production MongoDB
 - In-app Browser QA proved the module is absent on Overview, loads once on Workspace administration, retains one instance after refresh, restores English/Dutch, and stays contained at 480x844 with no overflowing controls or current console warnings/errors.
 - Final local quality passed 108 suites/809 tests, 5/5 recommendation evaluation, both zero-vulnerability dependency audits, synthetic purpose-separated release-secret validation, and a 67.0 MB RSS startup import with MongoDB still deferred.
 - Built and verified the unsigned `Sneup-Setup-2.3.18.exe`: 109,466,199 bytes, SHA-256 `507A16FB942B959B0EC46991E57F97C7A7093CFAA6FD755AFC85CBD522B2D3CE`. Four packaged processes settled to 361.9 MB working set and 295.3 MB private memory, then closed normally and released the loopback port.
+- Published exact source `e0a0cbbc17c33a47bdbd12adbfe3991d07ffce07`; GitHub run `31321936184` passed Node 24 quality in 1 minute 10 seconds and Windows packaging in 2 minutes 22 seconds.
+- Independently downloaded artifact `9040446117`: its 109,472,305-byte archive has digest `sha256:eff8d19d6f47a6702bd628d806fe090ac937e5dea179923730e0576f78b5bc97`; the single unsigned 2.3.18 installer is 109,466,331 bytes with SHA-256 `4646153D37417799D93565801AFB637273E193861D592F951FFACB6143806B9C`.
 
 ## 2026-08-09 connector marketplace continuation
 
