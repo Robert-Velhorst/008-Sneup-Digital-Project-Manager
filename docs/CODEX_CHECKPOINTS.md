@@ -14,10 +14,10 @@
 | Data integrity and repair | Bounded dry-run/apply, review-only unsafe findings, all-workspace Trello index migration, audit evidence, and disposable MongoDB verification | Complete locally |
 | Data retention | Owner-only opt-in policy, bounded preview/apply, protected evidence, distributed lease, indexed queries, pre/post audits, real MongoDB proof, and live browser flow | Complete locally |
 | Windows package | 2.3.7 NSIS build, demo smoke, native ngrok binding, metadata, SHA-256, resource sample, and clean close | Complete locally; publisher signing external |
-| Fresh clone | 2.3.7 Node 24 quality and Windows installer jobs | Pending publication |
+| Fresh clone | 2.3.7 exact source `fd2bc329d9c07e232a742c6176e8e65ed8494c49`; Node 24 quality and Windows installer jobs in run `31305480486` | Complete |
 | Browser and Windows UI | Retention preview/confirmation/prune/rescan and policy modal passed desktop/mobile measurements with zero console warnings after in-app Browser fallback to connected Chrome | Complete for retention flow; screen-reader/clean-VM evidence pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter | Complete locally; live credentials external |
-| GitHub CI | Exact 2.3.7 source, quality, and installer artifact | Pending publication |
+| GitHub CI | Run `31305480486` passed both zero-annotation jobs; artifact `9035818760` downloaded and independently checked | Complete |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |

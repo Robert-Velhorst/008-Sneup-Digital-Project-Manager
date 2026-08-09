@@ -29,7 +29,7 @@ This report is updated from executed commands at release time. A passing local s
 | HAI HTTP smoke | Pass: versioned manifest/OpenAPI paths, capabilities `snapshot,propose`, provider writes `never_direct`, structured demo snapshot with stable board/card identifiers |
 | ngrok packaging/safety | Pass: official Windows x64 native binding bundled; missing, weak, or placeholder remote credentials fail closed |
 | Real MongoDB integrity repair | Pass: 40 collections migrated; two safe derived-state findings repaired with two audits; ambiguous Trello attempt remained review-only; provider writes false |
-| Real MongoDB data retention | Pass: six eligible categories deleted, six protected records retained, six pre/post audit pairs stored, six query indexes verified, provider writes false |
+| Real MongoDB data retention | Pass: six eligible categories deleted, six protected records retained, six pre/post audit pairs stored, seven query indexes verified, provider writes false |
 | Retention performance sample | Pass: six-category preview 35.09 ms, six audited category batches 936.39 ms, verifier RSS 94.1 MB; seven supporting indexes verified |
 | Integrity API performance sample | Pass: 30 live requests measured 14.01 ms p50 and 23.71 ms p95; server working set 119.5 MB after browser QA |
 | Browser QA | Pass: after the in-app Browser webview did not attach, connected Chrome previewed two due retention categories, confirmed the exact workspace, pruned 2/2 disposable records, rescanned to zero, and reported no console warnings/errors, overflow, or mobile modal overlap |
@@ -37,9 +37,9 @@ This report is updated from executed commands at release time. A passing local s
 | Packaged Windows QA | Pass: 2.3.7 served readiness/version/retention/HAI metadata in explicit demo mode, retained `never_direct`, closed normally, and released port 3199 |
 | Packaged idle sample | Pass: the final four-process build stayed effectively flat from 415.6/380.7 MB to 415.8/380.7 MB working/private memory over 15 seconds; CPU advanced 0.02 seconds. A separate standalone-backend sample advanced 0.00 seconds over 15 seconds. |
 | Windows installer | Pass: local build 109,437,557 bytes, unsigned, SHA-256 `49FDDB4A27C250FFDD23586E71AB37A1F7FD332CF5AACA2662C2AE42471E8087`; executable metadata reports 2.3.7 and the 65,833,187-byte archive contains retention UI/API/worker plus Windows x64 ngrok binding |
-| Fresh clone | Pending exact 2.3.7 GitHub run |
-| GitHub CI | Pending exact 2.3.7 GitHub run |
-| GitHub installer artifact | Pending exact 2.3.7 GitHub artifact |
+| Fresh clone | Pass: GitHub checked out exact source `fd2bc329d9c07e232a742c6176e8e65ed8494c49`, installed the lockfile with Node.js 24, and completed quality plus Windows package jobs |
+| GitHub CI | Pass: run `31305480486`; quality in 58 seconds and Windows installer in 2 minutes 10 seconds; both checks succeeded with zero annotations |
+| GitHub installer artifact | Pass: artifact `9035818760`, `sneup-windows-installer-unsigned`, 109,443,508-byte archive, digest `sha256:37381444bb9fcea1c84e6f03848cd5ac57bcd4eb2492d71ebb69dec66fc2f844`; its single downloaded installer is 109,437,595 bytes, unsigned, version 2.3.7, SHA-256 `0B20508B15CF74A1C8BBD4ACE2ACC231E5086A524D95FAD9C6C96CE130C8846D` |
 
 ## External gates
 
