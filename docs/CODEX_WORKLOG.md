@@ -21,6 +21,8 @@ This worklog records local engineering evidence. Live Trello, production MongoDB
 - In-app Browser QA passed deferred exclusion/loading, shared fingerprint, English/Dutch read-only workspace rendering, containment, and zero current console warnings/errors.
 - Local quality passed 111 suites/831 tests, 5/5 recommendation evaluation, both zero-vulnerability dependency audits, and purpose-separated five-secret validation.
 - Built and verified unsigned `Sneup-Setup-2.3.22.exe`: 109,479,448 bytes, SHA-256 `7AEF17707C0B79EE7832C8AB321228172544E3C386529957B28B9E0498923E21`. Four packaged processes used 361.1 MB working set and 292.3 MB private memory, then closed normally and released the loopback port.
+- Published exact source `f5b442e832cae763a33fe6212ed39a91c56024b9`; GitHub run `31330566354` passed Node 24 quality in 1 minute 8 seconds and Windows packaging in 2 minutes 13 seconds.
+- Independently downloaded artifact `9042817428`: its 109,485,528-byte archive has digest `sha256:2e3f4a2213d97a47435a25cd9baaed11c1fac9bd51f132e59adabf40d6331114`; the single unsigned 2.3.22 installer is 109,479,490 bytes with SHA-256 `1791C0DF6CEA5ABD23572DEC33F997400AD13416A957A101DDFAA608709B1F16`.
 
 ## 2026-08-09 approval operations continuation
 
