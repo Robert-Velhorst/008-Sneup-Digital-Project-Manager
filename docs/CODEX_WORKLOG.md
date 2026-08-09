@@ -23,6 +23,8 @@ This worklog records local engineering evidence. Live Trello, production MongoDB
 - The same worst-case 15,000-card algorithm sample improved focus from 42.8 to 16.2 ms, risks from 50.5 to 19.9 ms, and commands from 90.3 to 43.2 ms; command peak RSS fell from about 165 to 106 MB.
 - Final local quality passed 104 suites/793 tests, 5/5 recommendation evaluation, both zero-vulnerability dependency audits, positive five-secret production verification, and a 71.1 MB RSS startup import with MongoDB still deferred.
 - Built and verified the unsigned `Sneup-Setup-2.3.15.exe`: 109,454,208 bytes, SHA-256 `EDDC7030114E5D424398ACA79BB8683A6DE08B919F9AC7BD7955F9AF81068FD6`. Four packaged processes settled to 358.8 MB working set and 287.4 MB private memory, then closed normally and released the loopback port.
+- Published exact source `2fa0a91691c74dc68c552e56f6ce08227fbbe826`; GitHub run `31316707100` passed Node 24 quality in 1 minute 9 seconds and Windows packaging in 3 minutes 51 seconds.
+- Independently downloaded artifact `9038991309`: its 109,460,351-byte archive has digest `sha256:135e228f7902a7023b0cdf9aa568b3aae10928a30039a7b9f580c4ef4ee525e8`; the single unsigned 2.3.15 installer is 109,454,450 bytes with SHA-256 `BF32EAC5996FF5471F4D9D274AE2B78FC974CB7D0518AE06BAE924B5B06B4EC9`.
 
 ## 2026-08-09 contextual help continuation
 
