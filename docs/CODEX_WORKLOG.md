@@ -12,6 +12,17 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-09 contextual help continuation
+
+- Re-audited the governing operations-ledger specification and current completion matrix after the verified 2.3.13 release; the remaining high-priority production gates require owner infrastructure or live provider consent.
+- Added a standalone static help module covering all eight command-center views, setup/live readiness, decision safety, and privacy/data control, with direct handoffs into existing local workflows.
+- Added contextual opening from the compact Help control or `F1`, bounded local search, labelled modal semantics, focus containment/restoration, Escape/backdrop close, and narrow-screen stacking.
+- Kept the catalog out of browser storage, API traffic, database work, provider traffic, polling, and the main 6,500-line command-center module; its hidden DOM is not built until help first opens.
+- Added ten focused jsdom tests for catalog completeness, context fallback, search, keyboard/focus behavior, safe routing, static integration, and browser-script initialization.
+- In-app Browser QA passed the Forecasts context, local search, Decision Safety topic, Approvals handoff, desktop and narrow layouts, viewport containment, focus placement, and zero current console errors.
+- Final local quality passed 103 suites/789 tests, 5/5 recommendation evaluation, two zero-vulnerability audits, purpose-separated release-secret verification, source scans, and three repeat startup profiles with no Mongoose load in demo mode.
+- Built and verified the unsigned `Sneup-Setup-2.3.14.exe`: 109,453,766 bytes, SHA-256 `1F55E031B6079FEC3CF56992C4578BBD23893EEC3A84F21449BB5ADB8B672F79`. Four packaged processes settled to 356.7 MB working set and 289.2 MB private memory, then closed normally and released the loopback port.
+
 ## 2026-08-09 bounded form persistence continuation
 
 - Added a standalone browser module for workspace-scoped session drafts and capped named presets, wired only to reviewed forecast, capacity, project-mapping, retention, rollout, and internal policy forms.

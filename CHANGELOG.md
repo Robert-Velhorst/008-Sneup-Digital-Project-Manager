@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.3.14 - 2026-08-09
+
+### Context-sensitive operator help
+
+- Added a searchable in-app help center with task guidance for all eight command-center views plus setup, decision safety, and privacy controls.
+- Open the current view's topic from the compact Help control or `F1`, then hand off directly to the relevant existing workflow.
+- Kept recommendations, approvals, executions, and ambiguous-result reconciliation explicitly separate in the operator guidance.
+
+### Accessibility and resource use
+
+- Added labelled modal semantics, contextual focus, focus containment and restoration, Escape handling, backdrop close, and a stacked narrow-screen layout.
+- Render the bounded static catalog only when help first opens, using DOM APIs and no storage, API requests, database work, provider traffic, polling, or new runtime dependency.
+- Added isolated browser-DOM coverage for every topic, context fallback, search, keyboard behavior, focus containment, application routing, and browser-script initialization.
+
 ## 2.3.13 - 2026-08-09
 
 ### Draft recovery and presets

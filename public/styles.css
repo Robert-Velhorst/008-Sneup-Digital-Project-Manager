@@ -201,6 +201,14 @@ h1 {
   opacity: 0.55;
 }
 
+.icon-button {
+  justify-content: center;
+  width: 38px;
+  min-width: 38px;
+  padding: 8px;
+  font-weight: 800;
+}
+
 .view {
   display: none;
   min-width: 0;
@@ -1259,6 +1267,188 @@ h1 {
   text-align: center;
 }
 
+.help-center {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  display: none;
+  align-items: stretch;
+  justify-content: flex-end;
+  background: rgba(28, 35, 33, 0.42);
+}
+
+.help-center.open {
+  display: flex;
+}
+
+.help-center-panel {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  width: min(880px, calc(100% - 36px));
+  height: 100%;
+  overflow: hidden;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+  box-shadow: -24px 0 70px rgba(28, 35, 33, 0.2);
+}
+
+.help-center-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.help-center-head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.help-center-head span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.help-search {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.help-search input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: var(--ink);
+  background: #fff;
+}
+
+.help-center-layout {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.8fr) minmax(0, 1.7fr);
+  min-height: 0;
+}
+
+.help-topic-nav,
+.help-topic-content {
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.help-topic-nav {
+  padding: 14px 12px;
+  border-right: 1px solid var(--line);
+  background: #fbfcfa;
+}
+
+.help-result-count {
+  margin: 0 8px 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.help-topic-list {
+  display: grid;
+  gap: 4px;
+}
+
+.help-topic-button {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  min-height: 52px;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--ink);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.help-topic-button:hover,
+.help-topic-button:focus-visible,
+.help-topic-button[aria-current="page"] {
+  border-color: var(--line);
+  background: var(--panel-soft);
+  outline: none;
+}
+
+.help-topic-button span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.help-empty {
+  margin: 0;
+  padding: 20px 10px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.help-topic-content {
+  padding: 28px clamp(20px, 4vw, 42px) 40px;
+}
+
+.help-topic-category {
+  margin: 0 0 8px;
+  color: var(--green-dark);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.help-topic-content h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.help-topic-summary {
+  max-width: 66ch;
+  margin: 10px 0 26px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.help-topic-content section {
+  margin: 0 0 24px;
+}
+
+.help-topic-content h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
+.help-topic-content ol,
+.help-topic-content ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 22px;
+  line-height: 1.5;
+}
+
+.help-topic-content li::marker {
+  color: var(--green);
+  font-weight: 800;
+}
+
+.help-topic-action {
+  margin-top: 2px;
+}
+
 @media (max-width: 1040px) {
   .shell {
     grid-template-columns: 1fr;
@@ -1341,6 +1531,37 @@ h1 {
 
   .command-palette-panel {
     max-height: calc(100vh - 24px);
+  }
+
+  .help-center {
+    align-items: flex-end;
+    padding-top: 18px;
+  }
+
+  .help-center-panel {
+    width: 100%;
+    height: calc(100% - 18px);
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  .help-search {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .help-center-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(150px, 32vh) minmax(0, 1fr);
+  }
+
+  .help-topic-nav {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .help-topic-content {
+    padding: 22px 20px 32px;
   }
 
   .form-persistence-presets {

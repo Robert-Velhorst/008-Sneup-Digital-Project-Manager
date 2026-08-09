@@ -78,6 +78,7 @@ const state = {
   queueFilter: 'all',
   signalFilter: 'all',
   setupMode: localStorage.getItem(FIRST_RUN_SETUP_KEY) || '',
+  activeView: 'overview',
   runtimeMode: 'unknown',
   runtimeDiagnostics: null,
   modalCleanup: null,
@@ -199,6 +200,25 @@ const formPersistence = window.SneupFormPersistence?.init({
   getScope: () => state.activeWorkspaceId || state.currentWorkspace?.id || 'current'
 });
 
+window.SneupHelpCenter?.init({
+  getContext: () => state.activeView,
+  beforeOpen: () => {
+    closeCommandPalette();
+    if (els.modal.classList.contains('open')) closeModal();
+  },
+  onAction: (actionId) => {
+    if (actionId === 'setup') {
+      openFirstRunSetup();
+      return;
+    }
+    if (actionId === 'view:approvals') {
+      openDecisionQueue('robert');
+      return;
+    }
+    if (actionId.startsWith('view:')) showView(actionId.slice(5));
+  }
+});
+
 document.querySelectorAll('[data-view-button]').forEach((button) => {
   button.addEventListener('click', () => showView(button.dataset.viewButton));
 });
@@ -303,6 +323,7 @@ async function showView(viewName, options = {}) {
   });
   document.querySelectorAll('.view').forEach((view) => view.classList.remove('active'));
   document.getElementById(`${viewName}View`).classList.add('active');
+  state.activeView = viewName;
   const titles = {
     overview: 'Autonomous project command',
     approvals: 'Approval and operations ledger',

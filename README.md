@@ -133,6 +133,8 @@ Workspace owners can preview and opt into bounded Data Retention from Workspace 
 
 Reviewed operational forms preserve bounded drafts inside the current browser session and workspace. Capacity, forecast, project-mapping, retention, rollout, and internal policy forms can also expose capped named presets where reusable defaults are safe. Sneup never includes credentials, tokens, email or notification destinations, external-action payloads, evidence, responses, invitations, destructive confirmations, or safety-relaxation confirmations in this storage. Canceling or a failed request keeps the draft; a confirmed API success clears it.
 
+The command center includes searchable, context-sensitive help for Overview, Approvals, Connectors, Signals, Forecasts, Reports, Enhancements, and Workspace Administration, plus setup, decision safety, and privacy guidance. Select the compact **Help** control or press `F1` to open the topic for the active view. Help search is local to the bundled catalog, stores nothing, and does not contact the API or a provider. Each topic can return directly to its existing Sneup workflow; help content cannot approve or execute an action.
+
 The Windows installer uses the bundled Sneup icon. Release signing and automatic updates remain release-infrastructure tasks: configure a publisher certificate and update feed in the release environment before distributing a trusted production build.
 
 ### Authenticated ngrok cloud access

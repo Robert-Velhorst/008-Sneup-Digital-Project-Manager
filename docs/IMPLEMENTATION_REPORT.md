@@ -44,6 +44,7 @@ Reduced avoidable resource use:
 - The OpenAI SDK and client are not loaded or constructed unless a non-placeholder `OPENAI_API_KEY` is present and a non-quick chat response actually needs the provider.
 - Duplicate Mongoose index declarations were removed to reduce startup warnings and index churn.
 - The command center loads hidden views on demand and exposes bounded, recent response-time p50/p95 summaries for the known view APIs. The telemetry retains neither request data nor unbounded history.
+- Context-sensitive help is a separate static browser module covering all command-center views, setup, decision safety, and privacy. It builds no hidden topic DOM until first open, and its search and rendering use no API request, storage, database work, provider traffic, polling, or new dependency.
 - API rate limiting has a hard bounded bucket map, expires stale state first, evicts least-recently-used pressure state only when needed, and exposes aggregate capacity metrics without request identifiers.
 - NLP imports only the tokenization, sentence splitting, TF-IDF, English AFINN sentiment, and Porter stemming modules used by Sneup. The Windows build excludes Natural's unused language packs, classifiers, WordNet, and unused storage-client dependencies while preserving the existing NLP implementations.
 - NLP is now demand-loaded only when card-content analysis runs, so normal server and desktop startup do not initialize Natural. Routine successful requests also avoid disk logging unless explicitly enabled; rejected, failed, and slow requests remain visible.
@@ -62,19 +63,18 @@ Added:
 - Secure preload bridge in `desktop/preload.js`.
 - `npm run desktop` for local desktop testing.
 - `npm run build:installer` / `npm run dist:win` for Windows NSIS packaging.
-- Current release target: `release/Sneup-Setup-2.3.13.exe`.
+- Current release target: `release/Sneup-Setup-2.3.14.exe`.
 
-The verified local 2.3.13 installer is 109,449,215 bytes with SHA-256 `AE640C1E1FCF5983B4DCE5050C8956082F9D441B5E3C707A7DF8AC60A6CDD268`. It is intentionally reported as unsigned until an owner-controlled publisher certificate is available. The packaged executable reports product/file version 2.3.13 and retains the Windows x64 native ngrok binding.
+The verified local 2.3.14 installer is 109,453,766 bytes with SHA-256 `1F55E031B6079FEC3CF56992C4578BBD23893EEC3A84F21449BB5ADB8B672F79`. It is intentionally reported as unsigned until an owner-controlled publisher certificate is available. The packaged executable reports product/file version 2.3.14 and retains the Windows x64 native ngrok binding.
 
 The desktop app starts Sneup on `127.0.0.1` and opens the command center in an app window. On first run it starts in demo mode. The workspace choice stores only the non-secret `demo` or `live` startup preference in the Electron user-data directory, then relaunches before Sneup initializes. Production live mode fails closed before opening the HTTP listener when MongoDB is unavailable. The Windows error dialog can persist an explicit read-only demo choice and relaunch, preventing a failed live preference from trapping the user. An explicitly set `SNEUP_DEMO_MODE` environment variable takes precedence over the local preference until the user chooses the recovery action.
 
 ## Verification
 
 - Syntax checks passed for changed JavaScript files.
-- `npm run lint` passed with the new Node/ES2022 ESLint config.
-- `npm test -- --runInBand` passed 765 tests across 101 suites.
-- `npm audit --omit=dev` reported 0 vulnerabilities.
-- Local HTTP smoke tests passed for health, connector catalog, and mission control.
-- The in-app Browser passed the 2.3.13 live disposable-workspace form flow: draft save, named preset save/apply, cancel/reopen recovery, successful API-save cleanup, and narrow responsive stacking completed without horizontal overflow or current console errors.
-- The current resource pass passed `npm run lint`, a production-only `npm audit` with zero findings, and a fresh Windows NSIS build after inspecting its packaged archive.
-- The final packaged 2.3.13 demo settled to four processes, 362.2 MB working set, 292.8 MB private memory, and 1.672 cumulative CPU seconds after 30 seconds. The repeatable verifier confirmed product metadata, eight redacted diagnostics, HAI `never_direct`, normal close, and port release. The sample is directional rather than a production-scale benchmark.
+- The final quality gate passed 103 suites/789 tests, lint, and the 5/5 recommendation evaluation.
+- Three repeat demo startup profiles imported 251 modules at 70.2-71.9 MB RSS and served the complete initial overview at 73.9-75.5 MB RSS without loading Mongoose.
+- The in-app Browser passed contextual Forecasts help, local search, Decision Safety guidance, Approvals handoff, focus placement, desktop and narrow responsive containment, and zero current console errors.
+- The packaged 2.3.14 demo settled to four processes, 356.7 MB working set, 289.2 MB private memory, and 1.734 cumulative CPU seconds after 30 seconds; normal close released every process and the loopback port.
+- Production-only and complete dependency audits both reported zero vulnerabilities; the five-secret production release check passed without exposing values.
+- Prior live disposable-workspace draft and preset coverage remains part of the browser acceptance evidence.

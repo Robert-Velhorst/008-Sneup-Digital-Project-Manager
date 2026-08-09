@@ -14,7 +14,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 007 Authentication/session security | Implemented | Users, sessions, API tokens, invitations, token peppers. |
 | 008 Authorization/ownership | Implemented | Role permissions and workspace-scoped queries/tests. |
 | 009 API/error contract | Implemented | `/api/v1` uses one bounded success/error envelope with response/log request correlation; legacy and protocol-specific responses remain compatible. |
-| 010 Frontend/navigation | Implemented | Operational command center and command palette. |
+| 010 Frontend/navigation | Implemented | Operational command center, command palette, and contextual help center. |
 | 011 Core vertical slice | Partial | Full code path exists; authorized live-provider run pending. |
 | 012 Provider reality review | Partial | Bounded real adapters exist; owner OAuth/API consent is external. |
 | 013 Platform/compliance boundaries | Partial | Data minimization is coded; final provider terms review is external. |
@@ -45,7 +45,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 038 Fake provider lab | Implemented | Provider mocks are test-only and cannot activate production success. |
 | 039 Test factories/fixtures | Implemented | Deterministic service/provider fixtures across test suites. |
 | 040 Backend tests | Implemented | Jest regression suite and CI gate. |
-| 041 Frontend/component tests | Partial | Static/UI assertions plus isolated jsdom coverage verify draft/preset controls, workspace isolation, bounds, corrupt storage, sensitive-field rejection, and browser initialization; broader component coverage remains backlog. |
+| 041 Frontend/component tests | Partial | Static/UI assertions plus isolated jsdom coverage verify drafts/presets and every help topic, context fallback, search, keyboard/focus behavior, safe routing, and browser initialization; broader command-center component coverage remains backlog. |
 | 042 Worker/job tests | Implemented | Sync, notification, retention, outcome, job execution coverage. |
 | 043 End-to-end tests | Partial | Local browser flows exist; live-provider E2E is external. |
 | 044 Acceptance matrix | Implemented | `ACCEPTANCE_TESTS.md`. |
@@ -53,7 +53,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 046 Cross-user isolation | Implemented | Workspace identity and authorization regression coverage. |
 | 047 Path traversal/file safety | Implemented | Controlled static/report paths and traversal/security tests. |
 | 048 Provider failure simulation | Implemented | Retry, timeout, partial write, truncation, and reconciliation tests. |
-| 049 Accessibility | Partial | Labels/keyboard behavior exist; screen-reader certification pending. |
+| 049 Accessibility | Partial | Labels, modal semantics, contextual focus, focus containment/restoration, Escape/F1 behavior, and responsive help navigation are covered; assistive-technology certification remains external. |
 | 050 Responsive/browser compatibility | Partial | Browser regressions and packaged Windows 150% scaling pass; clean-VM 125%/200% matrix pending. |
 | 051 Performance/indexing | Implemented | Bounded queries, indexes, concurrency, batching, response timing, and cross-process duplicate-work suppression. |
 | 052 Large data/pagination | Partial | Provider caps/pages are tested; production-scale load test pending. |
@@ -75,7 +75,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 068 CI/CD gates | Implemented | Linux quality job and Windows installer artifact job. |
 | 069 Canary/rollback | Partial | Optional workloads now have immediate persisted canary/pause controls and revision-safe rollback; hosted rollout proof remains external. |
 | 070 Operator runbook | Implemented | `OPERATOR_RUNBOOK.md`. |
-| 071 User guide/help | Partial | README covers operation; in-app contextual help is limited. |
+| 071 User guide/help | Implemented | README plus searchable in-app guidance cover every command-center view, setup, decision safety, privacy, and direct workflow handoffs. |
 | 072 Troubleshooting/error catalog | Implemented | Set up exposes a stable eight-check runtime, connectivity, remote-access, and write-safety catalog with exact redacted remediation; doctor/runbook and the bounded support file cover command-line escalation. |
 | 073 UI action audit | Implemented | `UI_ACTION_AUDIT.md`. |
 | 074 Endpoint usage audit | Implemented | `API_USAGE_AUDIT.md`. |
@@ -97,7 +97,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 090 No vanity work | Implemented | Changes target operability, safety, evidence, and delivery. |
 | 091 Feature definition of done | Implemented | Status requires wiring, reachability, tests, docs, and evidence. |
 | 092 Fresh-clone run | Implemented | Exact 2.3.13 source `72e25a5bcba8a92b424239051529a21c1acd68b0` passed GitHub run `31314387786`; both Node 24 quality and Windows installer jobs completed successfully, and artifact `9038323202` was independently downloaded and verified. |
-| 093 Manual evidence | Partial | The 2.3.13 in-app Browser live disposable-workspace flow verified draft save, preset apply, cancel/reopen recovery, success-only cleanup, mobile stacking, and zero current console errors; packaged runtime and live-provider/clean-VM evidence retain their separate gates. |
+| 093 Manual evidence | Partial | The 2.3.13 live disposable-workspace form flow and 2.3.14 demo help flow verify recovery, presets, contextual search, workflow handoff, narrow stacking, viewport containment, and zero current console errors; packaged runtime and live-provider/clean-VM evidence retain their separate gates. |
 | 094 No-excuses search | Implemented | No shipped TODO/FIXME/HACK, dynamic-code, child-process, or secret-pattern finding. |
 | 095 Completion matrix | Implemented | This file, with partial/external states retained. |
 | 096 Verification report | Implemented | Final commands, clean-checkout result, installer hash, browser QA, and packaged Windows QA are recorded. |
@@ -118,7 +118,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 111 Ambiguous external actions | Implemented | Claimed state, partial-step evidence, manual reconciliation. |
 | 112 Version/changelog | Implemented | Semantic package release and `CHANGELOG.md`. |
 | 113 Regression baseline | Implemented | Full Jest/lint/evaluation commands and CI. |
-| 114 Maintenance/refactor review | Partial | Form persistence is isolated from the 6,500-line command-center script behind a small bounded module; broader command-center modularization remains backlog. |
+| 114 Maintenance/refactor review | Partial | Form persistence and contextual help are isolated from the 6,500-line command-center script behind small bounded modules; broader command-center modularization remains backlog. |
 | 115 Human operator readiness | External | Requires signed clean-VM install and authorized live Trello acceptance. |
 
 ## Honest completion boundary

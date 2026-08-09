@@ -40,6 +40,7 @@
             <option value="">Current workspace</option>
           </select>
           <button class="button" id="commandPaletteButton" type="button" aria-haspopup="dialog">Quick switch</button>
+          <button class="button icon-button" id="helpButton" type="button" aria-label="Help" aria-haspopup="dialog" aria-keyshortcuts="F1" title="Help">?</button>
           <button class="button" id="setupButton" type="button">Set up</button>
           <button class="button" id="refreshButton" type="button">Refresh</button>
           <button class="button primary" id="approvalButton" type="button">Review approvals</button>
@@ -551,7 +552,31 @@
     </section>
   </div>
 
+  <div class="help-center" id="helpCenter" aria-hidden="true">
+    <section class="help-center-panel" role="dialog" aria-modal="true" aria-labelledby="helpCenterTitle">
+      <div class="help-center-head">
+        <div>
+          <h2 id="helpCenterTitle">Sneup help</h2>
+          <span>Guidance for the current workspace</span>
+        </div>
+        <button class="button" id="closeHelpCenter" type="button">Close</button>
+      </div>
+      <label class="help-search" for="helpSearch">
+        <span>Search help</span>
+        <input id="helpSearch" type="search" maxlength="80" autocomplete="off" placeholder="Find a workflow, safety rule, or data control">
+      </label>
+      <div class="help-center-layout">
+        <nav class="help-topic-nav" aria-label="Help topics">
+          <p class="help-result-count" id="helpResultCount" aria-live="polite"></p>
+          <div class="help-topic-list" id="helpTopicList"></div>
+        </nav>
+        <article class="help-topic-content" id="helpTopicContent" aria-live="polite"></article>
+      </div>
+    </section>
+  </div>
+
   <script src="/formPersistence.js?v=__SNEUP_ASSET_VERSION__" defer></script>
+  <script src="/helpCenter.js?v=__SNEUP_ASSET_VERSION__" defer></script>
   <script src="/app.js?v=__SNEUP_ASSET_VERSION__" defer></script>
 </body>
 </html>
