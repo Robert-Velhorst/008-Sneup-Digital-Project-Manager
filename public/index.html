@@ -39,6 +39,10 @@
           <select class="workspace-select" id="workspaceSelect" aria-label="Workspace">
             <option value="">Current workspace</option>
           </select>
+          <select class="language-select" id="languageSelect" aria-label="Language">
+            <option value="en" lang="en" data-i18n-ignore>English</option>
+            <option value="nl" lang="nl" data-i18n-ignore>Nederlands</option>
+          </select>
           <button class="button" id="commandPaletteButton" type="button" aria-haspopup="dialog">Quick switch</button>
           <button class="button icon-button" id="helpButton" type="button" aria-label="Help" aria-haspopup="dialog" aria-keyshortcuts="F1" title="Help">?</button>
           <button class="button" id="setupButton" type="button">Set up</button>
@@ -575,6 +579,7 @@
     </section>
   </div>
 
+  <script src="/i18n.js?v=__SNEUP_ASSET_VERSION__" defer></script>
   <script src="/formPersistence.js?v=__SNEUP_ASSET_VERSION__" defer></script>
   <script src="/helpCenter.js?v=__SNEUP_ASSET_VERSION__" defer></script>
   <script src="/app.js?v=__SNEUP_ASSET_VERSION__" defer></script>

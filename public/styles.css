@@ -515,7 +515,8 @@ h1 {
 }
 
 .search,
-.workspace-select {
+.workspace-select,
+.language-select {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -527,6 +528,10 @@ h1 {
 
 .workspace-select {
   width: min(260px, 100%);
+}
+
+.language-select {
+  width: 128px;
 }
 
 .category-list {

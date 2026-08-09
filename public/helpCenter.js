@@ -212,6 +212,11 @@
   function createController(options = {}) {
     const document = options.document || root?.document;
     if (!document) return null;
+    const i18n = options.i18n || root?.SneupI18n || {
+      t: value => value,
+      plural: (singular, pluralMessage, count) => String(count === 1 ? singular : pluralMessage).replace('{count}', count)
+    };
+    const translate = value => i18n.t(value);
 
     const elements = {
       button: document.getElementById('helpButton'),
@@ -240,7 +245,16 @@
 
     function matchingTopics() {
       const query = elements.search.value.trim().toLowerCase();
-      return query ? HELP_TOPICS.filter(topic => searchableText(topic).includes(query)) : HELP_TOPICS;
+      return query
+        ? HELP_TOPICS.filter(topic => searchableText({
+          ...topic,
+          title: translate(topic.title),
+          category: translate(topic.category),
+          summary: translate(topic.summary),
+          steps: topic.steps.map(translate),
+          notes: topic.notes.map(translate)
+        }).includes(query))
+        : HELP_TOPICS;
     }
 
     function renderList() {
@@ -252,35 +266,35 @@
         button.className = 'help-topic-button';
         button.dataset.helpTopic = topic.id;
         if (topic.id === activeTopicId) button.setAttribute('aria-current', 'page');
-        appendTextElement(document, button, 'strong', '', topic.title);
-        appendTextElement(document, button, 'span', '', topic.category);
+        appendTextElement(document, button, 'strong', '', translate(topic.title));
+        appendTextElement(document, button, 'span', '', translate(topic.category));
         elements.list.appendChild(button);
       });
       if (topics.length === 0) {
-        appendTextElement(document, elements.list, 'p', 'help-empty', 'No matching help topic.');
+        appendTextElement(document, elements.list, 'p', 'help-empty', translate('No matching help topic.'));
       }
-      elements.count.textContent = `${topics.length} topic${topics.length === 1 ? '' : 's'}`;
+      elements.count.textContent = i18n.plural('{count} topic', '{count} topics', topics.length);
     }
 
     function renderTopic(topicId) {
       const topic = TOPIC_BY_ID.get(topicId) || TOPIC_BY_ID.get('overview');
       activeTopicId = topic.id;
       elements.content.replaceChildren();
-      appendTextElement(document, elements.content, 'p', 'help-topic-category', topic.category);
-      appendTextElement(document, elements.content, 'h2', '', topic.title);
-      appendTextElement(document, elements.content, 'p', 'help-topic-summary', topic.summary);
+      appendTextElement(document, elements.content, 'p', 'help-topic-category', translate(topic.category));
+      appendTextElement(document, elements.content, 'h2', '', translate(topic.title));
+      appendTextElement(document, elements.content, 'p', 'help-topic-summary', translate(topic.summary));
 
       const stepsSection = document.createElement('section');
-      appendTextElement(document, stepsSection, 'h3', '', 'What to do');
+      appendTextElement(document, stepsSection, 'h3', '', translate('What to do'));
       const steps = document.createElement('ol');
-      topic.steps.forEach(step => appendTextElement(document, steps, 'li', '', step));
+      topic.steps.forEach(step => appendTextElement(document, steps, 'li', '', translate(step)));
       stepsSection.appendChild(steps);
       elements.content.appendChild(stepsSection);
 
       const notesSection = document.createElement('section');
-      appendTextElement(document, notesSection, 'h3', '', 'Keep in mind');
+      appendTextElement(document, notesSection, 'h3', '', translate('Keep in mind'));
       const notes = document.createElement('ul');
-      topic.notes.forEach(note => appendTextElement(document, notes, 'li', '', note));
+      topic.notes.forEach(note => appendTextElement(document, notes, 'li', '', translate(note)));
       notesSection.appendChild(notes);
       elements.content.appendChild(notesSection);
 
@@ -288,7 +302,7 @@
       action.type = 'button';
       action.className = 'button primary help-topic-action';
       action.dataset.helpAction = topic.action.id;
-      action.textContent = topic.action.label;
+      action.textContent = translate(topic.action.label);
       elements.content.appendChild(action);
       renderList();
     }

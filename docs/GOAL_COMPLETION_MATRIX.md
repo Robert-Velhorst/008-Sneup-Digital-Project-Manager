@@ -61,7 +61,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 054 Reconciliation/repair | Implemented | Trello reconciliation remains evidence-gated; the generalized dry-run-first repair CLI and administration UI repair only bounded internal derived state, re-scan before atomic apply, and audit every successful change. |
 | 055 Local-first analytics | Implemented | Local response/job/recommendation metrics; no forced telemetry. |
 | 056 SaaS without billing | Implemented | Multi-workspace identity exists; billing is not required. |
-| 057 Dutch/English readiness | Partial | UI is English; Dutch message catalog is not implemented. |
+| 057 Dutch/English readiness | Partial | A persistent, tested English/Dutch catalog covers the static shell, setup guidance, command palette, contextual help/search, dates/numbers/counts, and primary mission-control workflow chrome. Provider/user/audit evidence is intentionally preserved verbatim; secondary dynamic operator surfaces still need explicit semantic catalogs. |
 | 058 Feature flags/rollout | Implemented | Four optional capabilities have workspace-scoped persisted controls, deterministic percentage rollout, optimistic revisions, bounded cache/history, manager UI, and live fail-closed behavior. Safety and provider-write authorization are outside the flag system. |
 | 059 Formal state machines | Implemented | Enumerated persisted lifecycle states and guarded transitions. |
 | 060 Domain model | Implemented | Mongoose models and operations-ledger domain boundaries. |

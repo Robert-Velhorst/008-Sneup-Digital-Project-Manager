@@ -12,6 +12,18 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-09 English/Dutch localization continuation
+
+- Re-read the governing operations-ledger specification and audited the current completion matrix, static shell, generated operator chrome, setup flow, command palette, and contextual help catalog.
+- Added a dependency-free English/Dutch runtime with persisted locale choice, exact-message translation, local date/number/plural formatting, and reversible static DOM translation.
+- Kept provider, user, audit, and source-evidence text outside automatic translation so Sneup never changes the meaning of operational evidence.
+- Localized the command-center shell, setup and diagnostics guidance, command palette, contextual help and search, and primary mission-control/team/board workflow chrome. Secondary dynamic screens remain explicitly partial in the completion matrix.
+- Added six focused localization tests covering persistence, restoration, static-shell completeness, help-catalog completeness/search, evidence preservation, formatting, script order, and the language control's accessible name.
+- In-app Browser QA passed English and Dutch restoration, localized help search/topic/action routing, setup diagnostics, desktop and compact viewport containment, and zero current console warnings/errors.
+- Final local quality passed 105 suites/799 tests, 5/5 recommendation evaluation, both zero-vulnerability dependency audits, synthetic purpose-separated release-secret validation, and a 70.8 MB RSS startup import with MongoDB still deferred.
+- The 33,577-byte catalog compresses to 11,269 bytes with gzip or 9,887 bytes with Brotli and adds no API request, database work, provider traffic, polling, dependency, or server module.
+- Built and verified the unsigned `Sneup-Setup-2.3.16.exe`: 109,462,200 bytes, SHA-256 `33F959504DAE00AE5F8ED4D5DAB5FC2CA21FDA3B7CAB40BAF1554DE49E6587E5`. Four packaged processes settled to 360.6 MB working set and 292.6 MB private memory, then closed normally and released the loopback port.
+
 ## 2026-08-09 portfolio-scale continuation
 
 - Re-read the complete governing operations-ledger specification and traced the live mission-control path through projected MongoDB reads, analytics, lists, forecast capacity, work graph, evidence, and approval-safe command generation.

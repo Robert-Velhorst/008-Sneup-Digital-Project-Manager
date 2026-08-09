@@ -1,0 +1,469 @@
+(function attachI18n(root, factory) {
+  const api = factory(root);
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (root) root.SneupI18n = api;
+})(typeof window === 'object' ? window : null, function createI18nModule(root) {
+  const STORAGE_KEY = 'sneup.locale.v1';
+  const SUPPORTED_LOCALES = Object.freeze(['en', 'nl']);
+  const LOCALE_TAGS = Object.freeze({ en: 'en-GB', nl: 'nl-NL' });
+
+  const NL_MESSAGES = Object.freeze({
+    'Sneup Command Center': 'Sneup Commandocentrum',
+    'Command Center': 'Commandocentrum',
+    'Primary': 'Hoofdnavigatie',
+    'Overview': 'Overzicht',
+    'Approvals': 'Goedkeuringen',
+    'Connectors': 'Koppelingen',
+    'Enhancements': 'Verbeteringen',
+    'Signals': 'Signalen',
+    'Forecasts': 'Prognoses',
+    'Reports': 'Rapporten',
+    'Workspaces': 'Werkruimtes',
+    'Autonomous project command': 'Autonome projectsturing',
+    'Approval and operations ledger': 'Goedkeurings- en bewerkingenlogboek',
+    'Account connectors': 'Accountkoppelingen',
+    'Enhancement backlog': 'Verbeterachterstand',
+    'Cross-tool work signals': 'Werkssignalen uit meerdere tools',
+    'Capacity and delivery forecasts': 'Capaciteits- en leveringsprognoses',
+    'Stakeholder reports': 'Stakeholderrapporten',
+    'Stakeholder Reports': 'Stakeholderrapporten',
+    'Workspace administration': 'Werkruimtebeheer',
+    'Loading Sneup...': 'Sneup wordt geladen...',
+    'Workspace': 'Werkruimte',
+    'Current workspace': 'Huidige werkruimte',
+    'Language': 'Taal',
+    'Quick switch': 'Snel wisselen',
+    'Quick switch actions': 'Acties voor snel wisselen',
+    'Help': 'Help',
+    'Set up': 'Instellen',
+    'Refresh': 'Vernieuwen',
+    'Review approvals': 'Goedkeuringen beoordelen',
+    'Connect tools': 'Tools koppelen',
+    'Loading command brief': 'Commando-overzicht wordt geladen',
+    'Sneup is reading the current portfolio state.': 'Sneup leest de huidige portfoliostatus.',
+    'Confidence 0%': 'Betrouwbaarheid 0%',
+    'Operations Brief': 'Bewerkingenoverzicht',
+    'Job Health': 'Taakstatus',
+    'Command Queue': 'Commando-wachtrij',
+    'Today': 'Vandaag',
+    'Focus Queue': 'Focuswachtrij',
+    'Team Load': 'Teambelasting',
+    'Boards': 'Borden',
+    'Decision Queue': 'Besliswachtrij',
+    'Decision queue filter': 'Filter voor besliswachtrij',
+    'All': 'Alles',
+    'Team': 'Team',
+    'Recommendation Review': 'Aanbevelingen beoordelen',
+    'Card Findings': 'Kaartbevindingen',
+    'Operational Timeline': 'Operationele tijdlijn',
+    'Board Health': 'Bordstatus',
+    'Trello Action Attempts': 'Trello-actiepogingen',
+    'Delivery Policies': 'Bezorgbeleid',
+    'Add policy': 'Beleid toevoegen',
+    'Delivery Ledger': 'Bezorglogboek',
+    'Follow-ups Due': 'Openstaande opvolgingen',
+    'Worker Accountability': 'Verantwoording van medewerkers',
+    'Outcome Verification': 'Resultaatcontrole',
+    'Audit Trail': 'Auditspoor',
+    'Tool Stack': 'Toolset',
+    'Search tools': 'Tools zoeken',
+    'Connector readiness filter': 'Filter voor gereedheid van koppelingen',
+    'Ready': 'Gereed',
+    'Catalog only': 'Alleen catalogus',
+    'Cross-tool Work Signals': 'Werkssignalen uit meerdere tools',
+    'Work signal status filter': 'Statusfilter voor werksignalen',
+    'Open': 'Open',
+    'Blocked': 'Geblokkeerd',
+    'Waiting': 'Wachtend',
+    'Adapter Contracts': 'Adaptercontracten',
+    'Enhancement Findings': 'Verbeterbevindingen',
+    'Enhancement priority filter': 'Prioriteitsfilter voor verbeteringen',
+    'Enhancement status filter': 'Statusfilter voor verbeteringen',
+    'In progress': 'In uitvoering',
+    'Needs research': 'Onderzoek nodig',
+    'Done': 'Gereed',
+    'Enhancement area filter': 'Gebiedsfilter voor verbeteringen',
+    'All areas': 'Alle gebieden',
+    'Action Backlog': 'Actieachterstand',
+    'Delivery Range': 'Leveringsbereik',
+    'Capacity Assumptions': 'Capaciteitsaannames',
+    'Board Forecasts': 'Bordprognoses',
+    'Workspace Control': 'Werkruimtebeheer',
+    'Export workspace data': 'Werkruimtegegevens exporteren',
+    'Delete archived workspace': 'Gearchiveerde werkruimte verwijderen',
+    'Users': 'Gebruikers',
+    'Invitations': 'Uitnodigingen',
+    'Invite user': 'Gebruiker uitnodigen',
+    'Action Safety': 'Actieveiligheid',
+    'Feature Rollouts': 'Functie-uitrol',
+    'Data Integrity': 'Gegevensintegriteit',
+    'Data Retention': 'Gegevensbewaring',
+    'Safety History': 'Veiligheidsgeschiedenis',
+    'Safety history policy filter': 'Beleidsfilter voor veiligheidsgeschiedenis',
+    'Actor': 'Actor',
+    'Safety history actor filter': 'Actorfilter voor veiligheidsgeschiedenis',
+    'Safety history time filter': 'Tijdfilter voor veiligheidsgeschiedenis',
+    'All time': 'Alle tijden',
+    'Last 7 days': 'Afgelopen 7 dagen',
+    'Last 30 days': 'Afgelopen 30 dagen',
+    'Last 90 days': 'Afgelopen 90 dagen',
+    'Scan': 'Scannen',
+    'Connect account': 'Account koppelen',
+    'Close': 'Sluiten',
+    'Search': 'Zoeken',
+    'Find a workspace view or action': 'Zoek een werkruimteweergave of actie',
+    'Sneup help': 'Sneup-help',
+    'Guidance for the current workspace': 'Hulp voor de huidige werkruimte',
+    'Search help': 'Help doorzoeken',
+    'Find a workflow, safety rule, or data control': 'Zoek een werkproces, veiligheidsregel of gegevensbeheer',
+    'Help topics': 'Helponderwerpen',
+    'advisory': 'adviserend',
+    'current': 'huidig',
+    'loading': 'laden',
+    'not scanned': 'niet gescand',
+    'ready': 'gereed',
+    '0 actions': '0 acties',
+    '0 attempts': '0 pogingen',
+    '0 boards': '0 borden',
+    '0 changes': '0 wijzigingen',
+    '0 connected': '0 gekoppeld',
+    '0 controls': '0 instellingen',
+    '0 decisions': '0 beslissingen',
+    '0 due': '0 openstaand',
+    '0 events': '0 gebeurtenissen',
+    '0 items': '0 items',
+    '0 open': '0 open',
+    '0 pending': '0 in afwachting',
+    '0 people': '0 personen',
+    '0 policies': '0 beleidsregels',
+    '0 providers': '0 providers',
+    '0 ready': '0 gereed',
+    '0 recent': '0 recent',
+    '0 review': '0 te beoordelen',
+    '0 snapshots': '0 momentopnamen',
+    '0 tracked': '0 gevolgd',
+    '0 users': '0 gebruikers',
+    'Open overview': 'Overzicht openen',
+    'Mission control, focus, team load, and board health': 'Missiecontrole, focus, teambelasting en bordstatus',
+    'Decision queue and approval ledger': 'Besliswachtrij en goedkeuringslogboek',
+    'Open account connectors': 'Accountkoppelingen openen',
+    'Connected tools and access reviews': 'Gekoppelde tools en toegangsbeoordelingen',
+    'Open cross-tool signals': 'Tooloverstijgende signalen openen',
+    'Normalized provider work and dependencies': 'Genormaliseerd providerwerk en afhankelijkheden',
+    'Open capacity forecasts': 'Capaciteitsprognoses openen',
+    'What-if delivery and workload scenarios': 'Wat-als-scenario’s voor levering en werkdruk',
+    'Open stakeholder reports': 'Stakeholderrapporten openen',
+    'Status, stand-up, risk, and client exports': 'Status-, stand-up-, risico- en klantrapporten',
+    'Open enhancement backlog': 'Verbeterachterstand openen',
+    'Prioritized product improvements': 'Geprioriteerde productverbeteringen',
+    'Open workspace administration': 'Werkruimtebeheer openen',
+    'Users, sessions, invitations, and action safety': 'Gebruikers, sessies, uitnodigingen en actieveiligheid',
+    'Refresh command center': 'Commandocentrum vernieuwen',
+    'Reload current workspace data': 'Huidige werkruimtegegevens opnieuw laden',
+    'No matching command.': 'Geen overeenkomende opdracht.',
+    'Current runtime check': 'Huidige runtimecontrole',
+    'Configuration and safety status': 'Configuratie- en veiligheidsstatus',
+    'Check again': 'Opnieuw controleren',
+    'Support file': 'Ondersteuningsbestand',
+    'Checking this runtime...': 'Deze runtime wordt gecontroleerd...',
+    'Checking...': 'Controleren...',
+    'Creating...': 'Aanmaken...',
+    'Demo workspace': 'Demowerkruimte',
+    'Connected workspace': 'Gekoppelde werkruimte',
+    'Connect workspace': 'Werkruimte koppelen',
+    'Set up Sneup': 'Sneup instellen',
+    'Choose how this device starts. You can return here whenever your workspace is ready.': 'Kies hoe dit apparaat start. U kunt hier terugkomen zodra uw werkruimte gereed is.',
+    'Sneup startup mode': 'Opstartmodus van Sneup',
+    'This device stores only the startup mode. Sneup does not collect credentials during setup.': 'Dit apparaat bewaart alleen de opstartmodus. Sneup verzamelt tijdens het instellen geen inloggegevens.',
+    'Save and restart': 'Opslaan en opnieuw starten',
+    'Continue': 'Doorgaan',
+    'Restarting...': 'Opnieuw starten...',
+    'Explore Sneup with local sample activity. No provider account is connected.': 'Verken Sneup met lokale voorbeeldactiviteit. Er is geen provideraccount gekoppeld.',
+    'Sneup will restart and attempt your database-backed workspace. If MongoDB is unavailable, live mode stops and offers a read-only demo restart.': 'Sneup start opnieuw en probeert uw databasewerkruimte te openen. Als MongoDB niet beschikbaar is, stopt de livemodus en wordt een alleen-lezen demoherstart aangeboden.',
+    'Sneup is running its local demo workspace. No provider account is connected.': 'Sneup gebruikt de lokale demowerkruimte. Er is geen provideraccount gekoppeld.',
+    'Sneup is connected to its running workspace. Account connections and approval controls use this active runtime.': 'Sneup is gekoppeld aan de actieve werkruimte. Accountkoppelingen en goedkeuringscontroles gebruiken deze runtime.',
+    'Runtime mode is selected when Sneup starts. This browser reflects that active mode and does not change it.': 'De runtimemodus wordt gekozen wanneer Sneup start. Deze browser toont de actieve modus en wijzigt deze niet.',
+    'Live workspace prerequisites are ready.': 'De vereisten voor de livewerkruimte zijn gereed.',
+    'The read-only demo workspace is ready.': 'De alleen-lezen demowerkruimte is gereed.',
+    'Review': 'Beoordelen',
+    'Required': 'Vereist',
+    'Next: {action}': 'Volgende: {action}',
+    'Runtime check unavailable.': 'Runtimecontrole niet beschikbaar.',
+    'Startup preference failed': 'Opstartvoorkeur mislukt',
+    'Sneup could not save this startup mode.': 'Sneup kon deze opstartmodus niet opslaan.',
+    'Overview': 'Overzicht',
+    'Daily command': 'Dagelijkse sturing',
+    'Start here to see what needs attention now, what can proceed automatically, and where delivery confidence is changing.': 'Begin hier om te zien wat nu aandacht nodig heeft, wat automatisch verder kan en waar de leveringszekerheid verandert.',
+    'Read the operations brief for the smallest set of decisions that unblock work.': 'Lees het bewerkingenoverzicht voor de kleinste reeks beslissingen die werk vrijmaakt.',
+    'Use the focus queue and team load together before changing priorities.': 'Gebruik de focuswachtrij en teambelasting samen voordat u prioriteiten wijzigt.',
+    'Open a board or evidence link when a risk needs source-level confirmation.': 'Open een bord of bewijslink wanneer een risico bronbevestiging nodig heeft.',
+    'The overview is advisory. It does not approve or execute provider changes.': 'Het overzicht is adviserend. Het keurt providerwijzigingen niet goed en voert ze niet uit.',
+    'Refresh only when you need newer source data; each view otherwise loads on demand.': 'Vernieuw alleen wanneer u nieuwere brongegevens nodig hebt; elke weergave wordt verder op aanvraag geladen.',
+    'Approvals and ledger': 'Goedkeuringen en logboek',
+    'Human decisions': 'Menselijke beslissingen',
+    'Review exact proposed changes, their evidence, and every attempt recorded in the operations ledger.': 'Beoordeel exacte voorgestelde wijzigingen, het bewijs en elke poging in het bewerkingenlogboek.',
+    'Filter the decision queue by owner and open the item blocking the most work.': 'Filter de besliswachtrij op eigenaar en open het item dat het meeste werk blokkeert.',
+    'Compare the protected target, exact payload, risk, policy result, expiry, and source evidence.': 'Vergelijk het beschermde doel, de exacte payload, het risico, beleidsresultaat, de vervaldatum en het bronbewijs.',
+    'Approve or reject only the displayed payload. A changed payload requires a new approval.': 'Keur alleen de getoonde payload goed of af. Een gewijzigde payload vereist een nieuwe goedkeuring.',
+    'Reconcile an ambiguous attempt from observed provider evidence instead of retrying it blindly.': 'Stem een onduidelijke poging af op waargenomen providerbewijs in plaats van deze blind opnieuw uit te voeren.',
+    'Approval authorizes one bounded payload; it is not permission for future related changes.': 'Goedkeuring machtigt één begrensde payload; het is geen toestemming voor toekomstige gerelateerde wijzigingen.',
+    'The audit trail and action attempts remain the source of truth after execution.': 'Het auditspoor en de actiepogingen blijven na uitvoering de bron van waarheid.',
+    'Review decisions': 'Beslissingen beoordelen',
+    'Accounts and tools': 'Accounts en tools',
+    'Connect project, communication, document, scheduling, and delivery tools through reviewed read-only access.': 'Koppel project-, communicatie-, document-, planning- en leveringstools via beoordeelde alleen-lezen toegang.',
+    'Search by provider or category, then check whether the connector is ready, requires setup, or is catalog-only.': 'Zoek op provider of categorie en controleer daarna of de koppeling gereed is, instelling vereist of alleen in de catalogus staat.',
+    'Review requested scopes before leaving Sneup for provider consent or entering a credential.': 'Beoordeel gevraagde scopes voordat u Sneup verlaat voor providertoestemming of inloggegevens invoert.',
+    'After connection, select the intended account, workspace, or site and run a read-only sync.': 'Selecteer na het koppelen het bedoelde account, de werkruimte of site en voer een alleen-lezen synchronisatie uit.',
+    'Review stale credentials and disconnect accounts that are no longer needed.': 'Beoordeel verouderde inloggegevens en ontkoppel accounts die niet meer nodig zijn.',
+    'A listed connector is not claimed live until its account authorization and sync succeed.': 'Een vermelde koppeling geldt pas als live wanneer accountautorisatie en synchronisatie slagen.',
+    'Provider writes remain blocked here; proposed changes enter the approval ledger.': 'Providerschrijfacties blijven hier geblokkeerd; voorgestelde wijzigingen gaan naar het goedkeuringslogboek.',
+    'Open connectors': 'Koppelingen openen',
+    'Cross-tool signals': 'Tooloverstijgende signalen',
+    'Normalized work': 'Genormaliseerd werk',
+    'Inspect read-only work signals from connected systems without treating unlike provider records as identical.': 'Bekijk alleen-lezen werksignalen uit gekoppelde systemen zonder verschillende providerrecords als identiek te behandelen.',
+    'Use filters to isolate stale, blocked, unmapped, or low-quality signals.': 'Gebruik filters om verouderde, geblokkeerde, niet-gekoppelde of kwalitatief zwakke signalen te isoleren.',
+    'Open source evidence before acting on a normalized status or dependency.': 'Open bronbewijs voordat u handelt op basis van een genormaliseerde status of afhankelijkheid.',
+    'Review mapping candidates and contracts when records are missing a project or board relationship.': 'Beoordeel koppelingskandidaten en contracten wanneer records geen project- of bordrelatie hebben.',
+    'Signal quality reflects available provider evidence, not certainty about team intent.': 'Signaalkwaliteit weerspiegelt beschikbaar providerbewijs, niet zekerheid over de intentie van het team.',
+    'Mapping changes affect Sneup analysis only and do not edit provider records.': 'Koppelingswijzigingen beïnvloeden alleen de Sneup-analyse en wijzigen geen providerrecords.',
+    'Inspect signals': 'Signalen bekijken',
+    'Capacity and delivery': 'Capaciteit en levering',
+    'Compare workload, capacity, time off, and mapped schedule evidence to find delivery pressure early.': 'Vergelijk werkdruk, capaciteit, verlof en gekoppeld planningsbewijs om leveringsdruk vroeg te herkennen.',
+    'Start with portfolio confidence and boards at risk, then inspect the contributing capacity assumptions.': 'Begin met portfoliozekerheid en risicoborden en bekijk daarna de onderliggende capaciteitsaannames.',
+    'Maintain each person\'s working hours, allocation, focus time, skills, and planned time off.': 'Beheer per persoon werkuren, toewijzing, focustijd, vaardigheden en gepland verlof.',
+    'Use a temporary scenario to explore a change before saving any capacity input.': 'Gebruik een tijdelijk scenario om een wijziging te onderzoeken voordat u capaciteitsinvoer opslaat.',
+    'Map provider project IDs only when the schedule evidence belongs to the selected board.': 'Koppel providerproject-ID’s alleen wanneer het planningsbewijs bij het geselecteerde bord hoort.',
+    'Scenarios are temporary and never change provider data or queued decisions.': 'Scenario’s zijn tijdelijk en wijzigen nooit providergegevens of beslissingen in de wachtrij.',
+    'Forecasts are decision support, not delivery guarantees.': 'Prognoses ondersteunen beslissingen en zijn geen leveringsgaranties.',
+    'Open forecasts': 'Prognoses openen',
+    'Stakeholder updates': 'Stakeholderupdates',
+    'Generate evidence-backed status, stand-up, risk, and client views from the current workspace state.': 'Genereer op bewijs gebaseerde status-, stand-up-, risico- en klantweergaven vanuit de huidige werkruimtestatus.',
+    'Choose the report whose audience and time horizon match the update you need.': 'Kies het rapport waarvan doelgroep en tijdshorizon passen bij de benodigde update.',
+    'Review risks, decisions, confidence, and source links before sharing an export.': 'Beoordeel risico’s, beslissingen, zekerheid en bronlinks voordat u een export deelt.',
+    'Refresh workspace data first when the report must reflect a newly completed sync.': 'Vernieuw eerst de werkruimtegegevens wanneer het rapport een zojuist voltooide synchronisatie moet bevatten.',
+    'A generated report reflects the evidence available at generation time.': 'Een gegenereerd rapport weerspiegelt het bewijs dat tijdens het genereren beschikbaar was.',
+    'Keep approval details and internal evidence within the intended audience.': 'Houd goedkeuringsdetails en intern bewijs binnen de bedoelde doelgroep.',
+    'Open reports': 'Rapporten openen',
+    'Product improvement': 'Productverbetering',
+    'Review the prioritized improvement backlog and the evidence behind each recommendation.': 'Beoordeel de geprioriteerde verbeterachterstand en het bewijs achter elke aanbeveling.',
+    'Filter by priority, status, and product area to find the next actionable improvement.': 'Filter op prioriteit, status en productgebied om de volgende uitvoerbare verbetering te vinden.',
+    'Compare user value, effort, risk, and implementation evidence before changing status.': 'Vergelijk gebruikerswaarde, inspanning, risico en implementatiebewijs voordat u de status wijzigt.',
+    'Keep external prerequisites visible instead of marking a recommendation complete without proof.': 'Houd externe vereisten zichtbaar in plaats van een aanbeveling zonder bewijs als voltooid te markeren.',
+    'Backlog priority is advisory and should be revisited when operating evidence changes.': 'De achterstandsprioriteit is adviserend en moet opnieuw worden bekeken wanneer operationeel bewijs verandert.',
+    'Live-provider and infrastructure gates cannot be completed by local code alone.': 'Liveprovider- en infrastructuurgates kunnen niet alleen met lokale code worden voltooid.',
+    'Open enhancements': 'Verbeteringen openen',
+    'Access and governance': 'Toegang en governance',
+    'Manage workspace lifecycle, people, sessions, action policies, feature rollouts, integrity, retention, and export.': 'Beheer de werkruimtelevenscyclus, personen, sessies, actiebeleid, functie-uitrol, integriteit, bewaring en export.',
+    'Confirm the selected workspace before inviting people, changing roles, or editing policies.': 'Bevestig de geselecteerde werkruimte voordat u personen uitnodigt, rollen wijzigt of beleid bewerkt.',
+    'Use integrity and retention previews before any repair or deletion is confirmed.': 'Gebruik voorbeelden voor integriteit en bewaring voordat een reparatie of verwijdering wordt bevestigd.',
+    'Export workspace data before archival or permanent deletion when records must be retained.': 'Exporteer werkruimtegegevens vóór archivering of permanente verwijdering wanneer records bewaard moeten blijven.',
+    'Review safety history after policy or rollout changes.': 'Beoordeel de veiligheidsgeschiedenis na beleids- of uitrolwijzigingen.',
+    'Destructive and safety-relaxing actions require owner-level confirmation and are audited.': 'Destructieve en veiligheidsverlagende acties vereisen bevestiging op eigenaarsniveau en worden geaudit.',
+    'Archived workspaces cannot perform provider writes.': 'Gearchiveerde werkruimtes kunnen geen providerschrijfacties uitvoeren.',
+    'Open administration': 'Beheer openen',
+    'Setup and live readiness': 'Instelling en livegereedheid',
+    'Getting connected': 'Verbinding maken',
+    'Check whether this runtime is a safe local demo or a fully configured live workspace, and see exact remediation for missing prerequisites.': 'Controleer of deze runtime een veilige lokale demo of een volledig ingestelde livewerkruimte is en bekijk de exacte oplossing voor ontbrekende vereisten.',
+    'Open Set up and review all eight redacted runtime checks.': 'Open Instellen en beoordeel alle acht geredigeerde runtimecontroles.',
+    'Use demo mode to explore locally without provider accounts or database writes.': 'Gebruik de demomodus om lokaal te verkennen zonder provideraccounts of databaseschrijfacties.',
+    'For live mode, configure the database, purpose-separated secrets, Trello access, and optional ngrok settings outside the browser.': 'Configureer voor de livemodus buiten de browser de database, doelgescheiden geheimen, Trello-toegang en optionele ngrok-instellingen.',
+    'Create a redacted support file from the Windows app when diagnostics need to be shared.': 'Maak in de Windows-app een geredigeerd ondersteuningsbestand wanneer diagnostiek gedeeld moet worden.',
+    'Sneup never asks for production secrets in the setup screen.': 'Sneup vraagt in het instelscherm nooit om productiegeheimen.',
+    'Remote access fails closed when its authentication or tunnel configuration is weak.': 'Externe toegang faalt gesloten wanneer authenticatie of tunnelconfiguratie zwak is.',
+    'Open setup': 'Instellingen openen',
+    'Decision safety': 'Beslissingsveiligheid',
+    'Approval boundaries': 'Goedkeuringsgrenzen',
+    'Understand the controls that keep recommendations, approvals, executions, and reconciliations separate.': 'Begrijp de controles die aanbevelingen, goedkeuringen, uitvoeringen en afstemmingen gescheiden houden.',
+    'Treat a recommendation as analysis until an exact payload is prepared.': 'Behandel een aanbeveling als analyse totdat een exacte payload is voorbereid.',
+    'Verify target, action, payload, evidence, policy, approver, and expiry before approval.': 'Controleer vóór goedkeuring het doel, de actie, payload, het bewijs, beleid, de goedkeurder en vervaldatum.',
+    'After approval, execution claims the action once and records the provider result.': 'Na goedkeuring claimt de uitvoering de actie eenmaal en legt het providerresultaat vast.',
+    'If the provider result is ambiguous, inspect the provider and reconcile the ledger without sending again.': 'Als het providerresultaat onduidelijk is, controleer dan de provider en stem het logboek af zonder opnieuw te verzenden.',
+    'Emergency stop, workspace status, policy, approval, expiry, and idempotency are checked before a provider write.': 'Noodstop, werkruimtestatus, beleid, goedkeuring, vervaldatum en idempotentie worden vóór een providerschrijfactie gecontroleerd.',
+    'Chat, forecasts, reports, signals, and help content cannot approve an action.': 'Chat, prognoses, rapporten, signalen en helpinhoud kunnen geen actie goedkeuren.',
+    'Open safety ledger': 'Veiligheidslogboek openen',
+    'Privacy and data control': 'Privacy en gegevensbeheer',
+    'Workspace data': 'Werkruimtegegevens',
+    'Control what Sneup retains, exports, repairs, and removes while preserving evidence required for accountability.': 'Bepaal wat Sneup bewaart, exporteert, repareert en verwijdert, terwijl bewijs voor verantwoording behouden blijft.',
+    'Use workspace export for a streamed copy of workspace records with sensitive fields redacted.': 'Gebruik werkruimte-export voor een gestreamde kopie van werkruimterecords met geredigeerde gevoelige velden.',
+    'Preview retention candidates and integrity findings before applying a bounded change.': 'Bekijk bewaarkandidaten en integriteitsbevindingen voordat u een begrensde wijziging toepast.',
+    'Revoke or disconnect accounts that should no longer supply read-only signals.': 'Trek accounts in of ontkoppel ze wanneer ze geen alleen-lezen signalen meer moeten leveren.',
+    'Archive before requesting permanent workspace deletion.': 'Archiveer voordat u permanente verwijdering van de werkruimte aanvraagt.',
+    'Credentials, tokens, connection strings, and confirmation text are excluded from local draft storage.': 'Inloggegevens, tokens, verbindingsreeksen en bevestigingstekst worden uitgesloten van lokale conceptopslag.',
+    'Audit, approval, provider-attempt, and current-work evidence are protected from routine retention.': 'Audit-, goedkeurings-, providerpoging- en huidig-werkbewijs is beschermd tegen routinematige bewaring.',
+    'Open data controls': 'Gegevensbeheer openen',
+    'What to do': 'Wat te doen',
+    'Keep in mind': 'Let op',
+    'No matching help topic.': 'Geen overeenkomend helponderwerp.',
+    '{fileName} was created and opened in File Explorer.': '{fileName} is aangemaakt en geopend in Verkenner.',
+    'Support file failed: {message}': 'Ondersteuningsbestand mislukt: {message}',
+    'Sneup could not create the file.': 'Sneup kon het bestand niet aanmaken.',
+    'Demo mode': 'Demomodus',
+    'Live mode': 'Livemodus',
+    '{mode} updated {date}': '{mode} bijgewerkt op {date}',
+    'Active cards': 'Actieve kaarten',
+    'Overdue': 'Te laat',
+    'High risk': 'Hoog risico',
+    'Unassigned': 'Niet toegewezen',
+    'Overloaded': 'Overbelast',
+    'Graph decisions': 'Graafbeslissingen',
+    'Next decision:': 'Volgende beslissing:',
+    'Step {count}': 'Stap {count}',
+    'Next:': 'Volgende:',
+    'Review Robert decision': 'Robert-beslissing beoordelen',
+    'Morning plan': 'Ochtendplan',
+    'read-only': 'alleen-lezen',
+    '{robert} Robert, {graph} graph': '{robert} Robert, {graph} graaf',
+    'Open VA work': 'VA-werk openen',
+    'Open team queue': 'Teamwachtrij openen',
+    'Review external wait': 'Extern wachten beoordelen',
+    'Review follow-up': 'Opvolging beoordelen',
+    'Review failed action': 'Mislukte actie beoordelen',
+    'Review board health': 'Bordstatus beoordelen',
+    'critical': 'kritiek',
+    'high': 'hoog',
+    'medium': 'gemiddeld',
+    'low': 'laag',
+    'healthy': 'gezond',
+    'at_risk': 'risico',
+    'overloaded': 'overbelast',
+    'heavy': 'zwaar',
+    'balanced': 'in balans',
+    'light': 'licht',
+    'review': 'beoordelen',
+    '{count} min saved': '{count} min bespaard',
+    'Read-only demo preview': 'Alleen-lezen demovoorbeeld',
+    'Queue for approval': 'Ter goedkeuring aanbieden',
+    'Card ledger': 'Kaartlogboek',
+    '{count} assigned': '{count} toegewezen',
+    '{count} urgent': '{count} urgent',
+    '{count} overdue': '{count} te laat',
+    'No specialty signal yet': 'Nog geen specialisatiesignaal',
+    '{active} active | {overdue} overdue | {unassigned} unassigned': '{active} actief | {overdue} te laat | {unassigned} niet toegewezen',
+    '{count} cards/week': '{count} kaarten/week',
+    '{count} blocked': '{count} geblokkeerd',
+    'Operating ledger': 'Bewerkingenlogboek',
+    'Nothing needs attention.': 'Niets vereist aandacht.',
+    'No date': 'Geen datum',
+    'Confidence {value}%': 'Betrouwbaarheid {value}%',
+    '{count} topic': '{count} onderwerp',
+    '{count} topics': '{count} onderwerpen',
+    '{count} decision': '{count} beslissing',
+    '{count} decisions': '{count} beslissingen',
+    '{count} board': '{count} bord',
+    '{count} boards': '{count} borden',
+    '{count} item': '{count} item',
+    '{count} items': '{count} items',
+    '{count} person': '{count} persoon',
+    '{count} people': '{count} personen',
+    '{count} ready item': '{count} gereed item',
+    '{count} ready items': '{count} gereed items',
+    '{count} tracked job': '{count} gevolgde taak',
+    '{count} tracked jobs': '{count} gevolgde taken',
+    '{count} check needs attention.': '{count} controle vereist aandacht.',
+    '{count} checks need attention.': '{count} controles vereisen aandacht.'
+  });
+
+  const normalizeLocale = value => String(value || '').toLowerCase().startsWith('nl') ? 'nl' : 'en';
+  const interpolate = (message, params = {}) => String(message).replace(/\{([a-zA-Z0-9_]+)\}/g, (match, key) => (
+    Object.prototype.hasOwnProperty.call(params, key) ? String(params[key]) : match
+  ));
+
+  function createRuntime(options = {}) {
+    const runtimeRoot = options.root === undefined ? root : options.root;
+    const storage = options.storage || runtimeRoot?.localStorage;
+    const navigatorLanguage = options.language || runtimeRoot?.navigator?.languages?.[0] || runtimeRoot?.navigator?.language;
+    const documentStates = new WeakMap();
+    let locale;
+    try {
+      locale = normalizeLocale(storage?.getItem(STORAGE_KEY) || navigatorLanguage);
+    } catch (error) {
+      locale = normalizeLocale(navigatorLanguage);
+    }
+
+    const t = (message, params = {}) => interpolate(
+      locale === 'nl' && Object.prototype.hasOwnProperty.call(NL_MESSAGES, message) ? NL_MESSAGES[message] : message,
+      params
+    );
+    const hasTranslation = message => Object.prototype.hasOwnProperty.call(NL_MESSAGES, message);
+    const plural = (singular, pluralMessage, count, params = {}) => t(count === 1 ? singular : pluralMessage, { ...params, count });
+    const localeTag = () => LOCALE_TAGS[locale];
+    const formatNumber = (value, formatOptions = {}) => new Intl.NumberFormat(localeTag(), formatOptions).format(value);
+    const formatDate = (value, formatOptions = {}) => new Intl.DateTimeFormat(localeTag(), formatOptions).format(new Date(value));
+
+    function captureStatic(document) {
+      if (!document || documentStates.has(document)) return documentStates.get(document);
+      const entries = [];
+      const body = document.body;
+      if (body) {
+        const walker = document.createTreeWalker(body, 4);
+        let node = walker.nextNode();
+        while (node) {
+          const source = node.nodeValue.trim();
+          const parent = node.parentElement;
+          if (source && hasTranslation(source) && !parent?.closest('[data-i18n-ignore]')) {
+            entries.push({ node, source, leading: node.nodeValue.match(/^\s*/)?.[0] || '', trailing: node.nodeValue.match(/\s*$/)?.[0] || '' });
+          }
+          node = walker.nextNode();
+        }
+        for (const element of body.querySelectorAll('*')) {
+          if (element.closest('[data-i18n-ignore]')) continue;
+          for (const attribute of ['aria-label', 'placeholder', 'title']) {
+            const source = element.getAttribute(attribute);
+            if (source && hasTranslation(source)) entries.push({ element, attribute, source });
+          }
+        }
+      }
+      const title = document.title;
+      const state = { entries, title };
+      documentStates.set(document, state);
+      return state;
+    }
+
+    function applyStatic(document = runtimeRoot?.document) {
+      if (!document) return;
+      const state = captureStatic(document);
+      document.documentElement.lang = locale;
+      document.title = t(state.title);
+      state.entries.forEach(entry => {
+        if (entry.node) entry.node.nodeValue = `${entry.leading}${t(entry.source)}${entry.trailing}`;
+        else entry.element.setAttribute(entry.attribute, t(entry.source));
+      });
+      const select = document.getElementById('languageSelect');
+      if (select) select.value = locale;
+    }
+
+    function setLocale(value, setOptions = {}) {
+      const nextLocale = normalizeLocale(value);
+      if (!SUPPORTED_LOCALES.includes(nextLocale)) return locale;
+      locale = nextLocale;
+      try {
+        storage?.setItem(STORAGE_KEY, locale);
+      } catch (error) {
+        // Language remains active for this session when browser storage is unavailable.
+      }
+      applyStatic(setOptions.document || runtimeRoot?.document);
+      if (setOptions.notify !== false && runtimeRoot?.document && typeof runtimeRoot.CustomEvent === 'function') {
+        runtimeRoot.document.dispatchEvent(new runtimeRoot.CustomEvent('sneup:localechange', { detail: { locale } }));
+      }
+      return locale;
+    }
+
+    return {
+      STORAGE_KEY,
+      SUPPORTED_LOCALES,
+      getLocale: () => locale,
+      localeTag,
+      t,
+      hasTranslation,
+      plural,
+      formatNumber,
+      formatDate,
+      applyStatic,
+      setLocale
+    };
+  }
+
+  const runtime = createRuntime();
+  if (root?.document) runtime.applyStatic(root.document);
+  return { ...runtime, createRuntime, NL_MESSAGES };
+});

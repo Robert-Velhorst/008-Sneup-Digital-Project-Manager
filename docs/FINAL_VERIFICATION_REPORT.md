@@ -6,7 +6,7 @@ This report is updated from executed commands at release time. A passing local s
 
 - Branch: `main`
 - Starting commit: `b2e98d16d08e267342e56ede90425eb83fd0d7b1`
-- Release under verification: `2.3.15`
+- Release under verification: `2.3.16`
 - Default remote: `origin`
 
 ## Verification ledger
@@ -17,7 +17,7 @@ This report is updated from executed commands at release time. A passing local s
 | Focused retention tests | Pass: owner permissions, policy bounds, dry-run exclusions, exact confirmation, pre-delete audit failure, distributed worker lease, UI wiring, and rotation across bounded workspace batches |
 | ESLint | Pass |
 | Doctor | Pass with expected local warnings for absent MongoDB/Trello configuration; no errors; ngrok disabled locally |
-| Full regression | Pass: 104 suites, 793 tests, including portfolio-scale bounded ranking, workspace-scoped form storage, contextual help/search/focus/routing, browser bootstrap, provider failure, provenance, API validation, lazy-load, and ledger-compatibility paths |
+| Full regression | Pass: 105 suites, 799 tests, including English/Dutch static-shell and help-catalog completeness, accessibility-label restoration, evidence preservation, portfolio-scale bounded ranking, provider failure, provenance, API validation, lazy-load, and ledger-compatibility paths |
 | Recommendation evaluation | Pass: 5/5 scenarios, score 100% |
 | Production and full dependency audit | Pass: 0 vulnerabilities after lockfile remediation |
 | Release security positive check | Pass: five purpose-separated production secrets, no values exposed |
@@ -34,13 +34,13 @@ This report is updated from executed commands at release time. A passing local s
 | Integrity API performance sample | Pass: 30 live requests measured 14.01 ms p50 and 23.71 ms p95; server working set 119.5 MB after browser QA |
 | Portfolio-scale profile | Pass: real mission control read 60 boards/300 lists/15,000 cards/100 members/60 analytics records; 1,264.9 ms cold, 613.0-1,111.0 ms repeated, 353.5 MB peak verifier RSS, exact compound card index selected, 10/12/12 outputs bounded, approval required, provider writes false |
 | Bounded-ranking resource sample | Pass: worst-case 15,000-card focus improved 42.8 to 16.2 ms, risks 50.5 to 19.9 ms, commands 90.3 to 43.2 ms, and command peak RSS about 165 to 106 MB while preserving stable rank/evidence behavior |
-| Startup profile | Pass: current demo sample imported 251 modules in 372.7 ms at 71.1 MB RSS, served health plus the complete initial overview in 126.3 ms at 76.0 MB RSS, and never loaded MongoDB; hidden help DOM is deferred until first open |
+| Startup profile | Pass: current demo sample imported 251 modules in 226.5 ms at 70.8 MB RSS, served health plus the complete initial overview in 65.9 ms at 74.3 MB RSS, and never loaded MongoDB; localization adds no server module and hidden help DOM remains deferred until first open |
 | Optional AI resource profile | Pass: loading offline chat did not load OpenAI; loading the deferred SDK afterward added 122 modules, 6.0 MB RSS, and 4.65 seconds in this cold local sample |
-| Browser QA | Pass: prior live disposable-workspace draft/preset coverage remains green; the 2.3.14 in-app Browser also verified contextual Forecasts help, local search, Decision Safety, Approvals handoff, focus placement, desktop and narrow viewport containment, and zero current console errors |
+| Browser QA | Pass: in-app Browser verified English/Dutch restoration, translated static shell, help search/topic/action routing, setup diagnostics, accessible language labels, desktop and compact viewport containment, intentional verbatim provider evidence, and zero current console warnings/errors |
 | Windows UI automation | The installed Windows-control package did not expose its required guidance interface; no undocumented input was attempted and visual evidence is not inferred from HTTP or window metadata |
-| Packaged Windows QA | Pass: repeatable verifier confirmed 2.3.15 product metadata, healthy demo state, eight redacted diagnostics, HAI `never_direct`, normal main-window close, and loopback port release |
-| Packaged idle sample | Pass: the four-process build settled to 358.8 MB working set, 287.4 MB private memory, and 2.391 cumulative CPU seconds after 30 seconds. This is a directional local sample rather than a production-scale benchmark. |
-| Windows installer | Pass: local build 109,454,208 bytes, unsigned, SHA-256 `EDDC7030114E5D424398ACA79BB8683A6DE08B919F9AC7BD7955F9AF81068FD6`; executable metadata reports 2.3.15 |
+| Packaged Windows QA | Pass: repeatable verifier confirmed 2.3.16 product metadata, healthy demo state, eight redacted diagnostics, HAI `never_direct`, normal main-window close, and loopback port release |
+| Packaged idle sample | Pass: the four-process build settled to 360.6 MB working set, 292.6 MB private memory, and 1.859 cumulative CPU seconds after 30 seconds. This is a directional local sample rather than a production-scale benchmark. |
+| Windows installer | Pass: local build 109,462,200 bytes, unsigned, SHA-256 `33F959504DAE00AE5F8ED4D5DAB5FC2CA21FDA3B7CAB40BAF1554DE49E6587E5`; executable metadata reports 2.3.16 |
 | Fresh clone | Pass: GitHub checked out exact source `2fa0a91691c74dc68c552e56f6ce08227fbbe826`, installed the lockfile with Node.js 24, and completed quality plus Windows package jobs |
 | GitHub CI | Pass: run `31316707100`; quality completed in 1 minute 9 seconds and Windows installer in 3 minutes 51 seconds; both jobs succeeded |
 | GitHub installer artifact | Pass: artifact `9038991309`, `sneup-windows-installer-unsigned`, 109,460,351-byte archive, digest `sha256:135e228f7902a7023b0cdf9aa568b3aae10928a30039a7b9f580c4ef4ee525e8`; its single downloaded installer is 109,454,450 bytes, unsigned, version 2.3.15, SHA-256 `BF32EAC5996FF5471F4D9D274AE2B78FC974CB7D0518AE06BAE924B5B06B4EC9` |

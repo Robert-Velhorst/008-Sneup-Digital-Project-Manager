@@ -2,6 +2,16 @@ const FIRST_RUN_SETUP_KEY = 'sneup.firstRun.v1';
 const SESSION_TOKEN_KEY = 'sneup.sessionToken.v1';
 const CONNECTOR_PAGE_SIZE = 24;
 let connectorSearchTimer;
+const i18n = window.SneupI18n || {
+  t: value => value,
+  plural: (singular, pluralMessage, count) => String(count === 1 ? singular : pluralMessage).replace('{count}', count),
+  formatDate: value => new Date(value).toLocaleString(),
+  getLocale: () => 'en',
+  setLocale: () => 'en'
+};
+const t = (message, params) => i18n.t(message, params);
+const tp = (singular, pluralMessage, count, params) => i18n.plural(singular, pluralMessage, count, params);
+const et = (message, params) => escapeHtml(t(message, params));
 
 const state = {
   snapshot: null,
@@ -160,6 +170,7 @@ const els = {
   workSignalContractCount: document.getElementById('workSignalContractCount'),
   workSignalContracts: document.getElementById('workSignalContracts'),
   workspaceSelect: document.getElementById('workspaceSelect'),
+  languageSelect: document.getElementById('languageSelect'),
   workspaceCount: document.getElementById('workspaceCount'),
   workspaceMetrics: document.getElementById('workspaceMetrics'),
   workspaceMode: document.getElementById('workspaceMode'),
@@ -268,6 +279,10 @@ els.workspaceSelect.addEventListener('change', async (event) => {
   }
   await loadAll({ force: true });
 });
+els.languageSelect?.addEventListener('change', (event) => {
+  i18n.setLocale(event.target.value, { notify: false });
+  window.location.reload();
+});
 document.getElementById('closeModal').addEventListener('click', closeModal);
 els.modal.addEventListener('click', (event) => {
   if (event.target === els.modal) closeModal();
@@ -334,7 +349,7 @@ async function showView(viewName, options = {}) {
     reports: 'Stakeholder reports',
     workspaces: 'Workspace administration'
   };
-  document.getElementById('pageTitle').textContent = titles[viewName] || titles.overview;
+  document.getElementById('pageTitle').textContent = t(titles[viewName] || titles.overview);
   await loadView(viewName);
   if (viewName === 'approvals') {
     renderOperationsLedger();
@@ -385,17 +400,17 @@ function closeCommandPalette() {
 function renderCommandPalette() {
   const query = els.commandPaletteSearch.value.trim().toLowerCase();
   const actions = COMMAND_PALETTE_ACTIONS.filter((action) => {
-    const searchable = `${action.title} ${action.detail}`.toLowerCase();
+    const searchable = `${t(action.title)} ${t(action.detail)}`.toLowerCase();
     return searchable.includes(query);
   });
   els.commandPaletteList.innerHTML = actions.length
     ? actions.map((action) => `
         <button class="command-palette-action" data-command-palette-action="${escapeHtml(action.id)}" type="button" role="option">
-          <strong>${escapeHtml(action.title)}</strong>
-          <span>${escapeHtml(action.detail)}</span>
+          <strong>${et(action.title)}</strong>
+          <span>${et(action.detail)}</span>
         </button>
       `).join('')
-    : '<p class="command-palette-empty">No matching command.</p>';
+    : `<p class="command-palette-empty">${et('No matching command.')}</p>`;
 }
 
 async function runCommandPaletteAction(actionId) {
@@ -419,16 +434,16 @@ const setupDiagnosticsMarkup = (canCreateSupportBundle) => `
   <section class="setup-diagnostics" aria-labelledby="setupDiagnosticsTitle">
     <div class="setup-diagnostics-head">
       <div>
-        <strong id="setupDiagnosticsTitle">Current runtime check</strong>
-        <span>Configuration and safety status</span>
+        <strong id="setupDiagnosticsTitle">${et('Current runtime check')}</strong>
+        <span>${et('Configuration and safety status')}</span>
       </div>
       <div class="toolbar">
-        <button class="button" type="button" id="refreshSetupDiagnostics">Check again</button>
-        ${canCreateSupportBundle ? '<button class="button" type="button" id="createSetupSupportBundle">Support file</button>' : ''}
+        <button class="button" type="button" id="refreshSetupDiagnostics">${et('Check again')}</button>
+        ${canCreateSupportBundle ? `<button class="button" type="button" id="createSetupSupportBundle">${et('Support file')}</button>` : ''}
       </div>
     </div>
     <div id="setupDiagnosticsResult" class="setup-diagnostics-result" aria-live="polite">
-      <p class="setup-check-loading">Checking this runtime...</p>
+      <p class="setup-check-loading">${et('Checking this runtime...')}</p>
     </div>
     <p class="setup-support-result" id="setupSupportResult" aria-live="polite"></p>
   </section>
@@ -442,22 +457,22 @@ function renderSetupDiagnostics(report) {
   const errorCount = Number(report.counts?.error) || 0;
   const warningCount = Number(report.counts?.warning) || 0;
   const summary = report.liveCriticalPathReady
-    ? 'Live workspace prerequisites are ready.'
+    ? t('Live workspace prerequisites are ready.')
     : report.mode === 'demo' && report.ready
-      ? 'The read-only demo workspace is ready.'
+      ? t('The read-only demo workspace is ready.')
       : errorCount
-        ? `${errorCount} required check${errorCount === 1 ? '' : 's'} need attention.`
-        : `${warningCount} live-workspace check${warningCount === 1 ? '' : 's'} need attention.`;
-  const labels = { ok: 'Ready', warning: 'Review', error: 'Required' };
+        ? tp('{count} check needs attention.', '{count} checks need attention.', errorCount)
+        : tp('{count} check needs attention.', '{count} checks need attention.', warningCount);
+  const labels = { ok: t('Ready'), warning: t('Review'), error: t('Required') };
   target.innerHTML = `
     <div class="setup-diagnostics-summary status-${escapeHtml(report.status)}">
       <strong>${escapeHtml(summary)}</strong>
-      ${report.nextAction ? `<span>Next: ${escapeHtml(report.nextAction.action)}</span>` : ''}
+      ${report.nextAction ? `<span>${et('Next: {action}', { action: report.nextAction.action })}</span>` : ''}
     </div>
     <ul class="setup-check-list">
       ${(report.checks || []).map((check) => `
         <li class="setup-check status-${escapeHtml(check.status)}">
-          <span class="setup-check-status">${escapeHtml(labels[check.status] || check.status)}</span>
+          <span class="setup-check-status">${escapeHtml(labels[check.status] || t(check.status))}</span>
           <div>
             <strong>${escapeHtml(check.title)}</strong>
             <span>${escapeHtml(check.summary)}</span>
@@ -473,18 +488,18 @@ async function loadSetupDiagnostics() {
   const refresh = document.getElementById('refreshSetupDiagnostics');
   if (refresh) {
     refresh.disabled = true;
-    refresh.textContent = 'Checking...';
+    refresh.textContent = t('Checking...');
   }
   try {
     const data = await fetchApi('/api/security/diagnostics');
     renderSetupDiagnostics(data.diagnostics);
   } catch (error) {
     const target = document.getElementById('setupDiagnosticsResult');
-    if (target) target.innerHTML = `<div class="notice">Runtime check unavailable. ${escapeHtml(error.message)}</div>`;
+    if (target) target.innerHTML = `<div class="notice">${et('Runtime check unavailable.')} ${escapeHtml(error.message)}</div>`;
   } finally {
     if (refresh) {
       refresh.disabled = false;
-      refresh.textContent = 'Check again';
+      refresh.textContent = t('Check again');
     }
   }
 }
@@ -496,16 +511,16 @@ function bindSetupDiagnostics(canCreateSupportBundle) {
     const button = event.currentTarget;
     const result = document.getElementById('setupSupportResult');
     button.disabled = true;
-    button.textContent = 'Creating...';
+    button.textContent = t('Creating...');
     if (result) result.textContent = '';
     try {
       const bundle = await window.sneupDesktop.createSupportBundle();
-      if (result) result.textContent = `${bundle.fileName} was created and opened in File Explorer.`;
+      if (result) result.textContent = t('{fileName} was created and opened in File Explorer.', { fileName: bundle.fileName });
     } catch (error) {
-      if (result) result.textContent = `Support file failed: ${error.message || 'Sneup could not create the file.'}`;
+      if (result) result.textContent = t('Support file failed: {message}', { message: error.message || t('Sneup could not create the file.') });
     } finally {
       button.disabled = false;
-      button.textContent = 'Support file';
+      button.textContent = t('Support file');
     }
   });
 }
@@ -515,16 +530,16 @@ function openFirstRunSetup() {
   const canCreateSupportBundle = typeof window.sneupDesktop?.createSupportBundle === 'function';
   if (!isDesktopRuntime) {
     const isDemoRuntime = state.runtimeMode === 'demo';
-    els.modalTitle.textContent = isDemoRuntime ? 'Demo workspace' : 'Connected workspace';
+    els.modalTitle.textContent = t(isDemoRuntime ? 'Demo workspace' : 'Connected workspace');
     els.modalBody.innerHTML = `
       <div class="setup-flow">
         <p class="setup-intro">${isDemoRuntime
-    ? 'Sneup is running its local demo workspace. No provider account is connected.'
-    : 'Sneup is connected to its running workspace. Account connections and approval controls use this active runtime.'}</p>
-        <div class="notice">Runtime mode is selected when Sneup starts. This browser reflects that active mode and does not change it.</div>
+    ? et('Sneup is running its local demo workspace. No provider account is connected.')
+    : et('Sneup is connected to its running workspace. Account connections and approval controls use this active runtime.')}</p>
+        <div class="notice">${et('Runtime mode is selected when Sneup starts. This browser reflects that active mode and does not change it.')}</div>
         ${setupDiagnosticsMarkup(false)}
         <div class="toolbar modal-actions">
-          <button class="button primary" type="button" id="openRuntimeConnectors">Connect tools</button>
+          <button class="button primary" type="button" id="openRuntimeConnectors">${et('Connect tools')}</button>
         </div>
       </div>
     `;
@@ -559,26 +574,26 @@ function openFirstRunSetup() {
     });
     const title = document.getElementById('setupModeTitle');
     const copy = document.getElementById('setupModeCopy');
-    if (title) title.textContent = detail.title;
-    if (copy) copy.textContent = detail.copy;
+    if (title) title.textContent = t(detail.title);
+    if (copy) copy.textContent = t(detail.copy);
   };
 
-  els.modalTitle.textContent = 'Set up Sneup';
+  els.modalTitle.textContent = t('Set up Sneup');
   els.modalBody.innerHTML = `
     <div class="setup-flow">
-      <p class="setup-intro">Choose how this device starts. You can return here whenever your workspace is ready.</p>
-      <div class="segmented setup-mode" role="group" aria-label="Sneup startup mode">
-        <button data-setup-mode="demo" type="button">Demo workspace</button>
-        <button data-setup-mode="live" type="button">Connect workspace</button>
+      <p class="setup-intro">${et('Choose how this device starts. You can return here whenever your workspace is ready.')}</p>
+      <div class="segmented setup-mode" role="group" aria-label="${et('Sneup startup mode')}">
+        <button data-setup-mode="demo" type="button">${et('Demo workspace')}</button>
+        <button data-setup-mode="live" type="button">${et('Connect workspace')}</button>
       </div>
       <div class="setup-selection" aria-live="polite">
         <strong id="setupModeTitle"></strong>
         <p id="setupModeCopy"></p>
       </div>
-      <div class="notice">This device stores only the startup mode. Sneup does not collect credentials during setup.</div>
+      <div class="notice">${et('This device stores only the startup mode. Sneup does not collect credentials during setup.')}</div>
       ${setupDiagnosticsMarkup(canCreateSupportBundle)}
       <div class="toolbar modal-actions">
-        <button class="button primary" type="button" id="completeSetup">${window.sneupDesktop?.saveStartupMode ? 'Save and restart' : 'Continue'}</button>
+        <button class="button primary" type="button" id="completeSetup">${et(window.sneupDesktop?.saveStartupMode ? 'Save and restart' : 'Continue')}</button>
       </div>
     </div>
   `;
@@ -600,15 +615,15 @@ function openFirstRunSetup() {
 
     if (window.sneupDesktop?.saveStartupMode && window.sneupDesktop?.restart) {
       button.disabled = true;
-      button.textContent = 'Restarting...';
+      button.textContent = t('Restarting...');
       try {
         await window.sneupDesktop.saveStartupMode(selectedMode);
         await window.sneupDesktop.restart();
         return;
       } catch (error) {
         button.disabled = false;
-        button.textContent = 'Save and restart';
-        openNotice('Startup preference failed', error.message || 'Sneup could not save this startup mode.');
+        button.textContent = t('Save and restart');
+        openNotice(t('Startup preference failed'), error.message || t('Sneup could not save this startup mode.'));
         return;
       }
     }
@@ -1453,7 +1468,10 @@ function renderOverview() {
   if (!snapshot) return;
 
   const generatedAt = new Date(snapshot.generatedAt);
-  els.timestamp.textContent = `${snapshot.mode === 'demo' ? 'Demo mode' : 'Live mode'} updated ${generatedAt.toLocaleString()}`;
+  els.timestamp.textContent = t('{mode} updated {date}', {
+    mode: t(snapshot.mode === 'demo' ? 'Demo mode' : 'Live mode'),
+    date: i18n.formatDate(generatedAt)
+  });
   els.riskCount.textContent = snapshot.signals.activeRisks;
   els.commandMode.textContent = snapshot.autonomy.level;
 
@@ -1468,7 +1486,7 @@ function renderOverview() {
   ];
   els.metrics.innerHTML = metrics.map(([label, value]) => `
     <div class="metric">
-      <span>${label}</span>
+      <span>${et(label)}</span>
       <strong>${value}</strong>
     </div>
   `).join('');
@@ -1477,27 +1495,27 @@ function renderOverview() {
   els.brief.innerHTML = `
     <h2>${escapeHtml(snapshot.brief.headline)}</h2>
     <p>${escapeHtml(snapshot.brief.narrative)}</p>
-    <p><strong>Next decision:</strong> ${escapeHtml(snapshot.brief.decision)}</p>
+    <p><strong>${et('Next decision:')}</strong> ${escapeHtml(snapshot.brief.decision)}</p>
     ${renderConfidence(confidence)}
   `;
 
   els.commandQueue.innerHTML = listOrEmpty(snapshot.commandQueue, renderCommand);
   bindAutopilotCommandActions();
-  els.automationCount.textContent = `${snapshot.dailyPlan.automation.ready} ready`;
+  els.automationCount.textContent = tp('{count} ready item', '{count} ready items', snapshot.dailyPlan.automation.ready);
   els.dailyPlan.innerHTML = listOrEmpty(snapshot.dailyPlan.firstHour.map((item, index) => ({
     title: item,
-    meta: `Step ${index + 1}`
+    meta: t('Step {count}', { count: index + 1 })
   })), (item) => `
     <div class="item">
       <div class="item-title"><strong>${escapeHtml(item.title)}</strong><span class="pill review">${escapeHtml(item.meta)}</span></div>
     </div>
   `);
 
-  els.focusCount.textContent = `${snapshot.focus.length} items`;
+  els.focusCount.textContent = tp('{count} item', '{count} items', snapshot.focus.length);
   els.focusQueue.innerHTML = listOrEmpty(snapshot.focus, renderFocus);
-  els.teamCount.textContent = `${snapshot.teamLoad.length} people`;
+  els.teamCount.textContent = tp('{count} person', '{count} people', snapshot.teamLoad.length);
   els.teamLoad.innerHTML = listOrEmpty(snapshot.teamLoad, renderTeamMember);
-  els.boardCount.textContent = `${snapshot.boardSummaries.length} boards`;
+  els.boardCount.textContent = tp('{count} board', '{count} boards', snapshot.boardSummaries.length);
   els.boards.innerHTML = listOrEmpty(snapshot.boardSummaries, renderBoard);
   bindLedgerDrilldownActions();
   renderOperationsBrief();
@@ -1512,8 +1530,8 @@ function renderOperationsBrief() {
   const robertDecisionCount = counts.robertDecisions || 0;
   const graphDecisionCount = counts.graphDecisions || 0;
   els.operationsBriefCount.textContent = graphDecisionCount > 0
-    ? `${robertDecisionCount} Robert, ${graphDecisionCount} graph`
-    : `${robertDecisionCount} decision${robertDecisionCount === 1 ? '' : 's'}`;
+    ? t('{robert} Robert, {graph} graph', { robert: robertDecisionCount, graph: graphDecisionCount })
+    : tp('{count} decision', '{count} decisions', robertDecisionCount);
 
   const items = [
     ...(brief.robertDecisions || []),
@@ -1532,13 +1550,13 @@ function renderOperationsBrief() {
         <span class="pill ${brief.mode === 'demo' ? 'review' : 'healthy'}">${escapeHtml(brief.mode)}</span>
       </div>
       <div class="meta">${escapeHtml(brief.narrative)}</div>
-      <div class="meta"><span>Next: ${escapeHtml(brief.nextDecision)}</span></div>
+      <div class="meta"><span>${et('Next:')} ${escapeHtml(brief.nextDecision)}</span></div>
       ${renderConfidence(brief.confidence || 0)}
-      ${robertDecisionCount > 0 ? '<div class="item-actions"><button class="button primary" type="button" data-brief-action="review-robert">Review Robert decision</button></div>' : ''}
+      ${robertDecisionCount > 0 ? `<div class="item-actions"><button class="button primary" type="button" data-brief-action="review-robert">${et('Review Robert decision')}</button></div>` : ''}
     </div>
     ${listOrEmpty(items, renderOperationsBriefItem)}
     <div class="item">
-      <div class="item-title"><strong>Morning plan</strong><span class="pill review">read-only</span></div>
+      <div class="item-title"><strong>${et('Morning plan')}</strong><span class="pill review">${et('read-only')}</span></div>
       <div class="meta">${(brief.morningPlan || []).map(step => `<span>${escapeHtml(step)}</span>`).join('')}</div>
     </div>
   `;
@@ -1578,7 +1596,8 @@ function operationsBriefRoute(item = {}) {
     failed_action: { label: 'Review failed action', route: 'failed_action' },
     board_health: { label: 'Review board health', route: 'board_health' }
   };
-  return routes[item.type] || null;
+  const route = routes[item.type] || null;
+  return route ? { ...route, label: t(route.label) } : null;
 }
 
 function renderJobDashboard() {
@@ -1601,7 +1620,7 @@ function renderJobDashboard() {
     ? [...problemJobs, ...observabilityEvidenceJobs]
     : health.slice(0, 5);
 
-  els.jobHealthCount.textContent = `${summary.trackedJobs || health.length || 0} tracked`;
+  els.jobHealthCount.textContent = tp('{count} tracked job', '{count} tracked jobs', summary.trackedJobs || health.length || 0);
   els.jobHealthList.innerHTML = `
     <div class="item">
       <div class="item-title">
@@ -3070,19 +3089,19 @@ function renderCommand(command) {
     <div class="item">
       <div class="item-title">
         <strong>${escapeHtml(command.title)}</strong>
-        <span class="pill ${severityClass(command.severity)}">${escapeHtml(command.severity)}</span>
+        <span class="pill ${severityClass(command.severity)}">${et(command.severity)}</span>
       </div>
       <div class="meta">
         <span>${escapeHtml(command.target)}</span>
         <span>${escapeHtml(command.owner)}</span>
-        <span>${command.automatable ? `${command.minutesSaved} min saved` : 'review'}</span>
+        <span>${command.automatable ? et('{count} min saved', { count: command.minutesSaved }) : et('review')}</span>
       </div>
       <div class="meta">${escapeHtml(command.reason)}</div>
       ${renderSourceEvidence(command.sourceEvidence)}
       <div class="item-actions">
         ${readOnlyDemo
-          ? '<span class="meta">Read-only demo preview</span>'
-          : `<button class="button primary" data-command-id="${escapeHtml(command.id)}" type="button">Queue for approval</button>`}
+          ? `<span class="meta">${et('Read-only demo preview')}</span>`
+          : `<button class="button primary" data-command-id="${escapeHtml(command.id)}" type="button">${et('Queue for approval')}</button>`}
       </div>
     </div>
   `;
@@ -3127,11 +3146,11 @@ function renderFocus(item) {
       <div class="meta">
         <span>${escapeHtml(item.boardName)}</span>
         <span>${escapeHtml(item.listName)}</span>
-        <span>${escapeHtml(item.members.join(', ') || 'Unassigned')}</span>
+        <span>${escapeHtml(item.members.join(', ') || t('Unassigned'))}</span>
       </div>
       <div class="meta">${item.reasons.map(escapeHtml).join('  |  ')}</div>
       ${renderSourceEvidence(item.sourceEvidence)}
-      ${cardId ? `<div class="item-actions"><button class="button" data-card-ledger="${escapeHtml(cardId)}" type="button">Card ledger</button></div>` : ''}
+      ${cardId ? `<div class="item-actions"><button class="button" data-card-ledger="${escapeHtml(cardId)}" type="button">${et('Card ledger')}</button></div>` : ''}
     </div>
   `;
 }
@@ -3141,14 +3160,14 @@ function renderTeamMember(member) {
     <div class="item">
       <div class="item-title">
         <strong>${escapeHtml(member.fullName || member.username)}</strong>
-        <span class="pill ${member.capacityState === 'overloaded' ? 'critical' : member.capacityState === 'heavy' ? 'high' : 'healthy'}">${escapeHtml(member.capacityState)}</span>
+        <span class="pill ${member.capacityState === 'overloaded' ? 'critical' : member.capacityState === 'heavy' ? 'high' : 'healthy'}">${et(member.capacityState)}</span>
       </div>
       <div class="meta">
-        <span>${member.assignedCards} assigned</span>
-        <span>${member.urgentCards} urgent</span>
-        <span>${member.overdueCards} overdue</span>
+        <span>${et('{count} assigned', { count: member.assignedCards })}</span>
+        <span>${et('{count} urgent', { count: member.urgentCards })}</span>
+        <span>${et('{count} overdue', { count: member.overdueCards })}</span>
       </div>
-      <div class="meta">${(member.specialties || []).map(escapeHtml).join('  |  ') || 'No specialty signal yet'}</div>
+      <div class="meta">${(member.specialties || []).map(escapeHtml).join('  |  ') || et('No specialty signal yet')}</div>
     </div>
   `;
 }
@@ -3161,9 +3180,13 @@ function renderBoard(board) {
       <div class="connector-top">
         <div>
           <h3>${escapeHtml(board.name)}</h3>
-          <p>${board.activeCards} active  |  ${board.overdueCards} overdue  |  ${board.unassignedCards} unassigned</p>
+          <p>${et('{active} active | {overdue} overdue | {unassigned} unassigned', {
+    active: board.activeCards,
+    overdue: board.overdueCards,
+    unassigned: board.unassignedCards
+  })}</p>
         </div>
-        <span class="pill ${board.health === 'healthy' ? 'healthy' : board.health === 'critical' ? 'critical' : 'high'}">${escapeHtml(board.health)}</span>
+        <span class="pill ${board.health === 'healthy' ? 'healthy' : board.health === 'critical' ? 'critical' : 'high'}">${et(board.health)}</span>
       </div>
       <div class="flow">
         ${board.flow.map(step => `
@@ -3175,10 +3198,10 @@ function renderBoard(board) {
         `).join('')}
       </div>
       <div class="meta">
-        <span>${board.velocity.cardsPerWeek} cards/week</span>
-        <span>${board.blockedCards} blocked</span>
+        <span>${et('{count} cards/week', { count: board.velocity.cardsPerWeek })}</span>
+        <span>${et('{count} blocked', { count: board.blockedCards })}</span>
       </div>
-      ${boardId ? `<div class="connector-actions"><button class="button" data-board-ledger="${escapeHtml(boardId)}" type="button">Operating ledger</button></div>` : ''}
+      ${boardId ? `<div class="connector-actions"><button class="button" data-board-ledger="${escapeHtml(boardId)}" type="button">${et('Operating ledger')}</button></div>` : ''}
     </div>
   `;
 }
@@ -6483,7 +6506,7 @@ function openInviteAcceptance(rawToken) {
 function listOrEmpty(items, renderer) {
   return items && items.length > 0
     ? items.map(renderer).join('')
-    : '<div class="empty">Nothing needs attention.</div>';
+    : `<div class="empty">${et('Nothing needs attention.')}</div>`;
 }
 
 function severityClass(value) {
@@ -6516,9 +6539,9 @@ function getId(value) {
 }
 
 function formatDate(value) {
-  if (!value) return 'No date';
+  if (!value) return t('No date');
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'No date' : date.toLocaleString();
+  return Number.isNaN(date.getTime()) ? t('No date') : i18n.formatDate(date);
 }
 
 function toDateTimeLocalValue(value) {
@@ -6544,7 +6567,7 @@ function clampPercent(value) {
 
 function renderConfidence(value) {
   const safeValue = clampPercent(value);
-  return `<progress class="confidence-meter" value="${safeValue}" max="100" aria-label="Confidence ${safeValue}%"></progress>`;
+  return `<progress class="confidence-meter" value="${safeValue}" max="100" aria-label="${et('Confidence {value}%', { value: safeValue })}"></progress>`;
 }
 
 function renderBar(value, label) {

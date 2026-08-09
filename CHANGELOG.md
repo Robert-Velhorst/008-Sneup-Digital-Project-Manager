@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.3.16 - 2026-08-09
+
+### English and Dutch operator experience
+
+- Added a persistent English/Nederlands language control and a dependency-free browser catalog for the command-center shell, setup and diagnostics guidance, command palette, help center, and primary mission-control workflow chrome.
+- Localized dates, numbers, counts, confidence labels, empty states, and contextual help search while leaving provider, user, audit, and source-evidence text unchanged.
+- Added complete static-shell and help-catalog coverage, locale persistence/restoration checks, accessibility-label regression coverage, and desktop plus compact-viewport browser acceptance in both languages.
+
+### Security and resource use
+
+- Kept localization entirely local: no translation service, credentials, provider traffic, database work, polling, runtime dependency, or server module is added.
+- The explicit catalog is 33,577 bytes raw, 11,269 bytes with gzip, and 9,887 bytes with Brotli; demo startup still imports 251 modules without loading Mongoose.
+- Verified the full 105-suite/799-test quality gate, both zero-vulnerability dependency audits, purpose-separated release secrets, and the Windows 11 installer runtime.
+
 ## 2.3.15 - 2026-08-09
 
 ### Portfolio-scale mission control

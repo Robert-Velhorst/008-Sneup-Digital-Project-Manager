@@ -52,7 +52,7 @@
 | Code signing | External | Provide an organization-owned Windows signing certificate and secure CI signing process. |
 | Deployment/rollback | Partial | Select hosting, provision secrets, run canary, and prove rollback. |
 | Data subject deletion | Implemented locally | Owner-authorized export and permanent archived-workspace deletion pass unit, security, UI-wiring, and real-Mongo verification. Capture an owner-controlled hosted acceptance run before production launch. |
-| Accessibility/i18n | Partial | Complete assistive-technology review and Dutch copy catalog before claiming conformance. |
+| Accessibility/i18n | Partial | English/Dutch shell, setup, help, command-palette, and primary workflow catalogs pass accessible-name and responsive browser checks. Complete secondary dynamic copy coverage and an assistive-technology review before claiming conformance. |
 | Desktop resources | Measured | The final 2.3.3 package used four processes, 408.5 MB working set, 340.3 MB private bytes, and 6.30 cumulative CPU seconds after startup plus 30 seconds idle. Collect broader clean-machine traces before setting a hard budget. |
 | Billing | Not applicable | No billing is required for the local-first product. |
 
