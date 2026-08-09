@@ -6,7 +6,7 @@ This report is updated from executed commands at release time. A passing local s
 
 - Branch: `main`
 - Starting commit: `9af51b5fc17959d28a33ca62272c5b5998b1cb29`
-- Release under verification: `2.3.7`
+- Release under verification: `2.3.8`
 - Default remote: `origin`
 
 ## Verification ledger
@@ -17,7 +17,7 @@ This report is updated from executed commands at release time. A passing local s
 | Focused retention tests | Pass: owner permissions, policy bounds, dry-run exclusions, exact confirmation, pre-delete audit failure, distributed worker lease, UI wiring, and rotation across bounded workspace batches |
 | ESLint | Pass |
 | Doctor | Pass with expected local warnings for absent MongoDB/Trello configuration; no errors; ngrok disabled locally |
-| Full regression | Pass: 91 suites, 721 tests |
+| Full regression | Pass: 93 suites, 732 tests |
 | Recommendation evaluation | Pass: 5/5 scenarios, score 100% |
 | Production and full dependency audit | Pass: 0 vulnerabilities after lockfile remediation |
 | Release security positive check | Pass: five purpose-separated production secrets, no values exposed |
@@ -34,12 +34,12 @@ This report is updated from executed commands at release time. A passing local s
 | Integrity API performance sample | Pass: 30 live requests measured 14.01 ms p50 and 23.71 ms p95; server working set 119.5 MB after browser QA |
 | Browser QA | Pass: after the in-app Browser webview did not attach, connected Chrome previewed two due retention categories, confirmed the exact workspace, pruned 2/2 disposable records, rescanned to zero, and reported no console warnings/errors, overflow, or mobile modal overlap |
 | Windows UI automation | The installed Windows-control package did not expose its required guidance interface; no undocumented input was attempted and visual evidence is not inferred from HTTP or window metadata |
-| Packaged Windows QA | Pass: 2.3.7 served readiness/version/retention/HAI metadata in explicit demo mode, retained `never_direct`, closed normally, and released port 3199 |
-| Packaged idle sample | Pass: the final four-process build stayed effectively flat from 415.6/380.7 MB to 415.8/380.7 MB working/private memory over 15 seconds; CPU advanced 0.02 seconds. A separate standalone-backend sample advanced 0.00 seconds over 15 seconds. |
-| Windows installer | Pass: local build 109,437,557 bytes, unsigned, SHA-256 `49FDDB4A27C250FFDD23586E71AB37A1F7FD332CF5AACA2662C2AE42471E8087`; executable metadata reports 2.3.7 and the 65,833,187-byte archive contains retention UI/API/worker plus Windows x64 ngrok binding |
-| Fresh clone | Pass: GitHub checked out exact source `fd2bc329d9c07e232a742c6176e8e65ed8494c49`, installed the lockfile with Node.js 24, and completed quality plus Windows package jobs |
-| GitHub CI | Pass: run `31305480486`; quality in 58 seconds and Windows installer in 2 minutes 10 seconds; both checks succeeded with zero annotations |
-| GitHub installer artifact | Pass: artifact `9035818760`, `sneup-windows-installer-unsigned`, 109,443,508-byte archive, digest `sha256:37381444bb9fcea1c84e6f03848cd5ac57bcd4eb2492d71ebb69dec66fc2f844`; its single downloaded installer is 109,437,595 bytes, unsigned, version 2.3.7, SHA-256 `0B20508B15CF74A1C8BBD4ACE2ACC231E5086A524D95FAD9C6C96CE130C8846D` |
+| Packaged Windows QA | Pass: 2.3.8 served versioned metadata, exposed Adobe Creative Cloud as ready/read-only but truthfully unconfigured without owner credentials, retained HAI `never_direct`, closed, and released port 3199 |
+| Packaged idle sample | Pass: the four-process build settled to 412.1 MB working set, 375.1 MB private memory, and 2.562 cumulative CPU seconds after 30 seconds. Adobe stays lazy and adds about 64 KB RSS after the shared connector stack is loaded. |
+| Windows installer | Pass: local build 109,439,937 bytes, unsigned, SHA-256 `D7630BBA8DD6137143EA072CA1CF75FE42DF80F6B0FAD8B5F9EAF2FDAB8EFD05`; executable metadata reports 2.3.8 and the 65,852,931-byte archive contains OAuth renewal, Adobe Libraries sync, and Windows x64 ngrok binding |
+| Fresh clone | Pass: GitHub checked out exact source `988f9a8f3abed7ec39b2b5718d5a67d8479c6f37`, installed the lockfile with Node.js 24, and completed quality plus Windows package jobs |
+| GitHub CI | Pass: run `31307217856`; quality in 54 seconds and Windows installer in 2 minutes 16 seconds; both checks succeeded with zero annotations |
+| GitHub installer artifact | Pass: artifact `9036334669`, `sneup-windows-installer-unsigned`, 109,445,950-byte archive, digest `sha256:8edad301ab6f0ed809c6d72e1d77296cee42579aed80f074079114f17f7ceed0`; its single downloaded installer is 109,440,023 bytes, unsigned, version 2.3.8, SHA-256 `D8E96FB7B82C7756C99D3C014F82E3E8EA71C445A695F6EB259BA485BD21E96B` |
 
 ## External gates
 
