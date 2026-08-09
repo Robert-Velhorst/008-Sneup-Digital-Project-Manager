@@ -1,6 +1,6 @@
 {
   "name": "sneup",
-  "version": "2.3.10",
+  "version": "2.3.11",
   "description": "Autonomous AI-powered digital project manager for Trello v2.0 - proactive management, performance tracking, conversational AI, and accountability enforcement",
   "main": "desktop/main.js",
   "scripts": {
@@ -21,6 +21,7 @@
     "doctor": "node scripts/doctor.js",
     "doctor:json": "node scripts/doctor.js --json",
     "support:bundle": "node scripts/support-bundle.js",
+    "profile:startup": "node scripts/profile-startup.js",
     "check:ci": "npm run lint && npm test -- --runInBand && npm run evaluate:recommendations",
     "test": "jest",
     "lint": "eslint src/**/*.js scripts/*.js desktop/*.js"

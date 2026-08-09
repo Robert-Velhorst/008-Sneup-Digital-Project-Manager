@@ -1,19 +1,5 @@
-const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 const { safeExternalSourceUrl } = require('../utils/externalSourceUrl');
-const Board = require('../models/Board');
-const List = require('../models/List');
-const Card = require('../models/Card');
-const Member = require('../models/Member');
-const Analytics = require('../models/Analytics');
-const Intervention = require('../models/Intervention');
-const analyticsService = require('./analyticsService');
-const interventionEngine = require('./interventionEngine');
-const operationsLedgerService = require('./operationsLedgerService');
-const trelloSync = require('./trelloSync');
-const workGraphService = require('./workGraphService');
-const forecastService = require('./forecastService');
-const { normalizeWorkspaceObjectId } = require('./workspaceScopeService');
 
 const HOURS_PER_DAY = 24;
 const MAX_COMMAND_QUEUE = 12;
@@ -26,7 +12,8 @@ class AutopilotService {
   }
 
   isDemoMode() {
-    return process.env.SNEUP_DEMO_MODE === 'true' || mongoose.connection.readyState !== 1;
+    return process.env.SNEUP_DEMO_MODE === 'true'
+      || require('mongoose').connection.readyState !== 1;
   }
 
   async getMissionControl(options = {}) {
@@ -35,7 +22,12 @@ class AutopilotService {
     }
 
     try {
-      const workspaceId = normalizeWorkspaceObjectId(options.workspaceId);
+      const workspaceId = require('./workspaceScopeService').normalizeWorkspaceObjectId(options.workspaceId);
+      const Board = require('../models/Board');
+      const Card = require('../models/Card');
+      const Member = require('../models/Member');
+      const Intervention = require('../models/Intervention');
+      const workGraphService = require('./workGraphService');
       const [boards, cards, members, interventions, graphDecisionResult, forecast] = await Promise.all([
         Board.find({ workspaceId, closed: false })
           .select('_id trelloId name url lastSync updatedAt')
@@ -106,7 +98,7 @@ class AutopilotService {
     if (cached && Date.now() - cached.generatedAt < MISSION_FORECAST_TTL_MS) return cached.forecast;
 
     try {
-      const forecast = await forecastService.getForecast({ workspaceId });
+      const forecast = await require('./forecastService').getForecast({ workspaceId });
       this.missionForecastCache.set(cacheKey, { forecast, generatedAt: Date.now() });
       while (this.missionForecastCache.size > MAX_MISSION_FORECAST_CACHE_ENTRIES) {
         this.missionForecastCache.delete(this.missionForecastCache.keys().next().value);
@@ -151,7 +143,11 @@ class AutopilotService {
     };
 
     try {
-      const workspaceId = normalizeWorkspaceObjectId(options.workspaceId);
+      const workspaceId = require('./workspaceScopeService').normalizeWorkspaceObjectId(options.workspaceId);
+      const Board = require('../models/Board');
+      const trelloSync = require('./trelloSync');
+      const analyticsService = require('./analyticsService');
+      const interventionEngine = require('./interventionEngine');
       const boards = await Board.find({ workspaceId, closed: false }).sort({ name: 1 });
 
       for (const board of boards) {
@@ -219,7 +215,7 @@ class AutopilotService {
   }
 
   async queueCommandForApproval(command, options = {}) {
-    return operationsLedgerService.createRecommendationFromAutopilotCommand(command, {
+    return require('./operationsLedgerService').createRecommendationFromAutopilotCommand(command, {
       actor: options.actor || 'robert',
       workspaceId: options.workspaceId
     });
@@ -250,7 +246,8 @@ class AutopilotService {
   async getLatestAnalyticsByBoard(boards, options = {}) {
     const analyticsByBoard = {};
     const boardIds = boards.map(board => board._id);
-    const workspaceId = normalizeWorkspaceObjectId(options.workspaceId || boards[0]?.workspaceId);
+    const workspaceId = require('./workspaceScopeService').normalizeWorkspaceObjectId(options.workspaceId || boards[0]?.workspaceId);
+    const Analytics = require('../models/Analytics');
 
     if (boardIds.length === 0) return analyticsByBoard;
 
@@ -287,7 +284,8 @@ class AutopilotService {
   }
 
   async getListsByBoard(boards, options = {}) {
-    const workspaceId = normalizeWorkspaceObjectId(options.workspaceId || boards[0]?.workspaceId);
+    const workspaceId = require('./workspaceScopeService').normalizeWorkspaceObjectId(options.workspaceId || boards[0]?.workspaceId);
+    const List = require('../models/List');
     if (boards.length === 0) return {};
 
     const lists = await List.find({

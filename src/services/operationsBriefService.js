@@ -1,14 +1,3 @@
-const mongoose = require('mongoose');
-const DecisionQueueItem = require('../models/DecisionQueueItem');
-const Recommendation = require('../models/Recommendation');
-const TrelloActionAttempt = require('../models/TrelloActionAttempt');
-const FollowUpPlan = require('../models/FollowUpPlan');
-const CardFinding = require('../models/CardFinding');
-const BoardHealthSnapshot = require('../models/BoardHealthSnapshot');
-const { normalizeWorkspaceObjectId } = require('./workspaceScopeService');
-const workGraphService = require('./workGraphService');
-const { getDemoOperationsLedger } = require('./demoWorkspaceService');
-
 const SEVERITY_SCORE = {
   critical: 4,
   high: 3,
@@ -18,7 +7,8 @@ const SEVERITY_SCORE = {
 
 class OperationsBriefService {
   isDatabaseReady() {
-    return mongoose.connection.readyState === 1;
+    return process.env.SNEUP_DEMO_MODE !== 'true'
+      && require('mongoose').connection.readyState === 1;
   }
 
   async getDailyBrief(options = {}) {
@@ -28,7 +18,14 @@ class OperationsBriefService {
 
     const limit = options.limit || 100;
     const now = new Date();
-    const workspaceId = normalizeWorkspaceObjectId(options.workspaceId);
+    const workspaceId = require('./workspaceScopeService').normalizeWorkspaceObjectId(options.workspaceId);
+    const DecisionQueueItem = require('../models/DecisionQueueItem');
+    const Recommendation = require('../models/Recommendation');
+    const TrelloActionAttempt = require('../models/TrelloActionAttempt');
+    const FollowUpPlan = require('../models/FollowUpPlan');
+    const CardFinding = require('../models/CardFinding');
+    const BoardHealthSnapshot = require('../models/BoardHealthSnapshot');
+    const workGraphService = require('./workGraphService');
 
     const [
       decisions,
@@ -360,7 +357,7 @@ class OperationsBriefService {
   }
 
   getDemoDailyBrief() {
-    const ledger = getDemoOperationsLedger();
+    const ledger = require('./demoWorkspaceService').getDemoOperationsLedger();
     return this.buildBrief({
       mode: 'demo',
       generatedAt: ledger.generatedAt,

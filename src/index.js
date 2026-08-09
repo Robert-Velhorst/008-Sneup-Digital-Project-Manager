@@ -7,26 +7,19 @@ const path = require('path');
 const packageMetadata = require('../package.json');
 const logger = require('./utils/logger');
 const { registerProcessHandlers } = require('./utils/processHandlers');
-const { connectDatabase, disconnectDatabase, isDatabaseConnected, getDatabaseStatus } = require('./utils/database');
+const { createLazyRouter, createLazyValue } = require('./utils/lazyModule');
 const {
   apiRateLimit,
   corsOptions,
   requireApiAccess
 } = require('./utils/requestSecurity');
-const trelloSync = require('./services/trelloSync');
-const analyticsService = require('./services/analyticsService');
-const connectorSyncService = require('./services/connectorSyncService');
-const { getMaxBodyBytes, isGenericWebhookPath } = require('./services/genericWebhookService');
-const workspaceScopeService = require('./services/workspaceScopeService');
+const { getMaxBodyBytes, isGenericWebhookPath } = require('./services/genericWebhookPolicy');
 const responseTimingService = require('./services/responseTimingService');
 const commandCenterAssetService = require('./services/commandCenterAssetService');
 const { requestContextMiddleware, versionedApiEnvelope } = require('./services/apiContractService');
 const { validateRuntimeSecurityConfiguration } = require('./utils/securityConfiguration');
 const { getRuntimeReadiness } = require('./services/runtimeDiagnosticsService');
 const ngrokTunnelService = require('./services/ngrokTunnelService');
-const workspaceDeletionWorker = require('./workers/workspaceDeletionWorker');
-const identityRetentionWorker = require('./workers/identityRetentionWorker');
-const dataRetentionWorker = require('./workers/dataRetentionWorker');
 const { RequestLoggingService } = require('./services/requestLoggingService');
 const {
   DATABASE_FAILURE_MODES,
@@ -34,37 +27,50 @@ const {
   liveDatabaseStartupError
 } = require('./services/startupPolicyService');
 
-// Import routes
-const boardRoutes = require('./routes/boards');
-const analyticsRoutes = require('./routes/analytics');
-const teamRoutes = require('./routes/team');
-const webhookRoutes = require('./routes/webhooks');
-const chatRoutes = require('./routes/chat');
-const connectorRoutes = require('./routes/connectors');
-const autopilotRoutes = require('./routes/autopilot');
-const enhancementRoutes = require('./routes/enhancements');
-const recommendationRoutes = require('./routes/recommendations');
-const decisionQueueRoutes = require('./routes/decisionQueue');
-const auditRoutes = require('./routes/audit');
-const trelloActionRoutes = require('./routes/trelloActions');
-const followUpRoutes = require('./routes/followUps');
-const cardRoutes = require('./routes/cards');
-const interventionRoutes = require('./routes/interventions');
-const findingRoutes = require('./routes/findings');
-const jobRoutes = require('./routes/jobs');
-const securityRoutes = require('./routes/security');
-const workspaceRoutes = require('./routes/workspaces');
-const workSignalRoutes = require('./routes/workSignals');
-const reportRoutes = require('./routes/reports');
-const forecastRoutes = require('./routes/forecasts');
-const notificationRoutes = require('./routes/notifications');
-const policyRuleRoutes = require('./routes/policyRules');
-const outcomeRoutes = require('./routes/outcomes');
-const operationsLedgerRoutes = require('./routes/operationsLedger');
-const haiIntegrationRoutes = require('./routes/haiIntegration');
-const featureFlagRoutes = require('./routes/featureFlags');
-const integrityRoutes = require('./routes/integrity');
-const dataRetentionRoutes = require('./routes/dataRetention');
+const getDatabase = createLazyValue(() => require('./utils/database'), 'database');
+const getTrelloSync = createLazyValue(() => require('./services/trelloSync'), 'Trello sync service');
+const getAnalyticsService = createLazyValue(() => require('./services/analyticsService'), 'analytics service');
+const getConnectorSyncService = createLazyValue(() => require('./services/connectorSyncService'), 'connector sync service');
+const getWorkspaceScopeService = createLazyValue(() => require('./services/workspaceScopeService'), 'workspace scope service');
+const getWorkspaceDeletionWorker = createLazyValue(() => require('./workers/workspaceDeletionWorker'), 'workspace deletion worker');
+const getIdentityRetentionWorker = createLazyValue(() => require('./workers/identityRetentionWorker'), 'identity retention worker');
+const getDataRetentionWorker = createLazyValue(() => require('./workers/dataRetentionWorker'), 'data retention worker');
+
+const routeDefinitions = [
+  ['boards', () => require('./routes/boards')],
+  ['analytics', () => require('./routes/analytics')],
+  ['team', () => require('./routes/team')],
+  ['chat', () => require('./routes/chat')],
+  ['connectors', () => require('./routes/connectors')],
+  ['autopilot', () => require('./routes/autopilot')],
+  ['enhancements', () => require('./routes/enhancements')],
+  ['recommendations', () => require('./routes/recommendations')],
+  ['decision-queue', () => require('./routes/decisionQueue')],
+  ['audit', () => require('./routes/audit')],
+  ['trello-actions', () => require('./routes/trelloActions')],
+  ['follow-ups', () => require('./routes/followUps')],
+  ['cards', () => require('./routes/cards')],
+  ['interventions', () => require('./routes/interventions')],
+  ['findings', () => require('./routes/findings')],
+  ['jobs', () => require('./routes/jobs')],
+  ['security', () => require('./routes/security')],
+  ['workspaces', () => require('./routes/workspaces')],
+  ['work-signals', () => require('./routes/workSignals')],
+  ['reports', () => require('./routes/reports')],
+  ['forecasts', () => require('./routes/forecasts')],
+  ['notifications', () => require('./routes/notifications')],
+  ['policy-rules', () => require('./routes/policyRules')],
+  ['outcomes', () => require('./routes/outcomes')],
+  ['operations-ledger', () => require('./routes/operationsLedger')],
+  ['integrations/hai', () => require('./routes/haiIntegration')],
+  ['feature-flags', () => require('./routes/featureFlags')],
+  ['integrity', () => require('./routes/integrity')],
+  ['data-retention', () => require('./routes/dataRetention')]
+].map(([routePath, loadRouter]) => ({
+  routePath,
+  router: createLazyRouter(loadRouter, `${routePath} router`)
+}));
+const webhookRoutes = createLazyRouter(() => require('./routes/webhooks'), 'webhooks router');
 
 // Initialize Express app
 const app = express();
@@ -75,6 +81,8 @@ const startupState = {
   initialized: false,
   phase: 'starting'
 };
+const getCurrentDatabaseStatus = () =>
+  getDatabase.peek()?.getDatabaseStatus() || { state: 'disconnected' };
 
 // Middleware
 app.use(requestContextMiddleware);
@@ -133,18 +141,20 @@ app.use(responseTimingService.middleware());
 
 // Health check endpoint
 app.get('/health', (req, res) => {
+  const databaseStatus = getCurrentDatabaseStatus();
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    database: { state: getDatabaseStatus().state },
+    database: { state: databaseStatus.state },
     demoMode: process.env.SNEUP_DEMO_MODE === 'true'
   });
 });
 
 app.get('/ready', (req, res) => {
+  const databaseStatus = getCurrentDatabaseStatus();
   const readiness = getRuntimeReadiness({
-    databaseState: getDatabaseStatus().state,
+    databaseState: databaseStatus.state,
     initialized: startupState.initialized
   });
   res.status(readiness.ready ? 200 : 503).json(readiness);
@@ -153,67 +163,11 @@ app.get('/ready', (req, res) => {
 // Versioned API routes use one strict response envelope. External webhook
 // protocols retain their established unversioned endpoints and signatures.
 app.use('/api/v1', versionedApiEnvelope);
-app.use('/api/v1/boards', boardRoutes);
-app.use('/api/v1/analytics', analyticsRoutes);
-app.use('/api/v1/team', teamRoutes);
-app.use('/api/v1/chat', chatRoutes);
-app.use('/api/v1/connectors', connectorRoutes);
-app.use('/api/v1/autopilot', autopilotRoutes);
-app.use('/api/v1/enhancements', enhancementRoutes);
-app.use('/api/v1/recommendations', recommendationRoutes);
-app.use('/api/v1/decision-queue', decisionQueueRoutes);
-app.use('/api/v1/audit', auditRoutes);
-app.use('/api/v1/trello-actions', trelloActionRoutes);
-app.use('/api/v1/follow-ups', followUpRoutes);
-app.use('/api/v1/cards', cardRoutes);
-app.use('/api/v1/interventions', interventionRoutes);
-app.use('/api/v1/findings', findingRoutes);
-app.use('/api/v1/jobs', jobRoutes);
-app.use('/api/v1/security', securityRoutes);
-app.use('/api/v1/workspaces', workspaceRoutes);
-app.use('/api/v1/work-signals', workSignalRoutes);
-app.use('/api/v1/reports', reportRoutes);
-app.use('/api/v1/forecasts', forecastRoutes);
-app.use('/api/v1/notifications', notificationRoutes);
-app.use('/api/v1/policy-rules', policyRuleRoutes);
-app.use('/api/v1/outcomes', outcomeRoutes);
-app.use('/api/v1/operations-ledger', operationsLedgerRoutes);
-app.use('/api/v1/integrations/hai', haiIntegrationRoutes);
-app.use('/api/v1/feature-flags', featureFlagRoutes);
-app.use('/api/v1/integrity', integrityRoutes);
-app.use('/api/v1/data-retention', dataRetentionRoutes);
+routeDefinitions.forEach(({ routePath, router }) => app.use(`/api/v1/${routePath}`, router));
 
 // Backward-compatible API routes.
-app.use('/api/boards', boardRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/team', teamRoutes);
 app.use('/api/webhooks', webhookRoutes);
-app.use('/api/chat', chatRoutes);
-app.use('/api/connectors', connectorRoutes);
-app.use('/api/autopilot', autopilotRoutes);
-app.use('/api/enhancements', enhancementRoutes);
-app.use('/api/recommendations', recommendationRoutes);
-app.use('/api/decision-queue', decisionQueueRoutes);
-app.use('/api/audit', auditRoutes);
-app.use('/api/trello-actions', trelloActionRoutes);
-app.use('/api/follow-ups', followUpRoutes);
-app.use('/api/cards', cardRoutes);
-app.use('/api/interventions', interventionRoutes);
-app.use('/api/findings', findingRoutes);
-app.use('/api/jobs', jobRoutes);
-app.use('/api/security', securityRoutes);
-app.use('/api/workspaces', workspaceRoutes);
-app.use('/api/work-signals', workSignalRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/forecasts', forecastRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/policy-rules', policyRuleRoutes);
-app.use('/api/outcomes', outcomeRoutes);
-app.use('/api/operations-ledger', operationsLedgerRoutes);
-app.use('/api/integrations/hai', haiIntegrationRoutes);
-app.use('/api/feature-flags', featureFlagRoutes);
-app.use('/api/integrity', integrityRoutes);
-app.use('/api/data-retention', dataRetentionRoutes);
+routeDefinitions.forEach(({ routePath, router }) => app.use(`/api/${routePath}`, router));
 
 // Machine-readable product metadata; the command center owns the browser root.
 const productMetadata = (req, res) => {
@@ -284,8 +238,9 @@ const initApp = async () => {
       logger.warn('Sneup demo mode enabled. Skipping MongoDB connection.');
     } else {
       try {
-        await connectDatabase();
+        await getDatabase().connectDatabase();
         databaseConnected = true;
+        const workspaceScopeService = getWorkspaceScopeService();
         const workspaceMigrationPreflight = await workspaceScopeService.inspectDefaultWorkspaceMigration();
         workspaceScopeService.assertWorkspaceMigrationReady(workspaceMigrationPreflight);
         const workspaceBackfill = await workspaceScopeService.backfillDefaultWorkspace();
@@ -336,15 +291,15 @@ const initApp = async () => {
     const hasTrelloCredentials = Boolean(process.env.TRELLO_API_KEY && process.env.TRELLO_API_TOKEN);
 
     if (databaseConnected && hasTrelloCredentials) {
-      await trelloSync.initSync();
+      await getTrelloSync().initSync();
     } else if (!hasTrelloCredentials) {
       logger.warn('Trello credentials are not configured. Skipping Trello synchronization.');
     }
 
     if (databaseConnected) {
-      await workspaceDeletionWorker.run();
-      analyticsService.initAnalytics();
-      connectorSyncService.init();
+      await getWorkspaceDeletionWorker().run();
+      getAnalyticsService().initAnalytics();
+      getConnectorSyncService().init();
 
       const interventionWorker = require('./workers/interventionWorker');
       interventionWorker.init();
@@ -355,10 +310,10 @@ const initApp = async () => {
       const notificationWorker = require('./workers/notificationWorker');
       notificationWorker.init();
 
-      identityRetentionWorker.init();
-      dataRetentionWorker.init();
+      getIdentityRetentionWorker().init();
+      getDataRetentionWorker().init();
 
-      workspaceDeletionWorker.init();
+      getWorkspaceDeletionWorker().init();
     } else {
       logger.warn('Background analytics and intervention workers are paused until MongoDB is connected.');
     }
@@ -402,12 +357,13 @@ const closeServer = () => new Promise((resolve, reject) => {
 });
 
 const shutdown = async () => {
-  workspaceDeletionWorker.stop();
-  identityRetentionWorker.stop();
-  dataRetentionWorker.stop();
+  getWorkspaceDeletionWorker.peek()?.stop();
+  getIdentityRetentionWorker.peek()?.stop();
+  getDataRetentionWorker.peek()?.stop();
   await ngrokTunnelService.stop();
   await closeServer();
-  if (isDatabaseConnected()) await disconnectDatabase();
+  const database = getDatabase.peek();
+  if (database?.isDatabaseConnected()) await database.disconnectDatabase();
 };
 
 // Process handlers are global: register once even when Sneup is embedded or hot-reloaded.

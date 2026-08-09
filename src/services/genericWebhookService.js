@@ -7,9 +7,8 @@ const Member = require('../models/Member');
 const accountConnectorService = require('./accountConnectorService');
 const operationsLedgerService = require('./operationsLedgerService');
 const workSignalService = require('./workSignalService');
+const { getMaxBodyBytes, isGenericWebhookPath } = require('./genericWebhookPolicy');
 
-const DEFAULT_MAX_BODY_BYTES = 32 * 1024;
-const MAX_BODY_BYTES = 256 * 1024;
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
 const DELIVERY_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
 const SIGNATURE_PATTERN = /^sha256=([a-f0-9]{64})$/i;
@@ -20,12 +19,6 @@ const DEFAULT_WORKER_RESPONSE_OPTION_LIMIT = 100;
 const MAX_WORKER_RESPONSE_OPTION_LIMIT = 250;
 const WORKER_RESPONSE_TYPES = new Set(['acknowledged', 'completed', 'blocked', 'needs_help']);
 const WORKER_RESPONSE_SOURCES = new Set(['slack', 'teams', 'google_chat', 'discord', 'mattermost', 'webex', 'email']);
-
-const getMaxBodyBytes = () => {
-  const configured = Number.parseInt(process.env.SNEUP_GENERIC_WEBHOOK_MAX_BODY_BYTES, 10);
-  if (!Number.isFinite(configured)) return DEFAULT_MAX_BODY_BYTES;
-  return Math.max(1024, Math.min(configured, MAX_BODY_BYTES));
-};
 
 const boundedInteger = (value, fallback, min, max) => {
   const parsed = Number.parseInt(value, 10);
@@ -46,8 +39,6 @@ const getDeliveryRetentionMs = () => boundedInteger(
   1,
   31
 ) * 24 * 60 * 60 * 1000;
-
-const isGenericWebhookPath = (path) => /^\/api\/webhooks\/generic\/[a-f\d]{24}(?:\/worker-response)?$/i.test(String(path || '').split('?')[0]);
 
 const webhookError = (message, statusCode, code) => {
   const error = new Error(message);

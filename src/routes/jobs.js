@@ -1,17 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
-const Board = require('../models/Board');
-const analyticsService = require('../services/analyticsService');
-const connectorSyncService = require('../services/connectorSyncService');
-const interventionEngine = require('../services/interventionEngine');
 const jobObservabilityService = require('../services/jobObservabilityService');
-const operationsLedgerService = require('../services/operationsLedgerService');
-const performanceTracker = require('../services/performanceTracker');
-const notificationService = require('../services/notificationService');
-const trelloSync = require('../services/trelloSync');
-const { defaultWorkspaceQuery, getDefaultWorkspaceObjectId, getRequestWorkspaceObjectId } = require('../services/workspaceScopeService');
 const { clampInteger, requirePermission } = require('../utils/requestSecurity');
+
+const requestWorkspaceId = req =>
+  req.auth?.workspaceId || process.env.SNEUP_DEFAULT_WORKSPACE_ID || 'default';
 
 const actorFromRequest = (req) =>
   req.auth?.displayName || req.auth?.actorId || 'sneup-operator';
@@ -24,7 +18,7 @@ const plainState = (value) => {
 
 const recordJobAudit = async (req, action, jobName, afterState = {}) => {
   try {
-    await operationsLedgerService.recordAudit({
+    await require('../services/operationsLedgerService').recordAudit({
       workspaceId: req.auth?.workspaceId,
       entityType: 'job_control',
       entityId: jobName,
@@ -40,7 +34,9 @@ const recordJobAudit = async (req, action, jobName, afterState = {}) => {
 };
 
 const calculateAllPerformance = async (period, options = {}) => {
-  const workspaceId = options.workspaceId || getDefaultWorkspaceObjectId();
+  const workspaceId = options.workspaceId || process.env.SNEUP_DEFAULT_WORKSPACE_ID || 'default';
+  const Board = require('../models/Board');
+  const performanceTracker = require('../services/performanceTracker');
   const boards = await Board.find({ workspaceId, closed: false });
   let successCount = 0;
   let failureCount = 0;
@@ -66,23 +62,25 @@ const calculateAllPerformance = async (period, options = {}) => {
 const manualJobHandlers = {
   'trello.incremental_sync': {
     jobType: 'sync',
-    run: ({ workspaceId }) => trelloSync.syncRecentActivity({ workspaceId })
+    run: ({ workspaceId }) => require('../services/trelloSync').syncRecentActivity({ workspaceId })
   },
   'analytics.generate_all': {
     jobType: 'analytics',
-    run: ({ workspaceId }) => analyticsService.generateAllAnalytics({ workspaceId })
+    run: ({ workspaceId }) => require('../services/analyticsService').generateAllAnalytics({ workspaceId })
   },
   'connectors.work_signals_sync': {
     jobType: 'sync',
-    run: ({ workspaceId }) => connectorSyncService.syncConnectedAccounts({ workspaceId, triggerType: 'manual' })
+    run: ({ workspaceId }) => require('../services/connectorSyncService').syncConnectedAccounts({ workspaceId, triggerType: 'manual' })
   },
   'notifications.reconciliation_alerts': {
     jobType: 'system',
-    run: ({ workspaceId }) => notificationService.dispatchReconciliationAlerts({ workspaceId })
+    run: ({ workspaceId }) => require('../services/notificationService').dispatchReconciliationAlerts({ workspaceId })
   },
   'interventions.process_all': {
     jobType: 'intervention',
     run: async ({ workspaceId }) => {
+      const Board = require('../models/Board');
+      const interventionEngine = require('../services/interventionEngine');
       const boards = await Board.find({ workspaceId, closed: false });
       let successCount = 0;
       let failureCount = 0;
@@ -107,6 +105,8 @@ const manualJobHandlers = {
   'interventions.follow_ups': {
     jobType: 'intervention',
     run: async ({ workspaceId }) => {
+      const operationsLedgerService = require('../services/operationsLedgerService');
+      const interventionEngine = require('../services/interventionEngine');
       const ledgerResult = await operationsLedgerService.processDueFollowUps({ workspaceId });
       const queuedInterventions = await interventionEngine.processFollowUps({ workspaceId });
       return {
@@ -119,6 +119,7 @@ const manualJobHandlers = {
   'interventions.decision_queue_snoozes': {
     jobType: 'intervention',
     run: async ({ workspaceId }) => {
+      const operationsLedgerService = require('../services/operationsLedgerService');
       const reopenedItems = await operationsLedgerService.reopenDueSnoozedDecisionQueueItems({ workspaceId });
       return {
         processedCount: reopenedItems.length,
@@ -130,6 +131,8 @@ const manualJobHandlers = {
   'interventions.escalations': {
     jobType: 'intervention',
     run: async ({ workspaceId }) => {
+      const operationsLedgerService = require('../services/operationsLedgerService');
+      const interventionEngine = require('../services/interventionEngine');
       const escalatedDecisionItems = await operationsLedgerService.processDueDecisionQueueEscalations({ workspaceId });
       const queuedInterventions = await interventionEngine.processEscalations({
         workspaceId
@@ -144,6 +147,7 @@ const manualJobHandlers = {
   'interventions.outcomes': {
     jobType: 'intervention',
     run: async ({ workspaceId }) => {
+      const operationsLedgerService = require('../services/operationsLedgerService');
       const result = await operationsLedgerService.refreshDueInterventionOutcomes({ workspaceId });
       return {
         processedCount: result.evaluatedCount,
@@ -169,7 +173,7 @@ const manualJobHandlers = {
 router.get('/', requirePermission('audit:read'), async (req, res) => {
   try {
     const dashboard = await jobObservabilityService.getDashboard({
-      workspaceId: getRequestWorkspaceObjectId(req),
+      workspaceId: requestWorkspaceId(req),
       limit: clampInteger(req.query.limit, 250, 1, 500),
       jobType: req.query.jobType,
       status: req.query.status
@@ -191,7 +195,7 @@ router.get('/', requirePermission('audit:read'), async (req, res) => {
 router.get('/health', requirePermission('audit:read'), async (req, res) => {
   try {
     const dashboard = await jobObservabilityService.getDashboard({
-      workspaceId: getRequestWorkspaceObjectId(req),
+      workspaceId: requestWorkspaceId(req),
       limit: clampInteger(req.query.limit, 250, 1, 500)
     });
 
@@ -212,7 +216,7 @@ router.get('/health', requirePermission('audit:read'), async (req, res) => {
 router.get('/runs', requirePermission('audit:read'), async (req, res) => {
   try {
     const runs = await jobObservabilityService.listRuns({
-      workspaceId: getRequestWorkspaceObjectId(req),
+      workspaceId: requestWorkspaceId(req),
       limit: clampInteger(req.query.limit, 100, 1, 500),
       jobName: req.query.jobName,
       jobType: req.query.jobType,
@@ -237,7 +241,7 @@ router.get('/runs', requirePermission('audit:read'), async (req, res) => {
 router.post('/:jobName/pause', requirePermission('jobs:manage'), async (req, res) => {
   try {
     const control = await jobObservabilityService.setPaused(req.params.jobName, true, {
-      workspaceId: getRequestWorkspaceObjectId(req),
+      workspaceId: requestWorkspaceId(req),
       actor: actorFromRequest(req),
       reason: req.body?.reason
     });
@@ -259,7 +263,7 @@ router.post('/:jobName/pause', requirePermission('jobs:manage'), async (req, res
 router.post('/:jobName/resume', requirePermission('jobs:manage'), async (req, res) => {
   try {
     const control = await jobObservabilityService.setPaused(req.params.jobName, false, {
-      workspaceId: getRequestWorkspaceObjectId(req),
+      workspaceId: requestWorkspaceId(req),
       actor: actorFromRequest(req)
     });
     await recordJobAudit(req, 'job_resumed', req.params.jobName, control);
@@ -288,7 +292,7 @@ router.post('/:jobName/trigger', requirePermission('jobs:manage'), async (req, r
       });
     }
 
-    const workspaceId = getRequestWorkspaceObjectId(req);
+    const workspaceId = requestWorkspaceId(req);
     if (await jobObservabilityService.isJobPaused(req.params.jobName, { workspaceId })) {
       return res.status(409).json({
         success: false,

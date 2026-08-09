@@ -1,6 +1,4 @@
 const crypto = require('crypto');
-const operationsLedgerService = require('./operationsLedgerService');
-const { getDemoOperationsLedger, isDemoMode } = require('./demoWorkspaceService');
 
 const MAX_TEXT = 500;
 const MAX_ITEMS = 50;
@@ -158,16 +156,17 @@ class HaiIntegrationService {
 
   async createProposal(body, options = {}) {
     const command = this.normalizeProposal(body);
-    return operationsLedgerService.createRecommendationFromAutopilotCommand(command, {
+    return require('./operationsLedgerService').createRecommendationFromAutopilotCommand(command, {
       workspaceId: options.workspaceId,
       actor: options.actor || 'hai'
     });
   }
 
   async getSnapshot(options = {}) {
-    const ledger = isDemoMode()
-      ? getDemoOperationsLedger()
-      : await operationsLedgerService.getWorkspaceLedger({
+    const demoWorkspaceService = require('./demoWorkspaceService');
+    const ledger = demoWorkspaceService.isDemoMode()
+      ? demoWorkspaceService.getDemoOperationsLedger()
+      : await require('./operationsLedgerService').getWorkspaceLedger({
         workspaceId: options.workspaceId,
         limit: MAX_ITEMS,
         healthLimit: 20,

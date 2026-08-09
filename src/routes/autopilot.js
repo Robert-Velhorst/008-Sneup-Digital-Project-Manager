@@ -3,7 +3,6 @@ const router = express.Router();
 const logger = require('../utils/logger');
 const autopilotService = require('../services/autopilotService');
 const operationsBriefService = require('../services/operationsBriefService');
-const { getRequestWorkspaceObjectId } = require('../services/workspaceScopeService');
 const { requirePermission } = require('../utils/requestSecurity');
 const { getAuthenticatedActor } = require('../utils/requestActor');
 
@@ -11,11 +10,13 @@ const sendError = (res, error, fallback) => res.status(error.statusCode || 500).
   success: false,
   error: error.statusCode ? error.message : fallback
 });
+const requestWorkspaceId = req =>
+  req.auth?.workspaceId || process.env.SNEUP_DEFAULT_WORKSPACE_ID || 'default';
 
 router.get('/mission-control', requirePermission('audit:read'), async (req, res) => {
   try {
     const snapshot = await autopilotService.getMissionControl({
-      workspaceId: getRequestWorkspaceObjectId(req)
+      workspaceId: requestWorkspaceId(req)
     });
     res.json({
       success: true,
@@ -33,7 +34,7 @@ router.get('/mission-control', requirePermission('audit:read'), async (req, res)
 router.get('/operations-brief', requirePermission('audit:read'), async (req, res) => {
   try {
     const brief = await operationsBriefService.getDailyBrief({
-      workspaceId: getRequestWorkspaceObjectId(req)
+      workspaceId: requestWorkspaceId(req)
     });
     res.json({
       success: true,
@@ -52,7 +53,7 @@ router.post('/commands/queue', requirePermission('autopilot:queue'), async (req,
   try {
     const result = await autopilotService.queueCommandForApproval(req.body.command, {
       actor: getAuthenticatedActor(req),
-      workspaceId: getRequestWorkspaceObjectId(req)
+      workspaceId: requestWorkspaceId(req)
     });
 
     res.json({
@@ -70,7 +71,7 @@ router.post('/commands/queue-all', requirePermission('autopilot:queue'), async (
   try {
     const result = await autopilotService.queueMissionControlCommands({
       actor: getAuthenticatedActor(req),
-      workspaceId: getRequestWorkspaceObjectId(req),
+      workspaceId: requestWorkspaceId(req),
       limit: req.body.limit
     });
 

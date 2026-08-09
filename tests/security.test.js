@@ -1608,8 +1608,8 @@ describe('dashboard content security policy', () => {
     expect(appJs).toContain('Runtime mode is selected when Sneup starts. This browser reflects that active mode and does not change it.');
     expect(appJs).toContain("if (!state.setupMode && window.sneupDesktop?.saveStartupMode) openFirstRunSetup();");
     expect(html).toContain('Connector readiness filter');
-    expect(server).toContain("app.use('/api/work-signals', workSignalRoutes)");
-    expect(server).toContain("app.use('/api/forecasts', forecastRoutes)");
+    expect(server).toContain("['work-signals', () => require('./routes/workSignals')]");
+    expect(server).toContain("['forecasts', () => require('./routes/forecasts')]");
     expect(fs.readFileSync(path.join(rootDir, 'src', 'routes', 'workSignals.js'), 'utf8')).toContain("router.post('/graph/dependencies/:dependencyId/review'");
     expect(recommendationRoutes).toContain("router.get('/:recommendationId/evidence'");
     expect(interventionRoutes).toContain("intervention.status !== 'executed'");

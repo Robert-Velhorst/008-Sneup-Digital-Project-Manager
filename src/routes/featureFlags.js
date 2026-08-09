@@ -1,13 +1,12 @@
 const express = require('express');
 const featureFlagService = require('../services/featureFlagService');
-const { getRequestWorkspaceObjectId } = require('../services/workspaceScopeService');
 const { requirePermission } = require('../utils/requestSecurity');
 const logger = require('../utils/logger');
 
 const router = express.Router();
 
 const options = req => ({
-  workspaceId: getRequestWorkspaceObjectId(req),
+  workspaceId: req.auth?.workspaceId || process.env.SNEUP_DEFAULT_WORKSPACE_ID || 'default',
   subjectId: req.auth?.actorId || req.auth?.userId,
   actor: req.auth?.actorId || 'sneup-operator'
 });

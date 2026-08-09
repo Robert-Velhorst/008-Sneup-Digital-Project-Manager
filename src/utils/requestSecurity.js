@@ -1,7 +1,7 @@
 const crypto = require('crypto');
-const mongoose = require('mongoose');
 const logger = require('./logger');
-const { isDatabaseConnected } = require('./database');
+
+const isDatabaseConnected = () => require('./database').isDatabaseConnected();
 
 const localAddresses = new Set([
   '127.0.0.1',
@@ -539,6 +539,7 @@ const requirePermission = (permission) => (req, res, next) => {
 
 const validateObjectIdParam = (paramName) => (req, res, next) => {
   const value = req.params[paramName];
+  const mongoose = require('mongoose');
   if (!mongoose.Types.ObjectId.isValid(value)) {
     return res.status(400).json({
       success: false,

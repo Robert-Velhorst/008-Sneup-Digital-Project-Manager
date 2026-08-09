@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.3.11 - 2026-08-09
+
+### Performance and resource use
+
+- Deferred API routes, live database services, provider sync engines, and background workers until the selected runtime or requested endpoint needs them.
+- Kept health, HAI metadata, feature controls, mission control, the daily brief, and Job Health independent of MongoDB in explicit demo mode.
+- Added `npm run profile:startup` and regression guards for one-time router loading and the Mongo-free demo overview.
+
+### Compatibility and resilience
+
+- Preserved every versioned and legacy API path through one shared lazy router instance and forwarded first-load failures through the existing error boundary.
+- Kept live workspace normalization, migration preflight, worker startup, provider approval gates, and graceful shutdown behavior unchanged.
+
 ## 2.3.10 - 2026-08-09
 
 ### Added

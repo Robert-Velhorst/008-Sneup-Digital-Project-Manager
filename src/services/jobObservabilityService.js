@@ -1,8 +1,3 @@
-const mongoose = require('mongoose');
-const JobControl = require('../models/JobControl');
-const JobRun = require('../models/JobRun');
-const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
-const jobLeaseService = require('./jobLeaseService');
 const logger = require('../utils/logger');
 
 const DEFAULT_LIMIT = 100;
@@ -141,11 +136,18 @@ const trackedJobs = [
 
 class JobObservabilityService {
   resolveWorkspaceId(workspaceId) {
-    return normalizeWorkspaceObjectId(workspaceId || getDefaultWorkspaceObjectId());
+    if (process.env.SNEUP_DEMO_MODE === 'true') {
+      return String(workspaceId || process.env.SNEUP_DEFAULT_WORKSPACE_ID || 'default');
+    }
+    const workspaceScopeService = require('./workspaceScopeService');
+    return workspaceScopeService.normalizeWorkspaceObjectId(
+      workspaceId || workspaceScopeService.getDefaultWorkspaceObjectId()
+    );
   }
 
   isDatabaseReady() {
-    return mongoose.connection.readyState === 1;
+    return process.env.SNEUP_DEMO_MODE !== 'true'
+      && require('mongoose').connection.readyState === 1;
   }
 
   async trackJob(options, callback) {
@@ -156,6 +158,7 @@ class JobObservabilityService {
       return this.recordSkippedRun(scopedOptions, 'Job is paused by operator control');
     }
 
+    const jobLeaseService = require('./jobLeaseService');
     const lease = await jobLeaseService.acquire(scopedOptions);
     if (!lease.acquired) {
       await this.recordSkippedRun(scopedOptions, 'Another Sneup instance already holds this workspace job lease');
@@ -223,7 +226,7 @@ class JobObservabilityService {
       };
     }
 
-    return JobRun.create(data);
+    return require('../models/JobRun').create(data);
   }
 
   async finishRun(run, status, result = {}) {
@@ -283,7 +286,7 @@ class JobObservabilityService {
     if (filters.status) query.status = filters.status;
     if (filters.boardId) query.boardId = filters.boardId;
 
-    return JobRun.find(query)
+    return require('../models/JobRun').find(query)
       .populate('boardId')
       .sort({ startedAt: -1 })
       .limit(filters.limit || DEFAULT_LIMIT);
@@ -503,7 +506,7 @@ class JobObservabilityService {
 
   async listControls(options = {}) {
     if (!this.isDatabaseReady()) return [];
-    return JobControl.find({
+    return require('../models/JobControl').find({
       workspaceId: this.resolveWorkspaceId(options.workspaceId),
       jobName: { $in: trackedJobs.map(job => job.jobName) }
     });
@@ -512,12 +515,14 @@ class JobObservabilityService {
   async getControl(jobName, options = {}) {
     this.ensureKnownJob(jobName);
     if (!this.isDatabaseReady()) return null;
-    return JobControl.findOne({ jobName, workspaceId: this.resolveWorkspaceId(options.workspaceId) });
+    return require('../models/JobControl').findOne({ jobName, workspaceId: this.resolveWorkspaceId(options.workspaceId) });
   }
 
   async isJobPaused(jobName, options = {}) {
     if (!jobName || !this.isDatabaseReady()) return false;
-    const control = await JobControl.findOne({ jobName, workspaceId: this.resolveWorkspaceId(options.workspaceId) }).select('status');
+    const control = await require('../models/JobControl')
+      .findOne({ jobName, workspaceId: this.resolveWorkspaceId(options.workspaceId) })
+      .select('status');
     return control?.status === 'paused';
   }
 
@@ -540,7 +545,7 @@ class JobObservabilityService {
         resumedBy: actor
       };
 
-    return JobControl.findOneAndUpdate(
+    return require('../models/JobControl').findOneAndUpdate(
       { jobName, workspaceId },
       { $set: update },
       { new: true, upsert: true, setDefaultsOnInsert: true }
@@ -551,7 +556,7 @@ class JobObservabilityService {
     this.ensureKnownJob(jobName);
     if (!this.isDatabaseReady()) return null;
 
-    return JobControl.findOneAndUpdate(
+    return require('../models/JobControl').findOneAndUpdate(
       { jobName, workspaceId: this.resolveWorkspaceId(options.workspaceId) },
       {
         $set: {

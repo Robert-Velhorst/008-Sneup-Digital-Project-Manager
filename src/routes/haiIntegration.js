@@ -1,12 +1,12 @@
 const express = require('express');
 const logger = require('../utils/logger');
 const haiIntegrationService = require('../services/haiIntegrationService');
-const featureFlagService = require('../services/featureFlagService');
-const { getRequestWorkspaceObjectId } = require('../services/workspaceScopeService');
 const { requirePermission } = require('../utils/requestSecurity');
 
 const router = express.Router();
 const baseUrl = req => haiIntegrationService.publicUrl(req);
+const workspaceId = req =>
+  require('../services/workspaceScopeService').getRequestWorkspaceObjectId(req);
 
 const sendError = (res, error, fallback) => res.status(error.statusCode || 500).json({
   success: false,
@@ -24,7 +24,7 @@ router.get('/openapi.json', requirePermission('integrations:hai:read'), (req, re
 
 router.get('/snapshot', requirePermission('integrations:hai:read'), async (req, res) => {
   try {
-    const snapshot = await haiIntegrationService.getSnapshot({ workspaceId: getRequestWorkspaceObjectId(req) });
+    const snapshot = await haiIntegrationService.getSnapshot({ workspaceId: workspaceId(req) });
     res.json({ success: true, snapshot });
   } catch (error) {
     logger.error('Failed to build HAI operations snapshot:', error);
@@ -34,12 +34,12 @@ router.get('/snapshot', requirePermission('integrations:hai:read'), async (req, 
 
 router.post('/proposals', requirePermission('integrations:hai:propose'), async (req, res) => {
   try {
-    await featureFlagService.assertEnabled('hai_proposals', {
-      workspaceId: getRequestWorkspaceObjectId(req),
+    await require('../services/featureFlagService').assertEnabled('hai_proposals', {
+      workspaceId: workspaceId(req),
       subjectId: req.auth?.actorId || req.auth?.userId
     });
     const result = await haiIntegrationService.createProposal(req.body, {
-      workspaceId: getRequestWorkspaceObjectId(req),
+      workspaceId: workspaceId(req),
       actor: req.auth?.displayName || req.auth?.actorId || 'hai'
     });
     res.status(result.created ? 201 : 200).json({

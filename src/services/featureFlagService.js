@@ -1,8 +1,5 @@
 const crypto = require('crypto');
-const mongoose = require('mongoose');
-const AuditEvent = require('../models/AuditEvent');
 const { isDemoMode } = require('./demoWorkspaceService');
-const { normalizeWorkspaceObjectId } = require('./workspaceScopeService');
 const logger = require('../utils/logger');
 
 const FEATURE_DEFINITIONS = Object.freeze([
@@ -62,7 +59,7 @@ const featureError = (message, statusCode, code) => {
 class FeatureFlagService {
   constructor(options = {}) {
     this.FeatureFlag = options.FeatureFlag || null;
-    this.AuditEvent = options.AuditEvent || AuditEvent;
+    this.AuditEvent = options.AuditEvent || null;
     this.now = options.now || (() => new Date());
     this.isDemoRuntime = options.isDemoRuntime || (() => isDemoMode());
     this.cacheTtlMs = clampInteger(options.cacheTtlMs, CACHE_TTL_MS, 1_000, 300_000);
@@ -74,6 +71,10 @@ class FeatureFlagService {
     return this.FeatureFlag || require('../models/FeatureFlag');
   }
 
+  getAuditEventModel() {
+    return this.AuditEvent || require('../models/AuditEvent');
+  }
+
   definition(key) {
     const normalized = String(key || '').trim().toLowerCase();
     const definition = DEFINITIONS_BY_KEY.get(normalized);
@@ -82,11 +83,15 @@ class FeatureFlagService {
   }
 
   isDatabaseReady() {
-    return mongoose.connection.readyState === 1;
+    if (this.isDemoRuntime()) return false;
+    return require('mongoose').connection.readyState === 1;
   }
 
   resolveWorkspaceId(workspaceId) {
-    return normalizeWorkspaceObjectId(workspaceId);
+    if (this.isDemoRuntime()) {
+      return String(workspaceId || process.env.SNEUP_DEFAULT_WORKSPACE_ID || 'default');
+    }
+    return require('./workspaceScopeService').normalizeWorkspaceObjectId(workspaceId);
   }
 
   cacheKey(workspaceId) {
@@ -326,7 +331,7 @@ class FeatureFlagService {
     const before = this.serialize(definition, existing, { workspaceId, subjectId: options.subjectId });
     const after = this.serialize(definition, saved, { workspaceId, subjectId: options.subjectId });
     try {
-      await this.AuditEvent.create({
+      await this.getAuditEventModel().create({
         workspaceId,
         entityType: 'feature_flag',
         entityId: saved._id,
