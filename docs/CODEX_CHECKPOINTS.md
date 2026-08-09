@@ -8,8 +8,10 @@
 | Focused verification | Runtime/security tests and lint | Complete |
 | Traceability | Required document set and completion matrix | Complete |
 | Full regression | Entire Jest/lint/evaluation/audit suite | Complete |
-| Windows package | NSIS build and hash | Complete, unsigned |
-| Fresh clone | Clean checkout dependency/test/build path | Recorded in final verification report |
+| Windows package | NSIS build, installer UI, packaged app, native ngrok binding, and SHA-256 | Complete, unsigned |
+| Fresh clone | Lockfile-only install, 76 suites/648 tests, evaluation, and audit | Complete |
+| Browser and Windows UI | Approval flow, modal, responsive browser, packaged 150% scaling | Complete |
+| HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter | Complete locally; live credentials external |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |

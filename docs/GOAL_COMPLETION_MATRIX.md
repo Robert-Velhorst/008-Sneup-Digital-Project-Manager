@@ -36,7 +36,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 029 Web security | Implemented | Helmet/CSP, origin controls, bounded bodies, throttling. |
 | 030 Secrets/rotation | Implemented | Purpose-separated secrets, encryption, rotation visibility, release check. |
 | 031 One-command local development | Implemented | `npm ci`, doctor, start/demo paths, Windows installer. |
-| 032 Docker/deployment | Partial | Deployment guidance exists; no production deployment proof. |
+| 032 Docker/deployment | Partial | Authenticated fail-closed ngrok ingress and deployment guidance exist; no production deployment proof. |
 | 033 Migrations/rollback | Partial | Workspace preflight/backfill exists; full rollback rehearsal is external. |
 | 034 CLI/doctor | Implemented | `doctor`, `doctor:json`, support bundle. |
 | 035 Health/readiness | Implemented | `/health`, `/ready`, job health, response timing. |
@@ -54,7 +54,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 047 Path traversal/file safety | Implemented | Controlled static/report paths and traversal/security tests. |
 | 048 Provider failure simulation | Implemented | Retry, timeout, partial write, truncation, and reconciliation tests. |
 | 049 Accessibility | Partial | Labels/keyboard behavior exist; screen-reader certification pending. |
-| 050 Responsive/browser compatibility | Partial | Browser regressions exist; clean-VM scaling matrix pending. |
+| 050 Responsive/browser compatibility | Partial | Browser regressions and packaged Windows 150% scaling pass; clean-VM 125%/200% matrix pending. |
 | 051 Performance/indexing | Implemented | Bounded queries, indexes, concurrency, batching, response timing. |
 | 052 Large data/pagination | Partial | Provider caps/pages are tested; production-scale load test pending. |
 | 053 Backup/restore | Partial | Runbook is defined; production-like restore evidence is external. |
@@ -96,11 +96,11 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 089 Stabilization gates | Implemented | Focused, full, security, installer, and fresh-clone gates. |
 | 090 No vanity work | Implemented | Changes target operability, safety, evidence, and delivery. |
 | 091 Feature definition of done | Implemented | Status requires wiring, reachability, tests, docs, and evidence. |
-| 092 Fresh-clone run | Pending | Must be executed after final commit candidate. |
-| 093 Manual evidence | Partial | Local/browser artifacts exist; live provider and clean-VM evidence pending. |
+| 092 Fresh-clone run | Implemented | Lockfile-only clean checkout passed 76 suites/648 tests, 5/5 evaluation, and zero-vulnerability audit; final CSS-only changes repeated full regression and packaged QA. |
+| 093 Manual evidence | Partial | Browser, packaged Windows, and installer evidence pass; live provider and clean-VM evidence pending. |
 | 094 No-excuses search | Implemented | No shipped TODO/FIXME/HACK, dynamic-code, child-process, or secret-pattern finding. |
 | 095 Completion matrix | Implemented | This file, with partial/external states retained. |
-| 096 Verification report | Partial | Report exists; final commands/hashes are added after execution. |
+| 096 Verification report | Implemented | Final commands, clean-checkout result, installer hash, browser QA, and packaged Windows QA are recorded. |
 | 097 Final response | Pending | Produced after push and remote verification. |
 | 098 Maintenance plan | Implemented | Existing feature plan plus audit risks and runbook. |
 | 099 Roadmap/blocked items | Implemented | External and partial gates named here and in technical audit. |
