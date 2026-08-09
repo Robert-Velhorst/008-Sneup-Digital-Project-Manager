@@ -121,6 +121,6 @@ Live Trello critical-path acceptance, live ngrok/HAI credential acceptance, prod
 | Packaged Windows QA | Pass: version 2.3.23, demo health and eight diagnostics, no exposed secrets, HAI `never_direct`, four processes, normal close, port released |
 | Packaged resource sample | Directional pass: 360.5 MB working set, 290.4 MB private bytes, 2.281 cumulative CPU seconds after the repeatable local packaged probe |
 | Windows installer | Pass: 109,480,743 bytes, version 2.3.23, unsigned, SHA-256 `97EE2D6E07D24B187CB2FCF1A223FF9C01AE1D5191FA37880A1B9FF17B1F3871`; archive contains updated `public/connectorView.js` |
-| Fresh-clone GitHub CI | Pending publication of this source commit |
-| GitHub installer artifact | Pending publication and independent download verification |
+| Fresh-clone GitHub CI | Pass: run `31332160310` on source `be0eeb677dbf1049ecfa15d29fe010f44d58f53e`; Node.js 24 quality completed in 1 minute 1 second and Windows packaging/upload in 2 minutes 26 seconds |
+| GitHub installer artifact | Pass: artifact `9043260024`, archive size 109,486,755 bytes, digest `sha256:90fc98a6056c933649b977ea894e64369440cac1a53e85ceab735ecffb6a64a1`; its single installer is 109,480,729 bytes, unsigned, version 2.3.23, SHA-256 `EB60DF80CCDC45699A3254A56B48676E91AAE790C624213A8DD3BE449D1C7923` |
 | External gates | Live provider/ngrok/HAI acceptance, production-like restore/deployment rollback, code signing, clean-VM scaling, and assistive-technology certification remain external |
