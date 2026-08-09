@@ -33,3 +33,4 @@ This worklog records local engineering evidence. Live Trello, production MongoDB
 - Demand-loaded Natural NLP, removed one unused NLP import, and changed routine request logging to retain only rejected, failed, and slow requests by default.
 - Fixed the static-root/API conflict by serving machine-readable product capabilities at `/api` and proving both `/` and `/api` over a live Express listener.
 - Retried the explicitly requested in-app Browser; its webview still did not attach, so current rendered Browser evidence remains pending.
+- Updated the GitHub workflow to the official Node 24 action runtimes and verified clean Linux quality plus Windows installer artifact upload in run `31293249661`.
