@@ -82,4 +82,6 @@ Live Trello critical-path acceptance, live ngrok/HAI credential acceptance, prod
 | Packaged Windows QA | Pass: version 2.3.21, demo health and eight diagnostics, no exposed secrets, HAI `never_direct`, four processes, normal close, port released |
 | Packaged resource sample | Directional pass: 360.5 MB working set, 290.1 MB private bytes, 1.688 cumulative CPU seconds after the repeatable local packaged probe |
 | Windows installer | Pass: 109,479,199 bytes, version 2.3.21, unsigned, SHA-256 `B9E47D19CFA2C65A5263558953DF92351E6DD53F680E7965B71D9887AD2A1587`; archive contains `public/forecastView.js` and `public/reportView.js` |
+| Fresh-clone GitHub CI | Pass: run `31329172266` on source `431e99dbfeef8e11105b079c620f101db338cf83`; Node.js 24 quality completed in 49 seconds and Windows packaging/upload in 2 minutes 15 seconds |
+| GitHub installer artifact | Pass: artifact `9042435236`, archive size 109,485,393 bytes, digest `sha256:349a257ffc1cadbdaa37d45cc8e88695fcfa27ecb6fe86c3dc34cd99ef26d79a`; its single installer is 109,479,402 bytes, unsigned, version 2.3.21, SHA-256 `D41A927DDD85B0CC487F092DA3E856ECA4CCD9F6923EB0FE37094D283B023A1F` |
 | External gates | Live provider/ngrok/HAI acceptance, production-like restore/deployment rollback, code signing, clean-VM scaling, and assistive-technology certification remain external |
