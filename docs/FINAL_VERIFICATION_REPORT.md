@@ -34,9 +34,9 @@ This report is updated from executed commands at release time. A passing local s
 | Packaged idle sample | Pass: four processes settled to 396.0 MB working set, 304.8 MB private memory, and 2.83 cumulative CPU seconds after load plus 30 seconds idle |
 | Installer UI | Pass: exact 2.3.5 `Sneup Setup` window opened and was closed without installing |
 | Windows installer | Pass: local build 109,429,244 bytes, unsigned, SHA-256 `A158F9FB1AF01F9506670139E817901B3AAA0B2B3C68DCB250340E1665927383`; executable metadata reports 2.3.5 |
-| Fresh clone | Pending exact 2.3.5 GitHub quality and Windows jobs; 2.3.4 baseline remains green |
-| GitHub CI | Pending exact 2.3.5 source run |
-| GitHub installer artifact | Pending exact 2.3.5 artifact download and hash verification |
+| Fresh clone | Pass: exact 2.3.5 source commit completed clean Node.js 24 quality and Windows installer jobs |
+| GitHub CI | Pass: run `31300449925`, source `2ae4f982020f1b1cdfa840bf29ee28e281edae1e`, zero annotations; quality 1m08s, Windows artifact 2m20s |
+| GitHub installer artifact | Pass: artifact `9034341974` (`sneup-windows-installer-unsigned`), archive digest `sha256:cd8ac5757c553d2714e4b03085405a5927f6d1b8913b92b5691e213633bc91c9`; downloaded installer 109,429,289 bytes, unsigned, SHA-256 `6731019A65C3587E4360D799D66F59D1336DC56740356050782B974A3EAEF8F3` |
 
 ## External gates
 
