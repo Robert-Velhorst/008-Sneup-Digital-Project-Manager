@@ -39,7 +39,7 @@ describe('redacted runtime diagnostics', () => {
       NODE_ENV: 'development',
       SNEUP_DEMO_MODE: 'true',
       HOST: '127.0.0.1'
-    }, nodeVersion: '20.12.2' });
+    }, nodeVersion: '24.6.0' });
 
     expect(report).toMatchObject({
       ready: true,
@@ -49,6 +49,20 @@ describe('redacted runtime diagnostics', () => {
     });
     expect(report.providerWrites).toMatchObject({ enabled: false, mode: 'demo_read_only' });
     expect(report.checks.some(check => check.status === 'error')).toBe(false);
+  });
+
+  test('rejects the retired Node.js 20 server runtime', () => {
+    const report = getRuntimeDiagnostics({
+      environment: { NODE_ENV: 'development', SNEUP_DEMO_MODE: 'true' },
+      nodeVersion: '20.19.0'
+    });
+
+    expect(report.ready).toBe(false);
+    expect(report.checks).toContainEqual(expect.objectContaining({
+      id: 'node_runtime',
+      status: 'error',
+      summary: expect.stringContaining('Node.js 22 or newer')
+    }));
   });
 
   test('fails closed for partial provider credentials and insecure remote access', () => {

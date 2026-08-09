@@ -49,8 +49,8 @@ All components are battle-tested, production-ready open source libraries:
 
 ### Prerequisites
 
-- **Node.js** 14.0.0 or higher
-- **MongoDB** 4.0 or higher
+- **Node.js** 22.0.0 or higher; Node.js 24 LTS is recommended
+- **MongoDB** 7.0 or higher
 - **Trello Account** with API access
 
 ### Setup

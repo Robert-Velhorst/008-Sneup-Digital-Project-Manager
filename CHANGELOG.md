@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.3.1 - 2026-08-09
+
+### Fixed
+
+- Workspace migration now covers all 39 workspace-scoped collections instead of omitting identity, token, notification, capacity, webhook, and connector-signal records from its older duplicated model list.
+- Migration, owner export, and permanent workspace deletion now share one authoritative collection registry, preventing future data-lifecycle drift.
+- Installation guidance no longer recommends unsupported Node.js 14 or MongoDB 4 deployments.
+
+### Verification
+
+- Added a guarded disposable-Mongo migration verifier that seeds one legacy record per collection, confirms all 39 appear in preflight, backfills all 39, and verifies none remain unscoped.
+- CI now tests Sneup on Node.js 24 LTS while retaining Node.js 22 as the minimum supported server runtime.
+
 ## 2.3.0 - 2026-08-09
 
 ### Added

@@ -34,3 +34,12 @@ This worklog records local engineering evidence. Live Trello, production MongoDB
 - Fixed the static-root/API conflict by serving machine-readable product capabilities at `/api` and proving both `/` and `/api` over a live Express listener.
 - Retried the explicitly requested in-app Browser; its webview still did not attach, so current rendered Browser evidence remains pending.
 - Updated the GitHub workflow to the official Node 24 action runtimes and verified clean Linux quality plus Windows installer artifact upload in run `31293249661`.
+
+## 2026-08-09 migration completeness continuation
+
+- Found that workspace migration still used a stale 30-model inventory while export and deletion used the complete 39-collection lifecycle registry.
+- Replaced the duplicated migration inventory with the shared registry and added a regression that names the nine previously omitted identity, token, notification, capacity, webhook, and connector-signal collections.
+- Added a database-name-guarded MongoDB verifier; it seeded 39 legacy unscoped records, found all 39 during preflight, backfilled all 39, verified none remained unscoped, dropped the database, and removed its disposable container.
+- Raised the supported server minimum to Node.js 22, moved CI execution to Node.js 24 LTS, and corrected the obsolete Node.js 14/MongoDB 4 setup guidance.
+- Passed 81 suites/670 tests, lint, 5/5 recommendation evaluation, both zero-vulnerability audits, production secret verification, 2.3.1 Windows packaging, packaged HTTP/HAI/readiness checks, normal command-center close, and installer-dialog close.
+- Retried the in-app Browser on two fresh tabs; its backend connected but the webview did not attach, so current visual evidence remains explicitly pending.

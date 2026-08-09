@@ -1,4 +1,5 @@
 const workspaceScopeService = require('../src/services/workspaceScopeService');
+const { WORKSPACE_COLLECTIONS } = require('../src/services/workspaceCollectionRegistry');
 
 const model = ({ missing = 0, conflicts = [] } = {}) => ({
   countDocuments: jest.fn().mockResolvedValue(missing),
@@ -7,6 +8,22 @@ const model = ({ missing = 0, conflicts = [] } = {}) => ({
 });
 
 describe('workspace migration preflight', () => {
+  test('uses the complete shared workspace collection registry', () => {
+    expect(workspaceScopeService.workspaceScopedModels).toBe(WORKSPACE_COLLECTIONS);
+    expect(workspaceScopeService.workspaceScopedModels).toHaveLength(39);
+    expect(workspaceScopeService.workspaceScopedModels.map(([name]) => name)).toEqual(expect.arrayContaining([
+      'apiTokens',
+      'capacityProfiles',
+      'notificationDeliveries',
+      'notificationPolicies',
+      'sessionTokens',
+      'users',
+      'webhookDeliveries',
+      'workSignals',
+      'workspaceInvitations'
+    ]));
+  });
+
   test('reports only aggregate future unique-key conflicts before any backfill write', async () => {
     const workspaceId = '507f1f77bcf86cd799439011';
     const boards = model({ missing: 2 });

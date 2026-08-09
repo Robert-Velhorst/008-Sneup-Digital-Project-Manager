@@ -119,6 +119,8 @@ npm run migrate:workspace -- --apply
 
 The first command is read-only JSON evidence: it reports each collection's records missing `workspaceId`, the target workspace identifier, bounded concurrency, and aggregate-only duplicate counts that would conflict with the future `PolicyRule.workspaceId + actionType` or `JobControl.workspaceId + jobName` indexes. It never returns policy conditions, user data, credentials, affected record identifiers, or record content. The `--apply` command refuses any detected duplicate group before it creates the default workspace, backfills anything, or changes an index. Once clean, it attaches only legacy records where `workspaceId` is absent or `null`; it does not overwrite a record already assigned to another workspace.
 
+Migration, owner export, and permanent workspace deletion use the same complete workspace collection registry. For an isolated pre-production proof against a disposable database named `sneup_workspace_migration_verification_*`, set `SNEUP_MIGRATION_VERIFICATION_MONGO_URI` and run `npm run verify:workspace-migration`. The verifier inserts one schema-bypassing legacy record per registered collection, proves the read-only preflight finds all of them, applies the real backfill, verifies every record is scoped, and drops only that guarded verification database.
+
 Use `--concurrency <1-16>` for constrained MongoDB deployments, or set `SNEUP_WORKSPACE_BACKFILL_CONCURRENCY` (default `4`). Sneup keeps the compatibility backfill at successful database startup, now with the same bounded concurrency; the explicit command is the recommended production preflight and change record.
 
 Recommended production checks before exposing Sneup remotely:

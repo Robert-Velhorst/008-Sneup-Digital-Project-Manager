@@ -23,9 +23,9 @@ const getRuntimeDiagnostics = ({ environment = process.env, nodeVersion = proces
   const hasTrelloToken = Boolean(String(environment.TRELLO_API_TOKEN || '').trim());
   const trelloPlaceholder = isPlaceholder(environment.TRELLO_API_KEY) || isPlaceholder(environment.TRELLO_API_TOKEN);
 
-  checks.push(nodeMajor(nodeVersion) >= 18
+  checks.push(nodeMajor(nodeVersion) >= 22
     ? diagnostic('node_runtime', 'ok', `Node.js ${nodeVersion} satisfies the supported runtime`)
-    : diagnostic('node_runtime', 'error', `Node.js ${nodeVersion} is unsupported; Node.js 18 or newer is required`));
+    : diagnostic('node_runtime', 'error', `Node.js ${nodeVersion} is unsupported; Node.js 22 or newer is required`));
 
   checks.push(diagnostic('runtime_mode', 'ok', demoMode
     ? 'Demo mode is active and external writes remain unavailable'

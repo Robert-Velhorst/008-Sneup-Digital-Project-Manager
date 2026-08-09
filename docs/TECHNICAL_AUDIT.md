@@ -17,6 +17,7 @@
 6. The Windows NSIS installer is reproducible and CI now builds the unsigned artifact on Windows.
 7. Workspace exports are owner-only, audit-recorded, streamed with bounded cursors, and recursively strip credential material.
 8. Archived-workspace deletion is owner-confirmed, exact-slug gated, resumable, registry-complete, and verified against a disposable real MongoDB database.
+9. Migration, export, and deletion share one complete 39-collection workspace registry; a guarded real-Mongo verifier proves legacy preflight and backfill coverage.
 
 ## Remediations in this release
 
@@ -31,6 +32,7 @@
 - Corrected the packaged desktop environment so production file logging is selected before application services load; this removes a startup-time detached-console `EPIPE` shutdown without muting persisted diagnostics.
 - Added a non-reactivatable deleting state, minimal deletion receipts, lease recovery, delayed orphan sweeps, and shared export/deletion collection coverage.
 - Made all Mongoose model exports reload-safe, moved product metadata to the reachable `/api` path, demand-loaded NLP, and reduced routine request-log disk churn.
+- Removed the stale 30-model migration inventory, added guarded all-collection migration verification, and moved server/CI guidance to supported Node.js 22+ with Node.js 24 LTS in CI.
 
 ## Remaining release risks
 
@@ -42,7 +44,7 @@
 | Deployment/rollback | Partial | Select hosting, provision secrets, run canary, and prove rollback. |
 | Data subject deletion | Implemented locally | Owner-authorized export and permanent archived-workspace deletion pass unit, security, UI-wiring, and real-Mongo verification. Capture an owner-controlled hosted acceptance run before production launch. |
 | Accessibility/i18n | Partial | Complete assistive-technology review and Dutch copy catalog before claiming conformance. |
-| Desktop resources | Measured | The 2.3.0 package used four processes, about 408 MB working set, 336.2 MB private bytes, and 5.16 cumulative CPU seconds after startup plus 30 seconds idle. The comparable 2.2.0 CPU sample was 14.87 seconds; collect broader clean-machine traces before setting a hard budget. |
+| Desktop resources | Measured | The 2.3.1 package used four processes, 406.6 MB working set, 332.5 MB private bytes, and 4.72 cumulative CPU seconds after startup plus 30 seconds idle. Collect broader clean-machine traces before setting a hard budget. |
 | Billing | Not applicable | No billing is required for the local-first product. |
 
 No live credential, provider authorization, deployment, signed binary, or production backup claim is inferred from local tests.

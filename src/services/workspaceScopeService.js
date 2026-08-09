@@ -1,36 +1,9 @@
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 const Workspace = require('../models/Workspace');
-const Board = require('../models/Board');
-const Card = require('../models/Card');
-const List = require('../models/List');
-const Member = require('../models/Member');
-const Comment = require('../models/Comment');
-const Analytics = require('../models/Analytics');
-const Intervention = require('../models/Intervention');
-const Learning = require('../models/Learning');
-const Performance = require('../models/Performance');
-const Conversation = require('../models/Conversation');
-const ConnectorAccount = require('../models/ConnectorAccount');
-const Recommendation = require('../models/Recommendation');
-const Approval = require('../models/Approval');
-const DecisionQueueItem = require('../models/DecisionQueueItem');
-const TrelloActionAttempt = require('../models/TrelloActionAttempt');
-const AuditEvent = require('../models/AuditEvent');
-const FollowUpPlan = require('../models/FollowUpPlan');
-const WorkerResponse = require('../models/WorkerResponse');
-const OutcomeRecord = require('../models/OutcomeRecord');
-const CardFinding = require('../models/CardFinding');
-const BoardHealthSnapshot = require('../models/BoardHealthSnapshot');
-const WorkActor = require('../models/WorkActor');
-const WorkComment = require('../models/WorkComment');
-const WorkContainer = require('../models/WorkContainer');
-const WorkDependency = require('../models/WorkDependency');
-const WorkEvent = require('../models/WorkEvent');
-const WorkItem = require('../models/WorkItem');
 const PolicyRule = require('../models/PolicyRule');
-const JobRun = require('../models/JobRun');
 const JobControl = require('../models/JobControl');
+const { WORKSPACE_COLLECTIONS } = require('./workspaceCollectionRegistry');
 
 const OBJECT_ID_PATTERN = /^[a-f0-9]{24}$/i;
 const DEFAULT_BACKFILL_CONCURRENCY = 4;
@@ -72,38 +45,7 @@ const defaultWorkspaceQuery = (query = {}) => ({
   workspaceId: getDefaultWorkspaceObjectId()
 });
 
-const workspaceScopedModels = [
-  ['boards', Board],
-  ['cards', Card],
-  ['lists', List],
-  ['members', Member],
-  ['comments', Comment],
-  ['analytics', Analytics],
-  ['interventions', Intervention],
-  ['learning', Learning],
-  ['performance', Performance],
-  ['conversations', Conversation],
-  ['connectorAccounts', ConnectorAccount],
-  ['recommendations', Recommendation],
-  ['approvals', Approval],
-  ['decisionQueueItems', DecisionQueueItem],
-  ['trelloActionAttempts', TrelloActionAttempt],
-  ['auditEvents', AuditEvent],
-  ['followUpPlans', FollowUpPlan],
-  ['workerResponses', WorkerResponse],
-  ['outcomeRecords', OutcomeRecord],
-  ['cardFindings', CardFinding],
-  ['boardHealthSnapshots', BoardHealthSnapshot],
-  ['workActors', WorkActor],
-  ['workComments', WorkComment],
-  ['workContainers', WorkContainer],
-  ['workDependencies', WorkDependency],
-  ['workEvents', WorkEvent],
-  ['workItems', WorkItem],
-  ['policyRules', PolicyRule],
-  ['jobRuns', JobRun],
-  ['jobControls', JobControl]
-];
+const workspaceScopedModels = WORKSPACE_COLLECTIONS;
 
 const missingWorkspaceQuery = () => ({
   $or: [
