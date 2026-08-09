@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.3.25 - 2026-08-09
+
+### Notification policy correctness and deferred controls
+
+- Fixed status-only notification-policy updates so configured daily operations brief schedules remain intact, and require an explicit server-side `confirmActivation` before a paused policy can become active.
+- Moved policy create/edit, activate, pause, and external test controls into the deferred Approval module while exact request bodies, authenticated API calls, encrypted destinations, refreshes, and provider authority remain in `public/app.js`.
+- Added duplicate-action locks and truthful post-commit handling: a saved policy or delivered external test is no longer presented as failed when only the subsequent ledger refresh fails.
+
+### Resource, security, browser, and Windows verification
+
+- Reduced the initial app-plus-localization payload by 12,974 raw, 2,071 gzip, and 1,731 Brotli bytes compared with 2.3.24. The expanded Approval module remains absent from Overview and loads only when Approvals opens.
+- The full local gate passes 111 suites/843 tests, the 5/5 recommendation safety evaluation, two zero-vulnerability audits, five-secret production validation, and a 15,000-card real-Mongo profile with 604.4 ms measured p95 and 330.6 MB peak RSS.
+- In-app Browser acceptance passed one shared-fingerprint Approval load, English/Dutch rendering, read-only demo boundaries, layout containment, and zero current console errors. Seeded DOM coverage verifies protected policy flows without inventing database or provider state.
+- Built and verified unsigned `Sneup-Setup-2.3.25.exe`: 109,482,700 bytes, SHA-256 `E4D290CA4FAFC9762017BF2E370E42549EAE626ED18D464B0FE008CDD908D165`. Packaged verification passed eight diagnostics, no secret exposure, HAI `never_direct`, normal close, port release, and byte-identical changed runtime files.
+
 ## 2.3.24 - 2026-08-09
 
 ### Demand-loaded inbound worker-response mapping

@@ -14,6 +14,7 @@ const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character =>
 }[character]));
 
 const elementIds = [
+  'modal', 'modalTitle', 'modalBody',
   'approvalCount', 'ledgerMetrics', 'notificationPolicyButton', 'decisionQueue',
   'recommendationCount', 'recommendationList', 'findingsCount', 'findingsList',
   'timelineCount', 'operationsTimeline', 'boardHealthCount', 'boardHealthList',
@@ -32,10 +33,12 @@ const makeCallbacks = () => ({
   openRecommendationEvidence: jest.fn(),
   openTrelloActionReconciliation: jest.fn(),
   runOutcomeEvaluation: jest.fn(),
-  openNotificationPolicyEditor: jest.fn(),
-  openNotificationActivation: jest.fn(),
-  updateNotificationPolicy: jest.fn(),
-  openNotificationTest: jest.fn(),
+  saveNotificationPolicy: jest.fn().mockResolvedValue({ policy: { id: 'policy-1' } }),
+  setNotificationPolicyStatus: jest.fn().mockResolvedValue({ policy: { id: 'policy-1' } }),
+  sendNotificationPolicyTest: jest.fn().mockResolvedValue({ status: 'delivered' }),
+  loadOperationsLedger: jest.fn().mockResolvedValue(undefined),
+  closeModal: jest.fn(),
+  openNotice: jest.fn(),
   openNotificationDeliveryEvidence: jest.fn(),
   bindLedgerDrilldownActions: jest.fn(),
   bindGraphActions: jest.fn()
@@ -44,7 +47,7 @@ const makeCallbacks = () => ({
 function createHarness(locale = 'nl') {
   const dom = new JSDOM(`<!doctype html><html><body>
     <button data-queue-filter="all"></button>
-    ${elementIds.map(id => id === 'notificationPolicyButton' ? `<button id="${id}"></button>` : `<div id="${id}"></div>`).join('')}
+    ${elementIds.map(id => ['notificationPolicyButton'].includes(id) ? `<button id="${id}"></button>` : `<div id="${id}"></div>`).join('')}
   </body></html>`, { url: 'http://127.0.0.1:3211/' });
   const i18n = createRuntime({ root: null, language: locale, storage: null });
   i18n.registerMessages('nl', APPROVAL_NL_MESSAGES);
@@ -113,6 +116,7 @@ function createHarness(locale = 'nl') {
   const elements = Object.fromEntries(elementIds.map(id => [id, dom.window.document.getElementById(id)]));
   const controller = createController({
     document: dom.window.document,
+    window: dom.window,
     state,
     elements,
     callbacks,
@@ -155,7 +159,7 @@ describe('demand-loaded approval view', () => {
     harness.dom.window.close();
   });
 
-  test('delegates every consequential command to the guarded app controller', () => {
+  test('delegates every consequential command to the guarded app controller', async () => {
     const harness = createHarness('en');
     harness.controller.render();
     const { document } = harness.dom.window;
@@ -181,12 +185,134 @@ describe('demand-loaded approval view', () => {
     expect(harness.callbacks.openWorkerResponseRecorder).toHaveBeenCalledWith('intervention-1');
     expect(harness.callbacks.runFollowUpAction).toHaveBeenCalledWith('follow-up-1', 'resolved');
     expect(harness.callbacks.runOutcomeEvaluation).toHaveBeenCalledWith('recommendation-1');
-    expect(harness.callbacks.openNotificationPolicyEditor).toHaveBeenCalledWith('policy-1');
-    expect(harness.callbacks.updateNotificationPolicy).toHaveBeenCalledWith('policy-1', { status: 'paused' });
-    expect(harness.callbacks.openNotificationTest).toHaveBeenCalledWith('policy-1');
+    await Promise.resolve();
+    expect(harness.callbacks.setNotificationPolicyStatus).toHaveBeenCalledWith('policy-1', 'paused');
+    expect(document.getElementById('notificationTestForm')).not.toBeNull();
     expect(harness.callbacks.openNotificationDeliveryEvidence).toHaveBeenCalledWith('delivery-1');
     expect(harness.callbacks.bindLedgerDrilldownActions).toHaveBeenCalledTimes(1);
     expect(harness.callbacks.bindGraphActions).toHaveBeenCalledTimes(1);
+    harness.dom.window.close();
+  });
+
+  test('renders and saves a bounded Dutch daily-brief policy once with guarded values', async () => {
+    const harness = createHarness('nl');
+    const policy = {
+      id: 'policy/1',
+      name: 'Daily evidence policy',
+      status: 'paused',
+      channel: 'email',
+      destinationLabel: 'Operations mailbox',
+      destinationConfigured: true,
+      minimumSeverity: 'critical',
+      eventTypes: ['reconciliation_alert', 'weekly_status_report', 'daily_operations_brief'],
+      quietHours: { enabled: true, startHourUtc: 19, endHourUtc: 7 },
+      digest: { enabled: true, hourUtc: 9, maximumItems: 12 },
+      reportSchedule: { enabled: true, dayOfWeekUtc: 2, hourUtc: 11 },
+      dailyBriefSchedule: { enabled: true, hourUtc: 10 }
+    };
+    let resolveSave;
+    harness.callbacks.saveNotificationPolicy.mockImplementation(() => new Promise(resolve => { resolveSave = resolve; }));
+
+    expect(harness.controller.openNotificationPolicyForm(policy)).toBe(true);
+    const { document, Event } = harness.dom.window;
+    const form = document.getElementById('notificationPolicyForm');
+    expect(harness.elements.modalTitle.textContent).toBe('Afleverbeleid bewerken');
+    expect(form.elements.dailyBriefHourUtc.value).toBe('10');
+    expect(document.getElementById('notificationDailyBriefSettings').hidden).toBe(false);
+    expect(form.elements.destinationEmail.required).toBe(false);
+    form.elements.name.value = 'Updated policy evidence';
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+    expect(harness.callbacks.saveNotificationPolicy).toHaveBeenCalledTimes(1);
+    expect(harness.callbacks.saveNotificationPolicy).toHaveBeenCalledWith('policy/1', expect.objectContaining({
+      name: 'Updated policy evidence',
+      channel: 'email',
+      destinationValue: '',
+      eventTypes: ['reconciliation_alert', 'weekly_status_report', 'daily_operations_brief'],
+      quietStartHourUtc: 19,
+      quietEndHourUtc: 7,
+      digestMaximumItems: 12,
+      reportDayOfWeekUtc: 2,
+      reportHourUtc: 11,
+      dailyBriefHourUtc: 10
+    }));
+
+    resolveSave({ policy: { id: 'policy/1' } });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(harness.callbacks.closeModal).toHaveBeenCalledTimes(1);
+    expect(harness.callbacks.loadOperationsLedger).toHaveBeenCalledTimes(1);
+    expect(harness.callbacks.openNotice).toHaveBeenCalledWith('Beleid opgeslagen', 'De wijzigingen in het afleverbeleid zijn opgeslagen met auditbewijs.');
+    harness.dom.window.close();
+  });
+
+  test('keeps a failed policy save retryable and a committed save truthful when refresh fails', async () => {
+    const harness = createHarness('en');
+    harness.callbacks.saveNotificationPolicy.mockRejectedValueOnce(new Error('Save rejected')).mockResolvedValueOnce({ policy: { id: 'policy-new' } });
+    harness.callbacks.loadOperationsLedger.mockRejectedValueOnce(new Error('Refresh unavailable'));
+    harness.controller.openNotificationPolicyForm();
+    const { document, Event } = harness.dom.window;
+    const form = document.getElementById('notificationPolicyForm');
+    form.elements.name.value = 'Operations policy';
+    form.elements.destinationLabel.value = 'Operations';
+    form.elements.destinationUrl.value = 'https://example.com/hook';
+    const submit = form.querySelector('button[type="submit"]');
+
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(submit.disabled).toBe(false);
+    expect(harness.callbacks.closeModal).not.toHaveBeenCalled();
+    expect(harness.callbacks.openNotice).toHaveBeenCalledWith('Policy not saved', 'Save rejected');
+
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(harness.callbacks.saveNotificationPolicy).toHaveBeenCalledTimes(2);
+    expect(harness.callbacks.closeModal).toHaveBeenCalledTimes(1);
+    expect(harness.callbacks.openNotice).toHaveBeenLastCalledWith(
+      'Policy saved',
+      'The policy change was saved, but the operations ledger could not refresh. Reopen Approvals to load the latest state.'
+    );
+    harness.dom.window.close();
+  });
+
+  test('closes a delivered external test before reporting a refresh failure and never resubmits', async () => {
+    const harness = createHarness('en');
+    harness.callbacks.loadOperationsLedger.mockRejectedValue(new Error('Refresh unavailable'));
+    const policy = harness.state.ledger.notificationPolicies[0];
+    harness.controller.openNotificationTest(policy);
+    const { document, Event } = harness.dom.window;
+    const form = document.getElementById('notificationTestForm');
+    form.elements.confirmDelivery.checked = true;
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(harness.callbacks.sendNotificationPolicyTest).toHaveBeenCalledTimes(1);
+    expect(harness.callbacks.sendNotificationPolicyTest).toHaveBeenCalledWith('policy-1');
+    expect(harness.callbacks.closeModal).toHaveBeenCalledTimes(1);
+    expect(harness.callbacks.openNotice).toHaveBeenLastCalledWith(
+      'Test delivered',
+      'The test was delivered, but the operations ledger could not refresh. Reopen Approvals to load the latest evidence.'
+    );
+    harness.dom.window.close();
+  });
+
+  test('activates a policy once, closes the confirmation, and keeps the success notice visible', async () => {
+    const harness = createHarness('en');
+    const policy = { ...harness.state.ledger.notificationPolicies[0], status: 'paused' };
+    harness.controller.openNotificationActivation(policy);
+    const { document, Event } = harness.dom.window;
+    const form = document.getElementById('activateNotificationPolicyForm');
+    form.elements.confirmActivation.checked = true;
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(harness.callbacks.setNotificationPolicyStatus).toHaveBeenCalledTimes(1);
+    expect(harness.callbacks.setNotificationPolicyStatus).toHaveBeenCalledWith('policy-1', 'active');
+    expect(harness.callbacks.closeModal).toHaveBeenCalledTimes(1);
+    expect(harness.callbacks.loadOperationsLedger).toHaveBeenCalledTimes(1);
+    expect(harness.callbacks.openNotice).toHaveBeenLastCalledWith('Policy activated', 'The delivery policy is active with audit evidence.');
     harness.dom.window.close();
   });
 
@@ -240,7 +366,7 @@ describe('demand-loaded approval view', () => {
     expect([...messages].filter(message => !runtime.hasTranslation(message))).toEqual([]);
     expect(appSource).toContain("openNotice(t('Recommendation updated')");
     expect(appSource).toContain("els.modalTitle.textContent = t('Reconcile {action}'");
-    expect(appSource).toContain("els.modalTitle.textContent = t(isEdit ? 'Edit delivery policy' : 'Add delivery policy')");
+    expect(moduleSource).toContain("elements.modalTitle.textContent = t(isEdit ? 'Edit delivery policy' : 'Add delivery policy')");
   });
 
   test('loads on approval entry, shares the asset fingerprint, and retries a failed module fetch', () => {
@@ -251,9 +377,14 @@ describe('demand-loaded approval view', () => {
     expect(appSource).toContain('loadNotificationDeliveryHealth(),\n    loadApprovalView()');
     expect(appSource).toContain('function runRecommendationAction(');
     expect(appSource).toContain('function openTrelloActionReconciliation(');
-    expect(appSource).toContain('function openNotificationActivation(');
-    expect(appSource).not.toContain('function renderDecisionItem(');
+    expect(moduleSource).toContain('function openNotificationActivation(');
     expect(moduleSource).not.toContain('fetchApi(');
-    expect(moduleSource).not.toContain('SESSION_TOKEN');
+    expect(moduleSource).not.toMatch(/sessionStorage|localStorage|document\.cookie|SESSION_TOKEN/);
+    expect(appSource).toContain("function buildNotificationPolicyBody(draft = {})");
+    expect(appSource).toContain("dailyBriefSchedule: {");
+    expect(appSource).toContain("/api/notifications/policies/${encodeURIComponent(policyId)}");
+    expect(appSource).toContain("status === 'active' ? { confirmActivation: true } : {}");
+    expect(appSource).not.toContain('function openNotificationPolicyForm(');
+    expect(appSource).not.toContain('function renderDecisionItem(');
   });
 });

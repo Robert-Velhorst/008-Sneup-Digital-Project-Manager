@@ -12,6 +12,16 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-09 notification-policy continuation
+
+- Fixed the notification service to preserve `dailyBriefSchedule` during partial updates and reject activation unless the request contains explicit server-authoritative confirmation.
+- Moved notification policy create/edit, activate, pause, and external test UI into `public/approvalView.js`; exact body construction, encoded API routes, authenticated writes, encrypted destination handling, and provider authority remain in `public/app.js`.
+- Added guarded single-submit behavior and truthful committed-write/delivered-test messaging when a subsequent operations-ledger refresh fails.
+- Initial app plus localization fell by 12,974 raw, 2,071 gzip, and 1,731 Brotli bytes. Startup sampled 67.8 MB RSS on import and 72.2 MB after Overview with Mongoose still unloaded.
+- Local quality passed 111 suites/843 tests, 5/5 recommendation evaluation, both zero-vulnerability audits, five-secret production validation, and a 15,000-card profile at 604.4 ms p95 and 330.6 MB peak RSS with no provider writes.
+- In-app Browser passed deferred Approval loading, the shared fingerprint, English/Dutch read-only rendering, containment, and zero current console errors. Protected policy forms are covered by seeded DOM tests rather than fabricated database/provider state.
+- Built and verified unsigned `Sneup-Setup-2.3.25.exe`: 109,482,700 bytes, SHA-256 `E4D290CA4FAFC9762017BF2E370E42549EAE626ED18D464B0FE008CDD908D165`. Four packaged processes used 363.3 MB working set and 329.4 MB private memory, then closed normally and released the loopback port; all three changed runtime files were byte-identical in the archive.
+
 ## 2026-08-09 inbound worker-response continuation
 
 - Re-audited the remaining eager Connector surface and moved the connected Generic Webhook worker-response mapping editor into `public/connectorView.js`.

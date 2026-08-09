@@ -2,7 +2,7 @@
 
 Status meanings: **Implemented** is present and locally verified; **Partial** has useful implementation but an identified gap; **External** requires owner-controlled accounts or infrastructure; **N/A** is outside the product's current surface. No phase is marked complete from documentation alone.
 
-2.3.24 also keeps the inbound worker-response mapping editor demand-loaded. Its renderer has no API, credential, cookie, session, or storage authority; authenticated reads, encoded routing, exact save bodies, and provider boundaries remain in the controller.
+2.3.25 also keeps notification policy creation, editing, activation, pausing, and test delivery demand-loaded. Its renderer has no API, credential, cookie, session, or storage authority; exact request bodies, authenticated writes, encrypted destinations, refreshes, and provider boundaries remain in the controller.
 
 | Phase | Status | Evidence or remaining gate |
 | --- | --- | --- |
@@ -160,4 +160,16 @@ Repository implementation can close code, test, documentation, and packaging pha
 | Browser experience | Verified | English/Dutch catalog loading, shared fingerprint, 117 entries, containment, and zero current console errors passed; seeded DOM tests cover the connected-account-only editor. |
 | Deep regression/security | Verified locally | 111 suites/838 tests, lint, 5/5 safety evaluation, two zero-vulnerability audits, five-secret validation, startup and real-Mongo scale profiles passed. |
 | Windows 11 standalone | Verified locally | Packaged 2.3.24 health, eight diagnostics, HAI boundary, secret redaction, source-identical bundled assets, normal close, port release, and installer metadata passed. |
+| Live production acceptance | External | Requires authorized Trello/ngrok/HAI/provider accounts, production-like Mongo restore/deployment, signing certificate, clean VM, and accessibility review. |
+
+## 2.3.25 notification-policy continuation
+
+| Requirement | State | Evidence |
+| --- | --- | --- |
+| Frontend/backend wiring | Verified locally | Policy markup and transient locks are deferred; exact body construction, encoded API routes, authenticated writes, refreshes, and encrypted destination authority remain in the controller. |
+| Database/provider safety | Improved | Partial updates preserve daily brief schedules, active transitions require explicit server confirmation, and test delivery remains an explicit confirmation-gated external action with audit evidence. |
+| Resource efficiency | Improved | Initial app plus localization reduced by 12,974 raw, 2,071 gzip, and 1,731 Brotli bytes; the expanded Approval module remains demand-loaded. |
+| Browser experience | Verified | English/Dutch Approval loading, shared fingerprint, read-only demo boundaries, containment, and zero current console errors passed; seeded DOM tests cover protected policy forms. |
+| Deep regression/security | Verified locally | 111 suites/843 tests, lint, 5/5 safety evaluation, two zero-vulnerability audits, five-secret validation, startup and real-Mongo scale profiles passed. |
+| Windows 11 standalone | Verified locally | Packaged 2.3.25 health, eight diagnostics, HAI boundary, secret redaction, source-identical bundled assets, normal close, port release, and installer metadata passed. |
 | Live production acceptance | External | Requires authorized Trello/ngrok/HAI/provider accounts, production-like Mongo restore/deployment, signing certificate, clean VM, and accessibility review. |

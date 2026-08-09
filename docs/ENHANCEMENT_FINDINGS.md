@@ -87,6 +87,21 @@ This backlog turns the high-level improvement plan into concrete engineering fin
 3. ENH-002 and ENH-004, because autonomy should be reviewable and evidence-backed.
 4. ENH-007, because production sync needs operational visibility.
 5. ENH-006, ENH-008, ENH-009, ENH-010, ENH-012 as polish and workflow expansion.
+
+## 2026-08-09 notification-policy findings
+
+### Implemented
+
+- Preserve daily operations brief schedules on partial policy updates and enforce activation confirmation at the server boundary, including direct API and HAI callers.
+- Demand-load policy create/edit, activate, pause, and test controls while keeping request construction and external authority in the authenticated controller.
+- Lock duplicate submissions and distinguish a failed write from a successful write or delivery followed by a failed ledger refresh.
+- Keep destination values out of draft persistence and keep encrypted saved destinations unchanged unless an operator explicitly replaces them.
+
+### Next evidence-led opportunities
+
+- Collect authorized delivery-age and failure evidence before introducing alert thresholds or changing retry policy.
+- Run live Slack, Teams, generic webhook, and Resend acceptance with owner-controlled destinations while preserving exact confirmation and audit gates.
+- Complete clean-VM scaling and assistive-technology acceptance before setting desktop or accessibility budgets.
 ## 2026-08-09 Work Signals findings
 
 ### Implemented

@@ -322,10 +322,16 @@ class NotificationService {
       eventTypes: body.eventTypes ?? policy.eventTypes,
       quietHours: body.quietHours ?? policy.quietHours,
       digest: body.digest ?? policy.digest,
-      reportSchedule: body.reportSchedule ?? policy.reportSchedule
+      reportSchedule: body.reportSchedule ?? policy.reportSchedule,
+      dailyBriefSchedule: body.dailyBriefSchedule ?? policy.dailyBriefSchedule
     });
     const actor = options.actor || body.updatedBy || 'sneup-operator';
     const statusChangedToActive = input.status === 'active' && policy.status !== 'active';
+    if (statusChangedToActive && body.confirmActivation !== true) {
+      const error = new Error('Set confirmActivation to true before activating a notification policy');
+      error.statusCode = 400;
+      throw error;
+    }
     const channelChanged = input.channel !== policy.channel;
     Object.assign(policy, input, {
       updatedBy: actor,

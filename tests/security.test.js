@@ -1499,6 +1499,52 @@ describe('notification delivery safety', () => {
     })).toThrow(/schedule/i);
   });
 
+  test('preserves a configured daily brief schedule during status-only policy updates', async () => {
+    const service = new NotificationService();
+    const policy = {
+      _id: new mongoose.Types.ObjectId(),
+      workspaceId: new mongoose.Types.ObjectId(),
+      name: 'Daily operations',
+      channel: 'generic_webhook',
+      destinationLabel: 'Operations',
+      destinationEncrypted: 'ciphertext',
+      minimumSeverity: 'warning',
+      status: 'paused',
+      eventTypes: ['daily_operations_brief'],
+      quietHours: { enabled: false, startHourUtc: 18, endHourUtc: 8 },
+      digest: { enabled: false, hourUtc: 9, maximumItems: 10 },
+      reportSchedule: { enabled: false, reportType: 'weekly_status', dayOfWeekUtc: 1, hourUtc: 9 },
+      dailyBriefSchedule: { enabled: true, hourUtc: 10 },
+      save: jest.fn().mockResolvedValue(undefined)
+    };
+    const select = jest.fn().mockResolvedValue(policy);
+    const findOne = jest.spyOn(NotificationPolicy, 'findOne').mockReturnValue({ select });
+    service.requireDatabase = jest.fn();
+    service.resolveWorkspaceId = jest.fn(value => value);
+    service.recordAudit = jest.fn().mockResolvedValue(undefined);
+
+    try {
+      await expect(service.updatePolicy(String(policy._id), { status: 'active' }, {
+        workspaceId: policy.workspaceId,
+        actor: 'operator-1'
+      })).rejects.toMatchObject({ statusCode: 400 });
+      expect(policy.save).not.toHaveBeenCalled();
+
+      await expect(service.updatePolicy(String(policy._id), { status: 'active', confirmActivation: true }, {
+        workspaceId: policy.workspaceId,
+        actor: 'operator-1'
+      })).resolves.toMatchObject({
+        status: 'active',
+        dailyBriefSchedule: { enabled: true, hourUtc: 10 }
+      });
+      expect(policy.dailyBriefSchedule).toEqual({ enabled: true, hourUtc: 10 });
+      expect(policy.save).toHaveBeenCalledTimes(1);
+      expect(service.recordAudit).toHaveBeenCalledWith('notification_policy_updated', policy, 'operator-1', { status: 'active' });
+    } finally {
+      findOne.mockRestore();
+    }
+  });
+
   test('generates one daily brief only for due active policies and skips recorded deliveries', async () => {
     const service = new NotificationService();
     const duePolicy = {
@@ -1607,10 +1653,12 @@ describe('dashboard content security policy', () => {
     expect(workspaceViewJs).not.toContain('fetchApi(');
     expect(workSignalsViewJs).toContain('renderGraphLedgerFilters(graphContext)');
     expect(approvalViewJs).toContain('data-notification-policy-edit');
-    expect(appJs).toContain('openNotificationPolicyEditor');
-    expect(appJs).toContain('Encrypted destination retained unless you enter a replacement.');
-    expect(appJs).toContain('Select at least one delivery type');
-    expect(appJs).toContain('Activate delivery policy');
+    expect(approvalViewJs).toContain('function openNotificationPolicyForm(');
+    expect(approvalViewJs).toContain('Encrypted destination retained unless you enter a replacement.');
+    expect(approvalViewJs).toContain('Select at least one delivery type');
+    expect(approvalViewJs).toContain('Activate delivery policy');
+    expect(appJs).toContain('function buildNotificationPolicyBody(');
+    expect(appJs).toContain('/api/notifications/policies/${encodeURIComponent(policyId)}');
     expect(appJs).toContain('loadNotificationDeliveryHealth');
     expect(appJs).toContain("fetchApi('/api/jobs/health')");
     expect(approvalViewJs).toContain('renderNotificationPolicySchedulerHealth(policy)');

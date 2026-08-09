@@ -125,6 +125,26 @@ Live Trello critical-path acceptance, live ngrok/HAI credential acceptance, prod
 | GitHub installer artifact | Pass: artifact `9043260024`, archive size 109,486,755 bytes, digest `sha256:90fc98a6056c933649b977ea894e64369440cac1a53e85ceab735ecffb6a64a1`; its single installer is 109,480,729 bytes, unsigned, version 2.3.23, SHA-256 `EB60DF80CCDC45699A3254A56B48676E91AAE790C624213A8DD3BE449D1C7923` |
 | External gates | Live provider/ngrok/HAI acceptance, production-like restore/deployment rollback, code signing, clean-VM scaling, and assistive-technology certification remain external |
 
+## 2.3.25 continuation evidence
+
+| Check | Result |
+| --- | --- |
+| Scope | Notification policy create/edit/status/test controls moved into the retry-safe deferred Approval module; exact bodies, API writes, refreshes, encrypted destinations, and provider authority remain in the controller |
+| Correctness fixes | Pass: daily brief schedules survive partial updates; activation requires server-side confirmation; duplicate submissions are blocked; committed saves and delivered tests remain truthful if refresh fails |
+| Full quality gate | Pass: lint, 111 suites/843 tests, and 5/5 recommendation scenarios at 100% |
+| Dependency security | Pass: full and production audits each report 0 vulnerabilities |
+| Release secrets | Pass: five independent production-style values accepted; values not printed or exposed |
+| Startup profile | Directional pass: import 325.1 ms at 67.8 MB RSS; Overview 90.1 ms at 72.2 MB RSS; 251/263 modules and no Mongoose loaded |
+| Portfolio scale | Pass: 60 boards/300 lists/15,000 cards/100 members; 1,225.4 ms cold, 567.1 ms p50, 604.4 ms p95, 330.6 MB peak RSS, bounded 10/12/12 output, exact index, approval required, provider writes false |
+| Initial payload | Improved from 233,925 to 220,951 raw, 52,495 to 50,424 gzip, and 44,254 to 42,523 Brotli bytes; Approval remains deferred |
+| Browser QA | Pass: real in-app Browser, Approval absent on Overview then loaded once with the shared fingerprint, English/Dutch read-only demo rendering, no fabricated policy forms, no horizontal overflow, zero current console errors |
+| Packaged Windows QA | Pass: version 2.3.25, demo health and eight diagnostics, no exposed secrets, HAI `never_direct`, four processes, normal close, port released |
+| Packaged resource sample | Directional pass: 363.3 MB working set, 329.4 MB private bytes, 1.578 cumulative CPU seconds after the repeatable local packaged probe |
+| Windows installer | Pass: 109,482,700 bytes, version 2.3.25, unsigned, SHA-256 `E4D290CA4FAFC9762017BF2E370E42549EAE626ED18D464B0FE008CDD908D165`; packaged `app.js`, `approvalView.js`, and `notificationService.js` are byte-identical to verified source |
+| Fresh-clone GitHub CI | Pending publication |
+| GitHub installer artifact | Pending publication and independent download verification |
+| External gates | Live provider/ngrok/HAI acceptance, production-like restore/deployment rollback, code signing, clean-VM scaling, and assistive-technology certification remain external |
+
 ## 2.3.24 continuation evidence
 
 | Check | Result |

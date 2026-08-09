@@ -1,5 +1,15 @@
 # Sneup Implementation Report
 
+## 2.3.25 continuation
+
+Sneup now constructs notification policy create/edit, activation, pause, and external test controls only after Approvals opens. The deferred module owns localized bounded DOM and transient action locks; the authenticated controller owns exact request bodies, encoded API routes, ledger reads, encrypted destinations, sessions, and every provider boundary.
+
+The notification service now preserves daily operations brief schedules during partial updates and independently requires `confirmActivation: true` when a policy transitions to active. UI actions close only after a committed save or delivery, remain retryable after pre-commit failures, and report a refresh-only failure without inviting duplicate external actions.
+
+Initial app plus localization is 12,974 raw, 2,071 gzip, and 1,731 Brotli bytes smaller than 2.3.24. The full local gate passes 111 suites/843 tests, two zero-vulnerability audits, five-secret production validation, real-Mongo portfolio budgets, in-app Browser acceptance, and packaged Windows verification.
+
+The verified local installer is `release/Sneup-Setup-2.3.25.exe`, 109,482,700 bytes, unsigned, with SHA-256 `E4D290CA4FAFC9762017BF2E370E42549EAE626ED18D464B0FE008CDD908D165`.
+
 ## 2.3.24 continuation
 
 Sneup now constructs the Generic Webhook inbound worker-response mapping editor only after Account connectors is opened for a real connected account. The deferred module owns localized, escaped, bounded DOM and transient search state; the authenticated controller owns option reads, encoded endpoint routing, exact save bodies, connector refreshes, credentials, sessions, and provider authority.

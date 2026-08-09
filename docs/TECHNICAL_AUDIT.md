@@ -1,5 +1,13 @@
 # Technical Audit
 
+## 2.3.25 notification-policy audit
+
+- Fixed a partial-update defect that omitted `dailyBriefSchedule`, which could reject or reset a configured daily operations brief when only status changed.
+- Moved policy create/edit/status/test DOM construction into the deferred Approval renderer while preserving exact request, authentication, encryption, and provider authority in the application controller.
+- Added server-authoritative activation confirmation, duplicate-action locks, and post-commit truthfulness so refresh faults cannot invite repeated external delivery.
+- Measured a 12,974 raw, 2,071 gzip, and 1,731 Brotli byte reduction in initial app-plus-localization delivery. Startup retained 251 import modules without Mongoose; the real-Mongo 15,000-card profile stayed below 605 ms p95 and 331 MB RSS.
+- Verified 111 suites/843 tests, zero dependency vulnerabilities, production secret separation, English/Dutch browser containment, and the 2.3.25 Windows package. Live provider/ngrok/HAI acceptance, signing, production rollback, clean-VM scaling, and assistive-technology evidence remain external.
+
 ## Scope and baseline
 
 - Audited branch: `main`, baseline commit `470d0a35ca712a3c12473a5c8cccb2118092d3ed`.

@@ -164,6 +164,7 @@ function loadApprovalView() {
         i18n.registerMessages('nl', module.NL_MESSAGES);
         return module.createController({
           document,
+          window,
           state,
           elements: els,
           t,
@@ -182,10 +183,12 @@ function loadApprovalView() {
             openRecommendationEvidence,
             openTrelloActionReconciliation,
             runOutcomeEvaluation,
-            openNotificationPolicyEditor,
-            openNotificationActivation,
-            updateNotificationPolicy,
-            openNotificationTest,
+            saveNotificationPolicy,
+            setNotificationPolicyStatus,
+            sendNotificationPolicyTest,
+            loadOperationsLedger: () => loadOperationsLedger({ throwOnError: true }),
+            closeModal,
+            openNotice,
             openNotificationDeliveryEvidence,
             bindLedgerDrilldownActions,
             bindGraphActions
@@ -1573,7 +1576,8 @@ async function loadPolicyHistory() {
   renderWorkspaces();
 }
 
-async function loadOperationsLedger() {
+async function loadOperationsLedger(options = {}) {
+  let loadError = null;
   try {
     const data = await fetchApi('/api/operations-ledger');
     const ledger = data.ledger || {};
@@ -1596,6 +1600,7 @@ async function loadOperationsLedger() {
       errors: (ledger.errors || []).map((error) => error.message || String(error))
     };
   } catch (error) {
+    loadError = error;
     state.ledger = {
       ...state.ledger,
       decisions: [],
@@ -1619,6 +1624,7 @@ async function loadOperationsLedger() {
 
   updateApprovalCount();
   renderOperationsLedger();
+  if (loadError && options.throwOnError) throw loadError;
 }
 
 function renderOverview() {
@@ -3885,256 +3891,78 @@ function openTrelloActionReconciliation(actionId) {
   });
 }
 
-function openNotificationPolicy() {
-  openNotificationPolicyForm();
-}
-
-function openNotificationPolicyEditor(policyId) {
-  const policy = (state.ledger.notificationPolicies || []).find(item => getId(item.id || item._id) === policyId);
-  if (policy) openNotificationPolicyForm(policy);
-}
-
-function openNotificationPolicyForm(policy = null) {
-  const isEdit = Boolean(policy);
-  const eventTypes = policy?.eventTypes?.length ? policy.eventTypes : ['reconciliation_alert'];
-  const quietHours = policy?.quietHours || { enabled: false, startHourUtc: 18, endHourUtc: 8 };
-  const digest = policy?.digest || { enabled: false, hourUtc: 9, maximumItems: 10 };
-  const reportSchedule = policy?.reportSchedule || { dayOfWeekUtc: 1, hourUtc: 9 };
-  const dailyBriefSchedule = policy?.dailyBriefSchedule || { hourUtc: 8 };
-  const channel = policy?.channel || 'slack_webhook';
-  els.modalTitle.textContent = t(isEdit ? 'Edit delivery policy' : 'Add delivery policy');
-  els.modalBody.innerHTML = `
-    <form id="notificationPolicyForm" class="notice-stack">
-      <label>${et('Name')}<input name="name" type="text" maxlength="120" required value="${escapeHtml(policy?.name || '')}" placeholder="${et('Operations alerts')}"></label>
-      <fieldset class="notice-stack">
-        <legend>${et('Deliver')}</legend>
-        <label><input name="eventTypes" type="checkbox" value="reconciliation_alert" ${eventTypes.includes('reconciliation_alert') ? 'checked' : ''}> ${et('Reconciliation alerts')}</label>
-        <label><input name="eventTypes" type="checkbox" value="weekly_status_report" ${eventTypes.includes('weekly_status_report') ? 'checked' : ''}> ${et('Weekly status report')}</label>
-        <label><input name="eventTypes" type="checkbox" value="daily_operations_brief" ${eventTypes.includes('daily_operations_brief') ? 'checked' : ''}> ${et('Daily operations brief')}</label>
-      </fieldset>
-      <label>${et('Channel')}
-        <select name="channel" required>
-          <option value="slack_webhook" ${channel === 'slack_webhook' ? 'selected' : ''}>${et('Slack webhook')}</option>
-          <option value="teams_webhook" ${channel === 'teams_webhook' ? 'selected' : ''}>${et('Teams webhook')}</option>
-          <option value="generic_webhook" ${channel === 'generic_webhook' ? 'selected' : ''}>${et('Generic webhook')}</option>
-          <option value="email" ${channel === 'email' ? 'selected' : ''}>${et('Email (Resend)')}</option>
-        </select>
-      </label>
-      <label>${et('Destination label')}<input name="destinationLabel" type="text" maxlength="160" required value="${escapeHtml(policy?.destinationLabel || '')}" placeholder="${et('Project operations channel')}"></label>
-      <label id="notificationWebhookDestination">${et('HTTPS webhook URL')}<input name="destinationUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://..."></label>
-      <label id="notificationEmailDestination" hidden>${et('Email recipient')}<input name="destinationEmail" type="email" inputmode="email" autocomplete="email" placeholder="operations@example.com"></label>
-      ${isEdit && policy.destinationConfigured ? `<div class="notice">${et('Encrypted destination retained unless you enter a replacement.')}</div>` : ''}
-      <div id="notificationAlertSettings">
-      <label>${et('Minimum severity')}
-        <select name="minimumSeverity">
-          <option value="warning" ${policy?.minimumSeverity !== 'critical' ? 'selected' : ''}>${et('Warning and critical')}</option>
-          <option value="critical" ${policy?.minimumSeverity === 'critical' ? 'selected' : ''}>${et('Critical only')}</option>
-        </select>
-      </label>
-      <label><input name="quietHoursEnabled" type="checkbox" ${quietHours.enabled ? 'checked' : ''}> ${et('Defer warning alerts during quiet hours (critical alerts stay immediate)')}</label>
-      <div class="form-grid">
-        <label>${et('Quiet start UTC')}<input name="quietStartHourUtc" type="number" min="0" max="23" value="${escapeHtml(quietHours.startHourUtc)}"></label>
-        <label>${et('Quiet end UTC')}<input name="quietEndHourUtc" type="number" min="0" max="23" value="${escapeHtml(quietHours.endHourUtc)}"></label>
-      </div>
-      <label><input name="digestEnabled" type="checkbox" ${digest.enabled ? 'checked' : ''}> ${et('Send warning evidence as one daily digest (critical alerts stay immediate)')}</label>
-      <div class="form-grid">
-        <label>${et('Digest hour UTC')}<input name="digestHourUtc" type="number" min="0" max="23" value="${escapeHtml(digest.hourUtc)}"></label>
-        <label>${et('Maximum digest items')}<input name="digestMaximumItems" type="number" min="1" max="25" value="${escapeHtml(digest.maximumItems)}"></label>
-      </div>
-      </div>
-      <div id="notificationReportSettings" hidden>
-        <div class="form-grid">
-          <label>${et('Weekly day UTC')}
-            <select name="reportDayOfWeekUtc">
-              <option value="1" ${Number(reportSchedule.dayOfWeekUtc) === 1 ? 'selected' : ''}>${et('Monday')}</option><option value="2" ${Number(reportSchedule.dayOfWeekUtc) === 2 ? 'selected' : ''}>${et('Tuesday')}</option><option value="3" ${Number(reportSchedule.dayOfWeekUtc) === 3 ? 'selected' : ''}>${et('Wednesday')}</option><option value="4" ${Number(reportSchedule.dayOfWeekUtc) === 4 ? 'selected' : ''}>${et('Thursday')}</option><option value="5" ${Number(reportSchedule.dayOfWeekUtc) === 5 ? 'selected' : ''}>${et('Friday')}</option><option value="6" ${Number(reportSchedule.dayOfWeekUtc) === 6 ? 'selected' : ''}>${et('Saturday')}</option><option value="0" ${Number(reportSchedule.dayOfWeekUtc) === 0 ? 'selected' : ''}>${et('Sunday')}</option>
-            </select>
-          </label>
-          <label>${et('Delivery hour UTC')}<input name="reportHourUtc" type="number" min="0" max="23" value="${escapeHtml(reportSchedule.hourUtc)}"></label>
-        </div>
-      </div>
-      <div id="notificationDailyBriefSettings" hidden>
-        <div class="form-grid">
-          <label>${et('Daily delivery hour UTC')}<input name="dailyBriefHourUtc" type="number" min="0" max="23" value="${escapeHtml(dailyBriefSchedule.hourUtc)}"></label>
-        </div>
-        <div class="notice">${et('The daily brief is read-only: it summarizes current decisions, risks, follow-ups, and the morning plan. It never changes a provider account.')}</div>
-      </div>
-      <div class="notice">${isEdit
-    ? et('Changes keep this policy {status}. Activation remains a separate confirmation.', { status: t(String(policy.status).replaceAll('_', ' ')) })
-    : et('The policy starts paused. Activate it separately when this workspace is ready to deliver its configured alerts, daily brief, or weekly status report.')}</div>
-      <div class="toolbar modal-actions">
-        <button class="button" type="button" id="cancelNotificationPolicy">${et('Cancel')}</button>
-        <button class="button primary" type="submit">${et(isEdit ? 'Save changes' : 'Save paused policy')}</button>
-      </div>
-    </form>
-  `;
-  els.modal.classList.add('open');
-  document.getElementById('cancelNotificationPolicy').addEventListener('click', closeModal);
-  const policyForm = document.getElementById('notificationPolicyForm');
-  const channelInput = policyForm.elements.channel;
-  const eventTypeInputs = [...policyForm.querySelectorAll('input[name="eventTypes"]')];
-  const webhookDestination = document.getElementById('notificationWebhookDestination');
-  const emailDestination = document.getElementById('notificationEmailDestination');
-  const alertSettings = document.getElementById('notificationAlertSettings');
-  const reportSettings = document.getElementById('notificationReportSettings');
-  const dailyBriefSettings = document.getElementById('notificationDailyBriefSettings');
-  const syncDestinationInput = () => {
-    const emailSelected = channelInput.value === 'email';
-    const retainsDestination = isEdit && policy.destinationConfigured && channelInput.value === policy.channel;
-    webhookDestination.hidden = emailSelected;
-    emailDestination.hidden = !emailSelected;
-    policyForm.elements.destinationUrl.required = !emailSelected && !retainsDestination;
-    policyForm.elements.destinationEmail.required = emailSelected && !retainsDestination;
-  };
-  channelInput.addEventListener('change', syncDestinationInput);
-  const syncEventSettings = () => {
-    const selectedEventTypes = eventTypeInputs.filter(input => input.checked).map(input => input.value);
-    alertSettings.hidden = !selectedEventTypes.includes('reconciliation_alert');
-    reportSettings.hidden = !selectedEventTypes.includes('weekly_status_report');
-    dailyBriefSettings.hidden = !selectedEventTypes.includes('daily_operations_brief');
-    eventTypeInputs[0].setCustomValidity(selectedEventTypes.length ? '' : t('Select at least one delivery type'));
-  };
-  eventTypeInputs.forEach(input => input.addEventListener('change', syncEventSettings));
-  syncDestinationInput();
-  syncEventSettings();
-  policyForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const submitButton = event.currentTarget.querySelector('button[type="submit"]');
-    submitButton.disabled = true;
-    submitButton.textContent = t('Saving...');
-    try {
-      const form = event.currentTarget;
-      const formValues = Object.fromEntries(new FormData(form).entries());
-      const destinationField = channelInput.value === 'email' ? 'destinationEmail' : 'destinationUrl';
-      const payload = {
-        ...formValues,
-        quietHours: {
-          enabled: form.elements.quietHoursEnabled.checked,
-          startHourUtc: Number(form.elements.quietStartHourUtc.value),
-          endHourUtc: Number(form.elements.quietEndHourUtc.value)
-        },
-        digest: {
-          enabled: form.elements.digestEnabled.checked,
-          hourUtc: Number(form.elements.digestHourUtc.value),
-          maximumItems: Number(form.elements.digestMaximumItems.value)
-        },
-        eventTypes: eventTypeInputs.filter(input => input.checked).map(input => input.value),
-        reportSchedule: {
-          enabled: eventTypeInputs.some(input => input.checked && input.value === 'weekly_status_report'),
-          reportType: 'weekly_status',
-          dayOfWeekUtc: Number(form.elements.reportDayOfWeekUtc.value),
-          hourUtc: Number(form.elements.reportHourUtc.value)
-        },
-        dailyBriefSchedule: {
-          enabled: eventTypeInputs.some(input => input.checked && input.value === 'daily_operations_brief'),
-          hourUtc: Number(form.elements.dailyBriefHourUtc.value)
-        }
-      };
-      delete payload.destinationUrl;
-      delete payload.destinationEmail;
-      if (form.elements[destinationField].value.trim()) payload[destinationField] = form.elements[destinationField].value.trim();
-      if (isEdit) {
-        if (!await updateNotificationPolicy(getId(policy.id || policy._id), payload)) return;
-      } else {
-        await fetchApi('/api/notifications/policies', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        await loadOperationsLedger();
-      }
-      closeModal();
-    } catch (error) {
-      submitButton.disabled = false;
-      submitButton.textContent = t(isEdit ? 'Save changes' : 'Save paused policy');
-      openNotice(t('Policy not saved'), error.message);
-    }
-  });
-}
-
-async function updateNotificationPolicy(policyId, body) {
+async function openNotificationPolicy() {
   try {
-    await fetchApi(`/api/notifications/policies/${encodeURIComponent(policyId)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    await loadOperationsLedger();
-    return true;
+    const controller = await loadApprovalView();
+    controller.openNotificationPolicyForm();
   } catch (error) {
-    openNotice(t('Policy update blocked'), error.message);
-    return false;
+    openNotice(t('Notification policy'), error.message);
   }
 }
 
-function openNotificationActivation(policyId) {
-  const policy = (state.ledger.notificationPolicies || []).find(item => getId(item.id || item._id) === policyId);
-  if (!policy) return;
-  const eventLabels = [];
-  if ((policy.eventTypes || []).includes('reconciliation_alert')) eventLabels.push(t('{severity} reconciliation evidence alerts', { severity: t(policy.minimumSeverity) }));
-  if ((policy.eventTypes || []).includes('weekly_status_report')) eventLabels.push(t('weekly status reports'));
-  if ((policy.eventTypes || []).includes('daily_operations_brief')) eventLabels.push(t('daily operations briefs'));
-  els.modalTitle.textContent = t('Activate delivery policy');
-  els.modalBody.innerHTML = `
-    <form id="activateNotificationPolicyForm" class="notice-stack">
-      <div class="notice">${et('Activating')} <strong>${escapeHtml(policy.name)}</strong> ${et('permits {deliveries} to', { deliveries: eventLabels.join(` ${t('and')} `) || t('configured deliveries') })} <strong>${escapeHtml(policy.destinationLabel || t('the configured destination'))}</strong>.</div>
-      <label><input type="checkbox" name="confirmActivation" required> ${et('I confirm this workspace may deliver these notifications.')}</label>
-      <div class="toolbar modal-actions">
-        <button class="button" type="button" id="cancelNotificationActivation">${et('Cancel')}</button>
-        <button class="button primary" type="submit">${et('Activate policy')}</button>
-      </div>
-    </form>
-  `;
-  els.modal.classList.add('open');
-  document.getElementById('cancelNotificationActivation').addEventListener('click', closeModal);
-  document.getElementById('activateNotificationPolicyForm').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const submitButton = event.currentTarget.querySelector('button[type="submit"]');
-    submitButton.disabled = true;
-    submitButton.textContent = t('Activating...');
-    try {
-      if (await updateNotificationPolicy(policyId, { status: 'active' })) closeModal();
-    } finally {
-      submitButton.disabled = false;
-      submitButton.textContent = t('Activate policy');
+function buildNotificationPolicyBody(draft = {}) {
+  const channel = String(draft.channel || '');
+  const eventTypes = [...new Set(Array.isArray(draft.eventTypes) ? draft.eventTypes : [])];
+  const body = {
+    name: String(draft.name || ''),
+    channel,
+    destinationLabel: String(draft.destinationLabel || ''),
+    minimumSeverity: String(draft.minimumSeverity || 'warning'),
+    eventTypes,
+    quietHours: {
+      enabled: draft.quietHoursEnabled === true,
+      startHourUtc: Number(draft.quietStartHourUtc),
+      endHourUtc: Number(draft.quietEndHourUtc)
+    },
+    digest: {
+      enabled: draft.digestEnabled === true,
+      hourUtc: Number(draft.digestHourUtc),
+      maximumItems: Number(draft.digestMaximumItems)
+    },
+    reportSchedule: {
+      enabled: eventTypes.includes('weekly_status_report'),
+      reportType: 'weekly_status',
+      dayOfWeekUtc: Number(draft.reportDayOfWeekUtc),
+      hourUtc: Number(draft.reportHourUtc)
+    },
+    dailyBriefSchedule: {
+      enabled: eventTypes.includes('daily_operations_brief'),
+      hourUtc: Number(draft.dailyBriefHourUtc)
     }
+  };
+  const destination = String(draft.destinationValue || '').trim();
+  if (destination) body[channel === 'email' ? 'destinationEmail' : 'destinationUrl'] = destination;
+  return body;
+}
+
+function saveNotificationPolicy(policyId, draft) {
+  const isEdit = Boolean(policyId);
+  return fetchApi(isEdit
+    ? `/api/notifications/policies/${encodeURIComponent(policyId)}`
+    : '/api/notifications/policies', {
+    method: isEdit ? 'PATCH' : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(buildNotificationPolicyBody(draft))
   });
 }
 
-function openNotificationTest(policyId) {
-  const policy = (state.ledger.notificationPolicies || []).find(item => getId(item.id || item._id) === policyId);
-  if (!policy) return;
-  els.modalTitle.textContent = t('Send test alert');
-  els.modalBody.innerHTML = `
-    <form id="notificationTestForm" class="notice-stack">
-      <div class="notice">${et('This sends a real test delivery to')} <strong>${escapeHtml(policy.destinationLabel || t('the configured destination'))}</strong>. ${et('It does not activate the policy.')}</div>
-      <label><input type="checkbox" name="confirmDelivery" required> ${et('I understand this sends an external test notification.')}</label>
-      <div class="toolbar modal-actions">
-        <button class="button" type="button" id="cancelNotificationTest">${et('Cancel')}</button>
-        <button class="button primary" type="submit">${et('Send test')}</button>
-      </div>
-    </form>
-  `;
-  els.modal.classList.add('open');
-  document.getElementById('cancelNotificationTest').addEventListener('click', closeModal);
-  document.getElementById('notificationTestForm').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const submitButton = event.currentTarget.querySelector('button[type="submit"]');
-    submitButton.disabled = true;
-    submitButton.textContent = t('Sending...');
-    try {
-      await fetchApi(`/api/notifications/policies/${encodeURIComponent(policyId)}/test`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirmDelivery: true })
-      });
-      closeModal();
-      await loadOperationsLedger();
-      openNotice(t('Test delivered'), t('The external destination accepted the test alert.'));
-    } catch (error) {
-      submitButton.disabled = false;
-      submitButton.textContent = t('Send test');
-      openNotice(t('Test delivery failed'), error.message);
-    }
+function setNotificationPolicyStatus(policyId, status) {
+  if (!policyId || !['active', 'paused'].includes(status)) {
+    throw new Error(t('Policy update blocked'));
+  }
+  return fetchApi(`/api/notifications/policies/${encodeURIComponent(policyId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status, ...(status === 'active' ? { confirmActivation: true } : {}) })
+  });
+}
+
+function sendNotificationPolicyTest(policyId) {
+  if (!policyId) throw new Error(t('Test delivery failed'));
+  return fetchApi(`/api/notifications/policies/${encodeURIComponent(policyId)}/test`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirmDelivery: true })
   });
 }
 

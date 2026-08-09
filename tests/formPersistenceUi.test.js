@@ -183,6 +183,7 @@ describe('workspace-scoped form persistence', () => {
 
 describe('form persistence integration boundaries', () => {
   const appSource = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const approvalViewSource = fs.readFileSync(path.join(__dirname, '..', 'public', 'approvalView.js'), 'utf8');
   const forecastViewSource = fs.readFileSync(path.join(__dirname, '..', 'public', 'forecastView.js'), 'utf8');
   const workspaceViewSource = fs.readFileSync(path.join(__dirname, '..', 'public', 'workspaceView.js'), 'utf8');
   const htmlSource = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
@@ -221,8 +222,13 @@ describe('form persistence integration boundaries', () => {
     'trelloActionReconciliationForm',
     'acceptWorkspaceInviteForm'
   ])('does not persist sensitive or consequential form %s', (formId) => {
-    const formStart = appSource.indexOf(`id="${formId}"`);
+    const source = [
+      'notificationPolicyForm',
+      'activateNotificationPolicyForm',
+      'notificationTestForm'
+    ].includes(formId) ? approvalViewSource : appSource;
+    const formStart = source.indexOf(`id="${formId}"`);
     expect(formStart).toBeGreaterThan(-1);
-    expect(appSource.slice(formStart, appSource.indexOf('>', formStart))).not.toContain('data-draft-key');
+    expect(source.slice(formStart, source.indexOf('>', formStart))).not.toContain('data-draft-key');
   });
 });
