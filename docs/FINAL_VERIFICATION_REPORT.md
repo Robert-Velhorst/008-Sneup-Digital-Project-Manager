@@ -30,7 +30,7 @@ This report is updated from executed commands at release time. A passing local s
 | Windows installer | Pass: `Sneup-Setup-2.1.0.exe`, 109,433,870 bytes, unsigned |
 | Installer SHA-256 | `23E8CA750961C1ABD21F179FEA76245D510C2ABF9441768B30ED46A37C9FAD55` |
 | Fresh clone | Pass at `6a02fac`: lockfile-only install, 76 suites/648 tests, 5/5 evaluation, 0 vulnerabilities; final CSS-only commits passed the same full regression and packaged renderer QA |
-| GitHub CI | Pending push/remote run |
+| GitHub CI | Pass: run `31289205822`; Linux quality and Windows installer artifact jobs completed for `83e99a8` |
 
 ## External gates
 

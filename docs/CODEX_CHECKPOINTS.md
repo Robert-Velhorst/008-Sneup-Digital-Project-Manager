@@ -12,6 +12,7 @@
 | Fresh clone | Lockfile-only install, 76 suites/648 tests, evaluation, and audit | Complete |
 | Browser and Windows UI | Approval flow, modal, responsive browser, packaged 150% scaling | Complete |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter | Complete locally; live credentials external |
+| GitHub CI | Linux quality and Windows installer artifact run `31289205822` | Complete |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |
