@@ -1,5 +1,8 @@
 const ConnectorAccount = require('../src/models/ConnectorAccount');
 const { ConnectorSyncService } = require('../src/services/connectorSyncService');
+const providerSyncPolicyService = require('../src/services/providerSyncPolicyService');
+const workSignalAdapterService = require('../src/services/workSignalAdapterService');
+const workSignalService = require('../src/services/workSignalService');
 
 const waitFor = async (predicate) => {
   for (let attempt = 0; attempt < 20; attempt += 1) {
@@ -84,6 +87,33 @@ describe('connector sync concurrency', () => {
     expect(service.getScheduledWorkspaceConcurrency('0')).toBe(1);
     expect(service.getScheduledWorkspaceConcurrency('99')).toBe(4);
     expect(service.getScheduledWorkspaceConcurrency('invalid')).toBe(2);
+  });
+
+  test('renews OAuth authorization before making the connector read', async () => {
+    const account = {
+      _id: 'oauth-account-1', workspaceId: '507f1f77bcf86cd799439011', connectorId: 'canva', authType: 'oauth2',
+      metadata: {}, credentials: { accessToken: 'old-encrypted-token' }, save: jest.fn().mockResolvedValue(undefined)
+    };
+    const accountConnectorService = {
+      prepareOAuthAccountForSync: jest.fn().mockImplementation(async value => {
+        value.credentials = { accessToken: 'new-encrypted-token' };
+        return value;
+      })
+    };
+    const service = new ConnectorSyncService({
+      accountConnectorService,
+      featureFlagService: { assertEnabled: jest.fn().mockResolvedValue({ effective: true }) }
+    });
+    service.requireDatabase = jest.fn();
+    service.finalizeDependencyFreshness = jest.fn().mockResolvedValue({ providerCount: 1, markedStale: 0, failureCount: 0, byProvider: {} });
+    jest.spyOn(workSignalAdapterService, 'fetchDelta').mockResolvedValue({ records: [], nextCursor: null, hasMore: false, metadata: {} });
+    jest.spyOn(providerSyncPolicyService, 'run').mockImplementation(async (_connectorId, operation) => ({ result: await operation(), retryCount: 0, rateLimitWaitMs: 0, attemptCount: 1 }));
+    jest.spyOn(workSignalService, 'upsertProviderRecords').mockResolvedValue({ count: 0, batchCount: 0, batchSize: 100 });
+
+    await expect(service.syncAccount(account)).resolves.toMatchObject({ connectorId: 'canva', signalCount: 0 });
+    expect(accountConnectorService.prepareOAuthAccountForSync).toHaveBeenCalledWith(account, { actor: 'connector-sync' });
+    expect(accountConnectorService.prepareOAuthAccountForSync.mock.invocationCallOrder[0])
+      .toBeLessThan(workSignalAdapterService.fetchDelta.mock.invocationCallOrder[0]);
   });
 
   test('starts a bounded number of scheduled workspaces and records that scheduler capacity', async () => {

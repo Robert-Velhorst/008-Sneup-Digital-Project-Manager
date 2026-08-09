@@ -39,11 +39,17 @@ class ConnectorSyncService {
     this.activeScheduledSync = null;
     this.scheduledSyncStartedAt = null;
     this.featureFlagService = options.featureFlagService || null;
+    this.accountConnectorService = options.accountConnectorService || null;
   }
 
   getFeatureFlagService() {
     if (!this.featureFlagService) this.featureFlagService = require('./featureFlagService');
     return this.featureFlagService;
+  }
+
+  getAccountConnectorService() {
+    if (!this.accountConnectorService) this.accountConnectorService = require('./accountConnectorService');
+    return this.accountConnectorService;
   }
 
   init() {
@@ -270,6 +276,12 @@ class ConnectorSyncService {
       workspaceId: account.workspaceId,
       subjectId: options.actor
     });
+
+    if (account.authType === 'oauth2') {
+      account = await this.getAccountConnectorService().prepareOAuthAccountForSync(account, {
+        actor: options.actor || 'connector-sync'
+      });
+    }
 
     const cursor = account.metadata?.workSignalCursor || null;
     const syncResult = await providerSyncPolicyService.run(

@@ -69,6 +69,13 @@ const connectorAccountSchema = new mongoose.Schema({
     },
     select: false
   },
+  oauthRefreshLease: {
+    type: {
+      tokenHash: String,
+      expiresAt: Date
+    },
+    select: false
+  },
   metadata: {
     type: mongoose.Schema.Types.Mixed,
     default: {}

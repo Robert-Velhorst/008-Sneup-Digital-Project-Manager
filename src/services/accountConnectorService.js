@@ -14,6 +14,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_CREDENTIAL_ROTATION_DAYS = 90;
 const DEFAULT_CREDENTIAL_ROTATION_WARNING_DAYS = 14;
 const DEFAULT_SYNC_FRESHNESS_HOURS = 24;
+const DEFAULT_OAUTH_REFRESH_SKEW_SECONDS = 5 * 60;
+const DEFAULT_OAUTH_REFRESH_LEASE_SECONDS = 60;
+const DEFAULT_OAUTH_REFRESH_WAIT_MS = 10 * 1000;
+const DEFAULT_OAUTH_REFRESH_POLL_MS = 250;
+const MAX_OAUTH_TOKEN_RESPONSE_BYTES = 512 * 1024;
 const CREDENTIAL_ROTATION_AUTH_TYPES = new Set(['api_key', 'personal_access_token', 'basic', 'webhook']);
 
 const sanitizeText = (value) => String(value || '').trim().toLowerCase();
@@ -37,6 +42,10 @@ const clampPositiveInt = (value, defaultValue = 0, min = 0, max = Number.MAX_SAF
 class AccountConnectorService {
   constructor(options = {}) {
     this.http = options.http || axios;
+    this.connectorAccountModel = options.connectorAccountModel || ConnectorAccount;
+    this.auditEventModel = options.auditEventModel || AuditEvent;
+    this.now = options.now || (() => new Date());
+    this.sleep = options.sleep || (milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)));
   }
 
   async getJiraSites(accountId, options = {}) {
@@ -583,7 +592,7 @@ class AccountConnectorService {
       authUrl.searchParams.set('response_type', 'code');
     }
     if (connector.auth.scopes && connector.auth.scopes.length > 0) {
-      authUrl.searchParams.set('scope', connector.auth.scopes.join(' '));
+      authUrl.searchParams.set('scope', connector.auth.scopes.join(connector.auth.scopeSeparator || ' '));
     }
     if (connector.auth.audience) {
       authUrl.searchParams.set('audience', connector.auth.audience);
@@ -1178,9 +1187,13 @@ class AccountConnectorService {
       body.set('client_secret', config.clientSecret);
     }
 
-    const response = await axios.post(connector.auth.tokenUrl, body.toString(), {
+    const response = await this.http.post(connector.auth.tokenUrl, body.toString(), {
       headers,
-      timeout: 15000
+      timeout: 15000,
+      maxContentLength: MAX_OAUTH_TOKEN_RESPONSE_BYTES,
+      maxBodyLength: MAX_OAUTH_TOKEN_RESPONSE_BYTES,
+      maxRedirects: 0,
+      proxy: false
     });
 
     return response.data;
@@ -1555,6 +1568,239 @@ class AccountConnectorService {
     }
 
     return result;
+  }
+
+  async prepareOAuthAccountForSync(account, options = {}) {
+    if (!account || account.authType !== 'oauth2') return account;
+
+    const expiresAt = account.credentials?.expiresAt ? new Date(account.credentials.expiresAt) : null;
+    if (!expiresAt) return account;
+    if (Number.isNaN(expiresAt.getTime())) {
+      const error = new Error('This connector authorization has an invalid expiry. Reconnect the account before syncing again.');
+      error.statusCode = 409;
+      throw error;
+    }
+
+    const now = this.now();
+    const skewMs = clampPositiveInt(
+      options.skewSeconds ?? process.env.SNEUP_OAUTH_REFRESH_SKEW_SECONDS,
+      DEFAULT_OAUTH_REFRESH_SKEW_SECONDS,
+      30,
+      60 * 60
+    ) * 1000;
+    if (expiresAt.getTime() > now.getTime() + skewMs) return account;
+
+    const credentials = this.getAccountCredentials(account);
+    if (!credentials.refreshToken) {
+      const error = new Error('This connector authorization has expired and cannot be renewed. Reconnect the account before syncing again.');
+      error.statusCode = 409;
+      throw error;
+    }
+
+    const connector = this.requireConnector(account.connectorId);
+    const leaseSeconds = clampPositiveInt(
+      options.leaseSeconds ?? process.env.SNEUP_OAUTH_REFRESH_LEASE_SECONDS,
+      DEFAULT_OAUTH_REFRESH_LEASE_SECONDS,
+      15,
+      5 * 60
+    );
+    const leaseToken = crypto.randomBytes(32).toString('base64url');
+    const leaseTokenHash = crypto.createHash('sha256').update(leaseToken).digest('hex');
+    const leaseExpiresAt = new Date(now.getTime() + leaseSeconds * 1000);
+    const refreshThreshold = new Date(now.getTime() + skewMs);
+    let claimQuery = this.connectorAccountModel.findOneAndUpdate({
+      _id: account._id,
+      workspaceId: account.workspaceId,
+      authType: 'oauth2',
+      'credentials.expiresAt': { $lte: refreshThreshold },
+      $or: [
+        { 'oauthRefreshLease.expiresAt': { $exists: false } },
+        { 'oauthRefreshLease.expiresAt': { $lte: now } }
+      ]
+    }, {
+      $set: {
+        oauthRefreshLease: { tokenHash: leaseTokenHash, expiresAt: leaseExpiresAt }
+      }
+    }, { new: true });
+    if (typeof claimQuery?.select === 'function') claimQuery = claimQuery.select('+credentials +oauthRefreshLease');
+    const claimedAccount = await claimQuery;
+
+    if (!claimedAccount) {
+      const refreshedAccount = await this.waitForOAuthRefresh(account, {
+        ...options,
+        refreshThreshold
+      });
+      if (refreshedAccount) {
+        this.copyOAuthCredentials(account, refreshedAccount);
+        return account;
+      }
+      const error = new Error('This connector authorization is being renewed by another Sneup process. Try the sync again shortly.');
+      error.statusCode = 503;
+      throw error;
+    }
+
+    const actor = String(options.actor || options.actorId || 'connector-sync').slice(0, 120);
+    try {
+      await this.recordOAuthRefreshAudit(claimedAccount, 'connector_oauth_token_refresh_started', actor, {
+        connectorId: claimedAccount.connectorId,
+        previousExpiresAt: expiresAt.toISOString()
+      });
+    } catch (_error) {
+      await this.releaseOAuthRefreshLease(claimedAccount, leaseTokenHash);
+      const error = new Error('The connector authorization was not renewed because its audit entry could not be recorded.');
+      error.statusCode = 503;
+      throw error;
+    }
+
+    let tokenResponse;
+    try {
+      tokenResponse = await this.refreshOAuthAccessToken(connector, credentials.refreshToken);
+    } catch (_error) {
+      await this.releaseOAuthRefreshLease(claimedAccount, leaseTokenHash);
+      try {
+        await this.recordOAuthRefreshAudit(claimedAccount, 'connector_oauth_token_refresh_failed', actor, {
+          connectorId: claimedAccount.connectorId,
+          reason: 'provider_refresh_failed'
+        });
+      } catch (_auditError) {
+        // The durable start event still records that a provider call was attempted.
+      }
+      const error = new Error('Sneup could not renew this connector authorization. Reconnect the account if the next sync also fails.');
+      error.statusCode = 502;
+      throw error;
+    }
+
+    const accessTokenValue = tokenResponse?.access_token ?? tokenResponse?.accessToken;
+    const expiresIn = Number(tokenResponse?.expires_in ?? tokenResponse?.expiresIn);
+    const refreshTokenValue = tokenResponse?.refresh_token ?? tokenResponse?.refreshToken;
+    const tokenTypeValue = tokenResponse?.token_type ?? tokenResponse?.tokenType;
+    const invalidAccessToken = typeof accessTokenValue !== 'string' || accessTokenValue.length < 1 || accessTokenValue.length > 65536;
+    const invalidRefreshToken = refreshTokenValue !== undefined && (typeof refreshTokenValue !== 'string' || refreshTokenValue.length < 1 || refreshTokenValue.length > 65536);
+    const invalidTokenType = tokenTypeValue !== undefined && (typeof tokenTypeValue !== 'string' || !/^Bearer$/i.test(tokenTypeValue));
+    if (invalidAccessToken || invalidRefreshToken || invalidTokenType || !Number.isFinite(expiresIn) || expiresIn < 60 || expiresIn > 366 * 24 * 60 * 60) {
+      await this.releaseOAuthRefreshLease(claimedAccount, leaseTokenHash);
+      try {
+        await this.recordOAuthRefreshAudit(claimedAccount, 'connector_oauth_token_refresh_failed', actor, {
+          connectorId: claimedAccount.connectorId,
+          reason: 'invalid_provider_response'
+        });
+      } catch (_auditError) {
+        // The durable start event still records that a provider call was attempted.
+      }
+      const error = new Error('The connector provider returned an invalid authorization renewal response.');
+      error.statusCode = 502;
+      throw error;
+    }
+
+    const accessToken = accessTokenValue;
+    const nextRefreshToken = refreshTokenValue || credentials.refreshToken;
+    const nextExpiresAt = new Date(this.now().getTime() + expiresIn * 1000);
+    let updateQuery = this.connectorAccountModel.findOneAndUpdate({
+      _id: claimedAccount._id,
+      workspaceId: claimedAccount.workspaceId,
+      'oauthRefreshLease.tokenHash': leaseTokenHash
+    }, {
+      $set: {
+        'credentials.accessToken': this.encrypt(accessToken),
+        'credentials.refreshToken': this.encrypt(nextRefreshToken),
+        'credentials.tokenType': 'Bearer',
+        'credentials.expiresAt': nextExpiresAt,
+        status: 'connected'
+      },
+      $unset: { oauthRefreshLease: 1, lastError: 1 }
+    }, { new: true });
+    if (typeof updateQuery?.select === 'function') updateQuery = updateQuery.select('+credentials');
+    const updatedAccount = await updateQuery;
+    if (!updatedAccount) {
+      const error = new Error('Sneup could not safely store the renewed connector authorization.');
+      error.statusCode = 409;
+      throw error;
+    }
+
+    this.copyOAuthCredentials(account, updatedAccount);
+    try {
+      await this.recordOAuthRefreshAudit(updatedAccount, 'connector_oauth_token_refresh_completed', actor, {
+        connectorId: updatedAccount.connectorId,
+        expiresAt: nextExpiresAt.toISOString()
+      });
+    } catch (_error) {
+      const error = new Error('The connector authorization was renewed, but its completion audit entry could not be recorded.');
+      error.statusCode = 503;
+      throw error;
+    }
+    return account;
+  }
+
+  async refreshOAuthAccessToken(connector, refreshToken) {
+    const config = this.getOAuthEnvironment(connector);
+    if (!config.clientId || !config.clientSecret) {
+      const error = new Error('OAuth app credentials are required to renew this connector authorization.');
+      error.statusCode = 503;
+      throw error;
+    }
+
+    const body = new URLSearchParams();
+    body.set('grant_type', 'refresh_token');
+    body.set('refresh_token', refreshToken);
+    body.set('client_id', config.clientId);
+    const headers = { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' };
+    if (connector.auth.tokenAuth === 'basic') {
+      headers.Authorization = `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64')}`;
+    } else {
+      body.set('client_secret', config.clientSecret);
+    }
+
+    const response = await this.http.post(connector.auth.tokenUrl, body.toString(), {
+      headers,
+      timeout: 15000,
+      maxContentLength: MAX_OAUTH_TOKEN_RESPONSE_BYTES,
+      maxBodyLength: MAX_OAUTH_TOKEN_RESPONSE_BYTES,
+      maxRedirects: 0,
+      proxy: false
+    });
+    return response.data;
+  }
+
+  async waitForOAuthRefresh(account, options = {}) {
+    const maxWaitMs = clampPositiveInt(options.maxWaitMs, DEFAULT_OAUTH_REFRESH_WAIT_MS, 0, 30 * 1000);
+    const pollMs = clampPositiveInt(options.pollMs, DEFAULT_OAUTH_REFRESH_POLL_MS, 25, 1000);
+    const deadline = this.now().getTime() + maxWaitMs;
+    do {
+      let query = this.connectorAccountModel.findOne({ _id: account._id, workspaceId: account.workspaceId });
+      if (typeof query?.select === 'function') query = query.select('+credentials +oauthRefreshLease');
+      const latest = await query;
+      const latestExpiry = latest?.credentials?.expiresAt ? new Date(latest.credentials.expiresAt) : null;
+      if (latestExpiry && latestExpiry.getTime() > options.refreshThreshold.getTime()) return latest;
+      if (this.now().getTime() >= deadline) return null;
+      await this.sleep(pollMs);
+    } while (true);
+  }
+
+  copyOAuthCredentials(target, source) {
+    target.credentials = source.credentials;
+    target.status = source.status;
+    target.lastError = source.lastError;
+  }
+
+  async releaseOAuthRefreshLease(account, leaseTokenHash) {
+    await this.connectorAccountModel.updateOne({
+      _id: account._id,
+      workspaceId: account.workspaceId,
+      'oauthRefreshLease.tokenHash': leaseTokenHash
+    }, { $unset: { oauthRefreshLease: 1 } });
+  }
+
+  async recordOAuthRefreshAudit(account, action, actor, afterState) {
+    await this.auditEventModel.create({
+      workspaceId: account.workspaceId,
+      entityType: 'connector_account',
+      entityId: account._id,
+      action,
+      actor,
+      source: actor === 'connector-sync' ? 'scheduled' : 'api',
+      riskLevel: 'low',
+      afterState
+    });
   }
 
   resolveWorkspaceId(workspaceId) {

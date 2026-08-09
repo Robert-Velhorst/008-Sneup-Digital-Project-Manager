@@ -12,7 +12,7 @@ const FIRST_WAVE_ADAPTERS = [
   'notion',
   'monday',
   'clickup',
-  'azure_devops', 'workfront', 'servicenow', 'zoho_projects', 'new_relic', 'tableau', 'sharepoint', 'xero', 'google_forms', 'mural', 'canva', 'quickbooks', 'power_bi', 'looker_studio', 'jira_align', 'scoro', 'plane', 'openproject', 'hive', 'clarizen', 'lucid', 'taskworld', 'taskade', 'motion', 'ganttpro', 'paymo', 'kantata', 'liquidplanner', 'productive', 'ravetree', 'procore',
+  'azure_devops', 'workfront', 'servicenow', 'zoho_projects', 'new_relic', 'tableau', 'sharepoint', 'xero', 'google_forms', 'mural', 'canva', 'adobe_creative_cloud', 'quickbooks', 'power_bi', 'looker_studio', 'jira_align', 'scoro', 'plane', 'openproject', 'hive', 'clarizen', 'lucid', 'taskworld', 'taskade', 'motion', 'ganttpro', 'paymo', 'kantata', 'liquidplanner', 'productive', 'ravetree', 'procore',
   'wrike', 'opsgenie',
   'smartsheet',
   'airtable', 'todoist', 'shortcut', 'bitbucket', 'harvest', 'everhour', 'timeneye', 'coda', 'quip', 'teamwork', 'teamgantt', 'kanbanize', 'basecamp', 'redmine', 'microsoft_planner', 'microsoft_project', 'youtrack', 'taiga', 'backlog', 'freedcamp', 'proofhub', 'meistertask', 'aha', 'productboard', 'toggl_track', 'clockify', 'float', 'resource_guru', 'sentry', 'pagerduty', 'statuspage', 'rest_api_generic', 'datadog', 'zendesk', 'freshdesk', 'pipedrive', 'hubspot', 'typeform', 'salesforce', 'survey_monkey', 'zapier', 'zoom', 'miro', 'dropbox', 'onedrive', 'google_drive', 'calendly', 'teams', 'google_chat', 'figma', 'confluence', 'box', 'rally', 'gmail', 'outlook', 'podio', 'intercom', 'webex', 'discord', 'mattermost', 'testRail', 'browserstack', 'make', 'n8n'
@@ -128,6 +128,7 @@ const xeroWorkSignalClient = lazyClient('./xeroWorkSignalClient');
 const googleFormsWorkSignalClient = lazyClient('./googleFormsWorkSignalClient');
 const muralWorkSignalClient = lazyClient('./muralWorkSignalClient');
 const canvaWorkSignalClient = lazyClient('./canvaWorkSignalClient');
+const adobeCreativeCloudWorkSignalClient = lazyClient('./adobeCreativeCloudWorkSignalClient');
 const quickBooksWorkSignalClient = lazyClient('./quickBooksWorkSignalClient');
 const powerBiWorkSignalClient = lazyClient('./powerBiWorkSignalClient');
 const dataStudioWorkSignalClient = lazyClient('./dataStudioWorkSignalClient');
@@ -1709,6 +1710,12 @@ canvaAdapter.capabilities.credentialBackedSync = true;
 canvaAdapter.list = async account => (await canvaWorkSignalClient.fetchDelta(account, null)).records;
 canvaAdapter.fetchDelta = (account, cursor) => canvaWorkSignalClient.fetchDelta(account, cursor);
 adapters.set('canva', canvaAdapter);
+
+const adobeCreativeCloudAdapter = buildAdapter('adobe_creative_cloud', 'Adobe Creative Cloud bounded library metadata adapter', (account, item) => ({ externalId: pick(item.id), sourceType: 'library', title: titleFromText(item.name, 'Adobe Creative Cloud library'), description: '', status: item.status || 'open', priority: 'unknown', url: undefined, owners: [], labels: compact(['adobe_creative_cloud', 'library']), dueAt: undefined, providerCreatedAt: item.createdAt, providerUpdatedAt: item.updatedAt, evidenceRefs: baseEvidence(account, item, 'Adobe Creative Cloud library metadata'), raw: { id: item.id, sourceType: 'library', libraryId: item.libraryId, status: item.status, createdAt: item.createdAt, updatedAt: item.updatedAt } }));
+adobeCreativeCloudAdapter.capabilities.credentialBackedSync = true;
+adobeCreativeCloudAdapter.list = async account => (await adobeCreativeCloudWorkSignalClient.fetchDelta(account, null)).records;
+adobeCreativeCloudAdapter.fetchDelta = (account, cursor) => adobeCreativeCloudWorkSignalClient.fetchDelta(account, cursor);
+adapters.set('adobe_creative_cloud', adobeCreativeCloudAdapter);
 
 const quickBooksAdapter = buildAdapter('quickbooks', 'QuickBooks selected-company sales-invoice metadata adapter', (account, item) => ({ externalId: pick(item.id), sourceType: 'sales_invoice', title: 'QuickBooks sales invoice', description: '', status: item.status || 'open', priority: 'unknown', url: undefined, owners: [], labels: compact(['quickbooks', 'sales_invoice', item.status]), dueAt: item.dueAt, providerCreatedAt: item.createdAt, providerUpdatedAt: item.updatedAt, evidenceRefs: baseEvidence(account, item, 'QuickBooks sales-invoice metadata'), raw: { id: item.id, sourceType: 'sales_invoice', invoiceId: item.invoiceId, realmId: item.realmId, status: item.status, dueAt: item.dueAt, createdAt: item.createdAt, updatedAt: item.updatedAt } }));
 quickBooksAdapter.capabilities.credentialBackedSync = true;
