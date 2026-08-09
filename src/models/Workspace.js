@@ -53,4 +53,4 @@ workspaceSchema.statics.defaultWorkspaceName = function() {
   return process.env.SNEUP_DEFAULT_WORKSPACE_NAME || 'Sneup Local Workspace';
 };
 
-module.exports = mongoose.model('Workspace', workspaceSchema);
+module.exports = mongoose.models.Workspace || mongoose.model('Workspace', workspaceSchema);

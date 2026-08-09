@@ -20,6 +20,7 @@ The command-center HTML and JavaScript were statically searched for controls, ev
 - The final packaged Electron app launched on Windows 11 at device scale factor `1.5`. Renderer-native measurement reported `clientWidth = scrollWidth = 1411`, four stable metric columns, and a main/view right edge inside the viewport.
 - Renderer-native capture confirmed all seven metrics, the complete toolbar, Operations Brief, and Job Health render without clipping or overlap.
 - The NSIS installer opened as `Sneup Setup`, showed version `2.1.0`, offered current-user/all-user installation scope, and exposed functional `Next` and `Cancel` controls. It was closed without modifying the machine.
+- The 2.2.0 packaged executable exposed the real `Sneup Command Center` window, remained available after startup, returned healthy explicit demo state on loopback, and closed normally without leaving port 3197 open. The in-app Browser webview did not attach for the current rendering rerun, so the earlier browser layout evidence is retained as prior-release evidence rather than silently relabelled as 2.2.0 evidence.
 
 ## Open UI evidence
 

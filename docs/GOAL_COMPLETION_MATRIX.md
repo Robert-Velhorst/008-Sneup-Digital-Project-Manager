@@ -27,12 +27,12 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 020 Dashboard/next action | Implemented | Decision, exception, policy, health, report, and ledger views. |
 | 021 Forms/validation/autosave | Partial | Validation and stable forms exist; universal autosave does not. |
 | 022 Search/filter/sort/page | Implemented | Bounded list APIs and command-center filters. |
-| 023 Import/export | Partial | Provider ingestion and PDF reports exist; owner data export is missing. |
+| 023 Import/export | Implemented | Provider ingestion, PDF reports, and owner-only streamed workspace export exist. |
 | 024 Templates/presets/defaults | Partial | Policy defaults and report presets exist; reusable user templates are limited. |
 | 025 AI abstraction/fallback | Partial | Provider isolation/evaluation exists; deterministic coverage is not universal. |
 | 026 Human review/approval | Implemented | Queue, protected payload review, approval expiry, policy gates. |
 | 027 Notifications/reminders | Implemented | Explicit policies, claims, delivery evidence, quiet hours, digests. |
-| 028 Privacy/deletion | Partial | Redaction and invitation retention exist; workspace export/deletion is missing. |
+| 028 Privacy/deletion | Partial | Redaction, invitation retention, and owner-only workspace export exist; destructive workspace deletion remains missing. |
 | 029 Web security | Implemented | Helmet/CSP, origin controls, bounded bodies, throttling. |
 | 030 Secrets/rotation | Implemented | Purpose-separated secrets, encryption, rotation visibility, release check. |
 | 031 One-command local development | Implemented | `npm ci`, doctor, start/demo paths, Windows installer. |
@@ -45,7 +45,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 038 Fake provider lab | Implemented | Provider mocks are test-only and cannot activate production success. |
 | 039 Test factories/fixtures | Implemented | Deterministic service/provider fixtures across test suites. |
 | 040 Backend tests | Implemented | Jest regression suite and CI gate. |
-| 041 Frontend/component tests | Partial | Static/UI/browser assertions exist; no isolated component framework. |
+| 041 Frontend/component tests | Partial | Static/UI assertions and focused export-control wiring coverage exist; no isolated component framework. |
 | 042 Worker/job tests | Implemented | Sync, notification, retention, outcome, job execution coverage. |
 | 043 End-to-end tests | Partial | Local browser flows exist; live-provider E2E is external. |
 | 044 Acceptance matrix | Implemented | `ACCEPTANCE_TESTS.md`. |
@@ -97,7 +97,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 090 No vanity work | Implemented | Changes target operability, safety, evidence, and delivery. |
 | 091 Feature definition of done | Implemented | Status requires wiring, reachability, tests, docs, and evidence. |
 | 092 Fresh-clone run | Implemented | Lockfile-only clean checkout passed 76 suites/648 tests, 5/5 evaluation, and zero-vulnerability audit; final CSS-only changes repeated full regression and packaged QA. |
-| 093 Manual evidence | Partial | Browser, packaged Windows, and installer evidence pass; live provider and clean-VM evidence pending. |
+| 093 Manual evidence | Partial | Prior browser, packaged Windows, and installer evidence pass; the 2.2.0 in-app Browser attachment failed and requires a later rerun, while live provider and clean-VM evidence remain pending. |
 | 094 No-excuses search | Implemented | No shipped TODO/FIXME/HACK, dynamic-code, child-process, or secret-pattern finding. |
 | 095 Completion matrix | Implemented | This file, with partial/external states retained. |
 | 096 Verification report | Implemented | Final commands, clean-checkout result, installer hash, browser QA, and packaged Windows QA are recorded. |

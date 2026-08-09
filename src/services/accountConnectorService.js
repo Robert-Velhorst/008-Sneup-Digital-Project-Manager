@@ -814,7 +814,7 @@ class AccountConnectorService {
     const account = await ConnectorAccount.findOne({
       _id: accountId,
       workspaceId: this.resolveWorkspaceId(options.workspaceId)
-    });
+    }).select('+credentials');
     if (!account) {
       const error = new Error('Connector account not found');
       error.statusCode = 404;

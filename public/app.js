@@ -156,6 +156,7 @@ const els = {
   workspaceMetrics: document.getElementById('workspaceMetrics'),
   workspaceMode: document.getElementById('workspaceMode'),
   workspaceList: document.getElementById('workspaceList'),
+  workspaceExportButton: document.getElementById('workspaceExportButton'),
   workspaceUserCount: document.getElementById('workspaceUserCount'),
   workspaceUsers: document.getElementById('workspaceUsers'),
   workspaceInviteCount: document.getElementById('workspaceInviteCount'),
@@ -214,6 +215,7 @@ document.addEventListener('keydown', (event) => {
 });
 els.notificationPolicyButton.addEventListener('click', openNotificationPolicy);
 els.workspaceInviteButton.addEventListener('click', openWorkspaceInvite);
+els.workspaceExportButton.addEventListener('click', downloadWorkspaceExport);
 els.workspaceSelect.addEventListener('change', async (event) => {
   state.activeWorkspaceId = event.target.value;
   if (state.activeWorkspaceId) {
@@ -2974,6 +2976,12 @@ function renderWorkspaces(errorMessage = '') {
     ? '<div class="notice">Demo workspace is read-only. Connect a database and sign in to manage people, invitations, and action safety.</div>'
     : '';
   els.workspaceList.innerHTML = demoNotice + notice + listOrEmpty(workspaces, renderWorkspace);
+  const canExportWorkspace = Boolean(
+    currentWorkspace?.id
+    && !state.securityContext?.demoMode
+    && (state.securityContext?.roles || []).includes('owner')
+  );
+  els.workspaceExportButton.disabled = !canExportWorkspace;
   els.workspaceUserCount.textContent = `${users.length} user${users.length === 1 ? '' : 's'}`;
   els.workspaceUsers.innerHTML = listOrEmpty(users, renderWorkspaceUser);
   els.workspaceInviteCount.textContent = `${pendingInvitations.length} pending`;
@@ -3490,6 +3498,75 @@ function openPolicyRuleEditor(actionType) {
       openNotice('Safety rule blocked', error.message);
     }
   });
+}
+
+async function downloadWorkspaceExport() {
+  const workspace = (state.workspaces || []).find(item => item.id === state.activeWorkspaceId)
+    || state.currentWorkspace;
+  if (!workspace?.id || !(state.securityContext?.roles || []).includes('owner')) {
+    openNotice('Workspace export unavailable', 'Sign in as the workspace owner before exporting workspace data.');
+    return;
+  }
+
+  const safeSlug = String(workspace.slug || workspace.name || 'workspace')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || 'workspace';
+  const suggestedName = `sneup-${safeSlug}-export-${new Date().toISOString().slice(0, 10)}.ndjson`;
+  let fileHandle = null;
+
+  if (typeof window.showSaveFilePicker === 'function') {
+    try {
+      fileHandle = await window.showSaveFilePicker({
+        suggestedName,
+        types: [{
+          description: 'Sneup workspace export',
+          accept: { 'application/x-ndjson': ['.ndjson'] }
+        }]
+      });
+    } catch (error) {
+      if (error.name === 'AbortError') return;
+      openNotice('Workspace export unavailable', error.message);
+      return;
+    }
+  }
+
+  els.workspaceExportButton.disabled = true;
+  try {
+    const response = await apiFetch(`/api/workspaces/${encodeURIComponent(workspace.id)}/export`);
+    if (!response.ok) {
+      let message = `Workspace export failed with status ${response.status}`;
+      try {
+        const data = await response.json();
+        if (data.error) message = data.error;
+      } catch (error) {
+        // The status is enough when a proxy returns a non-JSON error page.
+      }
+      throw new Error(message);
+    }
+
+    if (fileHandle && response.body) {
+      const writable = await fileHandle.createWritable();
+      await response.body.pipeTo(writable);
+    } else {
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = suggestedName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    openNotice('Workspace export complete', 'The export contains workspace records and excludes credentials, token hashes, and encrypted notification destinations.');
+  } catch (error) {
+    openNotice('Workspace export failed', error.message);
+  } finally {
+    renderWorkspaces();
+  }
 }
 
 function openWorkspaceInvite() {

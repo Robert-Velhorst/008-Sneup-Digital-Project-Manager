@@ -6,17 +6,17 @@ This report is updated from executed commands at release time. A passing local s
 
 - Branch: `main`
 - Starting commit: `470d0a35ca712a3c12473a5c8cccb2118092d3ed`
-- Final executable source commit: `540704c`
+- Release under verification: `2.2.0`
 - Default remote: `origin`
 
 ## Verification ledger
 
 | Check | Result |
 | --- | --- |
-| Focused HAI/ngrok/runtime/security tests | Pass: 4 suites, 413 tests; final focused adapter run 3 suites, 12 tests |
+| Focused export/desktop/provider-write/security tests | Pass |
 | ESLint | Pass |
 | Doctor | Pass with expected local warnings for absent MongoDB/Trello configuration; no errors; ngrok disabled locally |
-| Full regression | Pass: 76 suites, 648 tests after integration and again after the Windows scaling fix |
+| Full regression | Pass: 78 suites, 656 tests |
 | Recommendation evaluation | Pass: 5/5 scenarios, score 100% |
 | Production and full dependency audit | Pass: 0 vulnerabilities after lockfile remediation |
 | Release security positive check | Pass: five purpose-separated production secrets, no values exposed |
@@ -24,13 +24,13 @@ This report is updated from executed commands at release time. A passing local s
 | Demo runtime smoke | Pass: `/health` OK; `/ready` HTTP 200, degraded demo, live critical path false |
 | HAI HTTP smoke | Pass: manifest `sneup-hai`, capabilities `snapshot,propose`, provider writes `never_direct`, structured demo snapshot |
 | ngrok packaging/safety | Pass: official Windows x64 native binding bundled; missing, weak, or placeholder remote credentials fail closed |
-| Browser QA | Pass: overview, approvals, ledger modal, responsive minimum viewport, and no console errors |
-| Packaged Windows QA | Pass: command center launched at 150% scaling; renderer `clientWidth = scrollWidth = 1411`; four stable metric columns and both main panels fit |
-| Installer UI | Pass: `Sneup Setup` opens, reports version 2.1.0, offers current-user/all-user choice and Next/Cancel |
-| Windows installer | Pass: `Sneup-Setup-2.1.0.exe`, 109,433,870 bytes, unsigned |
-| Installer SHA-256 | `23E8CA750961C1ABD21F179FEA76245D510C2ABF9441768B30ED46A37C9FAD55` |
-| Fresh clone | Pass at `6a02fac`: lockfile-only install, 76 suites/648 tests, 5/5 evaluation, 0 vulnerabilities; final CSS-only commits passed the same full regression and packaged renderer QA |
-| GitHub CI | Pass: run `31289205822`; Linux quality and Windows installer artifact jobs completed for `83e99a8` |
+| Browser QA | Prior release pass; the 2.2.0 in-app Browser webview failed to attach twice, so current rendered browser evidence is pending |
+| Packaged Windows QA | Pass: 2.2.0 command-center window stayed open, `/health` returned OK in explicit demo mode, normal close released port 3197; four processes used about 410 MB working set after 30 seconds idle |
+| Installer UI | Prior 2.1.0 installer UI pass; 2.2.0 metadata verified, current installer-dialog walkthrough pending |
+| Windows installer | Pass: `Sneup-Setup-2.2.0.exe`, 109,418,326 bytes, unsigned; executable metadata reports Sneup 2.2.0 and Noodzakelijk Online |
+| Installer SHA-256 | `229F9D81398CB3906EC8B5A37EFA17366F2A6920DAA12C5EADDCA1A45F615892` |
+| Fresh clone | Prior release pass at `6a02fac`; current 2.2.0 clean-checkout CI is pending push |
+| GitHub CI | Prior release pass: run `31289205822`; current 2.2.0 push pending |
 
 ## External gates
 

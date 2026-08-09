@@ -3,6 +3,7 @@ const path = require('path');
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const { acquireSingleInstanceLock } = require('./singleInstance');
 const { createNavigationPolicy } = require('./navigationPolicy');
+const { configureDesktopEnvironment } = require('./runtimeEnvironment');
 const {
   getDesktopSettingsPath,
   readDesktopSettings,
@@ -14,7 +15,7 @@ const DESKTOP_PORT = process.env.PORT || '3197';
 const DESKTOP_HOST = '127.0.0.1';
 const DESKTOP_URL = `http://${DESKTOP_HOST}:${DESKTOP_PORT}`;
 
-process.env.SNEUP_DESKTOP = 'true';
+configureDesktopEnvironment({ isPackaged: app.isPackaged });
 process.env.HOST = DESKTOP_HOST;
 process.env.PORT = DESKTOP_PORT;
 process.env.SNEUP_PUBLIC_URL = process.env.SNEUP_PUBLIC_URL || DESKTOP_URL;

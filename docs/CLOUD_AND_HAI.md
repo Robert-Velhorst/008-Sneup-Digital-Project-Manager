@@ -4,7 +4,7 @@
 
 Sneup supports the same application core in three forms:
 
-1. Windows 11 desktop through `Sneup-Setup-2.1.0.exe`.
+1. Windows 11 desktop through `Sneup-Setup-2.2.0.exe`.
 2. Local or server Node runtime through `npm start`.
 3. Authenticated ngrok ingress layered over either runtime.
 

@@ -9111,6 +9111,7 @@ describe('approved Trello action execution safety', () => {
     jest.dontMock('../src/models/DecisionQueueItem');
     jest.dontMock('../src/models/TrelloActionAttempt');
     jest.dontMock('../src/models/AuditEvent');
+    jest.dontMock('../src/models/Workspace');
     jest.dontMock('../src/services/operationsLedgerService');
     jest.dontMock('../src/services/workspaceScopeService');
     jest.dontMock('../src/services/policyRuleService');
@@ -9137,6 +9138,9 @@ describe('approved Trello action execution safety', () => {
     const resolveEffectivePolicy = jest.fn();
     jest.doMock('../src/models/Recommendation', () => ({
       findOne: jest.fn().mockResolvedValue(recommendation)
+    }));
+    jest.doMock('../src/models/Workspace', () => ({
+      findById: jest.fn(() => ({ select: jest.fn().mockResolvedValue({ status: 'active' }) }))
     }));
     jest.doMock('../src/models/AuditEvent', () => ({ create: auditCreate }));
     jest.doMock('../src/services/workspaceScopeService', () => ({
@@ -9188,6 +9192,9 @@ describe('approved Trello action execution safety', () => {
     jest.doMock('../src/models/Recommendation', () => ({
       findOne: jest.fn().mockResolvedValue(recommendation)
     }));
+    jest.doMock('../src/models/Workspace', () => ({
+      findById: jest.fn(() => ({ select: jest.fn().mockResolvedValue({ status: 'active' }) }))
+    }));
     jest.doMock('../src/services/workspaceScopeService', () => ({
       normalizeWorkspaceObjectId: jest.fn(value => value)
     }));
@@ -9209,6 +9216,52 @@ describe('approved Trello action execution safety', () => {
     });
   });
 
+  test('audits and blocks provider writes for suspended or archived workspaces', async () => {
+    jest.resetModules();
+    jest.dontMock('../src/services/operationsLedgerService');
+
+    const recommendation = {
+      _id: 'recommendation-archived-workspace',
+      workspaceId: 'workspace-archived',
+      actionType: 'comment',
+      riskLevel: 'high',
+      requiresApproval: true,
+      status: 'approved',
+      actionPayload: { executable: true, draftOnly: false }
+    };
+    const auditCreate = jest.fn().mockResolvedValue({ _id: 'audit-workspace-block' });
+    const resolveEffectivePolicy = jest.fn();
+    jest.doMock('../src/models/Recommendation', () => ({
+      findOne: jest.fn().mockResolvedValue(recommendation)
+    }));
+    jest.doMock('../src/models/Workspace', () => ({
+      findById: jest.fn(() => ({ select: jest.fn().mockResolvedValue({ status: 'archived' }) }))
+    }));
+    jest.doMock('../src/models/AuditEvent', () => ({ create: auditCreate }));
+    jest.doMock('../src/services/workspaceScopeService', () => ({
+      normalizeWorkspaceObjectId: jest.fn(value => value)
+    }));
+    jest.doMock('../src/services/policyRuleService', () => ({ resolveEffectivePolicy }));
+
+    const operationsLedgerService = require('../src/services/operationsLedgerService');
+    jest.spyOn(operationsLedgerService, 'isDatabaseReady').mockReturnValue(true);
+
+    await expect(operationsLedgerService.executeApprovedRecommendation(recommendation._id, {
+      workspaceId: recommendation.workspaceId,
+      actor: 'workspace-owner'
+    })).rejects.toMatchObject({
+      code: 'SNEUP_WORKSPACE_PROVIDER_WRITES_DISABLED',
+      statusCode: 409
+    });
+    expect(resolveEffectivePolicy).not.toHaveBeenCalled();
+    expect(auditCreate).toHaveBeenCalledWith(expect.objectContaining({
+      workspaceId: recommendation.workspaceId,
+      action: 'provider_write_blocked_by_workspace_status',
+      actor: 'workspace-owner',
+      afterState: expect.objectContaining({ workspaceStatus: 'archived' })
+    }));
+  });
+
   test('blocks an approved provider write after its workspace action type is paused', async () => {
     jest.resetModules();
     jest.dontMock('../src/services/operationsLedgerService');
@@ -9223,6 +9276,9 @@ describe('approved Trello action execution safety', () => {
         status: 'approved',
         actionPayload: { executable: true, draftOnly: false }
       })
+    }));
+    jest.doMock('../src/models/Workspace', () => ({
+      findById: jest.fn(() => ({ select: jest.fn().mockResolvedValue({ status: 'active' }) }))
     }));
     jest.doMock('../src/services/workspaceScopeService', () => ({
       normalizeWorkspaceObjectId: jest.fn(value => value)

@@ -15,6 +15,7 @@
 4. Demo mode is explicitly labelled and read-only. It does not masquerade as a connected workspace.
 5. Jobs, rate-limit metrics, response timing, audit history, and connector health are visible to authorized operators.
 6. The Windows NSIS installer is reproducible and CI now builds the unsigned artifact on Windows.
+7. Workspace exports are owner-only, audit-recorded, streamed with bounded cursors, and recursively strip credential material.
 
 ## Remediations in this release
 
@@ -24,6 +25,9 @@
 - Added a redacted support bundle that excludes logs, user data, environment values, tokens, and connection strings.
 - Added Linux quality gates and a Windows installer job in GitHub Actions.
 - Added the production traceability, security, acceptance, API/UI audit, runbook, and verification documents required by the governing prompt.
+- Made connector credential fields opt-in and added workspace-state enforcement before the only provider-write executor.
+- Added a resource-bounded owner workspace export and corrected security-job observability persistence.
+- Corrected the packaged desktop environment so production file logging is selected before application services load; this removes a startup-time detached-console `EPIPE` shutdown without muting persisted diagnostics.
 
 ## Remaining release risks
 
@@ -33,8 +37,9 @@
 | Live Mongo migration/restore | External | Test on a production-like replica and capture backup/restore evidence. |
 | Code signing | External | Provide an organization-owned Windows signing certificate and secure CI signing process. |
 | Deployment/rollback | Partial | Select hosting, provision secrets, run canary, and prove rollback. |
-| Data subject export/deletion | Partial | Add owner-authorized workspace export and deletion workflows before hosted multi-tenant release. |
+| Data subject deletion | Partial | Owner-authorized export now exists; add an archived-workspace deletion workflow before hosted multi-tenant release. |
 | Accessibility/i18n | Partial | Complete assistive-technology review and Dutch copy catalog before claiming conformance. |
+| Desktop memory | Measured | The 2.2.0 package used four processes and about 410 MB total working set after 30 seconds idle on the verification machine; collect broader clean-machine traces before setting a hard budget. |
 | Billing | Not applicable | No billing is required for the local-first product. |
 
 No live credential, provider authorization, deployment, signed binary, or production backup claim is inferred from local tests.

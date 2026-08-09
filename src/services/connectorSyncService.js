@@ -112,11 +112,13 @@ class ConnectorSyncService {
     this.requireDatabase();
     const workspaceId = normalizeWorkspaceObjectId(options.workspaceId || getDefaultWorkspaceObjectId());
     const connectorIds = workSignalAdapterService.getFirstWaveConnectorIds();
-    const accounts = await ConnectorAccount.find({
+    let accountsQuery = ConnectorAccount.find({
       workspaceId,
       status: 'connected',
       connectorId: { $in: connectorIds }
-    }).sort({ updatedAt: 1 });
+    });
+    if (typeof accountsQuery.select === 'function') accountsQuery = accountsQuery.select('+credentials');
+    const accounts = await accountsQuery.sort({ updatedAt: 1 });
 
     const providerQueues = this.groupAccountsByProvider(accounts);
     const concurrency = this.getAccountSyncConcurrency(options.concurrency);
@@ -230,12 +232,15 @@ class ConnectorSyncService {
 
   async syncAccount(accountOrId, options = {}) {
     this.requireDatabase();
-    const account = typeof accountOrId === 'object' && accountOrId._id
-      ? accountOrId
-      : await ConnectorAccount.findOne({
+    let account = accountOrId;
+    if (!(typeof accountOrId === 'object' && accountOrId._id)) {
+      let accountQuery = ConnectorAccount.findOne({
         _id: accountOrId,
         workspaceId: normalizeWorkspaceObjectId(options.workspaceId || getDefaultWorkspaceObjectId())
       });
+      if (typeof accountQuery?.select === 'function') accountQuery = accountQuery.select('+credentials');
+      account = await accountQuery;
+    }
 
     if (!account) {
       const error = new Error('Connector account not found');

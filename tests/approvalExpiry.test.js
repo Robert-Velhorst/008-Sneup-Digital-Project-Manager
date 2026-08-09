@@ -57,6 +57,7 @@ describe('approval expiry safeguards', () => {
     };
 
     jest.spyOn(operationsLedgerService, 'isDatabaseReady').mockReturnValue(true);
+    jest.spyOn(operationsLedgerService, 'assertWorkspaceAllowsProviderWrites').mockResolvedValue({ status: 'active' });
     jest.spyOn(Recommendation, 'findOne').mockResolvedValue(recommendation);
     jest.spyOn(Recommendation, 'findOneAndUpdate').mockResolvedValue(expiredRecommendation);
     jest.spyOn(Approval, 'findOne').mockReturnValue({

@@ -58,13 +58,16 @@ const connectorAccountSchema = new mongoose.Schema({
     }
   },
   credentials: {
-    accessToken: String,
-    refreshToken: String,
-    apiKey: String,
-    username: String,
-    password: String,
-    tokenType: String,
-    expiresAt: Date
+    type: {
+      accessToken: String,
+      refreshToken: String,
+      apiKey: String,
+      username: String,
+      password: String,
+      tokenType: String,
+      expiresAt: Date
+    },
+    select: false
   },
   metadata: {
     type: mongoose.Schema.Types.Mixed,

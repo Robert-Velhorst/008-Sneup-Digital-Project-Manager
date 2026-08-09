@@ -1,10 +1,13 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const { Readable } = require('stream');
+const { pipeline } = require('stream/promises');
 const Workspace = require('../models/Workspace');
 const User = require('../models/User');
 const SessionToken = require('../models/SessionToken');
 const operationsLedgerService = require('../services/operationsLedgerService');
 const workspaceInviteService = require('../services/workspaceInviteService');
+const workspaceDataExportService = require('../services/workspaceDataExportService');
 const {
   getDemoSecurityContext,
   getDemoWorkspace,
@@ -24,6 +27,7 @@ const {
   canManageAcrossWorkspaces
 } = require('../utils/workspaceAdministrationAccess');
 const logger = require('../utils/logger');
+const { assertWorkspaceExportOwner } = workspaceDataExportService;
 
 const router = express.Router();
 
@@ -283,6 +287,86 @@ router.post('/:workspaceId/update', requirePermission('identity:manage'), async 
     res.status(error.statusCode || 500).json({
       success: false,
       error: error.statusCode ? error.message : 'Failed to update workspace'
+    });
+  }
+});
+
+router.get('/:workspaceId/export', requirePermission('identity:manage'), async (req, res) => {
+  try {
+    assertWorkspaceExportOwner(req.auth);
+    if (isDemoMode()) {
+      const error = new Error('Demo workspaces do not contain persistent data to export');
+      error.statusCode = 409;
+      throw error;
+    }
+
+    const workspace = await findWorkspaceOr404(req, req.params.workspaceId);
+    const actor = req.auth?.actorId || 'workspace-owner';
+    const fileName = workspaceDataExportService.fileName(workspace);
+    await operationsLedgerService.recordAudit({
+      workspaceId: workspace._id,
+      entityType: 'workspace',
+      entityId: workspace._id,
+      action: 'workspace_data_export_started',
+      actor,
+      source: 'api',
+      riskLevel: 'high',
+      afterState: {
+        workspaceId: workspace._id,
+        format: 'sneup-workspace-export',
+        version: 1,
+        secretMaterialIncluded: false
+      }
+    });
+
+    res.status(200);
+    res.set({
+      'Content-Type': 'application/x-ndjson; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${fileName}"`,
+      'Cache-Control': 'no-store, max-age=0',
+      'X-Content-Type-Options': 'nosniff'
+    });
+    if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
+    await pipeline(
+      Readable.from(workspaceDataExportService.createExport({ workspace, actor })),
+      res
+    );
+
+    try {
+      await operationsLedgerService.recordAudit({
+        workspaceId: workspace._id,
+        entityType: 'workspace',
+        entityId: workspace._id,
+        action: 'workspace_data_export_completed',
+        actor,
+        source: 'api',
+        riskLevel: 'high',
+        afterState: {
+          workspaceId: workspace._id,
+          format: 'sneup-workspace-export',
+          version: 1,
+          secretMaterialIncluded: false
+        }
+      });
+    } catch (auditError) {
+      logger.error('Workspace export completed but completion audit failed', {
+        workspaceId: String(workspace._id),
+        message: auditError.message
+      });
+    }
+  } catch (error) {
+    logger.error('Failed to export workspace data', {
+      statusCode: error.statusCode || 500,
+      message: error.message
+    });
+    if (res.headersSent) {
+      if (!res.destroyed) res.destroy(error);
+      return;
+    }
+    res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.statusCode ? error.message : 'Failed to export workspace data'
     });
   }
 });

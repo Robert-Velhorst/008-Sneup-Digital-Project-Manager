@@ -45,6 +45,7 @@ const REJECTABLE_RECOMMENDATION_STATUSES = new Set(['pending', 'approved', 'chan
 const CHANGEABLE_RECOMMENDATION_STATUSES = new Set(['pending', 'approved', 'snoozed', 'delegated']);
 const PAYLOAD_EDITABLE_RECOMMENDATION_STATUSES = new Set(['pending', 'change_requested', 'snoozed', 'delegated']);
 const ACTIVE_DECISION_QUEUE_STATUSES = ['open', 'approved', 'change_requested', 'snoozed', 'delegated'];
+const getWorkspaceModel = () => require('../models/Workspace');
 
 const resolveSnoozedUntil = ({ snoozedUntil, defaultSnoozeHours, now = new Date() } = {}) => {
   const currentTime = now instanceof Date ? now : new Date(now);
@@ -194,6 +195,37 @@ class OperationsLedgerService {
 
   resolveWorkspaceId(workspaceId) {
     return normalizeWorkspaceObjectId(workspaceId);
+  }
+
+  async assertWorkspaceAllowsProviderWrites(workspaceId, recommendation, options = {}) {
+    const Workspace = getWorkspaceModel();
+    const workspace = await Workspace.findById(this.resolveWorkspaceId(workspaceId))
+      .select('status');
+    if (workspace?.status === 'active') return workspace;
+
+    const workspaceStatus = workspace?.status || 'missing';
+    await this.recordAudit({
+      workspaceId,
+      entityType: 'recommendation',
+      entityId: recommendation._id,
+      action: 'provider_write_blocked_by_workspace_status',
+      actor: options.actor || 'sneup',
+      source: 'system',
+      riskLevel: recommendation.riskLevel,
+      recommendationId: recommendation._id,
+      afterState: {
+        workspaceId,
+        actionType: recommendation.actionType,
+        workspaceStatus
+      }
+    });
+
+    const error = new Error(workspaceStatus === 'missing'
+      ? 'The recommendation workspace no longer exists'
+      : `Provider writes are disabled while the workspace is ${workspaceStatus}`);
+    error.code = 'SNEUP_WORKSPACE_PROVIDER_WRITES_DISABLED';
+    error.statusCode = 409;
+    throw error;
   }
 
   workspaceQuery(filters = {}, query = {}) {
@@ -1041,6 +1073,8 @@ class OperationsLedgerService {
       });
       assertProviderWritesEnabled();
     }
+
+    await this.assertWorkspaceAllowsProviderWrites(recommendation.workspaceId, recommendation, options);
 
     const actionPolicy = await policyRuleService.resolveEffectivePolicy(recommendation.actionType, {
       workspaceId: recommendation.workspaceId,

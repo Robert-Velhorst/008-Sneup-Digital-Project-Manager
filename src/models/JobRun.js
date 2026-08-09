@@ -14,7 +14,7 @@ const jobRunSchema = new mongoose.Schema({
   },
   jobType: {
     type: String,
-    enum: ['sync', 'analytics', 'intervention', 'performance', 'webhook', 'system'],
+    enum: ['sync', 'analytics', 'intervention', 'performance', 'webhook', 'security', 'system'],
     default: 'system',
     index: true
   },

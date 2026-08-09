@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.2.0 - 2026-08-09
+
+### Added
+
+- Owner-only streamed workspace export with bounded database cursors and a completion manifest.
+- Workspace export control in the Windows and browser command center.
+
+### Fixed
+
+- Suspended, archived, or missing workspaces now fail closed before Trello policy resolution or execution.
+- Connector credential ciphertext is excluded from ordinary Mongoose queries and selected only by credential-consuming paths.
+- Security retention jobs can now persist their declared job type in the observability ledger.
+- Unsigned Windows builds retain Sneup executable metadata and icon resources instead of disabling resource editing.
+- Packaged Windows builds now use file-only production logging, preventing a detached console pipe from terminating the desktop app during startup.
+
+### Security
+
+- Workspace exports recursively omit connector credentials, token hashes and prefixes, passwords, signing secrets, and encrypted notification destinations.
+- Export requires an authenticated workspace owner and records start/completion audit evidence.
+
 ## 2.1.0 - 2026-08-08
 
 ### Added

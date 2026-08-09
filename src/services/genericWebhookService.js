@@ -89,6 +89,13 @@ class GenericWebhookService {
     return getMaxBodyBytes();
   }
 
+  async findAccountWithCredentials(query) {
+    const accountQuery = this.ConnectorAccount.findOne(query);
+    return typeof accountQuery?.select === 'function'
+      ? accountQuery.select('+credentials')
+      : accountQuery;
+  }
+
   verifySignature(rawBody, providedSignature, signingSecret) {
     if (!Buffer.isBuffer(rawBody) || rawBody.length === 0) {
       throw webhookError('Webhook signature is invalid', 401, 'invalid_signature');
@@ -384,7 +391,7 @@ class GenericWebhookService {
     if (!mongoose.isValidObjectId(accountId)) {
       throw webhookError('Webhook endpoint is not configured', 404, 'not_configured');
     }
-    const account = await this.ConnectorAccount.findOne({
+    const account = await this.findAccountWithCredentials({
       _id: accountId,
       connectorId: 'webhook_generic',
       status: 'connected'
@@ -447,7 +454,7 @@ class GenericWebhookService {
     if (!mongoose.isValidObjectId(accountId)) {
       throw webhookError('Webhook endpoint is not configured', 404, 'not_configured');
     }
-    const account = await this.ConnectorAccount.findOne({
+    const account = await this.findAccountWithCredentials({
       _id: accountId,
       connectorId: 'webhook_generic',
       status: 'connected'
