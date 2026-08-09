@@ -60,7 +60,7 @@ Added:
 - Secure preload bridge in `desktop/preload.js`.
 - `npm run desktop` for local desktop testing.
 - `npm run build:installer` / `npm run dist:win` for Windows NSIS packaging.
-- Current generated installer: `release/Sneup-Setup-2.3.2.exe`.
+- Current generated installer: `release/Sneup-Setup-2.3.3.exe`.
 
 The desktop app starts Sneup on `127.0.0.1` and opens the command center in an app window. On first run it starts in demo mode. The workspace choice stores only the non-secret `demo` or `live` startup preference in the Electron user-data directory, then relaunches before Sneup initializes. Production live mode fails closed before opening the HTTP listener when MongoDB is unavailable. The Windows error dialog can persist an explicit read-only demo choice and relaunch, preventing a failed live preference from trapping the user. An explicitly set `SNEUP_DEMO_MODE` environment variable takes precedence over the local preference until the user chooses the recovery action.
 
@@ -68,7 +68,7 @@ The desktop app starts Sneup on `127.0.0.1` and opens the command center in an a
 
 - Syntax checks passed for changed JavaScript files.
 - `npm run lint` passed with the new Node/ES2022 ESLint config.
-- `npm test -- --runInBand` passed 677 tests across 83 suites.
+- `npm test -- --runInBand` passed 686 tests across 84 suites.
 - `npm audit --omit=dev` reported 0 vulnerabilities.
 - Local HTTP smoke tests passed for health, connector catalog, and mission control.
 - Browser smoke test loaded the dashboard, opened connectors, filtered the connector marketplace, and observed no console errors.

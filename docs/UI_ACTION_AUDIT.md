@@ -24,7 +24,9 @@ The command-center HTML and JavaScript were statically searched for controls, ev
 - The 2.3.0 workspace control includes an owner-only archived-workspace deletion command, an exact-slug and irreversible-action confirmation modal, disabled live-state boundaries, identity cleanup after success, and a receipt display. Static wiring tests pass, while current visual Browser evidence remains pending because the in-app webview did not attach.
 - The 2.3.2 packaged command-center window remained open through metadata, health, readiness, HAI manifest, and corrected HAI snapshot identifier checks and closed without leaving port 3197 open.
 - A forced packaged live-database outage opened `Sneup live workspace is unavailable`, exposed `Start demo mode` and `Close Sneup`, displayed only the stable safe explanation, kept port 3197 closed, and exited cleanly.
-- Windows exposed the current `Sneup Setup` window from `Sneup-Setup-2.3.2.exe`; it was closed normally without installing or changing the machine.
+- Windows exposed the `Sneup Setup` window from `Sneup-Setup-2.3.2.exe`; it was closed normally without installing or changing the machine.
+- The 2.3.3 packaged Job Health response exposed zero active/contended leases in explicit demo mode; live Job Health can display active protected runs, skipped contention, and disables a conflicting manual trigger without exposing lease identity.
+- The 2.3.3 packaged command center, fail-closed recovery dialog, and `Sneup Setup` window opened and closed normally without leaving a Sneup process or port 3197 listener.
 
 ## Open UI evidence
 

@@ -117,15 +117,16 @@ const enhancements = [
     priority: 'P1',
     area: 'operations',
     title: 'Add job observability and controls',
-    evidence: 'JobRun and JobControl models now track scheduled/manual/skipped runs, stale/failed/paused health, dashboard Job Health controls, and allowlisted pause, resume, and manual trigger endpoints for safe background jobs.',
+    evidence: 'JobRun and JobControl models track scheduled/manual/skipped runs, stale/failed/paused health, dashboard Job Health controls, and allowlisted pause, resume, and manual trigger endpoints. Scheduled, startup, worker, API, and manual runs now acquire one expiring MongoDB lease per workspace and job, heartbeat while active, release only with the exact private token, recover after process loss, and retain skipped contention evidence. Webhook events remain independently concurrent.',
     impact: 'Makes Sneup operable for real teams and reduces blind spots when sync or analytics jobs fail.',
     effort: 'M',
     status: 'done',
-    nextStep: 'Add retry policies and per-job failure runbooks once provider-specific sync adapters are live.',
+    nextStep: 'Collect representative multi-instance lease duration and contention evidence before changing the five-minute recovery window.',
     acceptanceCriteria: [
       'Each job run records start, finish, duration, status, and error summary.',
       'Operators can pause, resume, and manually trigger safe jobs.',
-      'Mission control shows stale data warnings when jobs fail.'
+      'Mission control shows stale data warnings when jobs fail.',
+      'Two Sneup instances cannot run the same protected workspace job concurrently.'
     ]
   },
   {

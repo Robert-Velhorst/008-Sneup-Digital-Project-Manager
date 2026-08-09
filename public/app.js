@@ -1363,7 +1363,9 @@ function renderJobDashboard() {
         <span>${summary.healthyJobs || 0} healthy</span>
         <span>${summary.pausedJobs || 0} paused</span>
         <span>${summary.runningJobs || 0} running</span>
+        <span>${summary.activeLeases || 0} protected runs</span>
         <span>${summary.failedRuns || 0} failed runs</span>
+        <span>${summary.skippedRuns || 0} skipped runs</span>
         ${summary.unobservedJobs ? `<span>${summary.unobservedJobs} awaiting first run</span>` : ''}
       </div>
     </div>
@@ -1566,7 +1568,7 @@ function renderJobHealthItem(job) {
         : 'healthy';
   const jobName = escapeHtml(job.jobName);
   const controlsDisabled = state.jobDashboard?.mode !== 'live';
-  const canTrigger = job.manualTriggerAllowed && !job.paused && !controlsDisabled;
+  const canTrigger = job.manualTriggerAllowed && !job.paused && !job.leaseActive && !controlsDisabled;
   const pauseResumeAction = job.paused ? 'resume' : 'pause';
   const pauseResumeLabel = job.paused ? 'Resume' : 'Pause';
   const connectorRetries = Number(job.metadata?.retryCount) || 0;
@@ -1591,6 +1593,7 @@ function renderJobHealthItem(job) {
     ? `${freshnessHorizons[0]}${freshnessHorizons[0] === freshnessHorizons.at(-1) ? '' : `-${freshnessHorizons.at(-1)}`} day horizon`
     : '';
   const syncRegressionWatch = job.metadata?.syncRegressionWatch || {};
+  const skippedReason = job.metadata?.skippedReason || '';
   const syncRegressionSignals = Number(syncRegressionWatch.signalCount) || 0;
   const syncRegressionProviders = Array.isArray(syncRegressionWatch.providers)
     ? syncRegressionWatch.providers
@@ -1625,6 +1628,8 @@ function renderJobHealthItem(job) {
       ${freshnessProviders || staleDependencies || freshnessFailures ? `<div class="meta"><span>Graph freshness: ${freshnessProviders} providers checked</span><span>${staleDependencies} stale edges marked</span>${freshnessHorizon ? `<span>${freshnessHorizon}</span>` : ''}${freshnessFailures ? `<span>${freshnessFailures} freshness checks failed</span>` : ''}</div>` : ''}
       ${syncRegressionSignals ? `<div class="meta"><span>Sync regression watch: ${syncRegressionSignals} ${syncRegressionSignals === 1 ? 'signal' : 'signals'} across ${syncRegressionProviders.length} ${syncRegressionProviders.length === 1 ? 'provider' : 'providers'}</span><span>${escapeHtml(syncRegressionDetails.join(' | '))}</span></div>` : ''}
       ${job.unobserved ? `<div class="meta">${unobservedDetail}</div>` : ''}
+      ${job.leaseActive ? `<div class="meta"><span>Protected run active until ${formatDate(job.leaseExpiresAt)}</span></div>` : ''}
+      ${skippedReason ? `<div class="meta"><span>${escapeHtml(skippedReason)}</span></div>` : ''}
       ${job.pausedReason ? `<div class="meta">${escapeHtml(job.pausedReason)}</div>` : ''}
       ${job.lastError ? `<div class="meta">${escapeHtml(job.lastError)}</div>` : ''}
       <div class="item-actions">

@@ -19,6 +19,7 @@
 8. Archived-workspace deletion is owner-confirmed, exact-slug gated, resumable, registry-complete, and verified against a disposable real MongoDB database.
 9. Migration, export, and deletion share one complete 39-collection workspace registry; a guarded real-Mongo verifier proves legacy preflight and backfill coverage.
 10. Production live startup fails closed on database outage, cleans partially started resources, and exposes a stable Windows recovery choice without logging or displaying the connection URI.
+11. Protected background jobs use expiring, heartbeating, token-bound MongoDB leases per workspace and job, preventing duplicate work when multiple Sneup processes share one database.
 
 ## Remediations in this release
 
@@ -35,6 +36,7 @@
 - Made all Mongoose model exports reload-safe, moved product metadata to the reachable `/api` path, demand-loaded NLP, and reduced routine request-log disk churn.
 - Removed the stale 30-model migration inventory, added guarded all-collection migration verification, and moved server/CI guidance to supported Node.js 22+ with Node.js 24 LTS in CI.
 - Removed the production database-outage demo fallback, added clean startup-error propagation and Windows recovery, and corrected populated HAI identifiers at the public snapshot boundary.
+- Replaced process-only scheduled-job overlap guards with reusable MongoDB leases for startup, scheduled, worker, API, and manual runs; webhook concurrency and provider-write claims remain independent.
 
 ## Remaining release risks
 
@@ -46,7 +48,7 @@
 | Deployment/rollback | Partial | Select hosting, provision secrets, run canary, and prove rollback. |
 | Data subject deletion | Implemented locally | Owner-authorized export and permanent archived-workspace deletion pass unit, security, UI-wiring, and real-Mongo verification. Capture an owner-controlled hosted acceptance run before production launch. |
 | Accessibility/i18n | Partial | Complete assistive-technology review and Dutch copy catalog before claiming conformance. |
-| Desktop resources | Measured | The final 2.3.2 package used four processes, 407.6 MB working set, 333.2 MB private bytes, and 6.20 cumulative CPU seconds after startup plus 30 seconds idle. Collect broader clean-machine traces before setting a hard budget. |
+| Desktop resources | Measured | The final 2.3.3 package used four processes, 408.5 MB working set, 340.3 MB private bytes, and 6.30 cumulative CPU seconds after startup plus 30 seconds idle. Collect broader clean-machine traces before setting a hard budget. |
 | Billing | Not applicable | No billing is required for the local-first product. |
 
 No live credential, provider authorization, deployment, signed binary, or production backup claim is inferred from local tests.

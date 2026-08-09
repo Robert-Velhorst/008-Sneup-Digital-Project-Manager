@@ -24,12 +24,24 @@ const jobControlSchema = new mongoose.Schema({
   resumedAt: Date,
   resumedBy: String,
   lastManualRunAt: Date,
-  lastManualRunBy: String
+  lastManualRunBy: String,
+  leaseToken: {
+    type: String,
+    select: false
+  },
+  leaseOwner: {
+    type: String,
+    select: false
+  },
+  leaseAcquiredAt: Date,
+  leaseHeartbeatAt: Date,
+  leaseExpiresAt: Date
 }, {
   timestamps: true
 });
 
 jobControlSchema.index({ workspaceId: 1, jobName: 1 }, { unique: true });
 jobControlSchema.index({ workspaceId: 1, status: 1, updatedAt: -1 });
+jobControlSchema.index({ workspaceId: 1, leaseExpiresAt: 1 });
 
 module.exports = mongoose.models.JobControl || mongoose.model('JobControl', jobControlSchema);

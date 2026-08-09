@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const JobControl = require('../models/JobControl');
 const JobRun = require('../models/JobRun');
 const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
+const jobLeaseService = require('./jobLeaseService');
 const logger = require('../utils/logger');
 
 const DEFAULT_LIMIT = 100;
@@ -57,6 +58,13 @@ const trackedJobs = [
     jobType: 'intervention',
     label: 'Escalation processing',
     staleAfterMinutes: 270,
+    manualTriggerAllowed: true
+  },
+  {
+    jobName: 'interventions.outcomes',
+    jobType: 'intervention',
+    label: 'Intervention outcome verification',
+    staleAfterMinutes: 390,
     manualTriggerAllowed: true
   },
   {
@@ -141,15 +149,47 @@ class JobObservabilityService {
       return this.recordSkippedRun(scopedOptions, 'Job is paused by operator control');
     }
 
-    const run = await this.startRun(scopedOptions);
+    const lease = await jobLeaseService.acquire(scopedOptions);
+    if (!lease.acquired) {
+      await this.recordSkippedRun(scopedOptions, 'Another Sneup instance already holds this workspace job lease');
+      if (options.triggerType === 'manual' || options.triggerType === 'api') {
+        const error = new Error('This job is already running for this workspace');
+        error.code = 'SNEUP_JOB_ALREADY_RUNNING';
+        error.statusCode = 409;
+        throw error;
+      }
+      return { skipped: true, reason: 'distributed_lease_held' };
+    }
 
+    let heartbeat;
+    let run;
     try {
+      run = await this.startRun({
+        ...scopedOptions,
+        metadata: {
+          ...(scopedOptions.metadata || {}),
+          distributedLease: lease.protected === true
+        }
+      });
+      heartbeat = jobLeaseService.startHeartbeat(lease);
       const result = await callback(run);
       await this.finishRun(run, 'succeeded', result);
       return result;
     } catch (error) {
-      await this.finishRun(run, 'failed', { errorMessage: error.message });
+      if (run) {
+        await this.finishRun(run, 'failed', { errorMessage: error.message });
+      }
       throw error;
+    } finally {
+      jobLeaseService.stopHeartbeat(heartbeat);
+      try {
+        await jobLeaseService.release(lease);
+      } catch (error) {
+        logger.warn('Failed to release distributed job lease', {
+          jobName: scopedOptions.jobName,
+          code: error.code
+        });
+      }
     }
   }
 
@@ -270,12 +310,16 @@ class JobObservabilityService {
       const lastSuccess = runs.find(run => run.jobName === config.jobName && run.status === 'succeeded');
       const control = controlsByJob.get(config.jobName);
       const paused = control?.status === 'paused';
+      const leaseActive = Boolean(control?.leaseExpiresAt && new Date(control.leaseExpiresAt) > now);
       const unobserved = !latest && !lastSuccess;
-      const stale = !unobserved && (lastSuccess
+      const activelyRunning = latest?.status === 'running' && leaseActive;
+      const stale = !activelyRunning && !unobserved && (lastSuccess
         ? (now - new Date(lastSuccess.finishedAt || lastSuccess.startedAt)) > config.staleAfterMinutes * 60 * 1000
         : true);
       const status = paused
         ? 'paused'
+        : activelyRunning
+          ? 'running'
         : latest?.status === 'failed'
         ? 'failed'
         : stale
@@ -290,6 +334,8 @@ class JobObservabilityService {
         label: config.label,
         status,
         paused,
+        leaseActive,
+        leaseExpiresAt: control?.leaseExpiresAt,
         unobserved,
         manualTriggerAllowed: Boolean(config.manualTriggerAllowed),
         stale,
@@ -314,7 +360,7 @@ class JobObservabilityService {
     });
 
     const failedRuns = runs.filter(run => run.status === 'failed');
-    const runningRuns = runs.filter(run => run.status === 'running');
+    const skippedRuns = runs.filter(run => run.status === 'skipped');
     const staleJobs = health.filter(item => item.stale);
 
     return {
@@ -327,8 +373,10 @@ class JobObservabilityService {
         unobservedJobs: health.filter(item => item.unobserved).length,
         failedJobs: health.filter(item => item.status === 'failed').length,
         pausedJobs: health.filter(item => item.status === 'paused').length,
-        runningJobs: runningRuns.length,
+        runningJobs: health.filter(item => item.status === 'running').length,
+        activeLeases: health.filter(item => item.leaseActive).length,
         failedRuns: failedRuns.length,
+        skippedRuns: skippedRuns.length,
         syncRegressionProviders: connectorSyncRegressionWatch.regressionProviderCount,
         syncRegressionSignals: connectorSyncRegressionWatch.signalCount
       },

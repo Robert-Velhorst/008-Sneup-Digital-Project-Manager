@@ -55,3 +55,13 @@ This worklog records local engineering evidence. Live Trello, production MongoDB
 - Passed lint, 83 suites/677 tests, 5/5 recommendation evaluation, two zero-vulnerability dependency audits, and the five-secret production release check.
 - Built and exercised `Sneup-Setup-2.3.2.exe`; demo metadata/readiness/HAI, forced live-outage recovery, native ngrok binding, installer window, normal close, and port release passed. The unsigned installer is 109,421,274 bytes with SHA-256 `8473A866C0CBDC58E40868E1C27B39BF0C4F4BC9A3CEC8E5B983D5D060BE7371`.
 - Verified exact source commit `3ef84b0b29da3db5b53871995434d11f73224945` in GitHub run `31295756051`: Node.js 24 quality passed in 1 minute, the unsigned Windows installer artifact passed in 2 minutes 9 seconds, and both jobs reported zero annotations.
+
+## 2026-08-09 multi-instance job lease continuation
+
+- Audited cloud worker execution and found that scheduled overlap guards existed only inside one Node process, allowing two Sneup instances sharing MongoDB to duplicate workspace analytics, connector sync, intervention scans, notifications, retention, and performance calculations.
+- Added one atomic MongoDB lease per workspace and protected job. Startup, scheduled, worker, API, and manual runs heartbeat a five-minute lease and can renew or release only with their private token; webhook events retain independent event-level concurrency.
+- A contended scheduled run records bounded skipped evidence without invoking its callback. A contended manual request returns HTTP 409 instead of claiming it ran successfully. Process loss is recoverable by lease expiry.
+- Job Health now reports active protected runs and skipped runs, shows the bounded skip reason, treats an active lease as running instead of stale, disables conflicting manual triggers, and excludes expired abandoned runs from the current running count.
+- Verified simultaneous acquisition against disposable MongoDB 7: exactly one process won, wrong-token release failed, normal release allowed reacquisition, forced expiry allowed takeover, and private lease token/instance identity remained excluded from ordinary queries. The database and isolated container were removed after verification.
+- Passed lint, 84 suites/686 tests, the 5/5 safety evaluation, two zero-vulnerability dependency audits, production secret verification, and packaged Windows demo/readiness/Job Health/HAI/fail-closed/clean-close checks.
+- Built `Sneup-Setup-2.3.3.exe`, 109,423,235 bytes, unsigned, SHA-256 `CA4B1EF0F34E1EB47BC5EDBE1BA5E77A2BE61070557A5F19D764094EE9D254B6`. Four packaged processes used 408.5 MB working set, 340.3 MB private bytes, and 6.30 cumulative CPU seconds after startup plus 30 seconds idle.

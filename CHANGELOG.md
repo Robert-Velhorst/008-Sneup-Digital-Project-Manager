@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.3.3 - 2026-08-09
+
+### Added
+
+- Protected startup, scheduled, worker, API, and manual jobs now acquire one expiring MongoDB lease per workspace and job, with heartbeat renewal and token-bound release.
+- Job Health shows active protected runs, skipped contention, and the bounded skip reason while keeping lease tokens and instance identity private.
+
+### Fixed
+
+- Multiple Sneup processes sharing MongoDB can no longer run the same protected workspace job concurrently.
+- Manual job requests now return a conflict when another instance owns the job instead of reporting a false successful trigger.
+- Stale abandoned run records no longer inflate the current running-job count after their lease expires.
+- Intervention outcome verification is now registered in Job Health and can be triggered safely through the same leased manual-job contract.
+
+### Verification
+
+- A disposable MongoDB 7 race test proved exactly one simultaneous lease winner, wrong-token release rejection, clean release/reacquisition, expiry takeover, and private-field exclusion.
+
 ## 2.3.2 - 2026-08-09
 
 ### Fixed

@@ -20,7 +20,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 013 Platform/compliance boundaries | Partial | Data minimization is coded; final provider terms review is external. |
 | 014 No fake success | Implemented | Explicit read-only demo and catalog-only states; write paths fail closed. |
 | 015 File/upload/media safety | N/A | Product has no user-upload workflow; PDF reports use controlled output. |
-| 016 Jobs/schedulers/workers | Implemented | Job controls, run records, workers, health, and tests. |
+| 016 Jobs/schedulers/workers | Implemented | Job controls, run records, workers, health, tests, and expiring per-workspace distributed leases for protected runs. |
 | 017 Idempotency/duplicates | Implemented | Delivery receipts, atomic claims, serialized syncs, reconciliation. |
 | 018 Rate limits/quotas | Implemented | Request limits, provider bounds, pacing, retry caps, visible truncation failures. |
 | 019 Audit history | Implemented | Workspace audit events and operations-ledger timelines. |
@@ -55,7 +55,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 048 Provider failure simulation | Implemented | Retry, timeout, partial write, truncation, and reconciliation tests. |
 | 049 Accessibility | Partial | Labels/keyboard behavior exist; screen-reader certification pending. |
 | 050 Responsive/browser compatibility | Partial | Browser regressions and packaged Windows 150% scaling pass; clean-VM 125%/200% matrix pending. |
-| 051 Performance/indexing | Implemented | Bounded queries, indexes, concurrency, batching, response timing. |
+| 051 Performance/indexing | Implemented | Bounded queries, indexes, concurrency, batching, response timing, and cross-process duplicate-work suppression. |
 | 052 Large data/pagination | Partial | Provider caps/pages are tested; production-scale load test pending. |
 | 053 Backup/restore | Partial | Runbook is defined; production-like restore evidence is external. |
 | 054 Reconciliation/repair | Partial | Trello reconciliation exists; generalized repair CLI does not. |
@@ -96,8 +96,8 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 089 Stabilization gates | Implemented | Focused, full, security, installer, and fresh-clone gates. |
 | 090 No vanity work | Implemented | Changes target operability, safety, evidence, and delivery. |
 | 091 Feature definition of done | Implemented | Status requires wiring, reachability, tests, docs, and evidence. |
-| 092 Fresh-clone run | Implemented | 2.3.2 passes 83 local suites/677 tests, 5/5 evaluation, two zero-vulnerability audits, real-Mongo migration verification, packaged QA, and clean Node.js 24 GitHub run `31295756051`. |
-| 093 Manual evidence | Partial | 2.3.2 packaged demo runtime, fail-closed recovery dialog, HAI boundary, resource sample, normal close, and installer dialog pass; Browser attachment and live provider/clean-VM evidence remain pending. |
+| 092 Fresh-clone run | Partial | 2.3.3 passes 84 local suites/686 tests, 5/5 evaluation, two zero-vulnerability audits, real-Mongo migration and lease verification, and packaged QA; exact Node.js 24 GitHub run is pending push. |
+| 093 Manual evidence | Partial | 2.3.3 packaged demo runtime, fail-closed recovery dialog, Job Health, HAI boundary, resource sample, normal close, and installer dialog pass; Browser attachment and live provider/clean-VM evidence remain pending. |
 | 094 No-excuses search | Implemented | No shipped TODO/FIXME/HACK, dynamic-code, child-process, or secret-pattern finding. |
 | 095 Completion matrix | Implemented | This file, with partial/external states retained. |
 | 096 Verification report | Implemented | Final commands, clean-checkout result, installer hash, browser QA, and packaged Windows QA are recorded. |

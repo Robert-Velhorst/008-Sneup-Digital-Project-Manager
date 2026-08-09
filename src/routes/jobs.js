@@ -141,6 +141,17 @@ const manualJobHandlers = {
       };
     }
   },
+  'interventions.outcomes': {
+    jobType: 'intervention',
+    run: async ({ workspaceId }) => {
+      const result = await operationsLedgerService.refreshDueInterventionOutcomes({ workspaceId });
+      return {
+        processedCount: result.evaluatedCount,
+        successCount: result.evaluatedCount,
+        failureCount: result.failureCount
+      };
+    }
+  },
   'performance.daily': {
     jobType: 'performance',
     run: ({ workspaceId }) => calculateAllPerformance('daily', { workspaceId })

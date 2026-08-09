@@ -4,13 +4,15 @@
 
 Sneup supports the same application core in three forms:
 
-1. Windows 11 desktop through `Sneup-Setup-2.3.2.exe`.
+1. Windows 11 desktop through `Sneup-Setup-2.3.3.exe`.
 2. Local or server Node runtime through `npm start`.
 3. Authenticated ngrok ingress layered over either runtime.
 
 The desktop and Node modes both bind the Sneup server to loopback by default. Enabling ngrok does not change that bind address.
 
 Packaged production live mode fails closed before opening the loopback listener when MongoDB is unavailable. Windows then offers an explicit restart into labelled, read-only demo mode or a clean exit; it never silently changes an operator-selected live process into demo mode.
+
+When multiple Sneup cloud processes share MongoDB, startup, scheduled, worker, API, and manual jobs acquire one expiring lease for the exact workspace and job. Active runs heartbeat that lease and release it only with their private token; another process records a skipped run instead of duplicating work. Process loss recovers through expiry. Webhook events remain independently concurrent because their delivery-level idempotency is separate.
 
 ## ngrok setup
 

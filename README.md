@@ -385,6 +385,8 @@ Datadog uses an API key plus an application key limited to `monitors_read` and `
 - `POST /api/interventions/:interventionId/record-response` - Record worker response to an intervention
 - `POST /api/chat/message` - Record card-specific completed, blocked, or needs-help chat updates against an already executed matching communication intervention; generic chat never closes a follow-up
 
+Startup, scheduled, worker, API, and manual jobs use an expiring MongoDB lease scoped to the exact workspace and job name. This prevents two Sneup cloud processes from duplicating connector sync, analytics, intervention, notification, retention, or performance work. Active jobs heartbeat the lease; a stopped process releases it through expiry. Job Health shows protected and skipped runs, while lease tokens and process identity are never returned by the API. Webhook event processing remains concurrent and continues to use its event-level idempotency controls.
+
 ### Webhooks
 
 - `POST /api/webhooks/trello` - Trello webhook endpoint

@@ -18,6 +18,10 @@ const loadManualTriggerHandler = () => {
     { _id: 'intervention-1' }
   ]);
   const recordAudit = jest.fn().mockResolvedValue({ _id: 'audit-1' });
+  const refreshDueInterventionOutcomes = jest.fn().mockResolvedValue({
+    evaluatedCount: 3,
+    failureCount: 1
+  });
   const trackJob = jest.fn(async (_context, run) => run());
 
   jest.doMock('express', () => ({ Router: jest.fn(() => router) }));
@@ -27,6 +31,7 @@ const loadManualTriggerHandler = () => {
   jest.doMock('../src/services/interventionEngine', () => ({ processEscalations }));
   jest.doMock('../src/services/operationsLedgerService', () => ({
     processDueDecisionQueueEscalations,
+    refreshDueInterventionOutcomes,
     recordAudit
   }));
   jest.doMock('../src/services/jobObservabilityService', () => ({
@@ -53,6 +58,7 @@ const loadManualTriggerHandler = () => {
     handler: call[2],
     processDueDecisionQueueEscalations,
     processEscalations,
+    refreshDueInterventionOutcomes,
     trackJob,
     recordAudit
   };
@@ -105,6 +111,31 @@ describe('manual escalation job execution', () => {
       action: 'job_manual_triggered',
       entityId: 'interventions.escalations',
       source: 'api'
+    }));
+  });
+
+  test('exposes leased outcome verification through the safe manual job contract', async () => {
+    const {
+      handler,
+      refreshDueInterventionOutcomes,
+      trackJob
+    } = loadManualTriggerHandler();
+    const response = buildResponse();
+
+    await handler({
+      params: { jobName: 'interventions.outcomes' },
+      auth: { workspaceId: 'workspace-1', displayName: 'Robert' }
+    }, response);
+
+    expect(refreshDueInterventionOutcomes).toHaveBeenCalledWith({ workspaceId: 'workspace-1' });
+    expect(trackJob).toHaveBeenCalledWith(expect.objectContaining({
+      jobName: 'interventions.outcomes',
+      workspaceId: 'workspace-1',
+      triggerType: 'manual'
+    }), expect.any(Function));
+    expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      result: { processedCount: 3, successCount: 3, failureCount: 1 }
     }));
   });
 });
