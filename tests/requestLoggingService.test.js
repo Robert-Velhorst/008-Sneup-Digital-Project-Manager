@@ -27,16 +27,16 @@ describe('bounded request logging', () => {
     const slow = response(200);
     const failed = response(503);
 
-    service.middleware()({ method: 'GET', path: '/api/reports', query: { token: 'private' }, body: { secret: 'private' } }, slow, jest.fn());
+    service.middleware()({ sneupRequestId: 'request-slow', method: 'GET', path: '/api/reports', query: { token: 'private' }, body: { secret: 'private' } }, slow, jest.fn());
     slow.emit('finish');
-    service.middleware()({ method: 'POST', path: '/api/reports' }, failed, jest.fn());
+    service.middleware()({ sneupRequestId: 'request-failed', method: 'POST', path: '/api/reports' }, failed, jest.fn());
     failed.emit('finish');
 
     expect(logger.warn).toHaveBeenCalledWith('Slow HTTP request', {
-      method: 'GET', path: '/api/reports', statusCode: 200, durationMs: 1500
+      requestId: 'request-slow', method: 'GET', path: '/api/reports', statusCode: 200, durationMs: 1500
     });
     expect(logger.error).toHaveBeenCalledWith('HTTP request failed', {
-      method: 'POST', path: '/api/reports', statusCode: 503, durationMs: 10
+      requestId: 'request-failed', method: 'POST', path: '/api/reports', statusCode: 503, durationMs: 10
     });
     expect(JSON.stringify(logger.mock?.calls || [logger.warn.mock.calls, logger.error.mock.calls])).not.toContain('private');
   });
@@ -47,11 +47,11 @@ describe('bounded request logging', () => {
     const service = new RequestLoggingService(logger, { now: () => times.shift(), logAll: true });
     const res = response(204);
 
-    service.middleware()({ method: 'POST', path: '/api/jobs/run' }, res, jest.fn());
+    service.middleware()({ sneupRequestId: 'request-all', method: 'POST', path: '/api/jobs/run' }, res, jest.fn());
     res.emit('finish');
 
     expect(logger.info).toHaveBeenCalledWith('HTTP request completed', {
-      method: 'POST', path: '/api/jobs/run', statusCode: 204, durationMs: 5
+      requestId: 'request-all', method: 'POST', path: '/api/jobs/run', statusCode: 204, durationMs: 5
     });
   });
 });

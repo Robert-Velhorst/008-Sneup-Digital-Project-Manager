@@ -913,15 +913,51 @@ function apiOptions(options = {}) {
   };
 }
 
+function versionedApiUrl(url) {
+  if (typeof url !== 'string' || !url.startsWith('/api/') || url.startsWith('/api/v1/')) return url;
+  return `/api/v1/${url.slice('/api/'.length)}`;
+}
+
+function apiErrorMessage(data, fallback) {
+  if (typeof data?.error === 'string') return data.error;
+  if (data?.error?.message) return data.error.message;
+  return data?.message || fallback;
+}
+
 async function apiFetch(url, options) {
-  return fetch(url, apiOptions(options));
+  return fetch(versionedApiUrl(url), apiOptions(options));
+}
+
+async function readApiResponse(response, url) {
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error(`Sneup returned an invalid response for ${url}`);
+  }
+
+  if (typeof data?.ok === 'boolean' && data.meta?.apiVersion === 'v1') {
+    if (!data.ok) {
+      const error = new Error(apiErrorMessage(data, `Request failed: ${url}`));
+      error.code = data.error?.code;
+      error.requestId = data.meta?.requestId;
+      throw error;
+    }
+    if (data.data && typeof data.data === 'object' && !Array.isArray(data.data)) {
+      return { success: true, ...data.data };
+    }
+    return { success: true, data: data.data };
+  }
+
+  if (!response.ok || !data.success) {
+    throw new Error(apiErrorMessage(data, `Request failed: ${url}`));
+  }
+  return data;
 }
 
 async function fetchApi(url, options) {
   const response = await apiFetch(url, options);
-  const data = await response.json();
-  if (!data.success) throw new Error(data.error || `Request failed: ${url}`);
-  return data;
+  return readApiResponse(response, url);
 }
 
 async function loadSecurityContext() {
@@ -940,9 +976,7 @@ async function loadSecurityContext() {
 
 async function loadMissionControl() {
   try {
-    const response = await apiFetch('/api/autopilot/mission-control');
-    const data = await response.json();
-    if (!data.success) throw new Error(data.error || 'Mission control unavailable');
+    const data = await fetchApi('/api/autopilot/mission-control');
     state.snapshot = data.snapshot;
     renderOverview();
   } catch (error) {
@@ -952,9 +986,7 @@ async function loadMissionControl() {
 
 async function loadOperationsBrief() {
   try {
-    const response = await apiFetch('/api/autopilot/operations-brief');
-    const data = await response.json();
-    if (!data.success) throw new Error(data.error || 'Operations brief unavailable');
+    const data = await fetchApi('/api/autopilot/operations-brief');
     state.operationsBrief = data.brief;
     renderOperationsBrief();
   } catch (error) {
@@ -966,12 +998,10 @@ async function loadOperationsBrief() {
 
 async function loadJobDashboard() {
   try {
-    const [response, timing] = await Promise.all([
-      apiFetch('/api/jobs'),
+    const [data, timing] = await Promise.all([
+      fetchApi('/api/jobs'),
       fetchApi('/api/security/response-timing').catch(() => ({ timing: null }))
     ]);
-    const data = await response.json();
-    if (!data.success) throw new Error(data.error || 'Job health unavailable');
     state.jobDashboard = data.dashboard;
     state.responseTiming = timing.timing || null;
     state.rateLimitMetrics = timing.rateLimit || null;
@@ -3551,7 +3581,7 @@ async function downloadWorkspaceExport() {
       let message = `Workspace export failed with status ${response.status}`;
       try {
         const data = await response.json();
-        if (data.error) message = data.error;
+        message = apiErrorMessage(data, message);
       } catch (error) {
         // The status is enough when a proxy returns a non-JSON error page.
       }
@@ -5403,13 +5433,11 @@ async function startConnection(connectorId, options = {}) {
   const connector = state.connectors.find(item => item.id === connectorId);
   if (!connector) return;
   try {
-    const response = await apiFetch(`/api/connectors/${connectorId}/connect`, {
+    const data = await fetchApi(`/api/connectors/${connectorId}/connect`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ returnTo: '/?connectors=1', scopeAcknowledged: options.scopeAcknowledged === true })
     });
-    const data = await response.json();
-    if (!data.success) throw new Error(data.error || 'Could not start connection');
 
     if (data.scopeReviewRequired) {
       openConnectorSafetyReview(connector, data, options.account);
@@ -5484,13 +5512,11 @@ function openCredentialModal(connector, data, account) {
       scopeAcknowledged: data.scopeAcknowledged === true
     };
     try {
-      const response = await apiFetch(rotating ? `/api/connectors/accounts/${account.id}/rotate-credentials` : `/api/connectors/${connector.id}/accounts`, {
+      await fetchApi(rotating ? `/api/connectors/accounts/${account.id}/rotate-credentials` : `/api/connectors/${connector.id}/accounts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
-      const result = await response.json();
-      if (!result.success) throw new Error(result.error || 'Could not save account');
       closeModal();
       await loadConnectors();
     } catch (error) {

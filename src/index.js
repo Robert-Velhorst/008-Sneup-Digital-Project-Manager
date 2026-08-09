@@ -20,6 +20,7 @@ const { getMaxBodyBytes, isGenericWebhookPath } = require('./services/genericWeb
 const workspaceScopeService = require('./services/workspaceScopeService');
 const responseTimingService = require('./services/responseTimingService');
 const commandCenterAssetService = require('./services/commandCenterAssetService');
+const { requestContextMiddleware, versionedApiEnvelope } = require('./services/apiContractService');
 const { validateRuntimeSecurityConfiguration } = require('./utils/securityConfiguration');
 const { getRuntimeReadiness } = require('./services/runtimeDiagnosticsService');
 const ngrokTunnelService = require('./services/ngrokTunnelService');
@@ -71,6 +72,7 @@ const startupState = {
 };
 
 // Middleware
+app.use(requestContextMiddleware);
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -143,7 +145,37 @@ app.get('/ready', (req, res) => {
   res.status(readiness.ready ? 200 : 503).json(readiness);
 });
 
-// API routes
+// Versioned API routes use one strict response envelope. External webhook
+// protocols retain their established unversioned endpoints and signatures.
+app.use('/api/v1', versionedApiEnvelope);
+app.use('/api/v1/boards', boardRoutes);
+app.use('/api/v1/analytics', analyticsRoutes);
+app.use('/api/v1/team', teamRoutes);
+app.use('/api/v1/chat', chatRoutes);
+app.use('/api/v1/connectors', connectorRoutes);
+app.use('/api/v1/autopilot', autopilotRoutes);
+app.use('/api/v1/enhancements', enhancementRoutes);
+app.use('/api/v1/recommendations', recommendationRoutes);
+app.use('/api/v1/decision-queue', decisionQueueRoutes);
+app.use('/api/v1/audit', auditRoutes);
+app.use('/api/v1/trello-actions', trelloActionRoutes);
+app.use('/api/v1/follow-ups', followUpRoutes);
+app.use('/api/v1/cards', cardRoutes);
+app.use('/api/v1/interventions', interventionRoutes);
+app.use('/api/v1/findings', findingRoutes);
+app.use('/api/v1/jobs', jobRoutes);
+app.use('/api/v1/security', securityRoutes);
+app.use('/api/v1/workspaces', workspaceRoutes);
+app.use('/api/v1/work-signals', workSignalRoutes);
+app.use('/api/v1/reports', reportRoutes);
+app.use('/api/v1/forecasts', forecastRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/policy-rules', policyRuleRoutes);
+app.use('/api/v1/outcomes', outcomeRoutes);
+app.use('/api/v1/operations-ledger', operationsLedgerRoutes);
+app.use('/api/v1/integrations/hai', haiIntegrationRoutes);
+
+// Backward-compatible API routes.
 app.use('/api/boards', boardRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/team', teamRoutes);
@@ -173,7 +205,7 @@ app.use('/api/operations-ledger', operationsLedgerRoutes);
 app.use('/api/integrations/hai', haiIntegrationRoutes);
 
 // Machine-readable product metadata; the command center owns the browser root.
-app.get('/api', (req, res) => {
+const productMetadata = (req, res) => {
   res.json({
     name: 'Sneup',
     version: packageMetadata.version,
@@ -196,7 +228,10 @@ app.get('/api', (req, res) => {
       'Capacity-aware P50/P80 delivery forecasts'
     ]
   });
-});
+};
+
+app.get('/api/v1', productMetadata);
+app.get('/api', productMetadata);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

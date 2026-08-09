@@ -67,10 +67,10 @@ class HaiIntegrationService {
         executionEndpointExposed: false
       },
       capabilities: [
-        { id: 'snapshot', method: 'GET', path: `${baseUrl}/api/integrations/hai/snapshot`, permission: 'integrations:hai:read' },
-        { id: 'propose', method: 'POST', path: `${baseUrl}/api/integrations/hai/proposals`, permission: 'integrations:hai:propose' }
+        { id: 'snapshot', method: 'GET', path: `${baseUrl}/api/v1/integrations/hai/snapshot`, permission: 'integrations:hai:read' },
+        { id: 'propose', method: 'POST', path: `${baseUrl}/api/v1/integrations/hai/proposals`, permission: 'integrations:hai:propose' }
       ],
-      openapi: `${baseUrl}/api/integrations/hai/openapi.json`
+      openapi: `${baseUrl}/api/v1/integrations/hai/openapi.json`
     };
   }
 
@@ -84,10 +84,10 @@ class HaiIntegrationService {
       },
       security: [{ bearerAuth: [] }],
       paths: {
-        '/api/integrations/hai/snapshot': {
+        '/api/v1/integrations/hai/snapshot': {
           get: { operationId: 'getSneupOperationsSnapshot', summary: 'Read a bounded, redacted project operations snapshot', responses: { 200: { description: 'Operations snapshot' } } }
         },
-        '/api/integrations/hai/proposals': {
+        '/api/v1/integrations/hai/proposals': {
           post: {
             operationId: 'proposeSneupAction',
             summary: 'Create an approval-gated Sneup recommendation',

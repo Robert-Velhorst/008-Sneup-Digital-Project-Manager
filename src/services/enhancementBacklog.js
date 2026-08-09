@@ -410,6 +410,23 @@ const enhancements = [
       'Boards without members avoid unnecessary collection reads.',
       'The optimization does not increase scheduled board worker concurrency.'
     ]
+  },
+  {
+    id: 'ENH-026',
+    priority: 'P1',
+    area: 'api',
+    title: 'Version the API and standardize response diagnostics',
+    evidence: 'All dashboard JSON traffic now uses `/api/v1`, whose strict envelope exposes only `ok`, `data`, `error`, and bounded request metadata. Every API and readiness response receives a server-generated request ID shared by its response header, envelope, and sanitized request log. Legacy `/api` routes remain compatible, streamed reports/exports stay unwrapped, external webhook signatures stay on their established paths, and the HAI manifest/OpenAPI contract advertises versioned snapshot and proposal endpoints without exposing approval or execution.',
+    impact: 'Makes frontend and HAI failures predictable, traceable, and compatible with future API changes.',
+    effort: 'M',
+    status: 'done',
+    nextStep: 'Keep new public integrations on `/api/v1` and introduce a later API version only for an intentional breaking contract change.',
+    acceptanceCriteria: [
+      'Versioned JSON responses use one success and error envelope.',
+      'Request IDs correlate response metadata, headers, and sanitized logs.',
+      'The command center and HAI contract use versioned endpoints.',
+      'Legacy API routes and non-JSON protocol responses remain compatible.'
+    ]
   }
 ];
 

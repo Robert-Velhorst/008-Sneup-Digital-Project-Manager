@@ -17,6 +17,7 @@ router.get('/manifest', requirePermission('integrations:hai:read'), (req, res) =
 });
 
 router.get('/openapi.json', requirePermission('integrations:hai:read'), (req, res) => {
+  res.locals.sneupRawApiResponse = true;
   res.json(haiIntegrationService.getOpenApi(baseUrl(req)));
 });
 

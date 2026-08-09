@@ -4,7 +4,7 @@
 
 Sneup supports the same application core in three forms:
 
-1. Windows 11 desktop through `Sneup-Setup-2.3.3.exe`.
+1. Windows 11 desktop through `Sneup-Setup-2.3.4.exe`.
 2. Local or server Node runtime through `npm start`.
 3. Authenticated ngrok ingress layered over either runtime.
 
@@ -44,11 +44,11 @@ Create a dedicated workspace API token for HAI. Use only these scopes:
 Discover the live contract at:
 
 ```text
-GET /api/integrations/hai/manifest
-GET /api/integrations/hai/openapi.json
+GET /api/v1/integrations/hai/manifest
+GET /api/v1/integrations/hai/openapi.json
 ```
 
-HAI can read a bounded operating snapshot with stable public record, board, and card identifiers and submit an idempotent proposal keyed by `externalId`. Sneup hashes that external ID, strips unapproved action fields, and converts the request into its existing recommendation and decision-queue flow.
+HAI can read a bounded operating snapshot with stable public record, board, and card identifiers and submit an idempotent proposal keyed by `externalId`. Versioned JSON responses include one bounded envelope and request ID for support correlation. Sneup hashes the external ID, strips unapproved action fields, and converts the request into its existing recommendation and decision-queue flow.
 
 The HAI API does not expose approval or execution endpoints. HAI cannot mark its own proposal approved, and it cannot directly write to Trello or another provider through this connector. Human approval remains tied to the exact protected action payload inside Sneup.
 

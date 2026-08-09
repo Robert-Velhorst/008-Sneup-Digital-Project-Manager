@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.3.4 - 2026-08-09
+
+### Added
+
+- Added a strict `/api/v1` JSON contract with `ok`, `data`, `error`, and bounded request metadata.
+- Added one server-generated request ID across the response header, versioned envelope, and sanitized request diagnostics.
+
+### Changed
+
+- The command center now routes JSON API traffic through `/api/v1` and unwraps responses in one shared parser.
+- The HAI manifest and OpenAPI document now advertise versioned snapshot and proposal endpoints.
+
+### Compatibility and performance
+
+- Existing `/api` routes remain available, external webhooks and OAuth callbacks retain their established protocol paths, and streamed reports, exports, and OpenAPI remain unwrapped.
+- An 800-request alternating local benchmark measured 1.45 ms legacy and 1.59 ms versioned average latency; request IDs are skipped for cacheable frontend assets.
+
 ## 2.3.3 - 2026-08-09
 
 ### Added

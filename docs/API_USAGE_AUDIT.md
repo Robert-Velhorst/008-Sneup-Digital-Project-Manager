@@ -2,11 +2,11 @@
 
 ## Surface
 
-The Express application mounts 27 route modules with 169 declared route handlers. All application routes pass through request authentication, rate limiting, response timing, workspace resolution, and per-handler permissions. Webhook and public invitation exceptions are narrowly matched.
+The Express application exposes its 27 route modules through backward-compatible `/api` paths and a strict `/api/v1` contract. All application routes pass through request authentication, rate limiting, response timing, workspace resolution, and per-handler permissions. Webhook, OAuth callback, and public invitation exceptions are narrowly matched.
 
 ## Reachability
 
-The browser command center directly calls workspace, security, operations-ledger, forecast, jobs, notification, policy, report, work-graph, enhancement, and autopilot endpoints. Workspace export uses an owner-only streamed response instead of the ordinary JSON helper. Archived-workspace deletion uses a separate owner-only exact-confirmation flow and invalidates the current workspace identity. Secondary routes are used by connector OAuth callbacks, workers, webhooks, CLI/operator flows, and detailed board/card views.
+The browser command center routes JSON calls through `/api/v1` and unwraps them in one parser. Workspace export uses an owner-only streamed response instead of the JSON envelope. Archived-workspace deletion uses a separate owner-only exact-confirmation flow and invalidates the current workspace identity. Secondary routes are used by connector OAuth callbacks, workers, webhooks, CLI/operator flows, and detailed board/card views.
 
 ## External writes
 
@@ -15,10 +15,11 @@ The browser command center directly calls workspace, security, operations-ledger
 - Notification delivery: requires an active workspace policy and explicit provider configuration.
 - Invitation email: explicit identity-admin action with production URL validation.
 
-## Contract risks
+## Contract
 
-- Legacy routes do not yet use one universal JSON error envelope; status codes and sanitized messages are consistent, but response shapes differ.
-- API versioning is not namespaced. A hosted public API should introduce `/api/v1` before compatibility promises.
-- The general Sneup API remains route-and-test documented. The bounded HAI integration additionally publishes a dedicated OpenAPI 3.1 contract at `/api/integrations/hai/openapi.json`; it intentionally omits approval and execution operations.
+- Versioned JSON responses use `{ ok, data, error, meta }`. Errors contain a bounded code/message and do not copy arbitrary route context.
+- `meta.requestId` matches `X-Sneup-Request-Id` and sanitized request logs. Request IDs are not generated for static assets.
+- Existing `/api` routes remain available for compatibility. External webhook signatures retain established unversioned paths.
+- The HAI integration publishes raw OpenAPI 3.1 at `/api/v1/integrations/hai/openapi.json`; it intentionally omits approval and execution operations.
 
 The new `/ready` endpoint reports operational state only and never returns secret values or connection strings.

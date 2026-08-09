@@ -169,14 +169,14 @@ const safeEquals = (left, right) => {
 };
 
 const isOAuthCallback = (req) =>
-  req.method === 'GET' && /^\/api\/connectors\/[^/]+\/callback$/.test(req.path);
+  req.method === 'GET' && /^\/api\/(?:v1\/)?connectors\/[^/]+\/callback$/.test(req.path);
 
 const isWebhook = (req) =>
   (req.path === '/api/webhooks/trello' && ['HEAD', 'POST'].includes(req.method)) ||
   (req.method === 'POST' && /^\/api\/webhooks\/generic\/[a-f\d]{24}(?:\/worker-response)?$/i.test(req.path));
 
 const isPublicInviteAcceptance = (req) =>
-  req.method === 'POST' && req.path === '/api/workspaces/invitations/accept';
+  req.method === 'POST' && /^\/api\/(?:v1\/)?workspaces\/invitations\/accept$/.test(req.path);
 
 const resolveDatabaseApiToken = async (providedKey, now = new Date()) => {
   if (!providedKey || !isDatabaseConnected()) return null;

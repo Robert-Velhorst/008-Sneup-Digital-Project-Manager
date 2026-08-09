@@ -139,6 +139,8 @@ See `docs/CLOUD_AND_HAI.md` for the Windows, ngrok, HAI, and shutdown flow.
 
 - `GET /api` - Read machine-readable Sneup version and capability metadata
 
+The command center and new integrations use `/api/v1`. JSON responses have one stable `{ ok, data, error, meta }` envelope; `meta` contains the API version, a server-generated request ID, and timestamp. The same request ID is returned in `X-Sneup-Request-Id` and sanitized server diagnostics. Existing `/api` routes remain available for compatibility, while provider webhooks, OAuth callbacks, report downloads, workspace exports, and the raw OpenAPI document retain their protocol-specific response formats.
+
 ### Boards
 
 - `GET /api/boards` - Get all boards
@@ -210,10 +212,10 @@ Sneup also retains a workspace-scoped, read-only recommendation-feedback signal 
 
 ### HAI Connector
 
-- `GET /api/integrations/hai/manifest` - Discover the least-privilege HAI connector contract
-- `GET /api/integrations/hai/openapi.json` - Read the machine-readable HAI API contract
-- `GET /api/integrations/hai/snapshot` - Read a bounded and redacted operating snapshot
-- `POST /api/integrations/hai/proposals` - Queue an HAI suggestion as an approval-gated recommendation
+- `GET /api/v1/integrations/hai/manifest` - Discover the least-privilege HAI connector contract
+- `GET /api/v1/integrations/hai/openapi.json` - Read the machine-readable HAI API contract
+- `GET /api/v1/integrations/hai/snapshot` - Read a bounded and redacted operating snapshot
+- `POST /api/v1/integrations/hai/proposals` - Queue an HAI suggestion as an approval-gated recommendation
 
 Issue HAI a workspace API token scoped only to `integrations:hai:read` and, when proposals are needed, `integrations:hai:propose`. The connector intentionally exposes no approval or execution operation. HAI suggestions enter Sneup's recommendation and Yes/No decision ledger; consequential provider actions still need exact-payload human approval inside Sneup.
 

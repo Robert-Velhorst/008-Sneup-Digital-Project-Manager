@@ -11,6 +11,7 @@ The command-center HTML and JavaScript were statically searched for controls, ev
 - Demo mode is visible and read-only. Provider connection and write success are not simulated.
 - Busy, empty, error, stale, and permission-denied states exist for the major operational views.
 - Keyboard command navigation and focused actions are present; compact controls use labels/tooltips where needed.
+- Command-center JSON actions route through `/api/v1` and one parser, so surfaced failures share a bounded message and support request ID without exposing logs or route-private context.
 
 ## Executed browser and Windows evidence
 
@@ -27,6 +28,8 @@ The command-center HTML and JavaScript were statically searched for controls, ev
 - Windows exposed the `Sneup Setup` window from `Sneup-Setup-2.3.2.exe`; it was closed normally without installing or changing the machine.
 - The 2.3.3 packaged Job Health response exposed zero active/contended leases in explicit demo mode; live Job Health can display active protected runs, skipped contention, and disables a conflicting manual trigger without exposing lease identity.
 - The 2.3.3 packaged command center, fail-closed recovery dialog, and `Sneup Setup` window opened and closed normally without leaving a Sneup process or port 3197 listener.
+- For 2.3.4, the exact installer and `Sneup Command Center` windows opened, the packaged demo passed legacy/versioned/readiness/jobs/HAI checks, and normal close released every Sneup process and port 3197. A forced live-database outage showed the safe recovery title, did not listen on port 3197, and also closed normally.
+- The requested in-app Browser connected on two fresh tabs but its webview did not attach. Computer Use found the exact packaged window but its runtime failed while returning window state. The live 12-route demo HTTP matrix and static UI wiring passed, while current rendered capture remains explicitly pending.
 
 ## Open UI evidence
 

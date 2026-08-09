@@ -66,3 +66,16 @@ This worklog records local engineering evidence. Live Trello, production MongoDB
 - Passed lint, 84 suites/686 tests, the 5/5 safety evaluation, two zero-vulnerability dependency audits, production secret verification, and packaged Windows demo/readiness/Job Health/HAI/fail-closed/clean-close checks.
 - Built `Sneup-Setup-2.3.3.exe`, 109,423,235 bytes, unsigned, SHA-256 `CA4B1EF0F34E1EB47BC5EDBE1BA5E77A2BE61070557A5F19D764094EE9D254B6`. Four packaged processes used 408.5 MB working set, 340.3 MB private bytes, and 6.30 cumulative CPU seconds after startup plus 30 seconds idle.
 - Published source commit `f45ba4e50253648fea2c1c4f40c37005701c3a80`. GitHub run `31296974370` completed with zero annotations: quality in 1m02s and Windows installer plus artifact upload in 2m39s. Artifact `9033286273` (`sneup-windows-installer-unsigned`) has GitHub archive digest `sha256:09181328ab552a79a057ff2b3ded0e97a1efd3ef7f10619cf46474e6dee5d95a`.
+
+## 2026-08-09 versioned API and HAI continuation
+
+- Found that route-specific JSON shapes forced the command center and HAI consumers to interpret failures inconsistently and left no stable public compatibility boundary.
+- Added `/api/v1` with one `{ ok, data, error, meta }` envelope, bounded error output, and a server-generated request ID shared by response headers and sanitized request logs. Static assets skip request-ID generation.
+- Routed command-center JSON calls through one versioned parser, retained streamed workspace exports and reports, preserved every legacy `/api` path, and kept external webhook/OAuth protocol paths unchanged.
+- Moved the HAI manifest and raw OpenAPI 3.1 contract to versioned snapshot/proposal paths while retaining the rule that HAI cannot approve or execute provider actions.
+- Passed lint, 85 suites/692 tests, the 5/5 safety evaluation, two zero-vulnerability dependency audits, positive five-secret release verification, source-security scans, and a 12-endpoint live demo HTTP matrix. The requested in-app Browser connected twice but its webview did not attach.
+- An alternating 800-request metadata benchmark measured 1.453 ms legacy and 1.588 ms versioned average latency, with 2.665/2.841 ms p95. After load plus 15 seconds idle, the temporary demo server used 118.5 MB working set, 132.6 MB private memory, 3.55 CPU seconds, 13 threads, and 267 handles.
+- Built and exercised `Sneup-Setup-2.3.4.exe`, 109,424,462 bytes, unsigned, SHA-256 `6FDB70E399DBD1AEB2A6B669BA370496EAA42478364D50D0056C8B505953B54B`. The packaged executable reports version 2.3.4 and includes the official Windows x64 ngrok binding.
+- The packaged demo passed legacy/versioned/readiness/jobs/HAI checks with matched request IDs, then closed normally and released port 3197. Four processes used 385.6 MB working set, 307.7 MB private memory, and 3.53 cumulative CPU seconds after load plus idle.
+- A forced packaged live-database outage displayed `Sneup live workspace is unavailable`, kept port 3197 closed, and exited normally. The exact installer window opened and was closed without changing the machine.
+- Computer Use discovered the exact packaged window but its installed runtime failed while returning window state. Along with the in-app Browser attach failure, current rendered capture remains an explicit tool-side evidence gap.

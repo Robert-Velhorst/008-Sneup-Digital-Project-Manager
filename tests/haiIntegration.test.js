@@ -25,9 +25,14 @@ describe('HAI integration boundary', () => {
       'integrations:hai:read',
       'integrations:hai:propose'
     ]);
+    expect(manifest.capabilities.map(item => item.path)).toEqual([
+      'https://sneup.example/api/v1/integrations/hai/snapshot',
+      'https://sneup.example/api/v1/integrations/hai/proposals'
+    ]);
+    expect(manifest.openapi).toBe('https://sneup.example/api/v1/integrations/hai/openapi.json');
     expect(Object.keys(spec.paths)).toEqual([
-      '/api/integrations/hai/snapshot',
-      '/api/integrations/hai/proposals'
+      '/api/v1/integrations/hai/snapshot',
+      '/api/v1/integrations/hai/proposals'
     ]);
     expect(JSON.stringify(spec)).not.toMatch(/approve|execute-approved/i);
   });

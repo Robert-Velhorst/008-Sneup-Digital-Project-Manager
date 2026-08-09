@@ -13,7 +13,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 006 Configuration/startup guards | Implemented | Security validation, `npm run doctor`, production database fail-closed policy, partial-startup cleanup, and explicit Windows demo recovery. |
 | 007 Authentication/session security | Implemented | Users, sessions, API tokens, invitations, token peppers. |
 | 008 Authorization/ownership | Implemented | Role permissions and workspace-scoped queries/tests. |
-| 009 API/error contract | Partial | Sanitized errors exist; one universal versioned envelope does not. |
+| 009 API/error contract | Implemented | `/api/v1` uses one bounded success/error envelope with response/log request correlation; legacy and protocol-specific responses remain compatible. |
 | 010 Frontend/navigation | Implemented | Operational command center and command palette. |
 | 011 Core vertical slice | Partial | Full code path exists; authorized live-provider run pending. |
 | 012 Provider reality review | Partial | Bounded real adapters exist; owner OAuth/API consent is external. |
@@ -96,8 +96,8 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 089 Stabilization gates | Implemented | Focused, full, security, installer, and fresh-clone gates. |
 | 090 No vanity work | Implemented | Changes target operability, safety, evidence, and delivery. |
 | 091 Feature definition of done | Implemented | Status requires wiring, reachability, tests, docs, and evidence. |
-| 092 Fresh-clone run | Implemented | Run `31296974370` passed Node.js 24 quality and Windows installer jobs with zero annotations and uploaded the unsigned installer artifact. |
-| 093 Manual evidence | Partial | 2.3.3 packaged demo runtime, fail-closed recovery dialog, Job Health, HAI boundary, resource sample, normal close, and installer dialog pass; Browser attachment and live provider/clean-VM evidence remain pending. |
+| 092 Fresh-clone run | Partial | 2.3.4 passes 85 local suites/692 tests, lint, evaluation, audits, live demo API/HAI smoke, and latency/resource sampling; exact Node.js 24 GitHub run is pending push. |
+| 093 Manual evidence | Partial | Exact 2.3.4 packaged demo runtime, fail-closed recovery dialog, Job Health, HAI boundary, resource sample, normal close, and installer dialog pass; Browser/Computer rendered capture and live provider/clean-VM evidence remain pending. |
 | 094 No-excuses search | Implemented | No shipped TODO/FIXME/HACK, dynamic-code, child-process, or secret-pattern finding. |
 | 095 Completion matrix | Implemented | This file, with partial/external states retained. |
 | 096 Verification report | Implemented | Final commands, clean-checkout result, installer hash, browser QA, and packaged Windows QA are recorded. |

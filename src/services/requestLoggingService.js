@@ -19,6 +19,7 @@ class RequestLoggingService {
       res.once('finish', () => {
         const durationMs = Math.max(0, Math.round(this.now() - startedAt));
         const metadata = {
+          requestId: req.sneupRequestId,
           method: req.method,
           path: req.path,
           statusCode: res.statusCode,
