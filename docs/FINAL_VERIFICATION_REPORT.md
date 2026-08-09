@@ -29,8 +29,8 @@ This report is updated from executed commands at release time. A passing local s
 | Installer UI | Prior 2.1.0 installer UI pass; 2.2.0 metadata verified, current installer-dialog walkthrough pending |
 | Windows installer | Pass: `Sneup-Setup-2.2.0.exe`, 109,418,326 bytes, unsigned; executable metadata reports Sneup 2.2.0 and Noodzakelijk Online |
 | Installer SHA-256 | `229F9D81398CB3906EC8B5A37EFA17366F2A6920DAA12C5EADDCA1A45F615892` |
-| Fresh clone | Prior release pass at `6a02fac`; current 2.2.0 clean-checkout CI is pending push |
-| GitHub CI | Prior release pass: run `31289205822`; current 2.2.0 push pending |
+| Fresh clone | Pass on GitHub's clean Linux and Windows runners for commit `e61c77d` |
+| GitHub CI | Pass: run `31291606435`; quality completed in 1m12s and the unsigned Windows installer build/upload completed in 2m16s |
 
 ## External gates
 
