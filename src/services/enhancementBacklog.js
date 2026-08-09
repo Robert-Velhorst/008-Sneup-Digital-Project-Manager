@@ -427,6 +427,23 @@ const enhancements = [
       'The command center and HAI contract use versioned endpoints.',
       'Legacy API routes and non-JSON protocol responses remain compatible.'
     ]
+  },
+  {
+    id: 'ENH-027',
+    priority: 'P1',
+    area: 'operations',
+    title: 'Add workspace-scoped optional workload rollouts',
+    evidence: 'Workspace managers can pause or percentage-roll out connector synchronization, capacity scenarios, work-graph decisions, and HAI proposals. Evaluation is deterministic per declared workspace or actor subject, uses one shared bounded 30-second workspace cache, fails closed in live mode when storage is unavailable, and retains a bounded reviewable revision history. These controls cannot grant permissions, approve recommendations, execute provider writes, disable audits, or weaken workspace isolation.',
+    impact: 'Makes hosted canaries, incident rollback, and optional workload resource control immediate without introducing a second authorization system.',
+    effort: 'M',
+    status: 'done',
+    nextStep: 'Capture manager acceptance and staged hosted rollout evidence before changing any capability below its 100% default.',
+    acceptanceCriteria: [
+      'Every persisted control is scoped by workspace and protected by optimistic revision checks.',
+      'Live storage failure pauses optional capabilities while explicit demo mode remains usable.',
+      'Rollout changes retain bounded history and create ordinary audit events.',
+      'No rollout key can bypass authentication, approval, audit, emergency-stop, workspace, or provider-write controls.'
+    ]
   }
 ];
 

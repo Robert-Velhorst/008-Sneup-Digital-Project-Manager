@@ -17,10 +17,11 @@
 6. The Windows NSIS installer is reproducible and CI now builds the unsigned artifact on Windows.
 7. Workspace exports are owner-only, audit-recorded, streamed with bounded cursors, and recursively strip credential material.
 8. Archived-workspace deletion is owner-confirmed, exact-slug gated, resumable, registry-complete, and verified against a disposable real MongoDB database.
-9. Migration, export, and deletion share one complete 39-collection workspace registry; a guarded real-Mongo verifier proves legacy preflight and backfill coverage.
+9. Migration, export, and deletion share one complete 40-collection workspace registry; a guarded real-Mongo verifier proves legacy preflight, backfill, and feature-flag index coverage.
 10. Production live startup fails closed on database outage, cleans partially started resources, and exposes a stable Windows recovery choice without logging or displaying the connection URI.
 11. Protected background jobs use expiring, heartbeating, token-bound MongoDB leases per workspace and job, preventing duplicate work when multiple Sneup processes share one database.
 12. Dashboard and HAI JSON traffic uses a strict versioned API envelope with bounded failures and server-generated request correlation; protocol-specific and legacy responses remain compatible.
+13. Optional workloads use workspace-scoped persisted rollout controls with deterministic subjects, optimistic revisions, bounded cache/history, reviewable audits, and live fail-closed behavior; no safety or authorization control is feature-flagged.
 
 ## Remediations in this release
 

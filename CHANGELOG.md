@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.3.5 - 2026-08-09
+
+### Added
+
+- Added workspace-scoped rollout controls for connector synchronization, capacity scenarios, work-graph decisions, and HAI proposals.
+- Added deterministic workspace/actor percentage rollout, optimistic revisions, bounded change history, and manager-facing administration controls.
+- Added the rollout collection to migration, export, deletion, and guarded real-Mongo verification coverage.
+
+### Security and resilience
+
+- Optional capabilities fail closed when rollout storage is unavailable in live mode; explicit read-only demo mode retains safe defaults.
+- Rollout controls cannot grant permissions, approve recommendations, execute provider writes, disable audits, or weaken emergency-stop and workspace boundaries.
+- Rollout history is capped at 50 entries, database lookup caching is capped at 250 workspaces for 30 seconds, and connector synchronization skips before account/provider reads when paused.
+
+### HAI and compatibility
+
+- The HAI manifest advertises its `hai_proposals` rollout control and OpenAPI documents the paused/unavailable response.
+- Existing `/api` routes remain compatible while the command center uses the versioned rollout API.
+
 ## 2.3.4 - 2026-08-09
 
 ### Added

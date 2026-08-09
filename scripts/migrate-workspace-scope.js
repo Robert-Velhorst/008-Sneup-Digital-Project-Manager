@@ -7,7 +7,7 @@ const usage = () => [
   'Usage: npm run migrate:workspace [-- --apply] [-- --concurrency <1-16>]',
   '',
   'Without --apply, Sneup reads legacy workspace gaps and future workspace-scoped index conflicts.',
-  '--apply refuses index conflicts, then creates the default workspace if needed, backfills legacy records, and replaces legacy global control indexes.'
+  '--apply refuses index conflicts, then creates the default workspace if needed, backfills legacy records, and creates workspace-scoped control indexes.'
 ].join('\n');
 
 const parseArgs = (args) => {
@@ -59,7 +59,8 @@ const main = async () => {
         ...(await workspaceScopeService.backfillDefaultWorkspace({ concurrency })),
         preflight: preflight.indexPreflight,
         policyRuleIndexes: await workspaceScopeService.ensurePolicyRuleIndexes(),
-        jobControlIndexes: await workspaceScopeService.ensureJobControlIndexes()
+        jobControlIndexes: await workspaceScopeService.ensureJobControlIndexes(),
+        featureFlagIndexes: await workspaceScopeService.ensureFeatureFlagIndexes()
       };
     }
     process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);

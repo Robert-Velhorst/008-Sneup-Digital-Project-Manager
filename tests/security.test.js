@@ -10970,6 +10970,9 @@ describe('job observability', () => {
     jest.doMock('mongoose', () => ({ connection: { readyState: 1 } }));
     jest.doMock('../src/models/ConnectorAccount', () => ({}));
     jest.doMock('../src/services/jobObservabilityService', () => ({ trackJob: jest.fn() }));
+    jest.doMock('../src/services/featureFlagService', () => ({
+      assertEnabled: jest.fn().mockResolvedValue({ effective: true, available: true })
+    }));
     jest.doMock('../src/services/providerSyncPolicyService', () => ({
       run: jest.fn(async (provider, callback) => ({
         result: await callback(),
@@ -11022,6 +11025,7 @@ describe('job observability', () => {
       jest.dontMock('mongoose');
       jest.dontMock('../src/models/ConnectorAccount');
       jest.dontMock('../src/services/jobObservabilityService');
+      jest.dontMock('../src/services/featureFlagService');
       jest.dontMock('../src/services/providerSyncPolicyService');
       jest.dontMock('../src/services/workGraphService');
       jest.dontMock('../src/services/workSignalAdapterService');

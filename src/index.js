@@ -60,6 +60,7 @@ const policyRuleRoutes = require('./routes/policyRules');
 const outcomeRoutes = require('./routes/outcomes');
 const operationsLedgerRoutes = require('./routes/operationsLedger');
 const haiIntegrationRoutes = require('./routes/haiIntegration');
+const featureFlagRoutes = require('./routes/featureFlags');
 
 // Initialize Express app
 const app = express();
@@ -174,6 +175,7 @@ app.use('/api/v1/policy-rules', policyRuleRoutes);
 app.use('/api/v1/outcomes', outcomeRoutes);
 app.use('/api/v1/operations-ledger', operationsLedgerRoutes);
 app.use('/api/v1/integrations/hai', haiIntegrationRoutes);
+app.use('/api/v1/feature-flags', featureFlagRoutes);
 
 // Backward-compatible API routes.
 app.use('/api/boards', boardRoutes);
@@ -203,6 +205,7 @@ app.use('/api/policy-rules', policyRuleRoutes);
 app.use('/api/outcomes', outcomeRoutes);
 app.use('/api/operations-ledger', operationsLedgerRoutes);
 app.use('/api/integrations/hai', haiIntegrationRoutes);
+app.use('/api/feature-flags', featureFlagRoutes);
 
 // Machine-readable product metadata; the command center owns the browser root.
 const productMetadata = (req, res) => {
@@ -278,6 +281,7 @@ const initApp = async () => {
         const workspaceBackfill = await workspaceScopeService.backfillDefaultWorkspace();
         const policyRuleIndexMigration = await workspaceScopeService.ensurePolicyRuleIndexes();
         const jobControlIndexMigration = await workspaceScopeService.ensureJobControlIndexes();
+        await workspaceScopeService.ensureFeatureFlagIndexes();
         if (workspaceBackfill.totalModified > 0) {
           logger.info('Default workspace migration applied', workspaceBackfill);
         }

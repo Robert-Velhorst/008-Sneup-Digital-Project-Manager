@@ -6,6 +6,7 @@ const Member = require('../models/Member');
 const forecastService = require('../services/forecastService');
 const autopilotService = require('../services/autopilotService');
 const operationsLedgerService = require('../services/operationsLedgerService');
+const featureFlagService = require('../services/featureFlagService');
 const { getRequestWorkspaceObjectId } = require('../services/workspaceScopeService');
 const { clampInteger, requirePermission, validateObjectIdParam } = require('../utils/requestSecurity');
 
@@ -161,6 +162,10 @@ router.post('/scenarios', requirePermission('capacity:manage'), async (req, res)
   try {
     operationsLedgerService.requireDatabase();
     const workspaceId = getRequestWorkspaceObjectId(req);
+    await featureFlagService.assertEnabled('forecast_scenarios', {
+      workspaceId,
+      subjectId: req.auth?.actorId || req.auth?.userId
+    });
     const scenarioOverrides = normalizeScenarioOverrides(req.body?.overrides);
     const memberIds = scenarioOverrides.map((override) => override.memberId);
     const matchedMembers = await Member.find({ workspaceId, _id: { $in: memberIds } }).select('_id').lean();

@@ -10,10 +10,11 @@ const model = ({ missing = 0, conflicts = [] } = {}) => ({
 describe('workspace migration preflight', () => {
   test('uses the complete shared workspace collection registry', () => {
     expect(workspaceScopeService.workspaceScopedModels).toBe(WORKSPACE_COLLECTIONS);
-    expect(workspaceScopeService.workspaceScopedModels).toHaveLength(39);
+    expect(workspaceScopeService.workspaceScopedModels).toHaveLength(40);
     expect(workspaceScopeService.workspaceScopedModels.map(([name]) => name)).toEqual(expect.arrayContaining([
       'apiTokens',
       'capacityProfiles',
+      'featureFlags',
       'notificationDeliveries',
       'notificationPolicies',
       'sessionTokens',
@@ -29,13 +30,15 @@ describe('workspace migration preflight', () => {
     const boards = model({ missing: 2 });
     const policyRules = model({ conflicts: [{ duplicateGroups: 1, duplicateRecords: 2 }] });
     const jobControls = model();
+    const featureFlags = model({ conflicts: [{ duplicateGroups: 1, duplicateRecords: 3 }] });
 
     const preflight = await workspaceScopeService.inspectDefaultWorkspaceMigration({
       models: [['boards', boards]],
       workspaceId,
       workspaceKey: 'production',
       policyRuleModel: policyRules,
-      jobControlModel: jobControls
+      jobControlModel: jobControls,
+      featureFlagModel: featureFlags
     });
 
     expect(preflight).toMatchObject({
@@ -43,16 +46,20 @@ describe('workspace migration preflight', () => {
       totalMissing: 2,
       indexPreflight: {
         canApply: false,
-        duplicateGroups: 1,
-        duplicateRecords: 2,
+        duplicateGroups: 2,
+        duplicateRecords: 5,
         policyRules: { duplicateGroups: 1, duplicateRecords: 2 },
-        jobControls: { duplicateGroups: 0, duplicateRecords: 0 }
+        jobControls: { duplicateGroups: 0, duplicateRecords: 0 },
+        featureFlags: { duplicateGroups: 1, duplicateRecords: 3 }
       }
     });
     expect(boards.updateMany).not.toHaveBeenCalled();
     expect(policyRules.aggregate).toHaveBeenCalledWith(expect.arrayContaining([
       expect.objectContaining({ $match: expect.objectContaining({ $or: expect.any(Array) }) }),
       expect.objectContaining({ $group: expect.objectContaining({ _id: { actionType: '$actionType' } }) })
+    ]));
+    expect(featureFlags.aggregate).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.objectContaining({ $group: expect.objectContaining({ _id: { key: '$key' } }) })
     ]));
     expect(JSON.stringify(preflight.indexPreflight)).not.toMatch(/credential|token|condition|507f1f77/i);
     expect(() => workspaceScopeService.assertWorkspaceMigrationReady(preflight)).toThrow(/preflight found duplicate/i);
@@ -65,10 +72,19 @@ describe('workspace migration preflight', () => {
       models: [],
       workspaceId: '507f1f77bcf86cd799439011',
       policyRuleModel: namespaceMissing,
-      jobControlModel: model()
+      jobControlModel: model(),
+      featureFlagModel: model()
     });
 
     expect(preflight.indexPreflight).toMatchObject({ canApply: true, duplicateGroups: 0, duplicateRecords: 0 });
     expect(() => workspaceScopeService.assertWorkspaceMigrationReady(preflight)).not.toThrow();
+  });
+
+  test('creates the feature flag workspace key index through the guarded migration path', async () => {
+    const Model = { createIndexes: jest.fn().mockResolvedValue(undefined) };
+
+    await expect(workspaceScopeService.ensureFeatureFlagIndexes({ Model }))
+      .resolves.toEqual({ workspaceKeyIndexReady: true });
+    expect(Model.createIndexes).toHaveBeenCalledTimes(1);
   });
 });

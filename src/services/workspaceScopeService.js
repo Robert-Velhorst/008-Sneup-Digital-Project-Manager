@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Workspace = require('../models/Workspace');
 const PolicyRule = require('../models/PolicyRule');
 const JobControl = require('../models/JobControl');
+const FeatureFlag = require('../models/FeatureFlag');
 const { WORKSPACE_COLLECTIONS } = require('./workspaceCollectionRegistry');
 
 const OBJECT_ID_PATTERN = /^[a-f0-9]{24}$/i;
@@ -179,9 +180,10 @@ const inspectDefaultWorkspaceMigration = async ({
   workspaceKey = getDefaultWorkspaceKey(),
   concurrency = getBackfillConcurrency(),
   policyRuleModel = PolicyRule,
-  jobControlModel = JobControl
+  jobControlModel = JobControl,
+  featureFlagModel = FeatureFlag
 } = {}) => {
-  const [backfill, policyRules, jobControls] = await Promise.all([
+  const [backfill, policyRules, jobControls, featureFlags] = await Promise.all([
     inspectDefaultWorkspaceBackfill({ models, workspaceId, workspaceKey, concurrency }),
     inspectWorkspaceScopedUniqueness({
       Model: policyRuleModel,
@@ -192,10 +194,15 @@ const inspectDefaultWorkspaceMigration = async ({
       Model: jobControlModel,
       workspaceId,
       fields: ['jobName']
+    }),
+    inspectWorkspaceScopedUniqueness({
+      Model: featureFlagModel,
+      workspaceId,
+      fields: ['key']
     })
   ]);
-  const duplicateGroups = policyRules.duplicateGroups + jobControls.duplicateGroups;
-  const duplicateRecords = policyRules.duplicateRecords + jobControls.duplicateRecords;
+  const duplicateGroups = policyRules.duplicateGroups + jobControls.duplicateGroups + featureFlags.duplicateGroups;
+  const duplicateRecords = policyRules.duplicateRecords + jobControls.duplicateRecords + featureFlags.duplicateRecords;
 
   return {
     ...backfill,
@@ -204,14 +211,15 @@ const inspectDefaultWorkspaceMigration = async ({
       duplicateGroups,
       duplicateRecords,
       policyRules,
-      jobControls
+      jobControls,
+      featureFlags
     }
   };
 };
 
 const assertWorkspaceMigrationReady = (preflight) => {
   if (preflight?.indexPreflight?.canApply) return;
-  const error = new Error('Workspace migration preflight found duplicate workspace-scoped policy or job-control keys');
+  const error = new Error('Workspace migration preflight found duplicate workspace-scoped unique keys');
   error.code = 'WORKSPACE_MIGRATION_PRECHECK_FAILED';
   error.statusCode = 409;
   error.preflight = preflight?.indexPreflight;
@@ -283,12 +291,18 @@ const ensureJobControlIndexes = async ({ Model = JobControl } = {}) => {
   return { removedLegacyJobNameIndex: Boolean(legacyJobNameIndex) };
 };
 
+const ensureFeatureFlagIndexes = async ({ Model = FeatureFlag } = {}) => {
+  await Model.createIndexes();
+  return { workspaceKeyIndexReady: true };
+};
+
 module.exports = {
   assertWorkspaceMigrationReady,
   backfillDefaultWorkspace,
   defaultWorkspaceQuery,
   ensurePolicyRuleIndexes,
   ensureJobControlIndexes,
+  ensureFeatureFlagIndexes,
   ensureDefaultWorkspace,
   getBackfillConcurrency,
   getDefaultWorkspaceKey,

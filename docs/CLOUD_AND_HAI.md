@@ -4,7 +4,7 @@
 
 Sneup supports the same application core in three forms:
 
-1. Windows 11 desktop through `Sneup-Setup-2.3.4.exe`.
+1. Windows 11 desktop through the current `Sneup-Setup-2.3.5.exe` release target.
 2. Local or server Node runtime through `npm start`.
 3. Authenticated ngrok ingress layered over either runtime.
 
@@ -49,6 +49,8 @@ GET /api/v1/integrations/hai/openapi.json
 ```
 
 HAI can read a bounded operating snapshot with stable public record, board, and card identifiers and submit an idempotent proposal keyed by `externalId`. Versioned JSON responses include one bounded envelope and request ID for support correlation. Sneup hashes the external ID, strips unapproved action fields, and converts the request into its existing recommendation and decision-queue flow.
+
+The manifest advertises `hai_proposals` as the optional proposal rollout control. A workspace manager can pause or percentage-roll out HAI proposal intake without changing the HAI token. A paused control returns a bounded 503 response; a live rollout-storage failure also fails closed. Snapshot access remains separately permissioned and is not disabled by the proposal control.
 
 The HAI API does not expose approval or execution endpoints. HAI cannot mark its own proposal approved, and it cannot directly write to Trello or another provider through this connector. Human approval remains tied to the exact protected action payload inside Sneup.
 

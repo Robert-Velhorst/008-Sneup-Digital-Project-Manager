@@ -30,6 +30,7 @@ The command-center HTML and JavaScript were statically searched for controls, ev
 - The 2.3.3 packaged command center, fail-closed recovery dialog, and `Sneup Setup` window opened and closed normally without leaving a Sneup process or port 3197 listener.
 - For 2.3.4, the exact installer and `Sneup Command Center` windows opened, the packaged demo passed legacy/versioned/readiness/jobs/HAI checks, and normal close released every Sneup process and port 3197. A forced live-database outage showed the safe recovery title, did not listen on port 3197, and also closed normally.
 - The requested in-app Browser connected on two fresh tabs but its webview did not attach. Computer Use found the exact packaged window but its runtime failed while returning window state. The live 12-route demo HTTP matrix and static UI wiring passed, while current rendered capture remains explicitly pending.
+- For 2.3.5, `Sneup Command Center`, the stable live-database recovery window, and the exact `Sneup Setup` dialog opened and closed normally. Packaged readiness, version, four rollout controls, bounded cache metadata, HAI rollout/OpenAPI behavior, fail-closed port state, process cleanup, and port release passed. The in-app Browser again failed to attach on two fresh tabs, and the installed Windows-control package lacked its required guidance interface, so current rendered administration evidence remains pending rather than inferred.
 
 ## Open UI evidence
 

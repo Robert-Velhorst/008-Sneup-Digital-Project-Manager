@@ -60,9 +60,9 @@ Added:
 - Secure preload bridge in `desktop/preload.js`.
 - `npm run desktop` for local desktop testing.
 - `npm run build:installer` / `npm run dist:win` for Windows NSIS packaging.
-- Current release target: `release/Sneup-Setup-2.3.4.exe`.
+- Current release target: `release/Sneup-Setup-2.3.5.exe`.
 
-The verified 2.3.4 installer is 109,424,462 bytes with SHA-256 `6FDB70E399DBD1AEB2A6B669BA370496EAA42478364D50D0056C8B505953B54B`. It is intentionally reported as unsigned until an owner-controlled publisher certificate is available. The packaged executable reports product/file version 2.3.4 and carries the Windows x64 native ngrok binding.
+The verified 2.3.5 installer is 109,429,244 bytes with SHA-256 `A158F9FB1AF01F9506670139E817901B3AAA0B2B3C68DCB250340E1665927383`. It is intentionally reported as unsigned until an owner-controlled publisher certificate is available. The packaged executable reports product/file version 2.3.5 and carries the Windows x64 native ngrok binding.
 
 The desktop app starts Sneup on `127.0.0.1` and opens the command center in an app window. On first run it starts in demo mode. The workspace choice stores only the non-secret `demo` or `live` startup preference in the Electron user-data directory, then relaunches before Sneup initializes. Production live mode fails closed before opening the HTTP listener when MongoDB is unavailable. The Windows error dialog can persist an explicit read-only demo choice and relaunch, preventing a failed live preference from trapping the user. An explicitly set `SNEUP_DEMO_MODE` environment variable takes precedence over the local preference until the user chooses the recovery action.
 
@@ -70,9 +70,9 @@ The desktop app starts Sneup on `127.0.0.1` and opens the command center in an a
 
 - Syntax checks passed for changed JavaScript files.
 - `npm run lint` passed with the new Node/ES2022 ESLint config.
-- `npm test -- --runInBand` passed 692 tests across 85 suites.
+- `npm test -- --runInBand` passed 704 tests across 86 suites.
 - `npm audit --omit=dev` reported 0 vulnerabilities.
 - Local HTTP smoke tests passed for health, connector catalog, and mission control.
 - The requested in-app Browser connected but its webview did not attach on two fresh tabs; current rendered evidence remains pending rather than inferred from protocol tests.
 - The current resource pass passed `npm run lint`, a production-only `npm audit` with zero findings, and a fresh Windows NSIS build after inspecting its packaged archive.
-- The packaged 2.3.4 demo used four processes, 385.6 MB working set, 307.7 MB private memory, and 3.53 cumulative CPU seconds after load plus idle; it then closed normally and released port 3197.
+- The packaged 2.3.5 demo used four processes, 396.0 MB working set, 304.8 MB private memory, and 2.83 cumulative CPU seconds after load plus 30 seconds idle; it then closed normally and released port 3197.

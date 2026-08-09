@@ -4,6 +4,7 @@ const operationsLedgerService = require('../services/operationsLedgerService');
 const workGraphService = require('../services/workGraphService');
 const workSignalAdapterService = require('../services/workSignalAdapterService');
 const workSignalService = require('../services/workSignalService');
+const featureFlagService = require('../services/featureFlagService');
 const { getRequestWorkspaceObjectId } = require('../services/workspaceScopeService');
 const { requirePermission, validateObjectIdParam } = require('../utils/requestSecurity');
 const { getAuthenticatedActor } = require('../utils/requestActor');
@@ -18,6 +19,11 @@ router.param('dependencyId', validateObjectIdParam('dependencyId'));
 const requestOptions = (req) => ({
   workspaceId: getRequestWorkspaceObjectId(req),
   actorId: req.auth?.actorId
+});
+
+const featureOptions = (req) => ({
+  workspaceId: getRequestWorkspaceObjectId(req),
+  subjectId: req.auth?.actorId || req.auth?.userId
 });
 
 const sendError = (res, error) => {
@@ -94,6 +100,7 @@ router.get('/graph', requirePermission('audit:read'), async (req, res) => {
 
 router.get('/graph/decisions', requirePermission('audit:read'), async (req, res) => {
   try {
+    await featureFlagService.assertEnabled('work_graph_decisions', featureOptions(req));
     const result = await workGraphService.listDecisionCandidates({
       ...requestOptions(req),
       limit: req.query.limit
@@ -130,6 +137,7 @@ router.get('/graph/items/:itemId', requirePermission('audit:read'), async (req, 
 
 router.post('/graph/items/:itemId/queue', requirePermission('autopilot:queue'), async (req, res) => {
   try {
+    await featureFlagService.assertEnabled('work_graph_decisions', featureOptions(req));
     const result = await operationsLedgerService.createRecommendationFromWorkItem(req.params.itemId, {
       workspaceId: getRequestWorkspaceObjectId(req),
       actor: getAuthenticatedActor(req)

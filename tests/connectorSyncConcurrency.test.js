@@ -20,7 +20,9 @@ describe('connector sync concurrency', () => {
       { _id: 'a4', connectorId: 'asana' }
     ];
     jest.spyOn(ConnectorAccount, 'find').mockReturnValue({ sort: jest.fn().mockResolvedValue(accounts) });
-    const service = new ConnectorSyncService();
+    const service = new ConnectorSyncService({
+      featureFlagService: { evaluate: jest.fn().mockResolvedValue({ effective: true, available: true }) }
+    });
     service.requireDatabase = jest.fn();
     service.finalizeDependencyFreshness = jest.fn().mockResolvedValue({ providerCount: 2, markedStale: 0, failureCount: 0, byProvider: {} });
     const activeByProvider = new Map();

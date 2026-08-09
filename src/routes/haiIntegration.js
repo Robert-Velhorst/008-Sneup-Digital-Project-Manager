@@ -1,6 +1,7 @@
 const express = require('express');
 const logger = require('../utils/logger');
 const haiIntegrationService = require('../services/haiIntegrationService');
+const featureFlagService = require('../services/featureFlagService');
 const { getRequestWorkspaceObjectId } = require('../services/workspaceScopeService');
 const { requirePermission } = require('../utils/requestSecurity');
 
@@ -33,6 +34,10 @@ router.get('/snapshot', requirePermission('integrations:hai:read'), async (req, 
 
 router.post('/proposals', requirePermission('integrations:hai:propose'), async (req, res) => {
   try {
+    await featureFlagService.assertEnabled('hai_proposals', {
+      workspaceId: getRequestWorkspaceObjectId(req),
+      subjectId: req.auth?.actorId || req.auth?.userId
+    });
     const result = await haiIntegrationService.createProposal(req.body, {
       workspaceId: getRequestWorkspaceObjectId(req),
       actor: req.auth?.displayName || req.auth?.actorId || 'hai'

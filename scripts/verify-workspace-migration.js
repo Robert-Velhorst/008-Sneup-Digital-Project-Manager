@@ -33,6 +33,7 @@ const run = async () => {
   }
 
   const result = await workspaceScopeService.backfillDefaultWorkspace();
+  await workspaceScopeService.ensureFeatureFlagIndexes();
   const workspaceId = workspaceScopeService.getDefaultWorkspaceObjectId();
   assert.equal(result.totalModified, WORKSPACE_COLLECTIONS.length);
   assert.equal(await Workspace.countDocuments({ _id: workspaceId }), 1);
@@ -41,6 +42,12 @@ const run = async () => {
     assert.equal(await model.countDocuments(workspaceScopeService.missingWorkspaceQuery()), 0, `${name} retained legacy records`);
     assert.equal(await model.countDocuments({ workspaceId }), 1, `${name} was not scoped to the default workspace`);
   }
+
+  const featureFlagModel = WORKSPACE_COLLECTIONS.find(([name]) => name === 'featureFlags')[1];
+  const featureFlagIndexes = await featureFlagModel.collection.indexes();
+  assert.equal(featureFlagIndexes.some(index => index.unique === true
+    && index.key.workspaceId === 1
+    && index.key.key === 1), true, 'feature flag workspace/key index was not created');
 
   process.stdout.write(`${JSON.stringify({
     verified: true,

@@ -31,6 +31,8 @@ const state = {
   policyRuleError: '',
   policyHistory: [],
   policyHistoryError: '',
+  featureFlags: [],
+  featureFlagError: '',
   policyHistoryFilters: {
     actionType: '',
     actor: '',
@@ -170,6 +172,8 @@ const els = {
   policyHistoryActionFilter: document.getElementById('policyHistoryActionFilter'),
   policyHistoryActorFilter: document.getElementById('policyHistoryActorFilter'),
   policyHistoryRangeFilter: document.getElementById('policyHistoryRangeFilter'),
+  featureFlagCount: document.getElementById('featureFlagCount'),
+  featureFlagList: document.getElementById('featureFlagList'),
   setupButton: document.getElementById('setupButton'),
   commandPaletteButton: document.getElementById('commandPaletteButton'),
   commandPalette: document.getElementById('commandPalette'),
@@ -526,11 +530,29 @@ async function loadView(viewName, options = {}) {
 
 async function loadAll(options = {}) {
   await loadSecurityContext();
+  await loadFeatureFlags();
   renderEnhancementFilters();
   if (options.force) state.loadedViews.clear();
   if (options.force || state.loadedViews.size === 0) markDeferredViewCounts();
   const activeView = document.querySelector('[data-view-button].active')?.dataset.viewButton || 'overview';
   await loadView(activeView, { force: options.force });
+}
+
+async function loadFeatureFlags() {
+  try {
+    const data = await fetchApi('/api/feature-flags');
+    state.featureFlags = data.flags || [];
+    state.featureFlagError = '';
+  } catch (error) {
+    state.featureFlags = [];
+    state.featureFlagError = error.message;
+  }
+}
+
+function isFeatureEnabled(key) {
+  if (state.featureFlagError) return false;
+  const flag = state.featureFlags.find(item => item.key === key);
+  return flag ? flag.effective === true : false;
 }
 
 async function loadReports() {
@@ -626,6 +648,7 @@ function formatProviderNames(providers = []) {
 
 function renderForecastSummary(forecast = {}, scenario = null) {
   const canManageCapacity = forecast.mode !== 'demo' && state.securityContext?.permissions?.includes('capacity:manage');
+  const canRunScenarios = canManageCapacity && isFeatureEnabled('forecast_scenarios');
   return `
     <div class="item forecast-summary">
       <div class="item-title">
@@ -637,7 +660,8 @@ function renderForecastSummary(forecast = {}, scenario = null) {
       ${(forecast.risks || []).length ? `<div class="forecast-risks">${forecast.risks.map(risk => `<span class="pill high">${escapeHtml(risk)}</span>`).join('')}</div>` : ''}
       <details class="payload"><summary>Assumptions</summary><div class="forecast-assumptions">${(forecast.assumptions || []).map(item => `<p>${escapeHtml(item)}</p>`).join('')}</div></details>
       ${scenario?.active ? `<div class="notice">Temporary scenario for ${scenario.overrideCount || 0} contributor${scenario.overrideCount === 1 ? '' : 's'}. It does not change a capacity profile, provider, work item, or decision.</div>` : ''}
-      ${canManageCapacity ? `<div class="item-actions">${scenario?.active ? '<button class="button" data-forecast-scenario-reset type="button">Reset scenario</button>' : ''}<button class="button primary" data-forecast-scenario type="button">Explore capacity scenario</button></div>` : ''}
+      ${canManageCapacity && !canRunScenarios ? '<div class="notice">Capacity scenarios are paused by this workspace rollout.</div>' : ''}
+      ${canRunScenarios ? `<div class="item-actions">${scenario?.active ? '<button class="button" data-forecast-scenario-reset type="button">Reset scenario</button>' : ''}<button class="button primary" data-forecast-scenario type="button">Explore capacity scenario</button></div>` : ''}
     </div>
   `;
 }
@@ -1062,11 +1086,14 @@ async function loadConnectors({ append = false } = {}) {
 
 async function loadWorkSignals() {
   try {
+    const graphDecisionsEnabled = isFeatureEnabled('work_graph_decisions');
     const [signalsData, contractsData, graphData, graphDecisionData] = await Promise.all([
       fetchApi('/api/work-signals?limit=100'),
       fetchApi('/api/work-signals/contracts'),
       fetchApi('/api/work-signals/graph?limit=20'),
-      fetchApi('/api/work-signals/graph/decisions?limit=20')
+      graphDecisionsEnabled
+        ? fetchApi('/api/work-signals/graph/decisions?limit=20')
+        : Promise.resolve({ candidates: [] })
     ]);
     state.workSignals = signalsData.signals || [];
     state.workSignalContracts = contractsData.contracts || [];
@@ -1130,9 +1157,11 @@ async function loadWorkspaceAdmin() {
       || state.workspaces.find(workspace => workspace.id === current.workspace?.id)
       || state.workspaces[0]
       || current.workspace;
-    if (selectedWorkspace?.id && state.activeWorkspaceId !== selectedWorkspace.id) {
+    const workspaceSelectionChanged = selectedWorkspace?.id && state.activeWorkspaceId !== selectedWorkspace.id;
+    if (workspaceSelectionChanged) {
       state.activeWorkspaceId = selectedWorkspace.id;
       localStorage.setItem('sneup.workspaceId', state.activeWorkspaceId);
+      await loadFeatureFlags();
     }
 
     const [userData, invitationData] = selectedWorkspace?.id
@@ -2989,6 +3018,7 @@ function renderWorkspaces(errorMessage = '') {
   const invitations = state.workspaceInvitations || [];
   const policyRules = state.policyRules || [];
   const policyHistory = state.policyHistory || [];
+  const featureFlags = state.featureFlags || [];
   renderPolicyHistoryFilters(policyRules);
   const pendingInvitations = invitations.filter(invite => invite.status === 'pending');
   els.workspaceMetrics.innerHTML = [
@@ -3037,9 +3067,14 @@ function renderWorkspaces(errorMessage = '') {
   els.policyHistoryList.innerHTML = state.policyHistoryError
     ? `<div class="notice">${escapeHtml(state.policyHistoryError)}</div>`
     : listOrEmpty(policyHistory, renderPolicyHistory);
+  els.featureFlagCount.textContent = `${featureFlags.filter(flag => flag.configured).length}/${featureFlags.length} configured`;
+  els.featureFlagList.innerHTML = state.featureFlagError
+    ? `<div class="notice">${escapeHtml(state.featureFlagError)}</div>`
+    : listOrEmpty(featureFlags, renderFeatureFlag);
   bindWorkspaceIdentityActions();
   bindPolicyRuleActions();
   bindPolicyHistoryActions();
+  bindFeatureFlagActions();
 }
 
 function renderPolicyHistoryFilters(policyRules = []) {
@@ -3202,6 +3237,40 @@ function renderPolicyHistory(event) {
   `;
 }
 
+function renderFeatureFlag(flag) {
+  const canManage = !state.securityContext?.demoMode
+    && state.securityContext?.permissions?.includes('feature-flags:manage');
+  const canReadHistory = !state.securityContext?.demoMode
+    && flag.configured
+    && state.securityContext?.permissions?.includes('audit:read');
+  const stateLabel = !flag.enabled ? 'paused' : flag.effective ? 'active' : 'outside rollout';
+  const stateClass = !flag.enabled ? 'critical' : flag.effective ? 'healthy' : 'review';
+  const rolloutLabel = flag.rolloutPercentage >= 100
+    ? 'all eligible use'
+    : flag.rolloutPercentage <= 0
+      ? 'no eligible use'
+      : `${flag.rolloutPercentage}% ${flag.rolloutSubject === 'workspace' ? 'workspace' : 'operator'} rollout`;
+  return `
+    <div class="item">
+      <div class="item-title">
+        <strong>${escapeHtml(flag.label)}</strong>
+        <span class="pill ${stateClass}">${escapeHtml(stateLabel)}</span>
+      </div>
+      <p>${escapeHtml(flag.description)}</p>
+      <div class="meta">
+        <span>${escapeHtml(rolloutLabel)}</span>
+        <span>${flag.configured ? `revision ${escapeHtml(flag.revision)}` : 'default control'}</span>
+        ${flag.updatedAt ? `<span>updated ${escapeHtml(formatDate(flag.updatedAt))}</span>` : ''}
+      </div>
+      ${flag.reason ? `<div class="notice">${escapeHtml(flag.reason)}</div>` : ''}
+      ${canManage || canReadHistory ? `<div class="item-actions">
+        ${canReadHistory ? `<button class="button" data-feature-history="${escapeHtml(flag.key)}" type="button">History</button>` : ''}
+        ${canManage ? `<button class="button" data-feature-flag="${escapeHtml(flag.key)}" type="button">Configure</button>` : ''}
+      </div>` : ''}
+    </div>
+  `;
+}
+
 function bindWorkspaceIdentityActions() {
   document.querySelectorAll('[data-workspace-user-sessions]').forEach((button) => {
     button.addEventListener('click', () => openWorkspaceUserSessions(button.dataset.workspaceUserSessions));
@@ -3219,6 +3288,101 @@ function bindWorkspaceIdentityActions() {
 function bindPolicyRuleActions() {
   document.querySelectorAll('[data-policy-rule]').forEach((button) => {
     button.addEventListener('click', () => openPolicyRuleEditor(button.dataset.policyRule));
+  });
+}
+
+function bindFeatureFlagActions() {
+  document.querySelectorAll('[data-feature-flag]').forEach((button) => {
+    button.addEventListener('click', () => openFeatureFlagEditor(button.dataset.featureFlag));
+  });
+  document.querySelectorAll('[data-feature-history]').forEach((button) => {
+    button.addEventListener('click', () => openFeatureFlagHistory(button.dataset.featureHistory));
+  });
+}
+
+async function openFeatureFlagHistory(key) {
+  const flag = (state.featureFlags || []).find(item => item.key === key);
+  if (!flag) return;
+  els.modalTitle.textContent = `${flag.label} history`;
+  els.modalBody.innerHTML = '<div class="notice">Loading rollout history...</div>';
+  els.modal.classList.add('open');
+  try {
+    const result = await fetchApi(`/api/feature-flags/${encodeURIComponent(key)}/history?limit=25`);
+    els.modalBody.innerHTML = `
+      <div class="notice-stack">
+        ${listOrEmpty(result.history || [], entry => `
+          <div class="item">
+            <div class="item-title">
+              <strong>Revision ${escapeHtml(entry.revision)}</strong>
+              <span class="pill ${entry.enabled ? 'healthy' : 'critical'}">${entry.enabled ? 'enabled' : 'paused'}</span>
+            </div>
+            <div class="meta">
+              <span>${escapeHtml(entry.rolloutPercentage)}% rollout</span>
+              <span>${escapeHtml(entry.actor)}</span>
+              <span>${escapeHtml(formatDate(entry.changedAt))}</span>
+            </div>
+            ${entry.reason ? `<p>${escapeHtml(entry.reason)}</p>` : ''}
+          </div>
+        `)}
+        <div class="toolbar modal-actions"><button class="button" type="button" id="closeFeatureHistory">Close</button></div>
+      </div>
+    `;
+    document.getElementById('closeFeatureHistory').addEventListener('click', closeModal);
+  } catch (error) {
+    els.modalBody.innerHTML = `<div class="notice">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function openFeatureFlagEditor(key) {
+  const flag = (state.featureFlags || []).find(item => item.key === key);
+  if (!flag) return;
+  els.modalTitle.textContent = flag.label;
+  els.modalBody.innerHTML = `
+    <form id="featureFlagForm" class="notice-stack">
+      <div class="notice">Rollout controls can pause optional workloads or expose them gradually. They cannot grant permissions, approve recommendations, execute Trello writes, disable audits, or weaken workspace isolation.</div>
+      <label class="checkbox-row"><input name="enabled" type="checkbox" ${flag.enabled ? 'checked' : ''}> Enable this capability</label>
+      <label>Rollout percentage
+        <input id="featureFlagRollout" name="rolloutPercentage" type="range" min="0" max="100" step="1" value="${escapeHtml(flag.rolloutPercentage)}">
+        <output id="featureFlagRolloutValue" for="featureFlagRollout">${escapeHtml(flag.rolloutPercentage)}%</output>
+      </label>
+      <label>Reason<textarea name="reason" rows="3" maxlength="500" placeholder="Why this rollout is changing">${escapeHtml(flag.reason || '')}</textarea></label>
+      <div class="toolbar modal-actions">
+        <button class="button" type="button" id="cancelFeatureFlag">Cancel</button>
+        <button class="button primary" type="submit">Save rollout</button>
+      </div>
+    </form>
+  `;
+  els.modal.classList.add('open');
+  const rollout = document.getElementById('featureFlagRollout');
+  const rolloutValue = document.getElementById('featureFlagRolloutValue');
+  rollout.addEventListener('input', () => { rolloutValue.textContent = `${rollout.value}%`; });
+  document.getElementById('cancelFeatureFlag').addEventListener('click', closeModal);
+  document.getElementById('featureFlagForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const submitButton = form.querySelector('button[type="submit"]');
+    const values = new FormData(form);
+    submitButton.disabled = true;
+    submitButton.textContent = 'Saving...';
+    try {
+      const result = await fetchApi(`/api/feature-flags/${encodeURIComponent(flag.key)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enabled: values.get('enabled') === 'on',
+          rolloutPercentage: Number(values.get('rolloutPercentage')),
+          reason: values.get('reason'),
+          expectedRevision: flag.revision
+        })
+      });
+      state.featureFlags = state.featureFlags.map(item => item.key === flag.key ? result.flag : item);
+      closeModal();
+      renderWorkspaces();
+    } catch (error) {
+      submitButton.disabled = false;
+      submitButton.textContent = 'Save rollout';
+      openNotice('Rollout update blocked', error.message);
+    }
   });
 }
 
@@ -4072,7 +4236,9 @@ function renderWorkSignals() {
   const graphReviewNotice = renderGraphReviewQuality(graph);
   const graphDecisionNotice = graphCandidates.length
     ? `<div class="notice">Graph decisions: ${escapeHtml(countByOwner(graphCandidates, 'robert'))} Robert, ${escapeHtml(countByOwner(graphCandidates, 'va'))} VA, ${escapeHtml(countByOwner(graphCandidates, 'team'))} team.</div>`
-    : '';
+    : !isFeatureEnabled('work_graph_decisions')
+      ? '<div class="notice">Cross-tool decision generation is paused by this workspace rollout. Synced signals and dependency evidence remain read-only and visible.</div>'
+      : '';
   const graphDecisionCards = graphCandidates.length
     ? `<div class="list graph-decision-list">${graphCandidates.map(renderGraphDecisionCandidate).join('')}</div>`
     : '';
@@ -4193,6 +4359,10 @@ async function openGraphItemDetail(itemId) {
 
 async function queueGraphDecision(itemId) {
   if (!itemId) return;
+  if (!isFeatureEnabled('work_graph_decisions')) {
+    openNotice('Graph decisions paused', 'This workspace rollout does not currently allow cross-tool decision proposals.');
+    return;
+  }
 
   try {
     const data = await fetchApi(`/api/work-signals/graph/items/${itemId}/queue`, {
@@ -4549,10 +4719,13 @@ function renderConnectorSafety() {
     return;
   }
   const liveAdapters = state.connectorSyncReadiness?.ready || 0;
+  const syncRollout = isFeatureEnabled('connector_sync')
+    ? `${liveAdapters} provider sync adapters are live. Signals are read-only.`
+    : 'Read-only connector synchronization is paused by this workspace rollout.';
   els.connectorSafety.innerHTML = `
     <div>
       <strong>${safety.providerWritesBlocked} tools are write-blocked</strong>
-      <span>${liveAdapters} provider sync adapters are live. Signals are read-only. ${safety.scopeReviews} account links require a scope review.</span>
+      <span>${escapeHtml(syncRollout)} ${safety.scopeReviews} account links require a scope review.</span>
     </div>
     <span>${safety.providerScopeReviews} broad provider grants flagged</span>
   `;
@@ -4619,7 +4792,7 @@ function renderConnector(connector, account) {
   const genericWebhookEndpoint = isGenericWebhook && account
     ? `${window.location.origin}/api/webhooks/generic/${account.id}`
     : '';
-  const canSync = Boolean(account && adapterImplemented && !isGenericWebhook && (!isFigma || selectedFigmaTeamId) && (!isConfluence || selectedConfluenceCloudId) && (!isSharePoint || selectedSharePointSiteId) && (!isXero || selectedXeroTenantId) && (!isProcore || selectedProcoreCompanyId) && (!isMural || selectedMuralWorkspaceId));
+  const canSync = Boolean(isFeatureEnabled('connector_sync') && account && adapterImplemented && !isGenericWebhook && (!isFigma || selectedFigmaTeamId) && (!isConfluence || selectedConfluenceCloudId) && (!isSharePoint || selectedSharePointSiteId) && (!isXero || selectedXeroTenantId) && (!isProcore || selectedProcoreCompanyId) && (!isMural || selectedMuralWorkspaceId));
   const lastSync = account?.metadata?.lastWorkSignalSync || {};
   const sourceLabel = lastSync.source === 'github_api' ? 'GitHub API'
     : lastSync.source === 'trello_api' ? 'Trello API'
@@ -5415,6 +5588,10 @@ async function openJiraSiteModal(accountId) {
 
 async function syncConnectorAccount(accountId) {
   if (!accountId) return;
+  if (!isFeatureEnabled('connector_sync')) {
+    openNotice('Connector sync paused', 'This workspace rollout does not currently allow connector synchronization.');
+    return;
+  }
   try {
     const data = await fetchApi(`/api/work-signals/accounts/${accountId}/sync`, {
       method: 'POST',

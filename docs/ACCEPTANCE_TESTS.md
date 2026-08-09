@@ -18,5 +18,6 @@
 | A14 | CI and installer | `.github/workflows/ci.yml` | Green GitHub run and installer artifact | Pass: run `31296974370`, artifact `sneup-windows-installer-unsigned` |
 | A15 | Multi-instance background work | `jobLease.test.js`; disposable MongoDB 7 simultaneous race | Run two hosted Sneup instances against one workspace | Local real-Mongo pass; hosted evidence pending |
 | A16 | Versioned API and HAI contract | `apiContract.test.js`; live demo HTTP matrix | Call `/api/v1` through deployment ingress and correlate a support request ID | Pass locally; hosted ingress pending |
+| A17 | Optional workload canary and rollback | `featureFlagService.test.js`; 40-collection disposable MongoDB migration verifier; live demo API/HAI smoke | Manager pauses, stages, and restores one hosted optional capability while another session observes the same revision | Automated and local real-Mongo pass; hosted manager acceptance pending |
 
 Production acceptance requires all pending live cells to be executed with organization-owned accounts. Demo data is not evidence of live-provider success.

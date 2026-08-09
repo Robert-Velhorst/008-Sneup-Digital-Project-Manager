@@ -68,7 +68,7 @@ class HaiIntegrationService {
       },
       capabilities: [
         { id: 'snapshot', method: 'GET', path: `${baseUrl}/api/v1/integrations/hai/snapshot`, permission: 'integrations:hai:read' },
-        { id: 'propose', method: 'POST', path: `${baseUrl}/api/v1/integrations/hai/proposals`, permission: 'integrations:hai:propose' }
+        { id: 'propose', method: 'POST', path: `${baseUrl}/api/v1/integrations/hai/proposals`, permission: 'integrations:hai:propose', rolloutControl: 'hai_proposals' }
       ],
       openapi: `${baseUrl}/api/v1/integrations/hai/openapi.json`
     };
@@ -112,7 +112,11 @@ class HaiIntegrationService {
                 }
               }
             },
-            responses: { 201: { description: 'Approval-gated proposal created' }, 200: { description: 'Existing proposal returned' } }
+            responses: {
+              201: { description: 'Approval-gated proposal created' },
+              200: { description: 'Existing proposal returned' },
+              503: { description: 'HAI proposals are paused or rollout controls are unavailable' }
+            }
           }
         }
       }

@@ -34,10 +34,16 @@ const mapWithConcurrency = async (items, concurrency, worker) => {
 };
 
 class ConnectorSyncService {
-  constructor() {
+  constructor(options = {}) {
     this.job = null;
     this.activeScheduledSync = null;
     this.scheduledSyncStartedAt = null;
+    this.featureFlagService = options.featureFlagService || null;
+  }
+
+  getFeatureFlagService() {
+    if (!this.featureFlagService) this.featureFlagService = require('./featureFlagService');
+    return this.featureFlagService;
   }
 
   init() {
@@ -111,6 +117,18 @@ class ConnectorSyncService {
   async syncConnectedAccounts(options = {}) {
     this.requireDatabase();
     const workspaceId = normalizeWorkspaceObjectId(options.workspaceId || getDefaultWorkspaceObjectId());
+    const rollout = await this.getFeatureFlagService().evaluate('connector_sync', {
+      workspaceId,
+      subjectId: options.actor
+    });
+    if (!rollout.effective) {
+      return {
+        processedCount: 0,
+        successCount: 0,
+        failureCount: 0,
+        metadata: { skipped: true, reason: rollout.available === false ? 'feature_flags_unavailable' : 'connector_sync_disabled' }
+      };
+    }
     const connectorIds = workSignalAdapterService.getFirstWaveConnectorIds();
     let accountsQuery = ConnectorAccount.find({
       workspaceId,
@@ -247,6 +265,11 @@ class ConnectorSyncService {
       error.statusCode = 404;
       throw error;
     }
+
+    await this.getFeatureFlagService().assertEnabled('connector_sync', {
+      workspaceId: account.workspaceId,
+      subjectId: options.actor
+    });
 
     const cursor = account.metadata?.workSignalCursor || null;
     const syncResult = await providerSyncPolicyService.run(

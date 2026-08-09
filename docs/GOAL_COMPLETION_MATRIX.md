@@ -37,7 +37,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 030 Secrets/rotation | Implemented | Purpose-separated secrets, encryption, rotation visibility, release check. |
 | 031 One-command local development | Implemented | `npm ci`, doctor, start/demo paths, Windows installer. |
 | 032 Docker/deployment | Partial | Authenticated fail-closed ngrok ingress and deployment guidance exist; no production deployment proof. |
-| 033 Migrations/rollback | Partial | Workspace preflight/backfill shares the complete 39-collection lifecycle registry and passes disposable-Mongo verification; production restore/rollback rehearsal is external. |
+| 033 Migrations/rollback | Partial | Workspace preflight/backfill shares the complete 40-collection lifecycle registry and passes disposable-Mongo verification; production restore/rollback rehearsal is external. |
 | 034 CLI/doctor | Implemented | `doctor`, `doctor:json`, support bundle. |
 | 035 Health/readiness | Implemented | `/health`, `/ready`, job health, response timing. |
 | 036 Operator diagnostics | Implemented | Doctor, readiness, job/connector health, audit, support bundle. |
@@ -62,7 +62,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 055 Local-first analytics | Implemented | Local response/job/recommendation metrics; no forced telemetry. |
 | 056 SaaS without billing | Implemented | Multi-workspace identity exists; billing is not required. |
 | 057 Dutch/English readiness | Partial | UI is English; Dutch message catalog is not implemented. |
-| 058 Feature flags/rollout | Partial | Demo and emergency flags exist; no general persisted flag service. |
+| 058 Feature flags/rollout | Implemented | Four optional capabilities have workspace-scoped persisted controls, deterministic percentage rollout, optimistic revisions, bounded cache/history, manager UI, and live fail-closed behavior. Safety and provider-write authorization are outside the flag system. |
 | 059 Formal state machines | Implemented | Enumerated persisted lifecycle states and guarded transitions. |
 | 060 Domain model | Implemented | Mongoose models and operations-ledger domain boundaries. |
 | 061 Invariants/constraints | Implemented | Schema/index constraints and transition/security tests. |
@@ -73,7 +73,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 066 Supply chain | Implemented | Lockfile, `npm ci`, production audit, CI gate. |
 | 067 Licenses/third parties | Partial | MIT project/dependencies tracked; service terms review external. |
 | 068 CI/CD gates | Implemented | Linux quality job and Windows installer artifact job. |
-| 069 Canary/rollback | Partial | Runbook exists; hosting/canary proof is external. |
+| 069 Canary/rollback | Partial | Optional workloads now have immediate persisted canary/pause controls and revision-safe rollback; hosted rollout proof remains external. |
 | 070 Operator runbook | Implemented | `OPERATOR_RUNBOOK.md`. |
 | 071 User guide/help | Partial | README covers operation; in-app contextual help is limited. |
 | 072 Troubleshooting/error catalog | Partial | Doctor/runbook and sanitized errors exist; full catalog is pending. |
@@ -96,8 +96,8 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 089 Stabilization gates | Implemented | Focused, full, security, installer, and fresh-clone gates. |
 | 090 No vanity work | Implemented | Changes target operability, safety, evidence, and delivery. |
 | 091 Feature definition of done | Implemented | Status requires wiring, reachability, tests, docs, and evidence. |
-| 092 Fresh-clone run | Implemented | 2.3.4 passes 85 local suites/692 tests, lint, evaluation, audits, live demo API/HAI smoke, latency/resource sampling, and exact Node.js 24 plus Windows GitHub run 31298559390. |
-| 093 Manual evidence | Partial | Exact 2.3.4 packaged demo runtime, fail-closed recovery dialog, Job Health, HAI boundary, resource sample, normal close, and installer dialog pass; Browser/Computer rendered capture and live provider/clean-VM evidence remain pending. |
+| 092 Fresh-clone run | Partial | 2.3.5 passes 86 local suites/704 tests, lint, evaluation, audits, real-Mongo migration, live rollout/HAI smoke, latency/resource sampling, and Windows packaging; exact GitHub proof is pending. |
+| 093 Manual evidence | Partial | Exact 2.3.5 packaged demo runtime, fail-closed recovery dialog, rollout/HAI boundary, resource sample, normal close, and installer dialog pass; rendered capture and live provider/clean-VM evidence remain pending. |
 | 094 No-excuses search | Implemented | No shipped TODO/FIXME/HACK, dynamic-code, child-process, or secret-pattern finding. |
 | 095 Completion matrix | Implemented | This file, with partial/external states retained. |
 | 096 Verification report | Implemented | Final commands, clean-checkout result, installer hash, browser QA, and packaged Windows QA are recorded. |

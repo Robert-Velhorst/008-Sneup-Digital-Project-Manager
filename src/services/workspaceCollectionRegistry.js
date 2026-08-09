@@ -12,6 +12,7 @@ const WORKSPACE_COLLECTIONS = Object.freeze([
   ['connectorAccounts', require('../models/ConnectorAccount')],
   ['conversations', require('../models/Conversation')],
   ['decisionQueueItems', require('../models/DecisionQueueItem')],
+  ['featureFlags', require('../models/FeatureFlag')],
   ['followUpPlans', require('../models/FollowUpPlan')],
   ['interventions', require('../models/Intervention')],
   ['jobControls', require('../models/JobControl')],
