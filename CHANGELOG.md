@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.3.12 - 2026-08-09
+
+### AI resilience and safety
+
+- Routed every model-backed chat response through one demand-loaded gateway with bounded context, history, output, timeout, and retry behavior.
+- Added deterministic local responses for absent credentials, initialization errors, authentication failures, rate limits, timeouts, provider outages, malformed replies, and oversized replies.
+- Persisted and returned provider-versus-deterministic provenance without changing the response field or allowing chat output to approve an external action.
+- Redacted provider failures to status, reason, and bounded code metadata instead of logging provider error bodies or prompts.
+
+### Compatibility and resource use
+
+- Deferred the optional OpenAI SDK until the first configured provider request and avoided routine offline fallback logging.
+- Rejected blank chat messages and unsupported channels before database or provider work while preserving all supported chat channels and quick-response behavior.
+
 ## 2.3.11 - 2026-08-09
 
 ### Performance and resource use

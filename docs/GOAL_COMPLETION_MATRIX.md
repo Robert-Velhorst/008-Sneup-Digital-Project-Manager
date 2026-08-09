@@ -29,7 +29,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 022 Search/filter/sort/page | Implemented | Bounded list APIs and command-center filters. |
 | 023 Import/export | Implemented | Provider ingestion, PDF reports, and owner-only streamed workspace export exist. |
 | 024 Templates/presets/defaults | Partial | Policy defaults and report presets exist; reusable user templates are limited. |
-| 025 AI abstraction/fallback | Partial | Provider isolation/evaluation exists; deterministic coverage is not universal. |
+| 025 AI abstraction/fallback | Implemented | Every model call uses one demand-loaded, timeout-bounded, no-retry gateway. Missing credentials, initialization/auth/rate-limit/timeout/provider failures, malformed output, and oversized output return bounded deterministic responses with explicit provenance and redacted failure logs. |
 | 026 Human review/approval | Implemented | Queue, protected payload review, approval expiry, policy gates. |
 | 027 Notifications/reminders | Implemented | Explicit policies, claims, delivery evidence, quiet hours, digests. |
 | 028 Privacy/deletion | Implemented | Redaction, invitation retention, owner-only streamed export, and owner-confirmed resumable archived-workspace deletion cover local Sneup data. Provider-side grant revocation remains external. |
@@ -96,8 +96,8 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 089 Stabilization gates | Implemented | Focused, full, security, installer, and fresh-clone gates. |
 | 090 No vanity work | Implemented | Changes target operability, safety, evidence, and delivery. |
 | 091 Feature definition of done | Implemented | Status requires wiring, reachability, tests, docs, and evidence. |
-| 092 Fresh-clone run | Implemented | Exact 2.3.10 source `5bf29b79f1b7779d243ea4812ff53b09fe103e28` passed GitHub run `31309758407`; both Node 24 quality and Windows installer jobs completed successfully, and artifact `9037035047` was independently downloaded and verified. |
-| 093 Manual evidence | Partial | The 2.3.10 in-app Browser setup flow and packaged runtime diagnostics, HAI policy, resource sample, normal close, port release, and installer pass locally while live provider and clean-VM evidence remain external. |
+| 092 Fresh-clone run | Partial | 2.3.12 is complete locally; exact-source GitHub quality, Windows installer, and independent artifact verification are pending the current release push. |
+| 093 Manual evidence | Partial | The 2.3.12 in-app Browser overview/approvals/connectors flow and packaged runtime diagnostics, HAI policy, resource sample, normal close, port release, and installer pass locally while live provider and clean-VM evidence remain external. |
 | 094 No-excuses search | Implemented | No shipped TODO/FIXME/HACK, dynamic-code, child-process, or secret-pattern finding. |
 | 095 Completion matrix | Implemented | This file, with partial/external states retained. |
 | 096 Verification report | Implemented | Final commands, clean-checkout result, installer hash, browser QA, and packaged Windows QA are recorded. |

@@ -22,6 +22,7 @@
 11. Protected background jobs use expiring, heartbeating, token-bound MongoDB leases per workspace and job, preventing duplicate work when multiple Sneup processes share one database.
 12. Dashboard and HAI JSON traffic uses a strict versioned API envelope with bounded failures and server-generated request correlation; protocol-specific and legacy responses remain compatible.
 13. Optional workloads use workspace-scoped persisted rollout controls with deterministic subjects, optimistic revisions, bounded cache/history, reviewable audits, and live fail-closed behavior; no safety or authorization control is feature-flagged.
+14. Every model-backed chat response uses one demand-loaded provider boundary with bounded untrusted context, history, output, timeout, no retries, deterministic local failure handling, provenance in API and conversation records, and provider-error redaction. Chat output cannot authorize a provider write.
 
 ## Remediations in this release
 
@@ -40,6 +41,7 @@
 - Removed the production database-outage demo fallback, added clean startup-error propagation and Windows recovery, and corrected populated HAI identifiers at the public snapshot boundary.
 - Replaced process-only scheduled-job overlap guards with reusable MongoDB leases for startup, scheduled, worker, API, and manual runs; webhook concurrency and provider-write claims remain independent.
 - Added `/api/v1`, centralized frontend response parsing, request/header/log correlation, and versioned HAI discovery without changing provider callback, webhook, streamed export, report, or legacy contracts.
+- Replaced the eager, unbounded conversational provider call with one lazy response gateway and exhaustive deterministic failure-mode tests while preserving the existing chat response and worker-ledger contracts.
 
 ## Remaining release risks
 

@@ -25,7 +25,7 @@ Fixed or mitigated:
 - Encrypted connector credentials and signed OAuth state.
 - OAuth redirect URI host hardening.
 - Regex escaping for card-name dependency searches.
-- Optional OpenAI startup, with local fallback responses.
+- Demand-loaded optional OpenAI startup with bounded context, history, output, timeout, and no automatic retries. Every provider failure mode returns a deterministic local response with explicit provenance, and provider error bodies are not logged.
 - Owner-controlled data retention is disabled by default, range-bounded, preview-first, protected by a cross-process workspace lease, and audited before and after every destructive category batch. It cannot target audit, approval, recommendation, provider-action, active credential, pending delivery, or current project/work-graph evidence.
 
 Remaining hardening:
@@ -41,7 +41,7 @@ Reduced avoidable resource use:
 - Mission-control analytics lookup now batches latest analytics by board.
 - Mission-control card counting now indexes cards by board/list/member instead of repeatedly scanning the whole list.
 - Background workers pause automatically when MongoDB is not connected.
-- OpenAI client is not constructed unless `OPENAI_API_KEY` is present.
+- The OpenAI SDK and client are not loaded or constructed unless a non-placeholder `OPENAI_API_KEY` is present and a non-quick chat response actually needs the provider.
 - Duplicate Mongoose index declarations were removed to reduce startup warnings and index churn.
 - The command center loads hidden views on demand and exposes bounded, recent response-time p50/p95 summaries for the known view APIs. The telemetry retains neither request data nor unbounded history.
 - API rate limiting has a hard bounded bucket map, expires stale state first, evicts least-recently-used pressure state only when needed, and exposes aggregate capacity metrics without request identifiers.
@@ -62,9 +62,9 @@ Added:
 - Secure preload bridge in `desktop/preload.js`.
 - `npm run desktop` for local desktop testing.
 - `npm run build:installer` / `npm run dist:win` for Windows NSIS packaging.
-- Current release target: `release/Sneup-Setup-2.3.10.exe`.
+- Current release target: `release/Sneup-Setup-2.3.12.exe`.
 
-The verified local 2.3.10 installer is 109,443,541 bytes with SHA-256 `B935C2D4992BB159212680C7B48D6D4FC424A2E2927C3FDB9CB7EE057119AA37`. It is intentionally reported as unsigned until an owner-controlled publisher certificate is available. The packaged executable reports product/file version 2.3.10 and retains the Windows x64 native ngrok binding.
+The verified local 2.3.12 installer is 109,445,733 bytes with SHA-256 `4633D51C277CBF462163A915694D2BC1B1D82A8E2F2D242335A032E1D13D0C60`. It is intentionally reported as unsigned until an owner-controlled publisher certificate is available. The packaged executable reports product/file version 2.3.12 and retains the Windows x64 native ngrok binding.
 
 The desktop app starts Sneup on `127.0.0.1` and opens the command center in an app window. On first run it starts in demo mode. The workspace choice stores only the non-secret `demo` or `live` startup preference in the Electron user-data directory, then relaunches before Sneup initializes. Production live mode fails closed before opening the HTTP listener when MongoDB is unavailable. The Windows error dialog can persist an explicit read-only demo choice and relaunch, preventing a failed live preference from trapping the user. An explicitly set `SNEUP_DEMO_MODE` environment variable takes precedence over the local preference until the user chooses the recovery action.
 
@@ -72,9 +72,9 @@ The desktop app starts Sneup on `127.0.0.1` and opens the command center in an a
 
 - Syntax checks passed for changed JavaScript files.
 - `npm run lint` passed with the new Node/ES2022 ESLint config.
-- `npm test -- --runInBand` passed 745 tests across 97 suites.
+- `npm test -- --runInBand` passed 765 tests across 101 suites.
 - `npm audit --omit=dev` reported 0 vulnerabilities.
 - Local HTTP smoke tests passed for health, connector catalog, and mission control.
-- The in-app Browser passed the 2.3.10 setup flow at desktop and narrow mobile breakpoints: eight diagnostics rendered, refresh completed, rows did not overlap, the page had no horizontal overflow, labelled dialog semantics resolved, and the console had zero warnings or errors.
+- The in-app Browser passed the 2.3.12 overview, approvals-ledger, and 117-card connector-marketplace flow: refresh completed, the page had no horizontal overflow or visible failure, and the console had zero warnings or errors.
 - The current resource pass passed `npm run lint`, a production-only `npm audit` with zero findings, and a fresh Windows NSIS build after inspecting its packaged archive.
-- The final packaged 2.3.10 demo settled to four processes, 392.4 MB working set, 338.7 MB private memory, and 2.656 cumulative CPU seconds after 30 seconds. The repeatable verifier confirmed product metadata, eight redacted diagnostics, HAI `never_direct`, normal close, and port 3213 release. The sample is directional rather than a production-scale benchmark.
+- The final packaged 2.3.12 demo settled to four processes, 357.6 MB working set, 290.0 MB private memory, and 1.438 cumulative CPU seconds after 30 seconds. The repeatable verifier confirmed product metadata, eight redacted diagnostics, HAI `never_direct`, normal close, and port release. The sample is directional rather than a production-scale benchmark.

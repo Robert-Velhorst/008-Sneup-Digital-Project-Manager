@@ -11,15 +11,19 @@ const {
   validateObjectIdParam
 } = require('../utils/requestSecurity');
 
+const ALLOWED_CHAT_CHANNELS = new Set(['trello_comment', 'slack', 'email', 'web_chat', 'api']);
+
 router.param('memberId', validateObjectIdParam('memberId'));
 router.param('conversationId', validateObjectIdParam('conversationId'));
 
 // Send message to Sneup
 router.post('/message', requirePermission('chat:write'), async (req, res) => {
   try {
-    const { memberId, message, channel, cardId } = req.body;
+    const { memberId, message, channel, cardId } = req.body || {};
+    const normalizedMessage = typeof message === 'string' ? message.trim() : '';
+    const normalizedChannel = channel || 'web_chat';
 
-    if (!memberId || !message || typeof message !== 'string') {
+    if (!memberId || !normalizedMessage) {
       return res.status(400).json({
         success: false,
         error: 'memberId and message are required'
@@ -33,15 +37,22 @@ router.post('/message', requirePermission('chat:write'), async (req, res) => {
       });
     }
 
-    if (message.length > 4000) {
+    if (normalizedMessage.length > 4000) {
       return res.status(413).json({
         success: false,
         error: 'Message is too long'
       });
     }
 
+    if (!ALLOWED_CHAT_CHANNELS.has(normalizedChannel)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid channel'
+      });
+    }
+
     // Check for quick query first
-    const quickResponse = await conversationalAI.handleQuickQuery(memberId, message, {
+    const quickResponse = await conversationalAI.handleQuickQuery(memberId, normalizedMessage, {
       workspaceId: getRequestWorkspaceObjectId(req)
     });
     
@@ -54,6 +65,8 @@ router.post('/message', requirePermission('chat:write'), async (req, res) => {
         success: true,
         response: quickPayload.response,
         sourceEvidence: quickPayload.sourceEvidence || [],
+        responseMode: 'deterministic',
+        fallbackReason: null,
         quick: true
       });
     }
@@ -61,8 +74,8 @@ router.post('/message', requirePermission('chat:write'), async (req, res) => {
     // Process with full AI
     const result = await conversationalAI.processMessage(
       memberId,
-      message,
-      channel || 'web_chat',
+      normalizedMessage,
+      normalizedChannel,
       cardId,
       { workspaceId: getRequestWorkspaceObjectId(req) }
     );
