@@ -4,6 +4,7 @@ const responseTimingService = require('../services/responseTimingService');
 const { getDemoSecurityContext, isDemoMode } = require('../services/demoWorkspaceService');
 const { getRateLimitMetrics, requirePermission } = require('../utils/requestSecurity');
 const { getProviderWriteSafetyStatus } = require('../services/providerWriteSafetyService');
+const { getRuntimeTroubleshooting } = require('../services/runtimeTroubleshootingService');
 
 const publicAuthContext = (auth = {}) => ({
   authenticated: Boolean(auth.authenticated),
@@ -42,6 +43,13 @@ router.get('/response-timing', requirePermission('audit:read'), (req, res) => {
     success: true,
     timing: responseTimingService.getSummary(),
     rateLimit: getRateLimitMetrics()
+  });
+});
+
+router.get('/diagnostics', requirePermission('api:read'), (req, res) => {
+  res.json({
+    success: true,
+    diagnostics: getRuntimeTroubleshooting()
   });
 });
 

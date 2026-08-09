@@ -1,5 +1,7 @@
 # UI Action Audit
 
+- The 2.3.10 in-app Browser setup flow passed at desktop and narrow mobile breakpoints. All eight runtime checks rendered, **Check again** completed, status rows did not overlap, no horizontal overflow appeared, the shared drawer resolved as a labelled modal dialog, and the console remained free of warnings and errors.
+
 ## Method
 
 The command-center HTML and JavaScript were statically searched for controls, event delegation, API calls, loading states, permissions, and demo boundaries. Existing browser regression captures and UI assertions cover the command palette, forecast scenarios, policy controls, notifications, reports, connectors, workspace identity, and operations ledgers.

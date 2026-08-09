@@ -62,9 +62,9 @@ Added:
 - Secure preload bridge in `desktop/preload.js`.
 - `npm run desktop` for local desktop testing.
 - `npm run build:installer` / `npm run dist:win` for Windows NSIS packaging.
-- Current release target: `release/Sneup-Setup-2.3.9.exe`.
+- Current release target: `release/Sneup-Setup-2.3.10.exe`.
 
-The verified local 2.3.9 installer is 109,440,956 bytes with SHA-256 `F011C6F19BEA4C8489FBADA0B70E25CBFD402390730FDE0871799FBF7BE19EFB`. It is intentionally reported as unsigned until an owner-controlled publisher certificate is available. The packaged executable reports product/file version 2.3.9, and its 65,856,376-byte archive carries the canonical Trello dependency path and Windows x64 native ngrok binding.
+The verified local 2.3.10 installer is 109,443,541 bytes with SHA-256 `B935C2D4992BB159212680C7B48D6D4FC424A2E2927C3FDB9CB7EE057119AA37`. It is intentionally reported as unsigned until an owner-controlled publisher certificate is available. The packaged executable reports product/file version 2.3.10 and retains the Windows x64 native ngrok binding.
 
 The desktop app starts Sneup on `127.0.0.1` and opens the command center in an app window. On first run it starts in demo mode. The workspace choice stores only the non-secret `demo` or `live` startup preference in the Electron user-data directory, then relaunches before Sneup initializes. Production live mode fails closed before opening the HTTP listener when MongoDB is unavailable. The Windows error dialog can persist an explicit read-only demo choice and relaunch, preventing a failed live preference from trapping the user. An explicitly set `SNEUP_DEMO_MODE` environment variable takes precedence over the local preference until the user chooses the recovery action.
 
@@ -72,9 +72,9 @@ The desktop app starts Sneup on `127.0.0.1` and opens the command center in an a
 
 - Syntax checks passed for changed JavaScript files.
 - `npm run lint` passed with the new Node/ES2022 ESLint config.
-- `npm test -- --runInBand` passed 738 tests across 94 suites.
+- `npm test -- --runInBand` passed 745 tests across 97 suites.
 - `npm audit --omit=dev` reported 0 vulnerabilities.
 - Local HTTP smoke tests passed for health, connector catalog, and mission control.
-- The in-app Browser webview did not attach, then connected Chrome passed retention preview, exact-slug confirmation, 2/2 disposable pruning, zero rescan, and desktop/mobile policy-modal measurements with zero console warnings or errors.
+- The in-app Browser passed the 2.3.10 setup flow at desktop and narrow mobile breakpoints: eight diagnostics rendered, refresh completed, rows did not overlap, the page had no horizontal overflow, labelled dialog semantics resolved, and the console had zero warnings or errors.
 - The current resource pass passed `npm run lint`, a production-only `npm audit` with zero findings, and a fresh Windows NSIS build after inspecting its packaged archive.
-- The packaged 2.3.9 demo settled to four processes, 370.9 MB working set, 323.0 MB private memory, and 3.156 cumulative CPU seconds after 30 seconds. The sample is directional rather than a production-scale benchmark. The app and installer processes closed normally, and port 3209 was released.
+- The final packaged 2.3.10 demo settled to four processes, 392.4 MB working set, 338.7 MB private memory, and 2.656 cumulative CPU seconds after 30 seconds. The repeatable verifier confirmed product metadata, eight redacted diagnostics, HAI `never_direct`, normal close, and port 3213 release. The sample is directional rather than a production-scale benchmark.

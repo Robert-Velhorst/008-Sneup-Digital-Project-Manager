@@ -19,6 +19,7 @@ npm.cmd run evaluate:recommendations
 npm.cmd audit --omit=dev --audit-level=high
 npm.cmd run check:release-security
 npm.cmd run build:installer
+npm.cmd run verify:packaged
 ```
 
 `check:release-security` must run with the real production environment. Do not paste its secrets into logs or tickets.
@@ -29,12 +30,14 @@ Set `SNEUP_PROVIDER_WRITES_DISABLED=true`, restart every Sneup process, and veri
 
 ## Diagnostics
 
+Open **Set up** for the fastest non-technical check. It reports eight bounded runtime and write-safety checks with one prioritized next action. In the Windows app, **Support file** writes the redacted configuration report under the Electron user-data `support` folder and opens its location.
+
 ```powershell
 npm.cmd run doctor:json
 npm.cmd run support:bundle
 ```
 
-The support bundle is written under `output/support`, contains configuration state only, and excludes environment values, credentials, logs, and user data.
+The command-line support bundle is written under `output/support`. Both paths contain configuration state only and exclude environment values, credentials, tokens, connection strings, logs, and user data.
 
 ## Data integrity
 

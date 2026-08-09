@@ -79,6 +79,7 @@ const state = {
   signalFilter: 'all',
   setupMode: localStorage.getItem(FIRST_RUN_SETUP_KEY) || '',
   runtimeMode: 'unknown',
+  runtimeDiagnostics: null,
   modalCleanup: null,
   commandPaletteLastFocused: null
 };
@@ -389,8 +390,104 @@ async function openLedgerSection(options = {}) {
   await showView('approvals', options);
 }
 
+const setupDiagnosticsMarkup = (canCreateSupportBundle) => `
+  <section class="setup-diagnostics" aria-labelledby="setupDiagnosticsTitle">
+    <div class="setup-diagnostics-head">
+      <div>
+        <strong id="setupDiagnosticsTitle">Current runtime check</strong>
+        <span>Configuration and safety status</span>
+      </div>
+      <div class="toolbar">
+        <button class="button" type="button" id="refreshSetupDiagnostics">Check again</button>
+        ${canCreateSupportBundle ? '<button class="button" type="button" id="createSetupSupportBundle">Support file</button>' : ''}
+      </div>
+    </div>
+    <div id="setupDiagnosticsResult" class="setup-diagnostics-result" aria-live="polite">
+      <p class="setup-check-loading">Checking this runtime...</p>
+    </div>
+    <p class="setup-support-result" id="setupSupportResult" aria-live="polite"></p>
+  </section>
+`;
+
+function renderSetupDiagnostics(report) {
+  const target = document.getElementById('setupDiagnosticsResult');
+  if (!target) return;
+  state.runtimeDiagnostics = report;
+  state.runtimeMode = report.mode || state.runtimeMode;
+  const errorCount = Number(report.counts?.error) || 0;
+  const warningCount = Number(report.counts?.warning) || 0;
+  const summary = report.liveCriticalPathReady
+    ? 'Live workspace prerequisites are ready.'
+    : report.mode === 'demo' && report.ready
+      ? 'The read-only demo workspace is ready.'
+      : errorCount
+        ? `${errorCount} required check${errorCount === 1 ? '' : 's'} need attention.`
+        : `${warningCount} live-workspace check${warningCount === 1 ? '' : 's'} need attention.`;
+  const labels = { ok: 'Ready', warning: 'Review', error: 'Required' };
+  target.innerHTML = `
+    <div class="setup-diagnostics-summary status-${escapeHtml(report.status)}">
+      <strong>${escapeHtml(summary)}</strong>
+      ${report.nextAction ? `<span>Next: ${escapeHtml(report.nextAction.action)}</span>` : ''}
+    </div>
+    <ul class="setup-check-list">
+      ${(report.checks || []).map((check) => `
+        <li class="setup-check status-${escapeHtml(check.status)}">
+          <span class="setup-check-status">${escapeHtml(labels[check.status] || check.status)}</span>
+          <div>
+            <strong>${escapeHtml(check.title)}</strong>
+            <span>${escapeHtml(check.summary)}</span>
+            ${check.action ? `<small>${escapeHtml(check.action)}</small>` : ''}
+          </div>
+        </li>
+      `).join('')}
+    </ul>
+  `;
+}
+
+async function loadSetupDiagnostics() {
+  const refresh = document.getElementById('refreshSetupDiagnostics');
+  if (refresh) {
+    refresh.disabled = true;
+    refresh.textContent = 'Checking...';
+  }
+  try {
+    const data = await fetchApi('/api/security/diagnostics');
+    renderSetupDiagnostics(data.diagnostics);
+  } catch (error) {
+    const target = document.getElementById('setupDiagnosticsResult');
+    if (target) target.innerHTML = `<div class="notice">Runtime check unavailable. ${escapeHtml(error.message)}</div>`;
+  } finally {
+    if (refresh) {
+      refresh.disabled = false;
+      refresh.textContent = 'Check again';
+    }
+  }
+}
+
+function bindSetupDiagnostics(canCreateSupportBundle) {
+  document.getElementById('refreshSetupDiagnostics')?.addEventListener('click', loadSetupDiagnostics);
+  if (!canCreateSupportBundle) return;
+  document.getElementById('createSetupSupportBundle')?.addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    const result = document.getElementById('setupSupportResult');
+    button.disabled = true;
+    button.textContent = 'Creating...';
+    if (result) result.textContent = '';
+    try {
+      const bundle = await window.sneupDesktop.createSupportBundle();
+      if (result) result.textContent = `${bundle.fileName} was created and opened in File Explorer.`;
+    } catch (error) {
+      if (result) result.textContent = `Support file failed: ${error.message || 'Sneup could not create the file.'}`;
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Support file';
+    }
+  });
+}
+
 function openFirstRunSetup() {
   const isDesktopRuntime = Boolean(window.sneupDesktop?.saveStartupMode && window.sneupDesktop?.restart);
+  const canCreateSupportBundle = typeof window.sneupDesktop?.createSupportBundle === 'function';
   if (!isDesktopRuntime) {
     const isDemoRuntime = state.runtimeMode === 'demo';
     els.modalTitle.textContent = isDemoRuntime ? 'Demo workspace' : 'Connected workspace';
@@ -400,12 +497,15 @@ function openFirstRunSetup() {
     ? 'Sneup is running its local demo workspace. No provider account is connected.'
     : 'Sneup is connected to its running workspace. Account connections and approval controls use this active runtime.'}</p>
         <div class="notice">Runtime mode is selected when Sneup starts. This browser reflects that active mode and does not change it.</div>
+        ${setupDiagnosticsMarkup(false)}
         <div class="toolbar modal-actions">
           <button class="button primary" type="button" id="openRuntimeConnectors">Connect tools</button>
         </div>
       </div>
     `;
     els.modal.classList.add('open');
+    bindSetupDiagnostics(false);
+    loadSetupDiagnostics();
     document.getElementById('openRuntimeConnectors').addEventListener('click', () => {
       closeModal();
       showView('connectors');
@@ -451,6 +551,7 @@ function openFirstRunSetup() {
         <p id="setupModeCopy"></p>
       </div>
       <div class="notice">This device stores only the startup mode. Sneup does not collect credentials during setup.</div>
+      ${setupDiagnosticsMarkup(canCreateSupportBundle)}
       <div class="toolbar modal-actions">
         <button class="button primary" type="button" id="completeSetup">${window.sneupDesktop?.saveStartupMode ? 'Save and restart' : 'Continue'}</button>
       </div>
@@ -458,6 +559,8 @@ function openFirstRunSetup() {
   `;
   els.modal.classList.add('open');
   renderSelection();
+  bindSetupDiagnostics(canCreateSupportBundle);
+  loadSetupDiagnostics();
 
   document.querySelectorAll('[data-setup-mode]').forEach((button) => {
     button.addEventListener('click', () => {

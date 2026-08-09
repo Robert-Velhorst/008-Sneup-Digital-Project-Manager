@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.3.10 - 2026-08-09
+
+### Added
+
+- Added an authenticated, redacted runtime-diagnostics endpoint covering the application runtime, workspace mode, database, Trello, production secrets, remote API protection, cloud tunnel, and provider-write safety.
+- Joined those checks and exact remediation actions into first-run setup, with a refresh control and connector handoff.
+- Added a desktop-only support-file action that writes configuration status under Electron user data and opens the location in File Explorer.
+- Added a repeatable Windows packaged-runtime verifier for health, diagnostics, HAI safety, resource use, normal close, and port release.
+
+### Security and resilience
+
+- Support files are created atomically with owner-only file permissions and exclude environment values, credentials, tokens, connection strings, logs, and user data.
+- The renderer receives one bounded IPC method and only the created filename; it cannot choose a path or read the file through the desktop bridge.
+- The shared setup drawer now exposes labelled modal-dialog semantics.
+
 ## 2.3.7 - 2026-08-09
 
 ### Added

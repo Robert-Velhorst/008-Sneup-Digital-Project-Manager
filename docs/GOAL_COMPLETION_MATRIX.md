@@ -76,7 +76,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 069 Canary/rollback | Partial | Optional workloads now have immediate persisted canary/pause controls and revision-safe rollback; hosted rollout proof remains external. |
 | 070 Operator runbook | Implemented | `OPERATOR_RUNBOOK.md`. |
 | 071 User guide/help | Partial | README covers operation; in-app contextual help is limited. |
-| 072 Troubleshooting/error catalog | Partial | Doctor/runbook and sanitized errors exist; full catalog is pending. |
+| 072 Troubleshooting/error catalog | Implemented | Set up exposes a stable eight-check runtime, connectivity, remote-access, and write-safety catalog with exact redacted remediation; doctor/runbook and the bounded support file cover command-line escalation. |
 | 073 UI action audit | Implemented | `UI_ACTION_AUDIT.md`. |
 | 074 Endpoint usage audit | Implemented | `API_USAGE_AUDIT.md`. |
 | 075 Documentation truthfulness | Implemented | Demo/live/external limits are stated explicitly. |
@@ -97,7 +97,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 090 No vanity work | Implemented | Changes target operability, safety, evidence, and delivery. |
 | 091 Feature definition of done | Implemented | Status requires wiring, reachability, tests, docs, and evidence. |
 | 092 Fresh-clone run | Implemented | Exact 2.3.9 source `8a430c30ecfb1cd5cda729a5fb0689d508b8e1df` passed GitHub run `31308308438`; both Node 24 quality and Windows installer jobs completed with zero annotations, and artifact `9036645854` was independently downloaded and verified. |
-| 093 Manual evidence | Partial | The 2.3.7 live browser retention preview/prune/rescan remains valid; the 2.3.9 packaged runtime, exact Trello dependency behavior, HAI policy, resource sample, and installer pass locally while live provider and clean-VM evidence remain external. |
+| 093 Manual evidence | Partial | The 2.3.10 in-app Browser setup flow and packaged runtime diagnostics, HAI policy, resource sample, normal close, port release, and installer pass locally while live provider and clean-VM evidence remain external. |
 | 094 No-excuses search | Implemented | No shipped TODO/FIXME/HACK, dynamic-code, child-process, or secret-pattern finding. |
 | 095 Completion matrix | Implemented | This file, with partial/external states retained. |
 | 096 Verification report | Implemented | Final commands, clean-checkout result, installer hash, browser QA, and packaged Windows QA are recorded. |
@@ -105,11 +105,11 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 098 Maintenance plan | Implemented | Existing feature plan plus audit risks and runbook. |
 | 099 Roadmap/blocked items | Implemented | External and partial gates named here and in technical audit. |
 | 100 Provider cleanup/account safety | Partial | Revoke/stop process documented; owner account execution external. |
-| 101 Support/debug bundle | Implemented | Redacted `support:bundle`; no logs/user data/secrets. |
+| 101 Support/debug bundle | Implemented | Redacted `support:bundle` plus a desktop setup action; no environment values, credentials, tokens, connection strings, logs, or user data. |
 | 102 Retention/archive | Implemented | Invitation PII redaction plus owner-controlled, opt-in, bounded workspace retention cover terminal operations, snapshots, performance history, finalized notification receipts, and revoked credentials while preserving audit/provider-action/current-work evidence. |
 | 103 Prototype-to-production migration | Partial | Workspace migration exists; hosted production migration rehearsal pending. |
 | 104 Safety stop/emergency | Implemented | Audited global provider-write stop and workspace action pauses. |
-| 105 Onboarding/first run | Partial | Workspace invitations/demo exist; guided wizard is limited. |
+| 105 Onboarding/first run | Implemented | First run guides demo/live selection, persists only the mode, shows live runtime/remediation checks, links to connectors, and offers a desktop redacted support file. |
 | 106 Role settings/permissions | Implemented | Viewer/operator/manager/admin/owner/service permissions. |
 | 107 Quality/confidence | Implemented | Risk, health, forecast confidence, evidence, sync quality surfaced. |
 | 108 Human decision minimization | Implemented | Exception queues, defaults, automation, safe internal follow-ups. |

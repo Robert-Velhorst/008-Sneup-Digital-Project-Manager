@@ -101,11 +101,11 @@ const enhancements = [
     priority: 'P1',
     area: 'desktop',
     title: 'Add first-run setup and signed desktop release polish',
-    evidence: 'The Windows installer works and first run now persists a non-secret demo/live preference in Electron user data, then relaunches before Sneup initializes so a live selection attempts the database-backed runtime. A branded icon, publisher certificate, and update channel still require release infrastructure.',
+    evidence: 'The Windows installer works and first run now persists a non-secret demo/live preference in Electron user data, then relaunches before Sneup initializes so a live selection attempts the database-backed runtime. Setup shows eight live, redacted runtime and write-safety checks with exact remediation, and the desktop can create a configuration-only support file directly in its user-data folder. A branded icon, publisher certificate, and update channel still require release infrastructure.',
     impact: 'Reduces installation friction and improves trust for Windows 11 users.',
     effort: 'M',
     status: 'in-progress',
-    nextStep: 'Configure installer icon assets, publisher signing, and update feed credentials in the release environment, then validate the installed first-run restart path.',
+    nextStep: 'Configure installer icon assets, publisher signing, and update feed credentials in the release environment, then validate the installed first-run restart and support-file paths on a clean Windows 11 VM.',
     acceptanceCriteria: [
       'First run explains demo mode versus live mode.',
       'Installer shows a branded icon and signed publisher when a certificate is configured.',

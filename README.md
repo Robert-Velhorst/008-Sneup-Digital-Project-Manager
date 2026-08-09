@@ -564,20 +564,29 @@ pm2 startup
 
 ## Troubleshooting
 
-### MongoDB Connection Issues
-- Ensure MongoDB is running
-- Check `MONGODB_URI` in `.env`
-- Verify network connectivity
+Open **Set up** in the command center first. Sneup checks the application runtime, selected workspace mode, MongoDB, Trello connection, production secrets, remote API protection, ngrok posture, and provider-write safety. Each non-ready check includes the next operator action without exposing a secret.
 
-### Trello API Issues
-- Verify API key and token are correct
-- Check API rate limits
-- Ensure proper permissions on boards
+In the Windows app, **Support file** writes a redacted JSON file to Sneup's local user-data support folder and opens it in File Explorer. It contains configuration status only: no environment values, credentials, tokens, connection strings, logs, or user data. Browser/server operators can create the same bounded file with `npm.cmd run support:bundle`.
 
-### Webhook Issues
-- Verify `WEBHOOK_CALLBACK_URL` is publicly accessible
-- Check webhook registration in Trello
-- Review webhook logs
+Release operators can verify the unpacked Windows app with `npm.cmd run verify:packaged`. The verifier refuses an existing Sneup session or occupied port, checks health, diagnostics, and the HAI write policy, records a 30-second process-group resource sample, requests a normal window close, and confirms the loopback port is released.
+
+### MongoDB connection issues
+
+- Start MongoDB and verify `MONGODB_URI` points to the intended database.
+- Run `npm.cmd run doctor` and require `/ready` to return HTTP 200 before enabling live work.
+- Use demo mode only for an explicitly read-only recovery path.
+
+### Trello connection issues
+
+- Reconnect Trello through **Connect tools** and review the requested read scope.
+- Confirm the authorized account can see the intended boards.
+- Inspect rate-limit and connector health before retrying a read. Sneup never blindly retries an ambiguous provider write.
+
+### Remote access issues
+
+- Keep the HTTP server loopback-only unless authenticated ngrok ingress is deliberately enabled.
+- Verify `SNEUP_API_ACCESS_KEY`, `NGROK_AUTHTOKEN`, and the allowed remote origin with `npm.cmd run check:release-security`; that command reports posture, never secret values.
+- Require `/ready` to show the expected API protection, tunnel, and provider-write modes.
 
 ## Contributing
 

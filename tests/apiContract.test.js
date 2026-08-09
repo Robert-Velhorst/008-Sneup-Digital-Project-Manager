@@ -107,11 +107,12 @@ describe('versioned API contract', () => {
   });
 
   test('serves strict v1 metadata and errors while preserving the legacy API', async () => {
-    const [versioned, legacy, missing, openapi] = await Promise.all([
+    const [versioned, legacy, missing, openapi, diagnostics] = await Promise.all([
       request(port, '/api/v1'),
       request(port, '/api'),
       request(port, '/api/v1/not-a-route'),
-      request(port, '/api/v1/integrations/hai/openapi.json')
+      request(port, '/api/v1/integrations/hai/openapi.json'),
+      request(port, '/api/v1/security/diagnostics')
     ]);
 
     const versionedBody = JSON.parse(versioned.body);
@@ -139,6 +140,16 @@ describe('versioned API contract', () => {
       paths: expect.objectContaining({ '/api/v1/integrations/hai/snapshot': expect.any(Object) })
     });
     expect(JSON.parse(openapi.body)).not.toHaveProperty('ok');
+
+    expect(JSON.parse(diagnostics.body)).toMatchObject({
+      ok: true,
+      data: {
+        diagnostics: {
+          checks: expect.any(Array),
+          secretsExposed: false
+        }
+      }
+    });
   });
 
   test('routes dashboard API traffic through the versioned parser', () => {

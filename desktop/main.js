@@ -11,6 +11,7 @@ const {
   resolveStartupMode,
   saveDesktopStartupMode
 } = require('../src/services/desktopRuntimeSettings');
+const { createSupportBundle } = require('../src/services/supportBundleService');
 
 const DESKTOP_PORT = process.env.PORT || '3197';
 const DESKTOP_HOST = '127.0.0.1';
@@ -41,6 +42,14 @@ ipcMain.handle('sneup:restart', () => {
   app.relaunch();
   setImmediate(() => app.exit(0));
   return { restarting: true };
+});
+
+ipcMain.handle('sneup:create-support-bundle', async () => {
+  const { fileName, filePath } = await createSupportBundle({
+    outputDirectory: path.join(app.getPath('userData'), 'support')
+  });
+  shell.showItemInFolder(filePath);
+  return { fileName };
 });
 
 const waitForSneup = (attempts = 80) => new Promise((resolve, reject) => {
