@@ -96,7 +96,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 089 Stabilization gates | Implemented | Focused, full, security, installer, and fresh-clone gates. |
 | 090 No vanity work | Implemented | Changes target operability, safety, evidence, and delivery. |
 | 091 Feature definition of done | Implemented | Status requires wiring, reachability, tests, docs, and evidence. |
-| 092 Fresh-clone run | Implemented | 2.3.1 passes 81 local suites/670 tests, 5/5 evaluation, zero-vulnerability audit, real-Mongo migration verification, and packaged QA; current clean GitHub CI is pending push. |
+| 092 Fresh-clone run | Implemented | 2.3.1 passes 81 local suites/670 tests, 5/5 evaluation, zero-vulnerability audit, real-Mongo migration verification, packaged QA, and clean Node.js 24 GitHub run `31294601570`. |
 | 093 Manual evidence | Partial | 2.3.1 packaged Windows runtime and installer dialog pass, but its in-app Browser attachment failed and live provider/clean-VM evidence remain pending. |
 | 094 No-excuses search | Implemented | No shipped TODO/FIXME/HACK, dynamic-code, child-process, or secret-pattern finding. |
 | 095 Completion matrix | Implemented | This file, with partial/external states retained. |
