@@ -11,6 +11,7 @@ This backlog turns the high-level improvement plan into concrete engineering fin
 
 ## Latest updates
 
+- ENH-025: Production live startup now fails closed on a MongoDB outage, cleans every partially started resource, and gives Windows users an explicit read-only demo recovery choice. The packaged HAI smoke also found and fixed populated identifiers being emitted as `"[object Object]"`.
 - ENH-002: Low- and medium-risk decision queue routing is now workspace-configurable, high/critical work remains Robert-owned, and an overdue VA/team item is atomically escalated to Robert with audit evidence. All routing remains internal and cannot create a provider write.
 - ENH-018: Scheduled intervention cooldowns are workspace-scoped and configurable per signal from 24 to 168 hours. They only suppress duplicate internal candidates, leave manual requests distinct, and never prepare or perform a provider write.
 - ENH-019: Decision queue review windows are bounded from 1 to 168 hours per risk queue. Follow-up and escalation timing is also workspace-scoped, bounded, and auditable; escalation cannot precede follow-up, all scheduled results remain internal approval candidates, and completed actions schedule their follow-up from the same policy.

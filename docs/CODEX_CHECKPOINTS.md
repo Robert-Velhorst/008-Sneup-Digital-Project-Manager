@@ -7,12 +7,12 @@
 | Operational controls | Doctor, readiness, support bundle, emergency stop | Complete |
 | Focused verification | Runtime/security tests and lint | Complete |
 | Traceability | Required document set and completion matrix | Complete |
-| Full regression | 81 suites/670 tests, lint, 5/5 evaluation, and dependency audit | Complete |
-| Windows package | 2.3.1 NSIS build, installer window, packaged app, native ngrok binding, metadata, and SHA-256 | Complete, unsigned |
-| Fresh clone | 2.3.1 Node 24 quality and Windows installer jobs in run `31294601570` | Complete |
-| Browser and Windows UI | Prior approval/modal/responsive pass; current packaged startup/metadata/health/HAI/clean-close pass | Partial: 2.3.1 Browser webview attach pending |
+| Full regression | 83 suites/677 tests, lint, 5/5 evaluation, and two zero-vulnerability dependency audits | Complete |
+| Windows package | 2.3.2 NSIS build, installer window, demo and fail-closed live startup, native ngrok binding, metadata, and SHA-256 | Complete, unsigned |
+| Fresh clone | 2.3.2 Node 24 quality and Windows installer jobs | Pending exact GitHub run |
+| Browser and Windows UI | Prior approval/modal/responsive pass; current packaged demo, fail-closed recovery, metadata, health, HAI, and clean-close pass | Partial: current Browser webview attach pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter | Complete locally; live credentials external |
-| GitHub CI | Run `31294601570`: zero annotations, quality, and Windows installer artifact | Complete |
+| GitHub CI | Local release gates pass; exact 2.3.2 quality and installer artifact run | Pending push |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |

@@ -4,6 +4,7 @@ const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const { acquireSingleInstanceLock } = require('./singleInstance');
 const { createNavigationPolicy } = require('./navigationPolicy');
 const { configureDesktopEnvironment } = require('./runtimeEnvironment');
+const { describeStartupFailure } = require('./startupFailure');
 const {
   getDesktopSettingsPath,
   readDesktopSettings,
@@ -104,16 +105,36 @@ const createWindow = async () => {
 };
 
 const start = async () => {
+  let startupMode;
   try {
     // Packaged applications are read-only inside app.asar, so logs live with user data.
     process.env.SNEUP_LOG_DIR = process.env.SNEUP_LOG_DIR || path.join(app.getPath('userData'), 'logs');
-    await configureRuntime();
+    startupMode = await configureRuntime();
     const sneup = require('../src/index');
     await sneup.initApp();
     await waitForSneup();
     await createWindow();
   } catch (error) {
-    dialog.showErrorBox('Sneup could not start', error.message);
+    const failure = describeStartupFailure({ error, startupMode });
+    if (failure.recoverable) {
+      try {
+        const result = await dialog.showMessageBox(failure.dialogOptions);
+        if (result.response === 0) {
+          await saveDesktopStartupMode(getSettingsPath(), 'demo');
+          process.env.SNEUP_DEMO_MODE = 'true';
+          app.relaunch();
+          app.exit(0);
+          return;
+        }
+      } catch {
+        dialog.showErrorBox(
+          'Sneup could not start demo mode',
+          'Sneup could not save the demo-mode preference. Close Sneup and check that its user-data folder is writable.'
+        );
+      }
+    } else {
+      dialog.showErrorBox(failure.errorBoxTitle, failure.errorBoxMessage);
+    }
     app.quit();
   }
 };

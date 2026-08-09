@@ -44,3 +44,13 @@ This worklog records local engineering evidence. Live Trello, production MongoDB
 - Passed 81 suites/670 tests, lint, 5/5 recommendation evaluation, both zero-vulnerability audits, production secret verification, 2.3.1 Windows packaging, packaged HTTP/HAI/readiness checks, normal command-center close, and installer-dialog close.
 - Retried the in-app Browser on two fresh tabs; its backend connected but the webview did not attach, so current visual evidence remains explicitly pending.
 - Verified the exact pushed release with zero GitHub annotations in run `31294601570`: Node.js 24 quality completed in 52 seconds and the Windows installer artifact job in 2 minutes 16 seconds.
+
+## 2026-08-09 fail-closed startup and HAI boundary continuation
+
+- Found that a production MongoDB outage silently changed live mode into labelled demo mode, which contradicted the operator-selected runtime and could expose a public ingress in an unintended mode.
+- Added an environment-aware startup policy: production live mode now fails closed before listening, development retains its labelled demo fallback, and explicit demo mode continues without a database.
+- Made partial startup cleanup stop the deletion worker, ngrok tunnel, HTTP server, and database before propagating one stable error; direct Node startup exits nonzero while Electron can handle the failure.
+- Added a Windows recovery dialog with explicit `Start demo mode` and `Close Sneup` choices, safe non-secret text, persisted recovery only after the user chooses it, and clean handling when settings cannot be saved.
+- The packaged HAI smoke exposed populated board/card identifiers as `"[object Object]"`; the public snapshot serializer now emits stable bounded identifiers and has direct regression coverage.
+- Passed lint, 83 suites/677 tests, 5/5 recommendation evaluation, two zero-vulnerability dependency audits, and the five-secret production release check.
+- Built and exercised `Sneup-Setup-2.3.2.exe`; demo metadata/readiness/HAI, forced live-outage recovery, native ngrok binding, installer window, normal close, and port release passed. The unsigned installer is 109,421,274 bytes with SHA-256 `8473A866C0CBDC58E40868E1C27B39BF0C4F4BC9A3CEC8E5B983D5D060BE7371`.

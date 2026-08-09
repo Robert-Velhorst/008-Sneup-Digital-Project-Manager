@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.3.2 - 2026-08-09
+
+### Fixed
+
+- Production live mode now fails closed when MongoDB is unavailable instead of silently changing the process into demo mode.
+- Partial startup failures stop ngrok, close any opened HTTP server, disconnect MongoDB when necessary, and propagate a stable error to the embedding desktop app.
+- The Windows app offers an explicit read-only demo restart after a live-database startup failure, preventing a persisted live preference from trapping the user in repeated failed launches.
+- HAI snapshots now serialize populated board and card references as stable public identifiers instead of `"[object Object]"`.
+- Electron production files are now included in the repository lint and GitHub quality gates.
+
+### Security
+
+- The desktop recovery dialog uses a stable non-secret message and never includes the underlying MongoDB connection error or URI.
+- Explicit demo mode remains read-only and skips MongoDB; development-only fallback remains visibly labelled and provider-write blocked.
+
 ## 2.3.1 - 2026-08-09
 
 ### Fixed

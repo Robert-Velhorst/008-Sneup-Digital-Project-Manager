@@ -28,10 +28,17 @@ const selectProposalPayload = (payload = {}) => {
     .map(key => [key, boundedText(payload[key], 160)]));
 };
 
+const publicIdentifier = (value) => {
+  if (!value) return null;
+  const identifier = typeof value === 'object' ? value._id || value.id : value;
+  if (!identifier || typeof identifier === 'object') return null;
+  return boundedText(identifier, 160) || null;
+};
+
 const compactRecord = (item = {}) => ({
-  id: String(item._id || item.id || ''),
-  boardId: item.boardId ? String(item.boardId) : null,
-  cardId: item.cardId ? String(item.cardId) : null,
+  id: publicIdentifier(item._id || item.id) || '',
+  boardId: publicIdentifier(item.boardId),
+  cardId: publicIdentifier(item.cardId),
   title: item.title || item.name || item.question || null,
   status: item.status || null,
   riskLevel: item.riskLevel || item.severity || null,

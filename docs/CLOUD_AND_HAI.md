@@ -4,11 +4,13 @@
 
 Sneup supports the same application core in three forms:
 
-1. Windows 11 desktop through `Sneup-Setup-2.3.1.exe`.
+1. Windows 11 desktop through `Sneup-Setup-2.3.2.exe`.
 2. Local or server Node runtime through `npm start`.
 3. Authenticated ngrok ingress layered over either runtime.
 
 The desktop and Node modes both bind the Sneup server to loopback by default. Enabling ngrok does not change that bind address.
+
+Packaged production live mode fails closed before opening the loopback listener when MongoDB is unavailable. Windows then offers an explicit restart into labelled, read-only demo mode or a clean exit; it never silently changes an operator-selected live process into demo mode.
 
 ## ngrok setup
 
@@ -44,7 +46,7 @@ GET /api/integrations/hai/manifest
 GET /api/integrations/hai/openapi.json
 ```
 
-HAI can read a bounded operating snapshot and submit an idempotent proposal keyed by `externalId`. Sneup hashes that external ID, strips unapproved action fields, and converts the request into its existing recommendation and decision-queue flow.
+HAI can read a bounded operating snapshot with stable public record, board, and card identifiers and submit an idempotent proposal keyed by `externalId`. Sneup hashes that external ID, strips unapproved action fields, and converts the request into its existing recommendation and decision-queue flow.
 
 The HAI API does not expose approval or execution endpoints. HAI cannot mark its own proposal approved, and it cannot directly write to Trello or another provider through this connector. Human approval remains tied to the exact protected action payload inside Sneup.
 

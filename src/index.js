@@ -25,6 +25,11 @@ const { getRuntimeReadiness } = require('./services/runtimeDiagnosticsService');
 const ngrokTunnelService = require('./services/ngrokTunnelService');
 const workspaceDeletionWorker = require('./workers/workspaceDeletionWorker');
 const { RequestLoggingService } = require('./services/requestLoggingService');
+const {
+  DATABASE_FAILURE_MODES,
+  databaseFailureMode,
+  liveDatabaseStartupError
+} = require('./services/startupPolicyService');
 
 // Import routes
 const boardRoutes = require('./routes/boards');
@@ -261,6 +266,12 @@ const initApp = async () => {
           });
           throw error;
         }
+        if (databaseFailureMode() === DATABASE_FAILURE_MODES.FAIL_CLOSED) {
+          logger.error('MongoDB is unavailable in production live mode. Refusing demo fallback.', {
+            code: error.code
+          });
+          throw liveDatabaseStartupError(error);
+        }
         logger.warn('MongoDB is not available. Starting Sneup in catalog/demo mode.');
         process.env.SNEUP_DEMO_MODE = 'true';
       }
@@ -315,13 +326,23 @@ const initApp = async () => {
     startupState.initialized = false;
     startupState.phase = 'failed';
     logger.error('Failed to initialize application:', error);
-    process.exit(1);
+    try {
+      await shutdown();
+    } catch (shutdownError) {
+      logger.error('Failed to clean up partial startup:', shutdownError);
+    }
+    throw error;
   }
 };
 
 const closeServer = () => new Promise((resolve, reject) => {
   if (!server) return resolve();
-  server.close(error => (error && error.code !== 'ERR_SERVER_NOT_RUNNING' ? reject(error) : resolve()));
+  const activeServer = server;
+  activeServer.close(error => {
+    if (error && error.code !== 'ERR_SERVER_NOT_RUNNING') return reject(error);
+    if (server === activeServer) server = undefined;
+    return resolve();
+  });
 });
 
 const shutdown = async () => {
@@ -335,10 +356,13 @@ const shutdown = async () => {
 registerProcessHandlers(logger, { shutdown });
 
 if (require.main === module) {
-  initApp();
+  initApp().catch(() => {
+    process.exitCode = 1;
+  });
 }
 
 app.initApp = initApp;
 app.getServer = () => server;
 app.getStartupState = () => ({ ...startupState });
+app.shutdown = shutdown;
 module.exports = app;

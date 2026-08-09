@@ -22,8 +22,9 @@ The command-center HTML and JavaScript were statically searched for controls, ev
 - The NSIS installer opened as `Sneup Setup`, showed version `2.1.0`, offered current-user/all-user installation scope, and exposed functional `Next` and `Cancel` controls. It was closed without modifying the machine.
 - The 2.2.0 packaged executable exposed the real `Sneup Command Center` window, remained available after startup, returned healthy explicit demo state on loopback, and closed normally without leaving port 3197 open. The in-app Browser webview did not attach for the current rendering rerun, so the earlier browser layout evidence is retained as prior-release evidence rather than silently relabelled as 2.2.0 evidence.
 - The 2.3.0 workspace control includes an owner-only archived-workspace deletion command, an exact-slug and irreversible-action confirmation modal, disabled live-state boundaries, identity cleanup after success, and a receipt display. Static wiring tests pass, while current visual Browser evidence remains pending because the in-app webview did not attach.
-- The 2.3.1 packaged command-center window remained open through metadata, health, readiness, HAI manifest, and HAI snapshot checks and closed without leaving port 3197 open.
-- Windows exposed the current `Sneup Setup` window from `Sneup-Setup-2.3.1.exe`; it was closed normally without installing or changing the machine.
+- The 2.3.2 packaged command-center window remained open through metadata, health, readiness, HAI manifest, and corrected HAI snapshot identifier checks and closed without leaving port 3197 open.
+- A forced packaged live-database outage opened `Sneup live workspace is unavailable`, exposed `Start demo mode` and `Close Sneup`, displayed only the stable safe explanation, kept port 3197 closed, and exited cleanly.
+- Windows exposed the current `Sneup Setup` window from `Sneup-Setup-2.3.2.exe`; it was closed normally without installing or changing the machine.
 
 ## Open UI evidence
 

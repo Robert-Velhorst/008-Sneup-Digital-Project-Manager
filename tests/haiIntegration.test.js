@@ -2,7 +2,13 @@ const operationsLedgerService = require('../src/services/operationsLedgerService
 const { HaiIntegrationService } = require('../src/services/haiIntegrationService');
 
 describe('HAI integration boundary', () => {
-  afterEach(() => jest.restoreAllMocks());
+  const originalDemoMode = process.env.SNEUP_DEMO_MODE;
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    if (originalDemoMode === undefined) delete process.env.SNEUP_DEMO_MODE;
+    else process.env.SNEUP_DEMO_MODE = originalDemoMode;
+  });
 
   test('publishes read and proposal capabilities without approval or execution operations', () => {
     const service = new HaiIntegrationService();
@@ -78,5 +84,20 @@ describe('HAI integration boundary', () => {
       expect.objectContaining({ type: 'request_update', automatable: false }),
       { workspaceId: '507f1f77bcf86cd799439011', actor: 'HAI service' }
     );
+  });
+
+  test('publishes stable identifiers from populated demo snapshot records', async () => {
+    process.env.SNEUP_DEMO_MODE = 'true';
+    const service = new HaiIntegrationService();
+
+    const snapshot = await service.getSnapshot();
+
+    expect(snapshot.demoMode).toBe(true);
+    expect(snapshot.decisions[0]).toEqual(expect.objectContaining({
+      id: 'demo-decision-recovery',
+      boardId: 'demo-board-growth',
+      cardId: 'demo-card-growth-recovery'
+    }));
+    expect(JSON.stringify(snapshot)).not.toContain('[object Object]');
   });
 });

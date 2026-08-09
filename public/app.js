@@ -405,7 +405,7 @@ function openFirstRunSetup() {
     },
     live: {
       title: 'Connect workspace',
-      copy: 'Sneup will restart and attempt your database-backed workspace. If the database is unavailable, it remains safely in catalog/demo mode.'
+      copy: 'Sneup will restart and attempt your database-backed workspace. If MongoDB is unavailable, live mode stops and offers a read-only demo restart.'
     }
   };
 
