@@ -15,10 +15,10 @@
 | Data integrity and repair | Bounded dry-run/apply, review-only unsafe findings, all-workspace Trello index migration, audit evidence, and disposable MongoDB verification | Complete locally |
 | Data retention | Owner-only opt-in policy, bounded preview/apply, protected evidence, distributed lease, indexed queries, pre/post audits, real MongoDB proof, and live browser flow | Complete locally |
 | Windows package | 2.3.25 NSIS build, demo diagnostics/HAI smoke, metadata, SHA-256, source-identical changed assets, repeatable resource sample, and clean close | Complete locally; publisher signing external |
-| Fresh clone | 2.3.24 exact source `7e9400cc48ae42cc7c92a0a3ec9389781833f6e0`; Node 24 quality and Windows installer jobs in run `31333762069` | Complete |
+| Fresh clone | 2.3.25 exact source `f2c6bc854739ead5d800a471468bc009a6d6604d`; Node 24 quality and Windows installer jobs in run `31335440803` | Complete |
 | Browser and Windows UI | Demand-loaded English/Dutch connector and account-selection, workspace and policy-form, approval, Work Signals, graph, Forecasts, and Reports renderers; exact evidence/payload preservation; shared asset-version reuse; refresh; filtering; and containment passed in the in-app Browser with zero current console errors | Complete for these flows; screen-reader/clean-VM evidence pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter | Complete locally; live credentials external |
-| GitHub CI | 2.3.25 source and artifact verification pending publication; 2.3.24 run `31333762069` remains the last independently checked remote artifact | Pending publication |
+| GitHub CI | 2.3.25 run `31335440803` passed both jobs; artifact `9044199111` was downloaded and independently checked | Complete |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |
@@ -30,7 +30,7 @@
 - Authority boundary: exact request bodies, encoded routes, authenticated writes, encrypted destinations, and provider authority remain in `public/app.js`; `public/approvalView.js` has no fetch, token, cookie, session, or storage authority.
 - Verification: lint; 111 suites/843 tests; 5/5 recommendation evaluation; two zero-vulnerability audits; five-secret production check; real-Mongo portfolio profile; in-app Browser English/Dutch acceptance; Windows package verification.
 - Installer: `release/Sneup-Setup-2.3.25.exe`, 109,482,700 bytes, unsigned, SHA-256 `E4D290CA4FAFC9762017BF2E370E42549EAE626ED18D464B0FE008CDD908D165`.
-- GitHub: source, CI run, and independently downloaded artifact evidence will be recorded after publication.
+- GitHub: source `f2c6bc854739ead5d800a471468bc009a6d6604d`; run `31335440803`; quality 1 minute 12 seconds; Windows package 2 minutes 11 seconds; independently verified artifact `9044199111`.
 - External gates remain: authorized live Trello/ngrok/HAI/provider acceptance, production-like restore and deployment rollback, publisher signing, clean-VM scaling, and assistive-technology certification.
 
 ## 2026-08-09 - Worker-response mapping release checkpoint
