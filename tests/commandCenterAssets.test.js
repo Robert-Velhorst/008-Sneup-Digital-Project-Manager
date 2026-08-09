@@ -9,6 +9,7 @@ describe('command-center asset fingerprint coverage', () => {
     const assets = service.buildAssets(publicDirectory);
     const expected = [
       'app.js',
+      'approvalView.js',
       'connectorView.js',
       'workspaceView.js',
       'formPersistence.js',

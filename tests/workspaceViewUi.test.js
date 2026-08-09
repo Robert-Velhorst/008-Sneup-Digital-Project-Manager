@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { JSDOM } = require('jsdom');
 const { createRuntime } = require('../public/i18n');
-const { createController, DYNAMIC_OPERATOR_MESSAGES } = require('../public/workspaceView');
+const { createController, DYNAMIC_OPERATOR_MESSAGES, NL_MESSAGES: WORKSPACE_NL_MESSAGES } = require('../public/workspaceView');
 
 const rootDir = path.join(__dirname, '..');
 const moduleSource = fs.readFileSync(path.join(rootDir, 'public', 'workspaceView.js'), 'utf8');
@@ -51,6 +51,7 @@ const createHarness = (locale = 'nl') => {
     url: 'http://127.0.0.1:3211/'
   });
   const i18n = createRuntime({ root: null, language: locale, storage: null });
+  i18n.registerMessages('nl', WORKSPACE_NL_MESSAGES);
   const callbacks = makeCallbacks();
   const state = {
     activeWorkspaceId: 'workspace-1',
@@ -188,6 +189,7 @@ describe('demand-loaded workspace view', () => {
 
   test('keeps every workspace operator message in the Dutch catalog', () => {
     const runtime = createRuntime({ root: null, language: 'nl', storage: null });
+    runtime.registerMessages('nl', WORKSPACE_NL_MESSAGES);
     const messages = new Set(DYNAMIC_OPERATOR_MESSAGES);
     for (const match of moduleSource.matchAll(/\b(?:t|et)\(\s*'([^']+)'/g)) messages.add(match[1]);
     for (const match of moduleSource.matchAll(/\b(?:plural|ep)\(\s*'([^']+)'\s*,\s*'([^']+)'/g)) {
@@ -199,6 +201,30 @@ describe('demand-loaded workspace view', () => {
       'The workspace view could not be loaded. Check the connection and try again.'
     ].forEach(message => messages.add(message));
     expect([...messages].filter(message => !runtime.hasTranslation(message))).toEqual([]);
+  });
+
+  test('keeps consequential workspace forms and confirmations localized', () => {
+    const runtime = createRuntime({ root: null, language: 'nl', storage: null });
+    runtime.registerMessages('nl', WORKSPACE_NL_MESSAGES);
+    const range = appSource.slice(appSource.indexOf('function openIntegrityRepair'), appSource.indexOf('function renderEnhancements'));
+    const messages = new Set([
+      'Stuck card', 'No activity', 'Overdue card', 'Member overloaded', 'Blocking other work',
+      'No response to follow-up', 'Performance milestone', 'Low-risk queue', 'Medium-risk queue',
+      'High-risk queue', 'Critical queue', 'system', 'user', 'enabled', 'paused'
+    ]);
+    for (const match of range.matchAll(/\b(?:t|et)\(\s*'([^']+)'/g)) messages.add(match[1]);
+    for (const match of range.matchAll(/\btp\(\s*'([^']+)'\s*,\s*'([^']+)'/g)) {
+      messages.add(match[1]);
+      messages.add(match[2]);
+    }
+    expect([...messages].filter(message => !runtime.hasTranslation(message))).toEqual([]);
+    expect(appSource).toContain("els.modalTitle.textContent = t('Delete archived workspace?')");
+    expect(appSource).toContain("els.modalTitle.textContent = t('Retry invitation email?')");
+    expect(appSource).toContain("els.modalTitle.textContent = t('Revoke session?')");
+    expect(appSource).toContain("i18n.registerMessages('nl', module.NL_MESSAGES)");
+    expect(appSource).toContain("submitButton.textContent = t('Create invitation')");
+    expect(appSource).toContain("button.textContent = t('Revoke session')");
+    expect(appSource).toContain("submitButton.textContent = t('Join workspace')");
   });
 
   test('loads the renderer only with the workspace view and retries a failed module fetch', () => {

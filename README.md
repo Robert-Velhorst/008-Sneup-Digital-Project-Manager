@@ -628,8 +628,8 @@ For issues, questions, or feature requests, please open an issue on GitHub.
 - [x] Policy-controlled daily reconciliation digests
 - [x] Slack, Teams, and generic reconciliation-alert webhooks
 - [ ] Advanced machine learning for predictions
-- [x] English/Dutch shell, help, setup, primary workflow, connector marketplace, and workspace-administration renderer localization
-- [ ] Complete localization of secondary dynamic operator surfaces
+- [x] English/Dutch shell, help, setup, primary workflow, connector marketplace, workspace administration, approval ledger, and consequential workspace form/modal localization
+- [ ] Complete a keyboard-only and screen-reader certification pass
 - [ ] Mobile app
 
 ---

@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.3.19 - 2026-08-09
+
+### Demand-loaded approval operations
+
+- Moved the complete approval and operations-ledger renderer into a retry-safe module loaded only when Approvals opens, while leaving every API call, session boundary, and consequential action in the authenticated application controller.
+- Localized approval queues, recommendations, protected payload review, findings, health, reconciliation, notification policy and delivery history, follow-ups, outcomes, and audit chrome in English and Dutch while preserving free text, identifiers, provider evidence, errors, and payload JSON verbatim.
+- Split approval-only and workspace-only Dutch catalogs into their corresponding deferred modules and added a guarded runtime catalog registry that rejects prototype keys.
+
+### Resource, security, and release verification
+
+- Reduced the initial app-plus-localization payload by 21,649 raw, 3,876 gzip, and 3,008 Brotli bytes compared with 2.3.18; approval and workspace catalog cost is paid only when those operator views open.
+- Added approval rendering, guarded-action delegation, semantic localization, exact-evidence preservation, lazy-catalog, prototype-key, CSP, and asset-fingerprint regressions. The full gate passes 109 suites/817 tests, the 5/5 recommendation safety evaluation, two zero-vulnerability dependency audits, and five-secret production-style validation.
+- Built and verified the unsigned Windows 11 installer. The packaged app reports 2.3.19, remains demo/read-only by default, exposes no secrets, keeps HAI at `never_direct`, closes normally, and releases its loopback port.
+
 ## 2.3.18 - 2026-08-09
 
 ### Demand-loaded workspace administration

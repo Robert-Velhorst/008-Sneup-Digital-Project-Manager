@@ -22,6 +22,8 @@ const appAssetVersion = (() => {
 let connectorViewPromise;
 let workspaceViewPromise;
 let workspaceViewController;
+let approvalViewPromise;
+let approvalViewController;
 
 function loadBrowserModule(path, globalName, messages = {}) {
   if (window[globalName]) return Promise.resolve(window[globalName]);
@@ -96,28 +98,31 @@ function loadWorkspaceView() {
       runtime: 'The workspace view loaded without its runtime. Try again.',
       load: 'The workspace view could not be loaded. Check the connection and try again.'
     })
-      .then(module => module.createController({
-        document,
-        state,
-        elements: els,
-        t,
-        plural: tp,
-        escapeHtml,
-        formatDate,
-        severityClass,
-        callbacks: {
-          openIntegrityRepair,
-          openRetentionPolicy,
-          openRetentionApply,
-          openWorkspaceUserSessions,
-          openInviteRevocationConfirmation,
-          openInviteDeliveryRetryConfirmation,
-          openPolicyRuleEditor,
-          openFeatureFlagEditor,
-          openFeatureFlagHistory,
-          loadPolicyHistory
-        }
-      }))
+      .then((module) => {
+        i18n.registerMessages('nl', module.NL_MESSAGES);
+        return module.createController({
+          document,
+          state,
+          elements: els,
+          t,
+          plural: tp,
+          escapeHtml,
+          formatDate,
+          severityClass,
+          callbacks: {
+            openIntegrityRepair,
+            openRetentionPolicy,
+            openRetentionApply,
+            openWorkspaceUserSessions,
+            openInviteRevocationConfirmation,
+            openInviteDeliveryRetryConfirmation,
+            openPolicyRuleEditor,
+            openFeatureFlagEditor,
+            openFeatureFlagHistory,
+            loadPolicyHistory
+          }
+        });
+      })
       .then((controller) => {
         workspaceViewController = controller;
         return controller;
@@ -129,6 +134,57 @@ function loadWorkspaceView() {
       });
   }
   return workspaceViewPromise;
+}
+
+function loadApprovalView() {
+  if (!approvalViewPromise) {
+    approvalViewPromise = loadBrowserModule('/approvalView.js', 'SneupApprovalView', {
+      runtime: 'The approval view loaded without its runtime. Try again.',
+      load: 'The approval view could not be loaded. Check the connection and try again.'
+    })
+      .then((module) => {
+        i18n.registerMessages('nl', module.NL_MESSAGES);
+        return module.createController({
+          document,
+          state,
+          elements: els,
+          t,
+          plural: tp,
+          escapeHtml,
+          formatDate,
+          severityClass,
+          getId,
+          canEditPayload: recommendation => getPayloadReviewFields(recommendation).length > 0,
+          callbacks: {
+            runRecommendationAction,
+            runDecisionAction,
+            runFollowUpAction,
+            openWorkerResponseRecorder,
+            editRecommendationPayload,
+            openRecommendationEvidence,
+            openTrelloActionReconciliation,
+            runOutcomeEvaluation,
+            openNotificationPolicyEditor,
+            openNotificationActivation,
+            updateNotificationPolicy,
+            openNotificationTest,
+            openNotificationDeliveryEvidence,
+            bindLedgerDrilldownActions,
+            bindGraphActions
+          }
+        });
+      })
+      .then((controller) => {
+        approvalViewController = controller;
+        return controller;
+      })
+      .catch((error) => {
+        approvalViewPromise = null;
+        approvalViewController = null;
+        throw error;
+      });
+  }
+  return approvalViewPromise;
 }
 
 const state = {
@@ -759,7 +815,8 @@ const viewLoaders = {
   ]),
   approvals: () => Promise.all([
     loadOperationsLedger(),
-    loadNotificationDeliveryHealth()
+    loadNotificationDeliveryHealth(),
+    loadApprovalView()
   ]),
   connectors: loadConnectors,
   enhancements: loadEnhancements,
@@ -1588,6 +1645,7 @@ async function loadOperationsLedger() {
     };
   }
 
+  updateApprovalCount();
   renderOperationsLedger();
 }
 
@@ -1790,145 +1848,16 @@ function renderResponseTiming() {
 }
 
 function renderOperationsLedger() {
-  document.querySelectorAll('[data-queue-filter]').forEach((button) => {
-    button.classList.toggle('active', button.dataset.queueFilter === state.queueFilter);
-  });
-
-  const decisions = state.ledger.decisions || [];
-  const recommendations = state.ledger.recommendations || [];
-  const actions = state.ledger.actions || [];
-  const auditEvents = state.ledger.auditEvents || [];
-  const followUps = state.ledger.followUps || [];
-  const workerResponses = state.ledger.workerResponses || [];
-  const accountability = state.ledger.accountability;
-  const outcomes = state.ledger.outcomes || [];
-  const findings = state.ledger.findings || [];
-  const healthSnapshots = state.ledger.healthSnapshots || [];
-  const reconciliationHealth = state.ledger.reconciliationHealth;
-  const notificationPolicies = state.ledger.notificationPolicies || [];
-  const notificationDeliveries = state.ledger.notificationDeliveries || [];
-  const timeline = state.ledger.timeline || [];
-  const reconciliationSummary = reconciliationHealth?.summary || {};
-
-  const openRobert = decisions.filter(item => item.ownerType === 'robert').length;
-  const vaTeam = decisions.filter(item => ['va', 'team'].includes(item.ownerType)).length;
-  const pendingRecommendations = recommendations.filter(item => ['pending', 'approved', 'change_requested'].includes(item.status)).length;
-  const failedActions = actions.filter(item => item.status === 'failed').length;
-  const highRiskFindings = findings.filter(item => ['critical', 'high'].includes(item.severity)).length;
-  const outcomesNeedingAttention = outcomes.filter(item => item.status === 'needs_attention' || item.status === 'not_verified').length;
-
-  els.approvalCount.textContent = openRobert + pendingRecommendations;
-  els.ledgerMetrics.innerHTML = [
-    ['Robert decisions', openRobert],
-    ['VA/team queue', vaTeam],
-    ['Awaiting review', pendingRecommendations],
-    ['Failed actions', failedActions],
-    ['Reconciliation alerts', reconciliationSummary.requiresOperator || 0],
-    ['Critical evidence gaps', reconciliationSummary.critical || 0],
-    ['Open findings', findings.length],
-    ['High-risk findings', highRiskFindings],
-    ['Overdue follow-ups', accountability?.summary?.overdueFollowUps || 0],
-    ['Workers needing attention', accountability?.summary?.membersNeedingAttention || 0],
-    ['Outcome reviews', outcomesNeedingAttention],
-    ['Audit events', auditEvents.length],
-    ['Recent responses', workerResponses.length]
-  ].map(([label, value]) => `
-    <div class="metric">
-      <span>${label}</span>
-      <strong>${value}</strong>
-    </div>
-  `).join('');
-
-  const filteredDecisions = state.queueFilter === 'all'
-    ? decisions
-    : decisions.filter(item => item.ownerType === state.queueFilter);
-
-  const errorNotice = state.ledger.errors.length > 0
-    ? `<div class="notice">Operations ledger needs MongoDB/live data: ${escapeHtml(unique(state.ledger.errors).join(' | '))}</div>`
-    : state.ledger.demoMode
-      ? '<div class="notice">Read-only demo ledger. It shows representative approval evidence and never sends provider writes or saves decisions.</div>'
-      : '';
-
-  els.notificationPolicyButton.disabled = state.ledger.demoMode;
-  els.notificationPolicyButton.title = state.ledger.demoMode
-    ? 'Notification policies are unavailable in the read-only demo ledger.'
-    : '';
-
-  els.decisionQueue.innerHTML = errorNotice + listOrEmpty(filteredDecisions, renderDecisionItem);
-  els.recommendationCount.textContent = `${pendingRecommendations} pending`;
-  els.recommendationList.innerHTML = listOrEmpty(recommendations, renderRecommendation);
-  els.findingsCount.textContent = `${findings.length} open`;
-  els.findingsList.innerHTML = listOrEmpty(findings, renderFinding);
-  els.timelineCount.textContent = `${timeline.length} recent`;
-  els.operationsTimeline.innerHTML = listOrEmpty(timeline.slice(0, 12), renderLedgerTimelineItem);
-  els.boardHealthCount.textContent = `${healthSnapshots.length} snapshots`;
-  els.boardHealthList.innerHTML = listOrEmpty(healthSnapshots, renderBoardHealth);
-  els.trelloAttemptCount.textContent = reconciliationSummary.requiresOperator
-    ? `${reconciliationSummary.requiresOperator} need evidence`
-    : `${actions.length} attempts`;
-  els.trelloAttempts.innerHTML = `${renderTrelloReconciliationHealth(reconciliationHealth)}${listOrEmpty(actions, renderTrelloAttempt)}`;
-  els.notificationPolicyCount.textContent = `${notificationPolicies.length} polic${notificationPolicies.length === 1 ? 'y' : 'ies'}`;
-  els.notificationPolicies.innerHTML = listOrEmpty(notificationPolicies, renderNotificationPolicy);
-  els.notificationDeliveryCount.textContent = `${notificationDeliveries.length} event${notificationDeliveries.length === 1 ? '' : 's'}`;
-  els.notificationDeliveries.innerHTML = listOrEmpty(notificationDeliveries, renderNotificationDelivery);
-  els.followUpCount.textContent = `${followUps.length} due`;
-  els.followUps.innerHTML = listOrEmpty(followUps, renderFollowUp);
-  els.accountabilityCount.textContent = `${accountability?.summary?.members || 0} people`;
-  els.accountabilityList.innerHTML = accountability
-    ? listOrEmpty(accountability.members || [], renderWorkerAccountability)
-    : '<div class="notice">Worker accountability needs ledger access.</div>';
-  els.outcomeCount.textContent = `${outcomesNeedingAttention} review`;
-  els.outcomeList.innerHTML = listOrEmpty(outcomes, renderInterventionOutcome);
-  els.auditCount.textContent = `${auditEvents.length} events`;
-  els.auditTrail.innerHTML = listOrEmpty(auditEvents, renderAuditEvent);
-
-  document.querySelectorAll('[data-recommendation-action]').forEach((button) => {
-    button.addEventListener('click', () => runRecommendationAction(
-      button.dataset.recommendationId,
-      button.dataset.recommendationAction
-    ));
-  });
-
-  document.querySelectorAll('[data-decision-action]').forEach((button) => {
-    button.addEventListener('click', () => runDecisionAction(button.dataset.decisionId, button.dataset.decisionAction));
-  });
-  document.querySelectorAll('[data-followup-action]').forEach((button) => {
-    button.addEventListener('click', () => runFollowUpAction(button.dataset.followupId, button.dataset.followupAction));
-  });
-  document.querySelectorAll('[data-followup-response]').forEach((button) => {
-    button.addEventListener('click', () => openWorkerResponseRecorder(button.dataset.followupResponse));
-  });
-  document.querySelectorAll('[data-payload-edit]').forEach((button) => {
-    button.addEventListener('click', () => editRecommendationPayload(button.dataset.payloadEdit));
-  });
-  document.querySelectorAll('[data-recommendation-evidence]').forEach((button) => {
-    button.addEventListener('click', () => openRecommendationEvidence(button.dataset.recommendationEvidence));
-  });
-  document.querySelectorAll('[data-trello-action-reconcile]').forEach((button) => {
-    button.addEventListener('click', () => openTrelloActionReconciliation(button.dataset.trelloActionReconcile));
-  });
-  document.querySelectorAll('[data-outcome-evaluate]').forEach((button) => {
-    button.addEventListener('click', () => runOutcomeEvaluation(button.dataset.outcomeEvaluate));
-  });
-  document.querySelectorAll('[data-notification-policy-edit]').forEach((button) => {
-    button.addEventListener('click', () => openNotificationPolicyEditor(button.dataset.notificationPolicyEdit));
-  });
-  document.querySelectorAll('[data-notification-policy-activate]').forEach((button) => {
-    button.addEventListener('click', () => openNotificationActivation(button.dataset.notificationPolicyActivate));
-  });
-  document.querySelectorAll('[data-notification-policy-pause]').forEach((button) => {
-    button.addEventListener('click', () => updateNotificationPolicy(button.dataset.notificationPolicyPause, { status: 'paused' }));
-  });
-  document.querySelectorAll('[data-notification-policy-test]').forEach((button) => {
-    button.addEventListener('click', () => openNotificationTest(button.dataset.notificationPolicyTest));
-  });
-  document.querySelectorAll('[data-notification-delivery-evidence]').forEach((button) => {
-    button.addEventListener('click', () => openNotificationDeliveryEvidence(button.dataset.notificationDeliveryEvidence));
-  });
-  bindLedgerDrilldownActions();
-  bindGraphActions();
+  approvalViewController?.render();
 }
 
+function updateApprovalCount() {
+  const decisions = state.ledger?.decisions || [];
+  const recommendations = state.ledger?.recommendations || [];
+  const openRobert = decisions.filter(item => item.ownerType === 'robert').length;
+  const pending = recommendations.filter(item => ['pending', 'approved', 'change_requested'].includes(item.status)).length;
+  els.approvalCount.textContent = openRobert + pending;
+}
 function renderOperationsBriefItem(item) {
   const route = operationsBriefRoute(item);
   return `
@@ -2036,428 +1965,29 @@ function renderJobHealthItem(job) {
   `;
 }
 
-function renderDecisionItem(item) {
-  const itemId = getId(item._id);
-  const recommendationId = getId(item.recommendationId);
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>${escapeHtml(item.question || item.title)}</strong>
-        <span class="pill ${severityClass(item.riskLevel)}">${escapeHtml(item.ownerType)}</span>
-      </div>
-      <div class="meta">
-        <span>${escapeHtml(item.reason || 'Approval required')}</span>
-        <span>${escapeHtml(item.riskLevel || 'medium')} risk</span>
-        <span>Answer: ${escapeHtml(item.recommendedAnswer || 'yes')}</span>
-      </div>
-      ${renderSourceEvidence(item.sourceEvidence)}
-      ${recommendationId && !state.ledger.demoMode ? renderReviewActions(recommendationId) : ''}
-      ${state.ledger.demoMode ? '' : `<div class="item-actions">
-        <button class="button" data-decision-id="${itemId}" data-decision-action="snooze" type="button">Snooze 24h</button>
-        <button class="button warn" data-decision-id="${itemId}" data-decision-action="delegate-team" type="button">Delegate team</button>
-        <button class="button warn" data-decision-id="${itemId}" data-decision-action="delegate-va" type="button">Delegate VA</button>
-      </div>`}
-    </div>
-  `;
-}
-
 function renderRecommendation(recommendation) {
-  const id = getId(recommendation._id);
-  const sourceEvidence = recommendation.sourceEvidence || [];
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>${escapeHtml(recommendation.title || recommendation.recommendedAction)}</strong>
-        <span class="pill ${severityClass(recommendation.riskLevel)}">${escapeHtml(recommendation.status)}</span>
-      </div>
-      <div class="meta">
-        <span>${escapeHtml(recommendation.actionType)}</span>
-        <span>${escapeHtml(recommendation.ownerType || 'robert')}</span>
-        <span>${Math.round((recommendation.confidence || 0) * 100)}% confidence</span>
-        <span>${sourceEvidence.length} evidence</span>
-      </div>
-      <div class="meta">${escapeHtml(recommendation.approvalReason || recommendation.description || 'Review the exact payload before action.')}</div>
-      ${renderSourceEvidence(sourceEvidence)}
-      <details class="payload">
-        <summary>Exact action payload</summary>
-        <pre>${escapeHtml(JSON.stringify(recommendation.actionPayload || {}, null, 2))}</pre>
-      </details>
-      ${state.ledger.demoMode ? '' : `<div class="item-actions">
-        <button class="button" data-recommendation-evidence="${escapeHtml(id)}" type="button">Evidence bundle</button>
-      </div>`}
-      ${state.ledger.demoMode ? '' : renderPayloadEditAction(id, recommendation)}
-      ${state.ledger.demoMode ? '' : renderReviewActions(id, recommendation.status, recommendation)}
-    </div>
-  `;
+  return approvalViewController?.renderRecommendation(recommendation) || '';
 }
 
-function renderReviewActions(recommendationId, status = 'pending', recommendation = {}) {
-  const payload = recommendation.actionPayload || {};
-  const canApprove = ['pending', 'change_requested', 'snoozed', 'delegated'].includes(status);
-  const canReject = ['pending', 'approved', 'change_requested', 'snoozed', 'delegated'].includes(status);
-  const canChange = ['pending', 'approved', 'snoozed', 'delegated'].includes(status);
-  const executable = payload.executable !== false && payload.draftOnly !== true && recommendation.actionType !== 'manual_review';
-  const executeButton = status === 'approved' && executable
-    ? `<button class="button primary" data-recommendation-id="${recommendationId}" data-recommendation-action="execute-approved" type="button">Execute approved</button>`
-    : '';
-  if (!canApprove && !canReject && !canChange && !executeButton) return '';
-  return `
-    <div class="item-actions">
-      ${canApprove ? `<button class="button primary" data-recommendation-id="${recommendationId}" data-recommendation-action="approve" type="button">Yes</button>` : ''}
-      ${canReject ? `<button class="button danger" data-recommendation-id="${recommendationId}" data-recommendation-action="reject" type="button">No</button>` : ''}
-      ${canChange ? `<button class="button warn" data-recommendation-id="${recommendationId}" data-recommendation-action="change" type="button">Change</button>` : ''}
-      ${executeButton}
-    </div>
-  `;
-}
-function renderPayloadEditAction(recommendationId, recommendation = {}) {
-  if (!['pending', 'change_requested', 'snoozed', 'delegated'].includes(recommendation.status || 'pending')) return '';
-  const fields = getPayloadReviewFields(recommendation);
-  if (fields.length === 0) return '';
-  return `<div class="item-actions"><button class="button warn" data-payload-edit="${recommendationId}" type="button">Review payload</button></div>`;
-}
 function renderFinding(finding) {
-  const card = finding.cardId || {};
-  const board = finding.boardId || {};
-  const cardId = getId(card._id || card.id);
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>${escapeHtml(finding.title)}</strong>
-        <span class="pill ${severityClass(finding.severity)}">${escapeHtml(finding.severity)}</span>
-      </div>
-      <div class="meta">
-        <span>${escapeHtml(finding.findingType)}</span>
-        <span>Waiting on ${escapeHtml(finding.waitingOn || 'unknown')}</span>
-        <span>${finding.signalScore || 0}/100 signal</span>
-      </div>
-      <div class="meta">
-        <span>${escapeHtml(board.name || 'Board')}</span>
-        <span>${escapeHtml(card.name || 'Card')}</span>
-      </div>
-      <div class="meta">${escapeHtml(finding.recommendedAction || finding.description || 'Review finding')}</div>
-      ${renderSourceEvidence(finding.sourceEvidence)}
-      ${cardId && !state.ledger.demoMode ? `<div class="item-actions"><button class="button" data-card-ledger="${escapeHtml(cardId)}" type="button">Card ledger</button></div>` : ''}
-    </div>
-  `;
-}
-
-function renderBoardHealth(snapshot) {
-  const board = snapshot.boardId || {};
-  const counts = snapshot.counts || {};
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>${escapeHtml(board.name || 'Board health')}</strong>
-        <span class="pill ${snapshot.healthStatus === 'critical' ? 'critical' : snapshot.healthStatus === 'at_risk' ? 'high' : 'healthy'}">${escapeHtml(snapshot.healthStatus)}</span>
-      </div>
-      <div class="meta">
-        <span>${snapshot.healthScore}/100 health</span>
-        <span>${counts.findings || 0} findings</span>
-        <span>${counts.robertQueueCandidates || 0} Robert</span>
-        <span>${counts.vaReadyCandidates || 0} VA-ready</span>
-      </div>
-      <div class="meta">${escapeHtml(snapshot.summary || 'No summary recorded')}</div>
-    </div>
-  `;
+  return approvalViewController?.renderFinding(finding) || '';
 }
 
 function renderTrelloAttempt(attempt) {
-  const attemptId = getId(attempt._id || attempt.id);
-  const needsReconciliation = attempt.status === 'in_progress'
-    || (attempt.status === 'succeeded' && attempt.recommendationId?.status === 'executing')
-    || attempt.reconciliation?.status === 'required';
-  const reconciliation = attempt.reconciliation || {};
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>${escapeHtml(attempt.actionType)}</strong>
-        <span class="pill ${attempt.status === 'failed' ? 'critical' : attempt.status === 'succeeded' ? 'healthy' : 'review'}">${escapeHtml(attempt.status)}</span>
-      </div>
-      <div class="meta">
-        <span>${formatDate(attempt.startedAt || attempt.createdAt)}</span>
-        <span>${escapeHtml(attempt.errorMessage || 'No error recorded')}</span>
-      </div>
-      <details class="payload">
-        <summary>Attempt payload</summary>
-        <pre>${escapeHtml(JSON.stringify(attempt.payload || {}, null, 2))}</pre>
-      </details>
-      ${reconciliation.status && reconciliation.status !== 'not_needed' ? `
-        <div class="meta">
-          <span>${escapeHtml(reconciliation.status.replaceAll('_', ' '))}</span>
-          <span>${escapeHtml(reconciliation.reconciledBy || 'operator')}</span>
-          <span>${formatDate(reconciliation.reconciledAt)}</span>
-        </div>
-      ` : ''}
-      ${reconciliation.confirmedSteps?.length || reconciliation.pendingSteps?.length ? `
-        <div class="meta">
-          ${reconciliation.confirmedSteps?.length ? `<span>Confirmed: ${escapeHtml(reconciliation.confirmedSteps.join(', ').replaceAll('_', ' '))}</span>` : ''}
-          ${reconciliation.pendingSteps?.length ? `<span>Check: ${escapeHtml(reconciliation.pendingSteps.join(', ').replaceAll('_', ' '))}</span>` : ''}
-        </div>
-      ` : ''}
-      ${needsReconciliation && attemptId && !state.ledger.demoMode ? `
-        <div class="item-actions">
-          <button class="button warn" data-trello-action-reconcile="${escapeHtml(attemptId)}" type="button">Reconcile result</button>
-        </div>
-      ` : ''}
-    </div>
-  `;
-}
-
-function renderTrelloReconciliationHealth(health) {
-  if (!health) return '';
-  const summary = health.summary || {};
-  const alerts = (health.items || []).filter(item => item.severity === 'critical' || item.severity === 'warning');
-  if (alerts.length === 0) {
-    return `
-      <div class="item">
-        <div class="item-title"><strong>Reconciliation coverage</strong><span class="pill healthy">current</span></div>
-        <div class="meta"><span>${summary.unresolved || 0} unresolved claim${summary.unresolved === 1 ? '' : 's'}</span><span>Evidence warning at ${health.thresholds?.warningHours || 4}h</span></div>
-      </div>
-    `;
-  }
-
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>Reconciliation attention</strong>
-        <span class="pill ${summary.critical ? 'critical' : 'high'}">${summary.critical || 0} critical, ${summary.warning || 0} warning</span>
-      </div>
-      <div class="meta"><span>Confirm the observed provider result in the matching action below.</span><span>Thresholds: ${health.thresholds?.warningHours || 4}h / ${health.thresholds?.criticalHours || 24}h</span></div>
-      <div class="meta">${alerts.slice(0, 3).map(item => `<span>${escapeHtml(item.actionType || 'Trello action')}: ${escapeHtml(item.message)}</span>`).join('')}</div>
-    </div>
-  `;
-}
-
-function renderNotificationPolicy(policy) {
-  const policyId = getId(policy.id || policy._id);
-  const statusClass = policy.status === 'active' ? 'healthy' : 'review';
-  const channel = String(policy.channel || '').replaceAll('_', ' ');
-  const isWeeklyStatus = (policy.eventTypes || []).includes('weekly_status_report');
-  const isDailyOperationsBrief = (policy.eventTypes || []).includes('daily_operations_brief');
-  const reportSchedule = policy.reportSchedule || {};
-  const dailyBriefSchedule = policy.dailyBriefSchedule || {};
-  const weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>${escapeHtml(policy.name)}</strong>
-        <span class="pill ${statusClass}">${escapeHtml(policy.status)}</span>
-      </div>
-      <div class="meta">
-        <span>${escapeHtml(channel)}</span>
-        <span>${escapeHtml(policy.destinationLabel || 'Unlabelled destination')}</span>
-        <span>${escapeHtml(policy.minimumSeverity)} and above</span>
-      </div>
-      <div class="meta"><span>${policy.destinationConfigured ? 'Encrypted destination configured' : 'Destination needs configuration'}</span><span>${policy.quietHours?.enabled ? `Warning alerts defer ${escapeHtml(policy.quietHours.startHourUtc)}:00-${escapeHtml(policy.quietHours.endHourUtc)}:00 UTC` : 'No quiet hours'}</span></div>
-      <div class="meta"><span>${policy.digest?.enabled ? `Warning digest at ${escapeHtml(policy.digest.hourUtc)}:00 UTC, up to ${escapeHtml(policy.digest.maximumItems)} items` : 'Warning alerts deliver individually'}</span></div>
-      <div class="meta"><span>${[
-        isDailyOperationsBrief && dailyBriefSchedule.enabled ? `Daily operations brief at ${escapeHtml(dailyBriefSchedule.hourUtc)}:00 UTC` : '',
-        isWeeklyStatus && reportSchedule.enabled ? `Weekly status every ${escapeHtml(weekDays[reportSchedule.dayOfWeekUtc] || 'Monday')} at ${escapeHtml(reportSchedule.hourUtc)}:00 UTC` : ''
-      ].filter(Boolean).join(' | ') || 'No scheduled brief or report'}</span></div>
-      ${renderNotificationPolicySchedulerHealth(policy)}
-      <div class="item-actions">
-        <button class="button" data-notification-policy-edit="${escapeHtml(policyId)}" type="button">Edit</button>
-        ${policy.status === 'active'
-    ? `<button class="button" data-notification-policy-pause="${escapeHtml(policyId)}" type="button">Pause</button>`
-    : `<button class="button primary" data-notification-policy-activate="${escapeHtml(policyId)}" type="button">Activate</button>`}
-        <button class="button" data-notification-policy-test="${escapeHtml(policyId)}" type="button">Send test</button>
-      </div>
-    </div>
-  `;
-}
-
-function renderNotificationPolicySchedulerHealth(policy) {
-  const jobsByEventType = {
-    reconciliation_alert: {
-      jobName: 'notifications.reconciliation_alerts',
-      label: 'Alert scheduler'
-    },
-    weekly_status_report: {
-      jobName: 'notifications.weekly_status_reports',
-      label: 'Report scheduler'
-    },
-    daily_operations_brief: {
-      jobName: 'notifications.daily_operations_briefs',
-      label: 'Daily brief scheduler'
-    }
-  };
-  const healthByJobName = new Map((state.notificationJobHealth || []).map(job => [job.jobName, job]));
-  const schedulers = (policy.eventTypes || [])
-    .map(eventType => jobsByEventType[eventType])
-    .filter(Boolean)
-    .map(config => ({
-      ...config,
-      health: healthByJobName.get(config.jobName)
-    }));
-
-  if (schedulers.length === 0) return '';
-  return `
-    <div class="meta">
-      ${schedulers.map(({ label, health }) => {
-        const status = health?.status || 'unavailable';
-        const statusClass = status === 'failed'
-          ? 'critical'
-          : status === 'stale'
-            ? 'high'
-            : status === 'healthy'
-              ? 'healthy'
-              : 'review';
-        const detail = health
-          ? `${label}: ${status}, last run ${formatDate(health.lastRunAt)}`
-          : `${label}: health unavailable`;
-        return `<span class="pill ${statusClass}">${escapeHtml(detail)}</span>`;
-      }).join('')}
-    </div>
-  `;
-}
-
-function renderNotificationDelivery(delivery) {
-  const policies = state.ledger.notificationPolicies || [];
-  const policy = policies.find(item => getId(item.id || item._id) === getId(delivery.policyId));
-  const statusClass = ['delivered', 'digested'].includes(delivery.status) ? 'healthy'
-    : delivery.status === 'failed' ? 'critical' : 'review';
-  const deliveryId = getId(delivery.id || delivery._id);
-  const sourceEvidence = notificationDeliverySourceEvidence(delivery);
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>${escapeHtml(delivery.title || 'Notification delivery')}</strong>
-        <span class="pill ${statusClass}">${escapeHtml(delivery.status)}</span>
-      </div>
-      <div class="meta">
-        <span>${escapeHtml(policy?.name || 'Notification policy')}</span>
-        <span>${escapeHtml(delivery.severity || 'info')}</span>
-        <span>${formatDate(delivery.deliveredAt || delivery.failedAt || delivery.createdAt)}</span>
-      </div>
-      <div class="meta"><span>${escapeHtml(delivery.errorMessage || delivery.message || 'Delivery recorded')}</span></div>
-      ${renderSourceEvidence(sourceEvidence)}
-      ${sourceEvidence.length && deliveryId ? `<div class="item-actions"><button class="button" data-notification-delivery-evidence="${escapeHtml(deliveryId)}" type="button">Source details</button></div>` : ''}
-    </div>
-  `;
-}
-
-function notificationDeliverySourceEvidence(delivery = {}) {
-  const candidates = [
-    ...(Array.isArray(delivery.sourceEvidence) ? delivery.sourceEvidence : []).map(item => ({
-      ...item,
-      type: item.sourceType || item.type || 'source'
-    })),
-    ...(delivery.sourceUrl ? [{
-      type: delivery.sourceType || 'source',
-      label: 'Open source evidence',
-      url: delivery.sourceUrl
-    }] : [])
-  ];
-  const seenUrls = new Set();
-  return candidates.filter((item) => {
-    const sourceUrl = safeExternalUrl(item.url);
-    if (!sourceUrl || seenUrls.has(sourceUrl)) return false;
-    seenUrls.add(sourceUrl);
-    return true;
-  });
-}
-
-function renderFollowUp(followUp) {
-  const followUpId = getId(followUp._id || followUp.id);
-  const interventionId = getId(followUp.interventionId);
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>${escapeHtml(followUp.reason || 'Follow-up needed')}</strong>
-        <span class="pill review">${escapeHtml(followUp.status || 'due')}</span>
-      </div>
-      <div class="meta">
-        <span>Due ${formatDate(followUp.dueAt)}</span>
-        <span>${escapeHtml(followUp.nextAction || 'Review worker response')}</span>
-      </div>
-      ${state.ledger.demoMode ? '' : `<div class="item-actions">
-        ${interventionId ? `<button class="button" data-followup-response="${escapeHtml(interventionId)}" type="button">Record response</button>` : ''}
-        <button class="button primary" data-followup-id="${followUpId}" data-followup-action="resolved" type="button">Resolved</button>
-        <button class="button" data-followup-id="${followUpId}" data-followup-action="escalated" type="button">Escalate</button>
-      </div>`}
-    </div>
-  `;
-}
-
-function renderWorkerAccountability(member) {
-  const attentionClass = member.attention === 'needs_attention'
-    ? 'critical'
-    : member.attention === 'watch'
-      ? 'review'
-      : 'healthy';
-  const attentionLabel = member.attention === 'needs_attention'
-    ? 'needs attention'
-    : member.attention === 'watch'
-      ? 'watch'
-      : 'clear';
-  const coverage = member.responseCoverage === null || member.responseCoverage === undefined
-    ? 'No follow-ups in window'
-    : `${member.responseCoverage}% response coverage`;
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>${escapeHtml(member.name || 'Unknown member')}</strong>
-        <span class="pill ${attentionClass}">${escapeHtml(attentionLabel)}</span>
-      </div>
-      <div class="meta">
-        <span>${escapeHtml(member.workloadLevel || 'unknown')} workload</span>
-        <span>${member.followUpsCreated || 0} follow-ups</span>
-        <span>${member.responseCount || 0} responses</span>
-        <span>${escapeHtml(coverage)}</span>
-      </div>
-      <div class="meta">
-        <span>${member.overdueFollowUps || 0} overdue</span>
-        <span>${member.escalatedFollowUps || 0} escalated</span>
-        <span>${member.blockedResponses || 0} blocked</span>
-        <span>${member.ignoredResponses || 0} explicitly ignored</span>
-      </div>
-    </div>
-  `;
+  return approvalViewController?.renderTrelloAttempt(attempt) || '';
 }
 
 function renderInterventionOutcome(outcome) {
-  const statusClass = outcome.status === 'confirmed_improved'
-    ? 'healthy'
-    : outcome.status === 'awaiting_evidence'
-      ? 'review'
-      : 'critical';
-  const recommendation = outcome.recommendationId || {};
-  const recommendationId = getId(recommendation._id || outcome.recommendationId);
-  const canEvaluate = Boolean(recommendationId)
-    && ['awaiting_evidence', 'needs_attention', 'not_verified'].includes(outcome.status);
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>${escapeHtml(recommendation.title || `${outcome.actionType || 'Intervention'} outcome`)}</strong>
-        <span class="pill ${statusClass}">${escapeHtml((outcome.status || 'awaiting_evidence').replaceAll('_', ' '))}</span>
-      </div>
-      <div class="meta">
-        <span>${escapeHtml(outcome.actionType || 'action')}</span>
-        <span>Checked ${formatDate(outcome.evaluatedAt)}</span>
-      </div>
-      <div class="meta"><span>${escapeHtml(outcome.summary || 'Outcome evidence is pending.')}</span></div>
-      ${canEvaluate && !state.ledger.demoMode ? `<div class="item-actions"><button class="button" data-outcome-evaluate="${escapeHtml(recommendationId)}" type="button">Refresh evidence</button></div>` : ''}
-    </div>
-  `;
+  return approvalViewController?.renderInterventionOutcome(outcome) || '';
 }
 
 function renderAuditEvent(event) {
-  return `
-    <div class="item">
-      <div class="item-title">
-        <strong>${escapeHtml(event.action)}</strong>
-        <span class="pill ${severityClass(event.riskLevel)}">${escapeHtml(event.source)}</span>
-      </div>
-      <div class="meta">
-        <span>${formatDate(event.createdAt)}</span>
-        <span>${escapeHtml(event.actor || 'sneup')}</span>
-        <span>${escapeHtml(event.entityType)}</span>
-      </div>
-    </div>
-  `;
+  return approvalViewController?.renderAuditEvent(event) || '';
 }
 
+function notificationDeliverySourceEvidence(delivery = {}) {
+  return approvalViewController?.notificationDeliverySourceEvidence(delivery) || [];
+}
 function renderSourceEvidence(sourceEvidence = []) {
   if (!sourceEvidence || sourceEvidence.length === 0) return '';
   const visibleRefs = sourceEvidence.slice(0, 3);
@@ -2508,10 +2038,10 @@ async function runRecommendationAction(recommendationId, action) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    openNotice('Recommendation updated', data.message || `Action completed: ${action}`);
+    openNotice(t('Recommendation updated'), data.message || t('Action completed: {action}', { action: t(String(action).replaceAll('-', ' ')) }));
     await loadOperationsLedger();
   } catch (error) {
-    openNotice('Recommendation action failed', error.message);
+    openNotice(t('Recommendation action failed'), error.message);
   }
 }
 async function runDecisionAction(itemId, action) {
@@ -2538,10 +2068,10 @@ async function runDecisionAction(itemId, action) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    openNotice('Decision updated', action === 'snooze' ? 'Decision snoozed using this workspace default.' : 'Decision delegated.');
+    openNotice(t('Decision updated'), t(action === 'snooze' ? 'Decision snoozed using this workspace default.' : 'Decision delegated.'));
     await loadOperationsLedger();
   } catch (error) {
-    openNotice('Decision update failed', error.message);
+    openNotice(t('Decision update failed'), error.message);
   }
 }
 
@@ -2564,45 +2094,45 @@ async function runFollowUpAction(followUpId, action) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    openNotice('Follow-up updated', status === 'escalated' ? 'Follow-up escalated.' : 'Follow-up resolved.');
+    openNotice(t('Follow-up updated'), t(status === 'escalated' ? 'Follow-up escalated.' : 'Follow-up resolved.'));
     await loadOperationsLedger();
   } catch (error) {
-    openNotice('Follow-up update failed', error.message);
+    openNotice(t('Follow-up update failed'), error.message);
   }
 }
 
 function openWorkerResponseRecorder(interventionId) {
   if (!interventionId) return;
 
-  els.modalTitle.textContent = 'Record worker response';
+  els.modalTitle.textContent = t('Record worker response');
   els.modalBody.innerHTML = `
     <form id="workerResponseForm" class="notice-stack">
-      <div class="notice">Record an observed response to the executed communication. Sneup will update the matching internal follow-up and accountability ledger, but it will not send a provider message.</div>
-      <label>Response type
+      <div class="notice">${et('Record an observed response to the executed communication. Sneup will update the matching internal follow-up and accountability ledger, but it will not send a provider message.')}</div>
+      <label>${et('Response type')}
         <select name="responseType" required>
-          <option value="acknowledged">Acknowledged</option>
-          <option value="completed">Completed</option>
-          <option value="blocked">Blocked</option>
-          <option value="needs_help">Needs help</option>
-          <option value="ignored">Ignored</option>
-          <option value="other">Other</option>
+          <option value="acknowledged">${et('Acknowledged')}</option>
+          <option value="completed">${et('Completed')}</option>
+          <option value="blocked">${et('Blocked')}</option>
+          <option value="needs_help">${et('Needs help')}</option>
+          <option value="ignored">${et('Ignored')}</option>
+          <option value="other">${et('Other')}</option>
         </select>
       </label>
-      <label>Observed through
+      <label>${et('Observed through')}
         <select name="source" required>
-          <option value="manual">Manual observation</option>
-          <option value="email">Email</option>
-          <option value="slack">Slack</option>
-          <option value="web_chat">Web chat</option>
-          <option value="trello_comment">Trello comment</option>
+          <option value="manual">${et('Manual observation')}</option>
+          <option value="email">${et('Email')}</option>
+          <option value="slack">${et('Slack')}</option>
+          <option value="web_chat">${et('Web chat')}</option>
+          <option value="trello_comment">${et('Trello comment')}</option>
         </select>
       </label>
-      <label>Response note (optional)
-        <textarea name="responseText" rows="4" maxlength="2000" placeholder="Record only the context needed to explain the response"></textarea>
+      <label>${et('Response note (optional)')}
+        <textarea name="responseText" rows="4" maxlength="2000" placeholder="${et('Record only the context needed to explain the response')}"></textarea>
       </label>
       <div class="toolbar modal-actions">
-        <button class="button" type="button" id="cancelWorkerResponse">Cancel</button>
-        <button class="button primary" type="submit">Record response</button>
+        <button class="button" type="button" id="cancelWorkerResponse">${et('Cancel')}</button>
+        <button class="button primary" type="submit">${et('Record response')}</button>
       </div>
     </form>
   `;
@@ -2614,7 +2144,7 @@ function openWorkerResponseRecorder(interventionId) {
     const submitButton = form.querySelector('button[type="submit"]');
     const values = new FormData(form);
     submitButton.disabled = true;
-    submitButton.textContent = 'Recording...';
+    submitButton.textContent = t('Recording...');
     try {
       const data = await fetchApi(`/api/interventions/${encodeURIComponent(interventionId)}/record-response`, {
         method: 'POST',
@@ -2628,13 +2158,13 @@ function openWorkerResponseRecorder(interventionId) {
       });
       closeModal();
       await loadOperationsLedger();
-      openNotice('Worker response recorded', data.response?.responseType === 'blocked' || data.response?.responseType === 'needs_help'
+      openNotice(t('Worker response recorded'), t(data.response?.responseType === 'blocked' || data.response?.responseType === 'needs_help'
         ? 'The matching follow-up was escalated for review.'
-        : 'The matching follow-up and accountability ledger were updated.');
+        : 'The matching follow-up and accountability ledger were updated.'));
     } catch (error) {
       submitButton.disabled = false;
-      submitButton.textContent = 'Record response';
-      openNotice('Worker response blocked', error.message);
+      submitButton.textContent = t('Record response');
+      openNotice(t('Worker response blocked'), error.message);
     }
   });
 }
@@ -2690,20 +2220,22 @@ async function editRecommendationPayload(recommendationId) {
   try {
     context = await loadPayloadReviewContext(recommendation, fields);
   } catch (error) {
-    openNotice('Payload review unavailable', error.message);
+    openNotice(t('Payload review unavailable'), error.message);
     return;
   }
   const reviewReady = isPayloadReviewReady(fields, context);
-  els.modalTitle.textContent = `Review ${String(recommendation.actionType || 'action').replaceAll('_', ' ')} payload`;
+  els.modalTitle.textContent = t('Review {action} payload', {
+    action: t(String(recommendation.actionType || 'action').replaceAll('_', ' '))
+  });
   els.modalBody.innerHTML = `
     <form id="payloadReviewForm">
-      <div class="notice">The Trello target and action type are locked. Saving changes returns this recommendation to pending so the exact revised payload must be approved again.</div>
+      <div class="notice">${et('The Trello target and action type are locked. Saving changes returns this recommendation to pending so the exact revised payload must be approved again.')}</div>
       <div class="payload-target">${renderProtectedPayloadSummary(payload)}</div>
-      ${reviewReady ? '' : '<div class="notice">Sneup needs the current board members or lists before this payload can be prepared.</div>'}
+      ${reviewReady ? '' : `<div class="notice">${et('Sneup needs the current board members or lists before this payload can be prepared.')}</div>`}
       ${fields.map((field) => renderPayloadReviewField(field, payload, context)).join('')}
       <div class="toolbar modal-actions">
-        <button class="button" type="button" id="cancelPayloadReview">Cancel</button>
-        <button class="button primary" type="submit" ${reviewReady ? '' : 'disabled'}>Save for approval</button>
+        <button class="button" type="button" id="cancelPayloadReview">${et('Cancel')}</button>
+        <button class="button primary" type="submit" ${reviewReady ? '' : 'disabled'}>${et('Save for approval')}</button>
       </div>
     </form>
   `;
@@ -2735,11 +2267,11 @@ async function editRecommendationPayload(recommendationId) {
         body: JSON.stringify({ updatedBy: 'robert', actionPayload })
       });
       closeModal();
-      openNotice('Payload saved', 'The revised action is pending a fresh Yes/No approval.');
+      openNotice(t('Payload saved'), t('The revised action is pending a fresh Yes/No approval.'));
       await loadOperationsLedger();
     } catch (error) {
       submitButton.disabled = false;
-      openNotice('Payload update failed', error.message);
+      openNotice(t('Payload update failed'), error.message);
     }
   });
 }
@@ -2774,7 +2306,7 @@ function getPayloadReviewFields(recommendation = {}) {
 async function loadPayloadReviewContext(recommendation, fields) {
   if (!fields.some((field) => field.kind === 'member' || field.kind === 'list')) return {};
   const boardId = getId(recommendation.boardId);
-  if (!boardId) throw new Error('This recommendation does not have a board target to verify.');
+  if (!boardId) throw new Error(t('This recommendation does not have a board target to verify.'));
   const data = await fetchApi(`/api/boards/${boardId}`);
   return {
     members: data.board?.members || [],
@@ -2795,11 +2327,11 @@ function renderPayloadReviewField(field, payload = {}, context = {}) {
   const value = field.key === 'targetMember' ? payload.toMemberId : payload[field.key];
   if (field.kind === 'textarea' || field.kind === 'checklist') {
     const text = field.kind === 'checklist' && Array.isArray(value) ? value.join('\n') : value || '';
-    return `<div class="field"><label for="payloadField${escapeHtml(field.key)}">${escapeHtml(field.label)}</label><textarea id="payloadField${escapeHtml(field.key)}" name="${escapeHtml(field.key)}" ${required}>${escapeHtml(text)}</textarea></div>`;
+    return `<div class="field"><label for="payloadField${escapeHtml(field.key)}">${et(field.label)}</label><textarea id="payloadField${escapeHtml(field.key)}" name="${escapeHtml(field.key)}" ${required}>${escapeHtml(text)}</textarea></div>`;
   }
   if (field.kind === 'member') {
     const members = context.members || [];
-    return `<div class="field"><label for="payloadField${escapeHtml(field.key)}">${escapeHtml(field.label)}</label><select id="payloadField${escapeHtml(field.key)}" name="${escapeHtml(field.key)}" ${required}>${members.map((member) => {
+    return `<div class="field"><label for="payloadField${escapeHtml(field.key)}">${et(field.label)}</label><select id="payloadField${escapeHtml(field.key)}" name="${escapeHtml(field.key)}" ${required}>${members.map((member) => {
       const memberId = getId(member._id || member.id);
       const label = member.fullName || member.username || memberId;
       return `<option value="${escapeHtml(memberId)}" data-trello-id="${escapeHtml(member.trelloId || '')}" ${String(memberId) === String(value || '') ? 'selected' : ''}>${escapeHtml(label)}</option>`;
@@ -2807,7 +2339,7 @@ function renderPayloadReviewField(field, payload = {}, context = {}) {
   }
   if (field.kind === 'list') {
     const lists = context.lists || [];
-    return `<div class="field"><label for="payloadField${escapeHtml(field.key)}">${escapeHtml(field.label)}</label><select id="payloadField${escapeHtml(field.key)}" name="${escapeHtml(field.key)}" ${required}>${lists.map((list) => {
+    return `<div class="field"><label for="payloadField${escapeHtml(field.key)}">${et(field.label)}</label><select id="payloadField${escapeHtml(field.key)}" name="${escapeHtml(field.key)}" ${required}>${lists.map((list) => {
       const listId = list.trelloId || getId(list._id || list.id);
       return `<option value="${escapeHtml(listId)}" ${String(listId) === String(value || '') ? 'selected' : ''}>${escapeHtml(list.name || listId)}</option>`;
     }).join('')}</select></div>`;
@@ -2815,9 +2347,9 @@ function renderPayloadReviewField(field, payload = {}, context = {}) {
   if (field.kind === 'labelColor') {
     const selected = String(value || 'red').toLowerCase();
     const options = ['yellow', 'purple', 'blue', 'red', 'green', 'orange', 'black', 'sky', 'pink', 'lime'];
-    return `<div class="field"><label for="payloadField${escapeHtml(field.key)}">${escapeHtml(field.label)}</label><select id="payloadField${escapeHtml(field.key)}" name="${escapeHtml(field.key)}" ${required}>${options.map(color => `<option value="${color}" ${color === selected ? 'selected' : ''}>${color}</option>`).join('')}</select></div>`;
+    return `<div class="field"><label for="payloadField${escapeHtml(field.key)}">${et(field.label)}</label><select id="payloadField${escapeHtml(field.key)}" name="${escapeHtml(field.key)}" ${required}>${options.map(color => `<option value="${color}" ${color === selected ? 'selected' : ''}>${et(color)}</option>`).join('')}</select></div>`;
   }
-  return `<div class="field"><label for="payloadField${escapeHtml(field.key)}">${escapeHtml(field.label)}</label><input id="payloadField${escapeHtml(field.key)}" name="${escapeHtml(field.key)}" type="text" value="${escapeHtml(value || '')}" ${required}></div>`;
+  return `<div class="field"><label for="payloadField${escapeHtml(field.key)}">${et(field.label)}</label><input id="payloadField${escapeHtml(field.key)}" name="${escapeHtml(field.key)}" type="text" value="${escapeHtml(value || '')}" ${required}></div>`;
 }
 
 function renderProtectedPayloadSummary(payload = {}) {
@@ -2828,7 +2360,7 @@ function renderProtectedPayloadSummary(payload = {}) {
     ['Source', payload.source]
   ].filter(([, value]) => value);
   if (fields.length === 0) return '';
-  return `<div class="meta">${fields.map(([label, value]) => `<span>${escapeHtml(label)}: ${escapeHtml(value)}</span>`).join('')}</div>`;
+  return `<div class="meta">${fields.map(([label, value]) => `<span>${et(label)}: ${escapeHtml(value)}</span>`).join('')}</div>`;
 }
 
 async function openRecommendationEvidence(recommendationId) {
@@ -2838,35 +2370,35 @@ async function openRecommendationEvidence(recommendationId) {
     const data = await fetchApi(`/api/recommendations/${recommendationId}/evidence`);
     renderEvidenceModal(data.evidence);
   } catch (error) {
-    openNotice('Evidence unavailable', error.message);
+    openNotice(t('Evidence unavailable'), error.message);
   }
 }
 
 function renderEvidenceModal(bundle = {}) {
   const recommendation = bundle.recommendation || {};
   const summary = bundle.summary || {};
-  els.modalTitle.textContent = 'Recommendation evidence';
+  els.modalTitle.textContent = t('Recommendation evidence');
   els.modalBody.innerHTML = `
     <div class="notice-stack">
       <div class="item">
         <div class="item-title">
-          <strong>${escapeHtml(recommendation.title || recommendation.recommendedAction || 'Recommendation')}</strong>
-          <span class="pill ${severityClass(recommendation.riskLevel)}">${escapeHtml(recommendation.status || 'pending')}</span>
+          <strong>${escapeHtml(recommendation.title || recommendation.recommendedAction || t('Recommendation'))}</strong>
+          <span class="pill ${severityClass(recommendation.riskLevel)}">${et(String(recommendation.status || 'pending').replaceAll('_', ' '))}</span>
         </div>
         <div class="meta">
-          <span>${summary.sourceEvidenceCount || 0} source refs</span>
-          <span>${summary.decisionCount || 0} decisions</span>
-          <span>${summary.approvalCount || 0} approvals</span>
-          <span>${summary.trelloActionCount || 0} Trello attempts</span>
-          <span>${summary.auditEventCount || 0} audit events</span>
-          <span>Newest ${formatDate(summary.newestEvidenceAt)}</span>
+          <span>${tp('{count} source ref', '{count} source refs', summary.sourceEvidenceCount || 0)}</span>
+          <span>${tp('{count} decision', '{count} decisions', summary.decisionCount || 0)}</span>
+          <span>${tp('{count} approval', '{count} approvals', summary.approvalCount || 0)}</span>
+          <span>${tp('{count} Trello attempt', '{count} Trello attempts', summary.trelloActionCount || 0)}</span>
+          <span>${tp('{count} audit event', '{count} audit events', summary.auditEventCount || 0)}</span>
+          <span>${et('Newest {date}', { date: formatDate(summary.newestEvidenceAt) })}</span>
         </div>
       </div>
       ${renderEvidenceSection('Source Evidence', bundle.sourceEvidence || [], renderEvidenceRef)}
       ${renderEvidenceSection('Trello Action Evidence', bundle.trelloActions || [], renderEvidenceAction)}
       ${renderEvidenceSection('Audit Trail', bundle.auditEvents || [], renderEvidenceAudit)}
       <div class="toolbar modal-actions">
-        <button class="button primary" type="button" id="evidenceClose">Done</button>
+        <button class="button primary" type="button" id="evidenceClose">${et('Done')}</button>
       </div>
     </div>
   `;
@@ -2881,32 +2413,32 @@ function openNotificationDeliveryEvidence(deliveryId) {
 
   const sourceEvidence = notificationDeliverySourceEvidence(delivery);
   if (sourceEvidence.length === 0) {
-    openNotice('Notification sources', 'This delivery has no validated source links.');
+    openNotice(t('Notification sources'), t('This delivery has no validated source links.'));
     return;
   }
 
-  els.modalTitle.textContent = 'Notification sources';
+  els.modalTitle.textContent = t('Notification sources');
   els.modalBody.innerHTML = `
     <div class="notice-stack">
       <div class="item">
         <div class="item-title">
-          <strong>${escapeHtml(delivery.title || 'Notification delivery')}</strong>
-          <span class="pill ${['delivered', 'digested'].includes(delivery.status) ? 'healthy' : delivery.status === 'failed' ? 'critical' : 'review'}">${escapeHtml(delivery.status || 'recorded')}</span>
+          <strong>${escapeHtml(delivery.title || t('Notification delivery'))}</strong>
+          <span class="pill ${['delivered', 'digested'].includes(delivery.status) ? 'healthy' : delivery.status === 'failed' ? 'critical' : 'review'}">${et(String(delivery.status || 'recorded').replaceAll('_', ' '))}</span>
         </div>
         <div class="meta">
-          <span>${sourceEvidence.length} source ref${sourceEvidence.length === 1 ? '' : 's'}</span>
+          <span>${tp('{count} source ref', '{count} source refs', sourceEvidence.length)}</span>
           <span>${formatDate(delivery.deliveredAt || delivery.failedAt || delivery.createdAt)}</span>
         </div>
       </div>
       <section>
         <div class="panel-head evidence-head">
-          <h2>Source evidence</h2>
+          <h2>${et('Source evidence')}</h2>
           <span class="pill review">${sourceEvidence.length}</span>
         </div>
         <div class="list">${sourceEvidence.map(renderEvidenceRef).join('')}</div>
       </section>
       <div class="toolbar modal-actions">
-        <button class="button primary" type="button" id="notificationEvidenceClose">Done</button>
+        <button class="button primary" type="button" id="notificationEvidenceClose">${et('Done')}</button>
       </div>
     </div>
   `;
@@ -2925,6 +2457,7 @@ function bindLedgerDrilldownActions() {
 
 async function openOperatingLedger(type, entityId) {
   if (!entityId) return;
+  await loadApprovalView();
 
   if (state.snapshot?.mode === 'demo' || state.ledger.demoMode) {
     openNotice(
@@ -3026,7 +2559,7 @@ function renderLedgerSection(title, items, renderer) {
   return `
     <section>
       <div class="panel-head evidence-head">
-        <h2>${escapeHtml(title)}</h2>
+        <h2>${et(title)}</h2>
         <span class="pill review">${items.length}</span>
       </div>
       <div class="list">${listOrEmpty(items.slice(0, 5), renderer)}</div>
@@ -3170,14 +2703,14 @@ function renderEvidenceRef(item) {
   return `
     <div class="item">
       <div class="item-title">
-        <strong>${escapeHtml(item.label || item.type || 'Evidence')}</strong>
+        <strong>${escapeHtml(item.label || item.type || t('Evidence'))}</strong>
         <span class="pill review">${escapeHtml(item.type || 'system')}</span>
       </div>
       <div class="meta">
         <span>${formatDate(item.observedAt)}</span>
-        ${sourceUrl ? `<a class="evidence-link" href="${escapeHtml(sourceUrl)}" target="_blank" rel="noreferrer">Open source</a>` : ''}
+        ${sourceUrl ? `<a class="evidence-link" href="${escapeHtml(sourceUrl)}" target="_blank" rel="noreferrer">${et('Open source')}</a>` : ''}
       </div>
-      ${item.data ? `<details class="payload"><summary>Evidence data</summary><pre>${escapeHtml(JSON.stringify(item.data, null, 2))}</pre></details>` : ''}
+      ${item.data ? `<details class="payload"><summary>${et('Evidence data')}</summary><pre>${escapeHtml(JSON.stringify(item.data, null, 2))}</pre></details>` : ''}
     </div>
   `;
 }
@@ -3186,12 +2719,12 @@ function renderEvidenceAction(action) {
   return `
     <div class="item">
       <div class="item-title">
-        <strong>${escapeHtml(action.actionType || 'Trello action')}</strong>
-        <span class="pill ${action.status === 'failed' ? 'critical' : action.status === 'succeeded' ? 'healthy' : 'review'}">${escapeHtml(action.status || 'pending')}</span>
+        <strong>${et(String(action.actionType || 'Trello action').replaceAll('_', ' '))}</strong>
+        <span class="pill ${action.status === 'failed' ? 'critical' : action.status === 'succeeded' ? 'healthy' : 'review'}">${et(String(action.status || 'pending').replaceAll('_', ' '))}</span>
       </div>
       <div class="meta">
         <span>${formatDate(action.finishedAt || action.startedAt || action.createdAt)}</span>
-        <span>${escapeHtml(action.errorMessage || 'No error recorded')}</span>
+        <span>${escapeHtml(action.errorMessage || t('No error recorded'))}</span>
       </div>
     </div>
   `;
@@ -3201,7 +2734,7 @@ function renderEvidenceAudit(event) {
   return `
     <div class="item">
       <div class="item-title">
-        <strong>${escapeHtml(event.action || 'Audit event')}</strong>
+        <strong>${escapeHtml(event.action || t('Audit event'))}</strong>
         <span class="pill ${severityClass(event.riskLevel)}">${escapeHtml(event.source || 'system')}</span>
       </div>
       <div class="meta">
@@ -3349,20 +2882,20 @@ function renderRetentionReport() {
 function openIntegrityRepair() {
   const repairable = (state.integrityReport?.findings || []).filter(item => item.repairable);
   if (repairable.length === 0) return;
-  els.modalTitle.textContent = 'Repair derived state';
+  els.modalTitle.textContent = t('Repair derived state');
   els.modalBody.innerHTML = `
     <div class="notice-stack">
-      <div class="notice">This repairs ${repairable.length} current list or member cache finding(s). It does not contact Trello, retry notifications, alter approvals, or resolve ambiguous executions.</div>
+      <div class="notice">${et('This repairs {count} current list or member cache finding(s). It does not contact Trello, retry notifications, alter approvals, or resolve ambiguous executions.', { count: repairable.length })}</div>
       <div class="toolbar modal-actions">
-        <button class="button" id="cancelIntegrityRepair" type="button">Cancel</button>
-        <button class="button primary" id="confirmIntegrityRepair" type="button">Repair ${repairable.length}</button>
+        <button class="button" id="cancelIntegrityRepair" type="button">${et('Cancel')}</button>
+        <button class="button primary" id="confirmIntegrityRepair" type="button">${et('Repair {count}', { count: repairable.length })}</button>
       </div>
     </div>`;
   els.modal.classList.add('open');
   document.getElementById('cancelIntegrityRepair').addEventListener('click', closeModal);
   document.getElementById('confirmIntegrityRepair').addEventListener('click', async event => {
     event.currentTarget.disabled = true;
-    event.currentTarget.textContent = 'Repairing...';
+    event.currentTarget.textContent = t('Repairing...');
     try {
       const data = await fetchApi('/api/integrity/repair', {
         method: 'POST',
@@ -3375,11 +2908,11 @@ function openIntegrityRepair() {
       });
       closeModal();
       await loadIntegrityReport();
-      openNotice('Repair complete', `${data.result.repaired} repaired, ${data.result.skipped} skipped because their state changed.`);
+      openNotice(t('Repair complete'), t('{repaired} repaired, {skipped} skipped because their state changed.', data.result));
     } catch (error) {
       event.currentTarget.disabled = false;
-      event.currentTarget.textContent = `Repair ${repairable.length}`;
-      openNotice('Repair failed', error.message);
+      event.currentTarget.textContent = t('Repair {count}', { count: repairable.length });
+      openNotice(t('Repair failed'), error.message);
     }
   });
 }
@@ -3388,15 +2921,15 @@ function openIntegrityRepair() {
 function openRetentionPolicy() {
   const policy = state.retentionReport?.policy;
   if (!policy) return;
-  els.modalTitle.textContent = 'Data retention policy';
+  els.modalTitle.textContent = t('Data retention policy');
   els.modalBody.innerHTML = `
     <form class="form-grid" id="retentionPolicyForm" data-draft-key="retention-policy" data-draft-fields="enabled,operationalDays,performanceDays,notificationDays,credentialDays" data-template-fields="enabled,operationalDays,performanceDays,notificationDays,credentialDays">
-      <label class="checkbox-row"><input id="retentionEnabled" name="enabled" type="checkbox" ${policy.enabled ? 'checked' : ''}> <span>Run scheduled retention</span></label>
-      <label>Operational history days<input id="retentionOperationalDays" name="operationalDays" type="number" min="30" max="730" value="${policy.operationalDays}" required></label>
-      <label>Performance history days<input id="retentionPerformanceDays" name="performanceDays" type="number" min="180" max="2555" value="${policy.performanceDays}" required></label>
-      <label>Notification receipt days<input id="retentionNotificationDays" name="notificationDays" type="number" min="90" max="2555" value="${policy.notificationDays}" required></label>
-      <label>Revoked credential days<input id="retentionCredentialDays" name="credentialDays" type="number" min="30" max="730" value="${policy.credentialDays}" required></label>
-      <div class="toolbar modal-actions"><button class="button" id="cancelRetentionPolicy" type="button">Cancel</button><button class="button primary" type="submit">Save policy</button></div>
+      <label class="checkbox-row"><input id="retentionEnabled" name="enabled" type="checkbox" ${policy.enabled ? 'checked' : ''}> <span>${et('Run scheduled retention')}</span></label>
+      <label>${et('Operational history days')}<input id="retentionOperationalDays" name="operationalDays" type="number" min="30" max="730" value="${policy.operationalDays}" required></label>
+      <label>${et('Performance history days')}<input id="retentionPerformanceDays" name="performanceDays" type="number" min="180" max="2555" value="${policy.performanceDays}" required></label>
+      <label>${et('Notification receipt days')}<input id="retentionNotificationDays" name="notificationDays" type="number" min="90" max="2555" value="${policy.notificationDays}" required></label>
+      <label>${et('Revoked credential days')}<input id="retentionCredentialDays" name="credentialDays" type="number" min="30" max="730" value="${policy.credentialDays}" required></label>
+      <div class="toolbar modal-actions"><button class="button" id="cancelRetentionPolicy" type="button">${et('Cancel')}</button><button class="button primary" type="submit">${et('Save policy')}</button></div>
     </form>`;
   els.modal.classList.add('open');
   const form = document.getElementById('retentionPolicyForm');
@@ -3421,10 +2954,10 @@ function openRetentionPolicy() {
       formPersistence?.markSaved(form);
       closeModal();
       await loadRetentionReport();
-      openNotice('Retention policy saved', 'The workspace retention policy is active with the reviewed limits.');
+      openNotice(t('Retention policy saved'), t('The workspace retention policy is active with the reviewed limits.'));
     } catch (error) {
       submit.disabled = false;
-      openNotice('Policy update failed', error.message);
+      openNotice(t('Policy update failed'), error.message);
     }
   });
 }
@@ -3432,12 +2965,12 @@ function openRetentionPolicy() {
 function openRetentionApply() {
   const report = state.retentionReport;
   if (!report?.policy?.enabled || report.summary.due === 0) return;
-  els.modalTitle.textContent = 'Prune expired history';
+  els.modalTitle.textContent = t('Prune expired history');
   els.modalBody.innerHTML = `
     <form class="form-grid" id="retentionApplyForm">
-      <div class="notice">This permanently removes up to ${report.summary.due} due operational record(s). Provider actions, approvals, audit events, active credentials, pending notifications, and current project data are excluded.</div>
-      <label>Workspace slug<input id="retentionWorkspaceConfirmation" type="text" autocomplete="off" placeholder="${escapeHtml(report.workspaceSlug)}" required></label>
-      <div class="toolbar modal-actions"><button class="button" id="cancelRetentionApply" type="button">Cancel</button><button class="button danger" type="submit">Prune due records</button></div>
+      <div class="notice">${et('This permanently removes up to {count} due operational record(s). Provider actions, approvals, audit events, active credentials, pending notifications, and current project data are excluded.', { count: report.summary.due })}</div>
+      <label>${et('Workspace slug')}<input id="retentionWorkspaceConfirmation" type="text" autocomplete="off" placeholder="${escapeHtml(report.workspaceSlug)}" required></label>
+      <div class="toolbar modal-actions"><button class="button" id="cancelRetentionApply" type="button">${et('Cancel')}</button><button class="button danger" type="submit">${et('Prune due records')}</button></div>
     </form>`;
   els.modal.classList.add('open');
   document.getElementById('cancelRetentionApply').addEventListener('click', closeModal);
@@ -3458,10 +2991,10 @@ function openRetentionApply() {
       });
       closeModal();
       await loadRetentionReport();
-      openNotice('Retention complete', `${data.result.deleted} old record(s) removed with audit evidence.`);
+      openNotice(t('Retention complete'), t('{count} old record(s) removed with audit evidence.', { count: data.result.deleted }));
     } catch (error) {
       submit.disabled = false;
-      openNotice('Retention failed', error.message);
+      openNotice(t('Retention failed'), error.message);
     }
   });
 }
@@ -3470,8 +3003,8 @@ function openRetentionApply() {
 async function openFeatureFlagHistory(key) {
   const flag = (state.featureFlags || []).find(item => item.key === key);
   if (!flag) return;
-  els.modalTitle.textContent = `${flag.label} history`;
-  els.modalBody.innerHTML = '<div class="notice">Loading rollout history...</div>';
+  els.modalTitle.textContent = t('{label} history', { label: flag.label });
+  els.modalBody.innerHTML = `<div class="notice">${et('Loading rollout history...')}</div>`;
   els.modal.classList.add('open');
   try {
     const result = await fetchApi(`/api/feature-flags/${encodeURIComponent(key)}/history?limit=25`);
@@ -3480,18 +3013,18 @@ async function openFeatureFlagHistory(key) {
         ${listOrEmpty(result.history || [], entry => `
           <div class="item">
             <div class="item-title">
-              <strong>Revision ${escapeHtml(entry.revision)}</strong>
-              <span class="pill ${entry.enabled ? 'healthy' : 'critical'}">${entry.enabled ? 'enabled' : 'paused'}</span>
+              <strong>${et('Revision {revision}', { revision: entry.revision })}</strong>
+              <span class="pill ${entry.enabled ? 'healthy' : 'critical'}">${et(entry.enabled ? 'enabled' : 'paused')}</span>
             </div>
             <div class="meta">
-              <span>${escapeHtml(entry.rolloutPercentage)}% rollout</span>
+              <span>${et('{count}% rollout', { count: entry.rolloutPercentage })}</span>
               <span>${escapeHtml(entry.actor)}</span>
               <span>${escapeHtml(formatDate(entry.changedAt))}</span>
             </div>
             ${entry.reason ? `<p>${escapeHtml(entry.reason)}</p>` : ''}
           </div>
         `)}
-        <div class="toolbar modal-actions"><button class="button" type="button" id="closeFeatureHistory">Close</button></div>
+        <div class="toolbar modal-actions"><button class="button" type="button" id="closeFeatureHistory">${et('Close')}</button></div>
       </div>
     `;
     document.getElementById('closeFeatureHistory').addEventListener('click', closeModal);
@@ -3506,16 +3039,16 @@ function openFeatureFlagEditor(key) {
   els.modalTitle.textContent = flag.label;
   els.modalBody.innerHTML = `
     <form id="featureFlagForm" class="notice-stack" data-draft-key="feature-flag:${escapeHtml(flag.key)}" data-draft-fields="enabled,rolloutPercentage,reason" data-template-fields="enabled,rolloutPercentage">
-      <div class="notice">Rollout controls can pause optional workloads or expose them gradually. They cannot grant permissions, approve recommendations, execute Trello writes, disable audits, or weaken workspace isolation.</div>
-      <label class="checkbox-row"><input name="enabled" type="checkbox" ${flag.enabled ? 'checked' : ''}> Enable this capability</label>
-      <label>Rollout percentage
+      <div class="notice">${et('Rollout controls can pause optional workloads or expose them gradually. They cannot grant permissions, approve recommendations, execute Trello writes, disable audits, or weaken workspace isolation.')}</div>
+      <label class="checkbox-row"><input name="enabled" type="checkbox" ${flag.enabled ? 'checked' : ''}> ${et('Enable this capability')}</label>
+      <label>${et('Rollout percentage')}
         <input id="featureFlagRollout" name="rolloutPercentage" type="range" min="0" max="100" step="1" value="${escapeHtml(flag.rolloutPercentage)}">
         <output id="featureFlagRolloutValue" for="featureFlagRollout">${escapeHtml(flag.rolloutPercentage)}%</output>
       </label>
-      <label>Reason<textarea name="reason" rows="3" maxlength="500" placeholder="Why this rollout is changing">${escapeHtml(flag.reason || '')}</textarea></label>
+      <label>${et('Reason')}<textarea name="reason" rows="3" maxlength="500" placeholder="${et('Why this rollout is changing')}">${escapeHtml(flag.reason || '')}</textarea></label>
       <div class="toolbar modal-actions">
-        <button class="button" type="button" id="cancelFeatureFlag">Cancel</button>
-        <button class="button primary" type="submit">Save rollout</button>
+        <button class="button" type="button" id="cancelFeatureFlag">${et('Cancel')}</button>
+        <button class="button primary" type="submit">${et('Save rollout')}</button>
       </div>
     </form>
   `;
@@ -3535,7 +3068,7 @@ function openFeatureFlagEditor(key) {
     const submitButton = form.querySelector('button[type="submit"]');
     const values = new FormData(form);
     submitButton.disabled = true;
-    submitButton.textContent = 'Saving...';
+    submitButton.textContent = t('Saving...');
     try {
       const result = await fetchApi(`/api/feature-flags/${encodeURIComponent(flag.key)}`, {
         method: 'PUT',
@@ -3553,8 +3086,8 @@ function openFeatureFlagEditor(key) {
       renderWorkspaces();
     } catch (error) {
       submitButton.disabled = false;
-      submitButton.textContent = 'Save rollout';
-      openNotice('Rollout update blocked', error.message);
+      submitButton.textContent = t('Save rollout');
+      openNotice(t('Rollout update blocked'), error.message);
     }
   });
 }
@@ -3567,25 +3100,25 @@ function openPolicyRuleEditor(actionType) {
     els.modalTitle.textContent = policy.label;
     els.modalBody.innerHTML = `
       <form id="policyRuleForm" class="notice-stack" data-draft-key="policy-rule:${escapeHtml(actionType)}" data-draft-fields="followUpAfterHours,escalationAfterHours,reason" data-template-fields="followUpAfterHours,escalationAfterHours">
-        <div class="notice">This policy only controls when Sneup creates internal follow-up or escalation candidates. It can retain or lengthen the 24-hour follow-up and 48-hour escalation baselines up to 7 days. Escalation cannot precede follow-up, and this policy never prepares or performs a provider write.</div>
+        <div class="notice">${et('This policy only controls when Sneup creates internal follow-up or escalation candidates. It can retain or lengthen the 24-hour follow-up and 48-hour escalation baselines up to 7 days. Escalation cannot precede follow-up, and this policy never prepares or performs a provider write.')}</div>
         <div class="workflow-routing-grid">
           <fieldset class="workflow-routing-row">
-            <legend>Follow-up candidate</legend>
-            <label>Create after no response (hours)
+            <legend>${et('Follow-up candidate')}</legend>
+            <label>${et('Create after no response (hours)')}
               <input name="followUpAfterHours" type="number" min="24" max="168" step="1" value="${escapeHtml(String(policy.followUpAfterHours || 24))}" required>
             </label>
           </fieldset>
           <fieldset class="workflow-routing-row">
-            <legend>Escalation candidate</legend>
-            <label>Create after no response (hours)
+            <legend>${et('Escalation candidate')}</legend>
+            <label>${et('Create after no response (hours)')}
               <input name="escalationAfterHours" type="number" min="48" max="168" step="1" value="${escapeHtml(String(policy.escalationAfterHours || 48))}" required>
             </label>
           </fieldset>
         </div>
-        <label>Reason<textarea name="reason" rows="3" maxlength="500" placeholder="Why this workspace needs longer follow-up timing">${escapeHtml(policy.reason || '')}</textarea></label>
+        <label>${et('Reason')}<textarea name="reason" rows="3" maxlength="500" placeholder="${et('Why this workspace needs longer follow-up timing')}">${escapeHtml(policy.reason || '')}</textarea></label>
         <div class="toolbar modal-actions">
-          <button class="button" type="button" id="cancelPolicyRule">Cancel</button>
-          <button class="button primary" type="submit">Save timing defaults</button>
+          <button class="button" type="button" id="cancelPolicyRule">${et('Cancel')}</button>
+          <button class="button primary" type="submit">${et('Save timing defaults')}</button>
         </div>
       </form>
     `;
@@ -3599,7 +3132,7 @@ function openPolicyRuleEditor(actionType) {
       const submitButton = form.querySelector('button[type="submit"]');
       const values = new FormData(form);
       submitButton.disabled = true;
-      submitButton.textContent = 'Saving...';
+      submitButton.textContent = t('Saving...');
       try {
         await fetchApi(`/api/policy-rules/${encodeURIComponent(actionType)}`, {
           method: 'PUT',
@@ -3615,8 +3148,8 @@ function openPolicyRuleEditor(actionType) {
         await loadWorkspaceAdmin();
       } catch (error) {
         submitButton.disabled = false;
-        submitButton.textContent = 'Save timing defaults';
-        openNotice('Timing defaults blocked', error.message);
+        submitButton.textContent = t('Save timing defaults');
+        openNotice(t('Timing defaults blocked'), error.message);
       }
     });
     return;
@@ -3637,8 +3170,8 @@ function openPolicyRuleEditor(actionType) {
     const cooldownFields = triggers.map(trigger => `${trigger}CooldownHours`);
     const rows = triggers.map((trigger) => `
       <fieldset class="workflow-routing-row">
-        <legend>${escapeHtml(labels[trigger])}</legend>
-        <label>Suppress equivalent scheduled recommendations for (hours)
+        <legend>${et(labels[trigger])}</legend>
+        <label>${et('Suppress equivalent scheduled recommendations for (hours)')}
           <input name="${trigger}CooldownHours" type="number" min="24" max="168" step="1" value="${escapeHtml(String(cooldowns[trigger] || 24))}" required>
         </label>
       </fieldset>
@@ -3646,12 +3179,12 @@ function openPolicyRuleEditor(actionType) {
     els.modalTitle.textContent = policy.label;
     els.modalBody.innerHTML = `
       <form id="policyRuleForm" class="notice-stack" data-draft-key="policy-rule:${escapeHtml(actionType)}" data-draft-fields="${cooldownFields.join(',')},reason" data-template-fields="${cooldownFields.join(',')}">
-        <div class="notice">This policy only suppresses duplicate scheduled intervention candidates. It can lengthen the 24-hour baseline up to 7 days, never shortens it, and never prepares or performs a provider write. Manual requests are not suppressed.</div>
+        <div class="notice">${et('This policy only suppresses duplicate scheduled intervention candidates. It can lengthen the 24-hour baseline up to 7 days, never shortens it, and never prepares or performs a provider write. Manual requests are not suppressed.')}</div>
         <div class="workflow-routing-grid">${rows}</div>
-        <label>Reason<textarea name="reason" rows="3" maxlength="500" placeholder="Why this workspace needs longer signal cooldowns">${escapeHtml(policy.reason || '')}</textarea></label>
+        <label>${et('Reason')}<textarea name="reason" rows="3" maxlength="500" placeholder="${et('Why this workspace needs longer signal cooldowns')}">${escapeHtml(policy.reason || '')}</textarea></label>
         <div class="toolbar modal-actions">
-          <button class="button" type="button" id="cancelPolicyRule">Cancel</button>
-          <button class="button primary" type="submit">Save cooldown defaults</button>
+          <button class="button" type="button" id="cancelPolicyRule">${et('Cancel')}</button>
+          <button class="button primary" type="submit">${et('Save cooldown defaults')}</button>
         </div>
       </form>
     `;
@@ -3665,7 +3198,7 @@ function openPolicyRuleEditor(actionType) {
       const submitButton = form.querySelector('button[type="submit"]');
       const values = new FormData(form);
       submitButton.disabled = true;
-      submitButton.textContent = 'Saving...';
+      submitButton.textContent = t('Saving...');
       try {
         await fetchApi(`/api/policy-rules/${encodeURIComponent(actionType)}`, {
           method: 'PUT',
@@ -3683,8 +3216,8 @@ function openPolicyRuleEditor(actionType) {
         await loadWorkspaceAdmin();
       } catch (error) {
         submitButton.disabled = false;
-        submitButton.textContent = 'Save cooldown defaults';
-        openNotice('Cooldown defaults blocked', error.message);
+        submitButton.textContent = t('Save cooldown defaults');
+        openNotice(t('Cooldown defaults blocked'), error.message);
       }
     });
     return;
@@ -3698,15 +3231,15 @@ function openPolicyRuleEditor(actionType) {
     const rows = risks.map((risk) => {
       const entry = routing[risk] || {};
       const ownerControl = ['high', 'critical'].includes(risk)
-        ? '<span class="workflow-fixed-owner">Robert only</span>'
+        ? `<span class="workflow-fixed-owner">${et('Robert only')}</span>`
         : `<select name="${risk}OwnerType">
-            ${['va', 'team', 'robert'].map(owner => `<option value="${owner}" ${owner === entry.ownerType ? 'selected' : ''}>${owner}</option>`).join('')}
+            ${['va', 'team', 'robert'].map(owner => `<option value="${owner}" ${owner === entry.ownerType ? 'selected' : ''}>${et(owner)}</option>`).join('')}
           </select>`;
       return `
         <fieldset class="workflow-routing-row">
-          <legend>${escapeHtml(riskLabels[risk])}</legend>
-          <label>Decision owner${ownerControl}</label>
-          <label>Escalate to Robert after (hours)
+          <legend>${et(riskLabels[risk])}</legend>
+          <label>${et('Decision owner')}${ownerControl}</label>
+          <label>${et('Escalate to Robert after (hours)')}
             <input name="${risk}EscalationHours" type="number" min="1" max="168" step="1" value="${escapeHtml(String(entry.escalationHours || 24))}" required>
           </label>
         </fieldset>
@@ -3715,12 +3248,12 @@ function openPolicyRuleEditor(actionType) {
     els.modalTitle.textContent = policy.label;
     els.modalBody.innerHTML = `
       <form id="policyRuleForm" class="notice-stack" data-draft-key="policy-rule:${escapeHtml(actionType)}" data-draft-fields="${routingFields.join(',')},reason" data-template-fields="${routingFields.join(',')}">
-        <div class="notice">This policy only routes internal decision queue items. When a VA or team item reaches its review deadline, Sneup records the escalation and moves it to Robert. It never prepares or performs a provider write.</div>
+        <div class="notice">${et('This policy only routes internal decision queue items. When a VA or team item reaches its review deadline, Sneup records the escalation and moves it to Robert. It never prepares or performs a provider write.')}</div>
         <div class="workflow-routing-grid">${rows}</div>
-        <label>Reason<textarea name="reason" rows="3" maxlength="500" placeholder="Why this workspace needs these queue defaults">${escapeHtml(policy.reason || '')}</textarea></label>
+        <label>${et('Reason')}<textarea name="reason" rows="3" maxlength="500" placeholder="${et('Why this workspace needs these queue defaults')}">${escapeHtml(policy.reason || '')}</textarea></label>
         <div class="toolbar modal-actions">
-          <button class="button" type="button" id="cancelPolicyRule">Cancel</button>
-          <button class="button primary" type="submit">Save queue defaults</button>
+          <button class="button" type="button" id="cancelPolicyRule">${et('Cancel')}</button>
+          <button class="button primary" type="submit">${et('Save queue defaults')}</button>
         </div>
       </form>
     `;
@@ -3734,7 +3267,7 @@ function openPolicyRuleEditor(actionType) {
       const submitButton = form.querySelector('button[type="submit"]');
       const values = new FormData(form);
       submitButton.disabled = true;
-      submitButton.textContent = 'Saving...';
+      submitButton.textContent = t('Saving...');
       try {
         await fetchApi(`/api/policy-rules/${encodeURIComponent(actionType)}`, {
           method: 'PUT',
@@ -3752,8 +3285,8 @@ function openPolicyRuleEditor(actionType) {
         await loadWorkspaceAdmin();
       } catch (error) {
         submitButton.disabled = false;
-        submitButton.textContent = 'Save queue defaults';
-        openNotice('Queue defaults blocked', error.message);
+        submitButton.textContent = t('Save queue defaults');
+        openNotice(t('Queue defaults blocked'), error.message);
       }
     });
     return;
@@ -3763,15 +3296,15 @@ function openPolicyRuleEditor(actionType) {
     els.modalTitle.textContent = policy.label;
     els.modalBody.innerHTML = `
       <form id="policyRuleForm" class="notice-stack" data-draft-key="policy-rule:${escapeHtml(actionType)}" data-draft-fields="defaultSnoozeHours,reason" data-template-fields="defaultSnoozeHours">
-        <div class="notice">This default only reschedules internal decision queue items. It never prepares or performs a provider write.</div>
-        <label>Default snooze duration (hours)
+        <div class="notice">${et('This default only reschedules internal decision queue items. It never prepares or performs a provider write.')}</div>
+        <label>${et('Default snooze duration (hours)')}
           <input name="defaultSnoozeHours" type="number" min="1" max="168" step="1" value="${escapeHtml(String(policy.defaultSnoozeHours || 24))}" required>
-          <small>Choose between 1 hour and 7 days. People can still choose an explicit future deadline where the API permits it.</small>
+          <small>${et('Choose between 1 hour and 7 days. People can still choose an explicit future deadline where the API permits it.')}</small>
         </label>
-        <label>Reason<textarea name="reason" rows="3" maxlength="500" placeholder="Why this workspace needs this default">${escapeHtml(policy.reason || '')}</textarea></label>
+        <label>${et('Reason')}<textarea name="reason" rows="3" maxlength="500" placeholder="${et('Why this workspace needs this default')}">${escapeHtml(policy.reason || '')}</textarea></label>
         <div class="toolbar modal-actions">
-          <button class="button" type="button" id="cancelPolicyRule">Cancel</button>
-          <button class="button primary" type="submit">Save workflow default</button>
+          <button class="button" type="button" id="cancelPolicyRule">${et('Cancel')}</button>
+          <button class="button primary" type="submit">${et('Save workflow default')}</button>
         </div>
       </form>
     `;
@@ -3785,7 +3318,7 @@ function openPolicyRuleEditor(actionType) {
       const submitButton = form.querySelector('button[type="submit"]');
       const values = new FormData(form);
       submitButton.disabled = true;
-      submitButton.textContent = 'Saving...';
+      submitButton.textContent = t('Saving...');
       try {
         await fetchApi(`/api/policy-rules/${encodeURIComponent(actionType)}`, {
           method: 'PUT',
@@ -3800,8 +3333,8 @@ function openPolicyRuleEditor(actionType) {
         await loadWorkspaceAdmin();
       } catch (error) {
         submitButton.disabled = false;
-        submitButton.textContent = 'Save workflow default';
-        openNotice('Workflow default blocked', error.message);
+        submitButton.textContent = t('Save workflow default');
+        openNotice(t('Workflow default blocked'), error.message);
       }
     });
     return;
@@ -3812,30 +3345,30 @@ function openPolicyRuleEditor(actionType) {
   const availableRisks = riskLevels.filter(level => riskLevels.indexOf(level) >= riskLevels.indexOf(policy.baselineRiskLevel));
   const availableOwners = ['system', 'va', 'team', 'robert'].filter(owner => ownerStrictness[owner] >= ownerStrictness[policy.baselineOwnerType]);
 
-  els.modalTitle.textContent = `Action safety: ${policy.label}`;
+  els.modalTitle.textContent = t('Action safety: {label}', { label: policy.label });
   els.modalBody.innerHTML = `
     <form id="policyRuleForm" class="notice-stack" data-draft-key="policy-rule:${escapeHtml(actionType)}" data-draft-fields="enabled,pauseExpiresAt,riskLevel,ownerType,reason" data-template-fields="enabled,pauseExpiresAt,riskLevel,ownerType">
-      <div class="notice">Every Trello write remains approval-gated. This workspace rule can pause this action type or make its risk and decision owner stricter.</div>
-      <label><input name="enabled" type="checkbox" ${policy.enabled ? 'checked' : ''}> Allow approved ${escapeHtml(policy.label)} actions to execute</label>
-      <label>Pause review time
+      <div class="notice">${et('Every Trello write remains approval-gated. This workspace rule can pause this action type or make its risk and decision owner stricter.')}</div>
+      <label><input name="enabled" type="checkbox" ${policy.enabled ? 'checked' : ''}> ${et('Allow approved {label} actions to execute', { label: policy.label })}</label>
+      <label>${et('Pause review time')}
         <input name="pauseExpiresAt" type="datetime-local" value="${escapeHtml(toDateTimeLocalValue(policy.pauseExpiresAt))}">
-        <small>An expired pause stays paused until a manager reviews it; Sneup never re-enables it automatically.</small>
+        <small>${et('An expired pause stays paused until a manager reviews it; Sneup never re-enables it automatically.')}</small>
       </label>
-      <label>Risk level
+      <label>${et('Risk level')}
         <select name="riskLevel">
-          ${availableRisks.map(level => `<option value="${escapeHtml(level)}" ${level === policy.riskLevel ? 'selected' : ''}>${escapeHtml(level)}</option>`).join('')}
+          ${availableRisks.map(level => `<option value="${escapeHtml(level)}" ${level === policy.riskLevel ? 'selected' : ''}>${et(level)}</option>`).join('')}
         </select>
       </label>
-      <label>Decision owner
+      <label>${et('Decision owner')}
         <select name="ownerType">
-          ${availableOwners.map(owner => `<option value="${escapeHtml(owner)}" ${owner === policy.ownerType ? 'selected' : ''}>${escapeHtml(owner)}</option>`).join('')}
+          ${availableOwners.map(owner => `<option value="${escapeHtml(owner)}" ${owner === policy.ownerType ? 'selected' : ''}>${et(owner)}</option>`).join('')}
         </select>
       </label>
-      <label>Reason<textarea name="reason" rows="3" maxlength="500" placeholder="Why this action needs this safety posture">${escapeHtml(policy.reason || '')}</textarea></label>
-      <label><input name="confirmRelaxation" type="checkbox"> I confirm that this may relax an existing workspace safety rule.</label>
+      <label>${et('Reason')}<textarea name="reason" rows="3" maxlength="500" placeholder="${et('Why this action needs this safety posture')}">${escapeHtml(policy.reason || '')}</textarea></label>
+      <label><input name="confirmRelaxation" type="checkbox"> ${et('I confirm that this may relax an existing workspace safety rule.')}</label>
       <div class="toolbar modal-actions">
-        <button class="button" type="button" id="cancelPolicyRule">Cancel</button>
-        <button class="button primary" type="submit">Save safety rule</button>
+        <button class="button" type="button" id="cancelPolicyRule">${et('Cancel')}</button>
+        <button class="button primary" type="submit">${et('Save safety rule')}</button>
       </div>
     </form>
   `;
@@ -3849,7 +3382,7 @@ function openPolicyRuleEditor(actionType) {
     const submitButton = form.querySelector('button[type="submit"]');
     const values = new FormData(form);
     submitButton.disabled = true;
-    submitButton.textContent = 'Saving...';
+    submitButton.textContent = t('Saving...');
     try {
       await fetchApi(`/api/policy-rules/${encodeURIComponent(actionType)}`, {
         method: 'PUT',
@@ -3868,8 +3401,8 @@ function openPolicyRuleEditor(actionType) {
       await loadWorkspaceAdmin();
     } catch (error) {
       submitButton.disabled = false;
-      submitButton.textContent = 'Save safety rule';
-      openNotice('Safety rule blocked', error.message);
+      submitButton.textContent = t('Save safety rule');
+      openNotice(t('Safety rule blocked'), error.message);
     }
   });
 }
@@ -3878,7 +3411,7 @@ async function downloadWorkspaceExport() {
   const workspace = (state.workspaces || []).find(item => item.id === state.activeWorkspaceId)
     || state.currentWorkspace;
   if (!workspace?.id || !(state.securityContext?.roles || []).includes('owner')) {
-    openNotice('Workspace export unavailable', 'Sign in as the workspace owner before exporting workspace data.');
+    openNotice(t('Workspace export unavailable'), t('Sign in as the workspace owner before exporting workspace data.'));
     return;
   }
 
@@ -3895,13 +3428,13 @@ async function downloadWorkspaceExport() {
       fileHandle = await window.showSaveFilePicker({
         suggestedName,
         types: [{
-          description: 'Sneup workspace export',
+          description: t('Sneup workspace export'),
           accept: { 'application/x-ndjson': ['.ndjson'] }
         }]
       });
     } catch (error) {
       if (error.name === 'AbortError') return;
-      openNotice('Workspace export unavailable', error.message);
+      openNotice(t('Workspace export unavailable'), error.message);
       return;
     }
   }
@@ -3910,7 +3443,7 @@ async function downloadWorkspaceExport() {
   try {
     const response = await apiFetch(`/api/workspaces/${encodeURIComponent(workspace.id)}/export`);
     if (!response.ok) {
-      let message = `Workspace export failed with status ${response.status}`;
+      let message = t('Workspace export failed with status {status}', { status: response.status });
       try {
         const data = await response.json();
         message = apiErrorMessage(data, message);
@@ -3935,9 +3468,9 @@ async function downloadWorkspaceExport() {
       URL.revokeObjectURL(url);
     }
 
-    openNotice('Workspace export complete', 'The export contains workspace records and excludes credentials, token hashes, and encrypted notification destinations.');
+    openNotice(t('Workspace export complete'), t('The export contains workspace records and excludes credentials, token hashes, and encrypted notification destinations.'));
   } catch (error) {
-    openNotice('Workspace export failed', error.message);
+    openNotice(t('Workspace export failed'), error.message);
   } finally {
     renderWorkspaces();
   }
@@ -3948,19 +3481,19 @@ function openWorkspaceDeletion() {
     || state.currentWorkspace;
   const isOwner = (state.securityContext?.roles || []).includes('owner');
   if (!workspace?.id || !isOwner || !['archived', 'deleting'].includes(workspace.status)) {
-    openNotice('Workspace deletion unavailable', 'Only an archived workspace can be permanently deleted by its owner.');
+    openNotice(t('Workspace deletion unavailable'), t('Only an archived workspace can be permanently deleted by its owner.'));
     return;
   }
 
-  els.modalTitle.textContent = 'Delete archived workspace?';
+  els.modalTitle.textContent = t('Delete archived workspace?');
   els.modalBody.innerHTML = `
     <form id="workspaceDeletionForm" class="notice-stack">
-      <div class="notice critical">This permanently removes Sneup data, account credentials, access tokens, and audit history for this workspace. Connected provider accounts are not changed.</div>
-      <label>Workspace slug<input name="confirmation" type="text" autocomplete="off" required placeholder="${escapeHtml(workspace.slug)}"></label>
-      <label><input name="acknowledgePermanentDeletion" type="checkbox" required> I understand this deletion cannot be undone.</label>
+      <div class="notice critical">${et('This permanently removes Sneup data, account credentials, access tokens, and audit history for this workspace. Connected provider accounts are not changed.')}</div>
+      <label>${et('Workspace slug')}<input name="confirmation" type="text" autocomplete="off" required placeholder="${escapeHtml(workspace.slug)}"></label>
+      <label><input name="acknowledgePermanentDeletion" type="checkbox" required> ${et('I understand this deletion cannot be undone.')}</label>
       <div class="toolbar modal-actions">
-        <button class="button" id="cancelWorkspaceDeletion" type="button">Cancel</button>
-        <button class="button danger" type="submit">Delete workspace</button>
+        <button class="button" id="cancelWorkspaceDeletion" type="button">${et('Cancel')}</button>
+        <button class="button danger" type="submit">${et('Delete workspace')}</button>
       </div>
     </form>
   `;
@@ -3972,7 +3505,7 @@ function openWorkspaceDeletion() {
     const values = new FormData(form);
     const submitButton = form.querySelector('button[type="submit"]');
     submitButton.disabled = true;
-    submitButton.textContent = 'Deleting...';
+    submitButton.textContent = t('Deleting...');
     try {
       const data = await fetchApi(`/api/workspaces/${encodeURIComponent(workspace.id)}/delete`, {
         method: 'POST',
@@ -3992,11 +3525,11 @@ function openWorkspaceDeletion() {
       localStorage.removeItem('sneup.workspaceId');
       closeModal();
       renderWorkspaces();
-      openNotice('Workspace deleted', `Deletion receipt ${data.receipt.deletionId}. Local Sneup data for the workspace has been removed.`);
+      openNotice(t('Workspace deleted'), t('Deletion receipt {id}. Local Sneup data for the workspace has been removed.', { id: data.receipt.deletionId }));
     } catch (error) {
       submitButton.disabled = false;
-      submitButton.textContent = 'Delete workspace';
-      openNotice('Workspace deletion failed', error.message);
+      submitButton.textContent = t('Delete workspace');
+      openNotice(t('Workspace deletion failed'), error.message);
     }
   });
 }
@@ -4004,33 +3537,33 @@ function openWorkspaceDeletion() {
 function openWorkspaceInvite() {
   const workspaceId = state.activeWorkspaceId || state.currentWorkspace?.id;
   if (!workspaceId) {
-    openNotice('Invitation unavailable', 'Choose a workspace before inviting a user.');
+    openNotice(t('Invitation unavailable'), t('Choose a workspace before inviting a user.'));
     return;
   }
 
-  els.modalTitle.textContent = 'Invite user';
+  els.modalTitle.textContent = t('Invite user');
   els.modalBody.innerHTML = `
     <form id="workspaceInviteForm" class="notice-stack">
-      <label>Email<input name="email" type="email" autocomplete="email" required></label>
-      <label>Name<input name="displayName" type="text" autocomplete="name" required></label>
-      <label>Role
+      <label>${et('Email')}<input name="email" type="email" autocomplete="email" required></label>
+      <label>${et('Name')}<input name="displayName" type="text" autocomplete="name" required></label>
+      <label>${et('Role')}
         <select name="role">
-          <option value="viewer">Viewer</option>
-          <option value="operator">Operator</option>
-          <option value="manager">Manager</option>
-          <option value="admin">Admin</option>
+          <option value="viewer">${et('Viewer')}</option>
+          <option value="operator">${et('Operator')}</option>
+          <option value="manager">${et('Manager')}</option>
+          <option value="admin">${et('Admin')}</option>
         </select>
       </label>
-      <label>Expires in days<input name="expiresInDays" type="number" min="1" max="30" value="7" required></label>
-      <label>Delivery
+      <label>${et('Expires in days')}<input name="expiresInDays" type="number" min="1" max="30" value="7" required></label>
+      <label>${et('Delivery')}
         <select name="deliveryMode">
-          <option value="manual">Secure link</option>
-          <option value="email">Send email</option>
+          <option value="manual">${et('Secure link')}</option>
+          <option value="email">${et('Send email')}</option>
         </select>
       </label>
       <div class="toolbar modal-actions">
-        <button class="button" type="button" id="cancelWorkspaceInvite">Cancel</button>
-        <button class="button primary" type="submit">Create invitation</button>
+        <button class="button" type="button" id="cancelWorkspaceInvite">${et('Cancel')}</button>
+        <button class="button primary" type="submit">${et('Create invitation')}</button>
       </div>
     </form>
   `;
@@ -4040,7 +3573,7 @@ function openWorkspaceInvite() {
     event.preventDefault();
     const submitButton = event.currentTarget.querySelector('button[type="submit"]');
     submitButton.disabled = true;
-    submitButton.textContent = 'Creating...';
+    submitButton.textContent = t('Creating...');
     const values = new FormData(event.currentTarget);
     try {
       const data = await fetchApi(`/api/workspaces/${encodeURIComponent(workspaceId)}/invitations`, {
@@ -4057,33 +3590,35 @@ function openWorkspaceInvite() {
       await loadWorkspaceAdmin();
       renderCreatedInvitation(data);
     } catch (error) {
-      openNotice('Invitation failed', error.message);
+      submitButton.disabled = false;
+      submitButton.textContent = t('Create invitation');
+      openNotice(t('Invitation failed'), error.message);
     }
   });
 }
 
 function renderCreatedInvitation(data) {
   const delivery = data.delivery?.status === 'sent'
-    ? 'Email sent.'
+    ? t('Email sent.')
     : data.delivery?.status === 'failed'
-      ? `Email was not sent: ${data.delivery.message || 'provider delivery failed'}.`
-      : 'Secure link created.';
-  els.modalTitle.textContent = 'Invitation ready';
+      ? t('Email was not sent: {message}.', { message: data.delivery.message || t('provider delivery failed') })
+      : t('Secure link created.');
+  els.modalTitle.textContent = t('Invitation ready');
   els.modalBody.innerHTML = `
     <div class="notice-stack">
       <div class="notice">${escapeHtml(delivery)}</div>
-      <label for="workspaceInviteUrl">Secure invitation link</label>
+      <label for="workspaceInviteUrl">${et('Secure invitation link')}</label>
       <textarea id="workspaceInviteUrl" rows="4" readonly>${escapeHtml(data.inviteUrl)}</textarea>
       <div class="toolbar modal-actions">
-        <button class="button" type="button" id="copyWorkspaceInvite">Copy link</button>
-        <button class="button primary" type="button" id="closeWorkspaceInvite">Done</button>
+        <button class="button" type="button" id="copyWorkspaceInvite">${et('Copy link')}</button>
+        <button class="button primary" type="button" id="closeWorkspaceInvite">${et('Done')}</button>
       </div>
     </div>
   `;
   document.getElementById('copyWorkspaceInvite').addEventListener('click', async (event) => {
     try {
       await navigator.clipboard.writeText(data.inviteUrl);
-      event.currentTarget.textContent = 'Copied';
+      event.currentTarget.textContent = t('Copied');
     } catch (error) {
       const input = document.getElementById('workspaceInviteUrl');
       input.focus();
@@ -4095,13 +3630,13 @@ function renderCreatedInvitation(data) {
 
 function openInviteRevocationConfirmation(invitation) {
   if (!invitation || invitation.status !== 'pending') return;
-  els.modalTitle.textContent = 'Revoke invitation?';
+  els.modalTitle.textContent = t('Revoke invitation?');
   els.modalBody.innerHTML = `
     <div class="notice-stack">
-      <div class="notice">This will invalidate the invitation for ${escapeHtml(invitation.email)} immediately.</div>
+      <div class="notice">${et('This will invalidate the invitation for {email} immediately.', { email: invitation.email })}</div>
       <div class="toolbar modal-actions">
-        <button class="button" type="button" id="cancelInviteRevoke">Cancel</button>
-        <button class="button danger" type="button" id="confirmInviteRevoke">Revoke invitation</button>
+        <button class="button" type="button" id="cancelInviteRevoke">${et('Cancel')}</button>
+        <button class="button danger" type="button" id="confirmInviteRevoke">${et('Revoke invitation')}</button>
       </div>
     </div>
   `;
@@ -4110,7 +3645,7 @@ function openInviteRevocationConfirmation(invitation) {
     const workspaceId = state.activeWorkspaceId || state.currentWorkspace?.id;
     if (!workspaceId) return;
     event.currentTarget.disabled = true;
-    event.currentTarget.textContent = 'Revoking...';
+    event.currentTarget.textContent = t('Revoking...');
     try {
       await fetchApi(`/api/workspaces/${encodeURIComponent(workspaceId)}/invitations/${encodeURIComponent(invitation.id)}/revoke`, {
         method: 'POST',
@@ -4120,7 +3655,9 @@ function openInviteRevocationConfirmation(invitation) {
       closeModal();
       await loadWorkspaceAdmin();
     } catch (error) {
-      openNotice('Invitation revocation failed', error.message);
+      event.currentTarget.disabled = false;
+      event.currentTarget.textContent = t('Revoke invitation');
+      openNotice(t('Invitation revocation failed'), error.message);
     }
   });
 }
@@ -4130,20 +3667,20 @@ function openInviteDeliveryRetryConfirmation(invitation) {
   const workspaceId = state.activeWorkspaceId || state.currentWorkspace?.id;
   if (!workspaceId) return;
 
-  els.modalTitle.textContent = 'Retry invitation email?';
+  els.modalTitle.textContent = t('Retry invitation email?');
   els.modalBody.innerHTML = `
     <div class="notice-stack">
-      <div class="notice">Sneup will invalidate the prior secure link, create a fresh one-time link, and send it to ${escapeHtml(invitation.email)}. The replacement is recorded in the workspace audit ledger.</div>
+      <div class="notice">${et('Sneup will invalidate the prior secure link, create a fresh one-time link, and send it to {email}. The replacement is recorded in the workspace audit ledger.', { email: invitation.email })}</div>
       <div class="toolbar modal-actions">
-        <button class="button" type="button" id="cancelInviteDeliveryRetry">Cancel</button>
-        <button class="button primary" type="button" id="confirmInviteDeliveryRetry">Retry email</button>
+        <button class="button" type="button" id="cancelInviteDeliveryRetry">${et('Cancel')}</button>
+        <button class="button primary" type="button" id="confirmInviteDeliveryRetry">${et('Retry email')}</button>
       </div>
     </div>
   `;
   document.getElementById('cancelInviteDeliveryRetry').addEventListener('click', closeModal);
   document.getElementById('confirmInviteDeliveryRetry').addEventListener('click', async (event) => {
     event.currentTarget.disabled = true;
-    event.currentTarget.textContent = 'Retrying...';
+    event.currentTarget.textContent = t('Retrying...');
     try {
       const data = await fetchApi(`/api/workspaces/${encodeURIComponent(workspaceId)}/invitations/${encodeURIComponent(invitation.id)}/retry-delivery`, {
         method: 'POST',
@@ -4154,8 +3691,8 @@ function openInviteDeliveryRetryConfirmation(invitation) {
       renderCreatedInvitation(data);
     } catch (error) {
       event.currentTarget.disabled = false;
-      event.currentTarget.textContent = 'Retry email';
-      openNotice('Invitation retry failed', error.message);
+      event.currentTarget.textContent = t('Retry email');
+      openNotice(t('Invitation retry failed'), error.message);
     }
   });
 }
@@ -4164,60 +3701,60 @@ async function openWorkspaceUserSessions(userId) {
   const workspaceId = state.activeWorkspaceId || state.currentWorkspace?.id;
   const user = state.workspaceUsers.find(item => item.id === userId);
   if (!workspaceId || !user) {
-    openNotice('Session access unavailable', 'Choose a workspace user before reviewing sessions.');
+    openNotice(t('Session access unavailable'), t('Choose a workspace user before reviewing sessions.'));
     return;
   }
 
-  els.modalTitle.textContent = 'Session access';
-  els.modalBody.innerHTML = '<div class="notice">Loading active and historical sessions...</div>';
+  els.modalTitle.textContent = t('Session access');
+  els.modalBody.innerHTML = `<div class="notice">${et('Loading active and historical sessions...')}</div>`;
   els.modal.classList.add('open');
 
   try {
     const data = await fetchApi(`/api/workspaces/${encodeURIComponent(workspaceId)}/users/${encodeURIComponent(user.id)}/sessions?limit=100`);
     renderWorkspaceUserSessions(data.user || user, data.sessions || []);
   } catch (error) {
-    openNotice('Session access unavailable', error.message);
+    openNotice(t('Session access unavailable'), error.message);
   }
 }
 
 function renderWorkspaceUserSessions(user, sessions) {
   const activeSessions = sessions.filter(session => session.status === 'active');
-  els.modalTitle.textContent = `${user.displayName} sessions`;
+  els.modalTitle.textContent = t('{name} sessions', { name: user.displayName });
   els.modalBody.innerHTML = `
     <div class="notice-stack">
-      <div class="notice">Review issued access for this user. Revoking a session ends its API access immediately and records a high-risk audit event.</div>
+      <div class="notice">${et('Review issued access for this user. Revoking a session ends its API access immediately and records a high-risk audit event.')}</div>
       <div class="item">
         <div class="item-title">
           <strong>${escapeHtml(user.displayName)}</strong>
-          <span class="pill ${activeSessions.length ? 'review' : 'healthy'}">${activeSessions.length} active</span>
+          <span class="pill ${activeSessions.length ? 'review' : 'healthy'}">${tp('{count} active session', '{count} active sessions', activeSessions.length)}</span>
         </div>
         <div class="meta">
-          <span>${escapeHtml(user.role || 'user')}</span>
-          <span>${escapeHtml(user.email || 'No email')}</span>
+          <span>${et(String(user.role || 'user').replaceAll('_', ' '))}</span>
+          <span>${escapeHtml(user.email || t('No email'))}</span>
         </div>
       </div>
       <div class="list">
         ${listOrEmpty(sessions, (session) => `
           <div class="item">
             <div class="item-title">
-              <strong>${escapeHtml(session.name || 'User session')}</strong>
-              <span class="pill ${session.status === 'active' ? 'review' : 'healthy'}">${escapeHtml(session.status)}</span>
+              <strong>${escapeHtml(session.name || t('User session'))}</strong>
+              <span class="pill ${session.status === 'active' ? 'review' : 'healthy'}">${et(String(session.status).replaceAll('_', ' '))}</span>
             </div>
             <div class="meta">
-              <span>Used ${escapeHtml(formatDate(session.lastUsedAt || session.createdAt))}</span>
-              <span>Expires ${escapeHtml(formatDate(session.expiresAt))}</span>
-              <span>${escapeHtml(session.tokenPrefix || 'Token protected')}</span>
+              <span>${et('Used {date}', { date: formatDate(session.lastUsedAt || session.createdAt) })}</span>
+              <span>${et('Expires {date}', { date: formatDate(session.expiresAt) })}</span>
+              <span>${escapeHtml(session.tokenPrefix || t('Token protected'))}</span>
             </div>
             ${session.status === 'active' ? `
               <div class="item-actions">
-                <button class="button danger" data-revoke-workspace-session="${escapeHtml(session.id)}" type="button">Revoke session</button>
+                <button class="button danger" data-revoke-workspace-session="${escapeHtml(session.id)}" type="button">${et('Revoke session')}</button>
               </div>
             ` : ''}
           </div>
         `)}
       </div>
       <div class="toolbar modal-actions">
-        <button class="button" type="button" id="closeSessionAccess">Done</button>
+        <button class="button" type="button" id="closeSessionAccess">${et('Done')}</button>
       </div>
     </div>
   `;
@@ -4230,13 +3767,13 @@ function renderWorkspaceUserSessions(user, sessions) {
 
 function openSessionRevocationConfirmation(user, session) {
   if (!session || session.status !== 'active') return;
-  els.modalTitle.textContent = 'Revoke session?';
+  els.modalTitle.textContent = t('Revoke session?');
   els.modalBody.innerHTML = `
     <div class="notice-stack">
-      <div class="notice">This immediately ends API access for <strong>${escapeHtml(session.name || 'this session')}</strong> belonging to ${escapeHtml(user.displayName)}. This cannot be undone; issue a new session if access is needed again.</div>
+      <div class="notice">${et('This immediately ends API access for')} <strong>${escapeHtml(session.name || t('this session'))}</strong> ${et('belonging to {name}. This cannot be undone; issue a new session if access is needed again.', { name: user.displayName })}</div>
       <div class="toolbar modal-actions">
-        <button class="button" type="button" id="cancelSessionRevoke">Cancel</button>
-        <button class="button danger" type="button" id="confirmSessionRevoke">Revoke session</button>
+        <button class="button" type="button" id="cancelSessionRevoke">${et('Cancel')}</button>
+        <button class="button danger" type="button" id="confirmSessionRevoke">${et('Revoke session')}</button>
       </div>
     </div>
   `;
@@ -4246,7 +3783,7 @@ function openSessionRevocationConfirmation(user, session) {
     if (!workspaceId) return;
     const button = document.getElementById('confirmSessionRevoke');
     button.disabled = true;
-    button.textContent = 'Revoking...';
+    button.textContent = t('Revoking...');
     try {
       await fetchApi(`/api/workspaces/${encodeURIComponent(workspaceId)}/users/${encodeURIComponent(user.id)}/sessions/${encodeURIComponent(session.id)}/revoke`, {
         method: 'POST',
@@ -4255,7 +3792,9 @@ function openSessionRevocationConfirmation(user, session) {
       });
       await openWorkspaceUserSessions(user.id);
     } catch (error) {
-      openNotice('Session revocation failed', error.message);
+      button.disabled = false;
+      button.textContent = t('Revoke session');
+      openNotice(t('Session revocation failed'), error.message);
     }
   });
 }
@@ -5618,26 +5157,28 @@ function openTrelloActionReconciliation(actionId) {
   const attempt = (state.ledger.actions || []).find(item => getId(item._id || item.id) === actionId);
   if (!attempt) return;
 
-  els.modalTitle.textContent = `Reconcile ${String(attempt.actionType || 'Trello action').replaceAll('_', ' ')}`;
+  els.modalTitle.textContent = t('Reconcile {action}', {
+    action: t(String(attempt.actionType || 'Trello action').replaceAll('_', ' '))
+  });
   els.modalBody.innerHTML = `
     <form id="trelloActionReconciliationForm" class="notice-stack">
-      <div class="notice">Confirm the observed provider result. This finalizes Sneup's ledger and does not send another Trello request.</div>
-      <label>Observed result
+      <div class="notice">${et("Confirm the observed provider result. This finalizes Sneup's ledger and does not send another Trello request.")}</div>
+      <label>${et('Observed result')}
         <select name="outcome" required>
-          <option value="" selected disabled>Select result</option>
-          <option value="succeeded">Succeeded in Trello</option>
-          <option value="failed">Did not succeed in Trello</option>
+          <option value="" selected disabled>${et('Select result')}</option>
+          <option value="succeeded">${et('Succeeded in Trello')}</option>
+          <option value="failed">${et('Did not succeed in Trello')}</option>
         </select>
       </label>
-      <label>Evidence checked
-        <textarea name="evidence" rows="4" maxlength="2000" required placeholder="Trello activity, card state, or provider error reviewed"></textarea>
+      <label>${et('Evidence checked')}
+        <textarea name="evidence" rows="4" maxlength="2000" required placeholder="${et('Trello activity, card state, or provider error reviewed')}"></textarea>
       </label>
-      <label>Resolution note
-        <textarea name="reason" rows="2" maxlength="1000" placeholder="Optional decision note"></textarea>
+      <label>${et('Resolution note')}
+        <textarea name="reason" rows="2" maxlength="1000" placeholder="${et('Optional decision note')}"></textarea>
       </label>
       <div class="toolbar modal-actions">
-        <button class="button" type="button" id="cancelTrelloReconciliation">Cancel</button>
-        <button class="button primary" type="submit">Finalize ledger</button>
+        <button class="button" type="button" id="cancelTrelloReconciliation">${et('Cancel')}</button>
+        <button class="button primary" type="submit">${et('Finalize ledger')}</button>
       </div>
     </form>
   `;
@@ -5649,7 +5190,7 @@ function openTrelloActionReconciliation(actionId) {
     const submitButton = event.currentTarget.querySelector('button[type="submit"]');
     const formData = new FormData(event.currentTarget);
     submitButton.disabled = true;
-    submitButton.textContent = 'Finalizing...';
+    submitButton.textContent = t('Finalizing...');
 
     try {
       const data = await fetchApi(`/api/trello-actions/${encodeURIComponent(actionId)}/reconcile`, {
@@ -5664,13 +5205,13 @@ function openTrelloActionReconciliation(actionId) {
       });
       closeModal();
       await loadOperationsLedger();
-      openNotice('Ledger reconciled', data.auditRecorded === false
+      openNotice(t('Ledger reconciled'), t(data.auditRecorded === false
         ? 'The provider result is finalized. Audit recording needs operator review.'
-        : 'The provider result and approval ledger are finalized.');
+        : 'The provider result and approval ledger are finalized.'));
     } catch (error) {
       submitButton.disabled = false;
-      submitButton.textContent = 'Finalize ledger';
-      openNotice('Reconciliation blocked', error.message);
+      submitButton.textContent = t('Finalize ledger');
+      openNotice(t('Reconciliation blocked'), error.message);
     }
   });
 }
@@ -5692,66 +5233,68 @@ function openNotificationPolicyForm(policy = null) {
   const reportSchedule = policy?.reportSchedule || { dayOfWeekUtc: 1, hourUtc: 9 };
   const dailyBriefSchedule = policy?.dailyBriefSchedule || { hourUtc: 8 };
   const channel = policy?.channel || 'slack_webhook';
-  els.modalTitle.textContent = isEdit ? 'Edit delivery policy' : 'Add delivery policy';
+  els.modalTitle.textContent = t(isEdit ? 'Edit delivery policy' : 'Add delivery policy');
   els.modalBody.innerHTML = `
     <form id="notificationPolicyForm" class="notice-stack">
-      <label>Name<input name="name" type="text" maxlength="120" required value="${escapeHtml(policy?.name || '')}" placeholder="Operations alerts"></label>
+      <label>${et('Name')}<input name="name" type="text" maxlength="120" required value="${escapeHtml(policy?.name || '')}" placeholder="${et('Operations alerts')}"></label>
       <fieldset class="notice-stack">
-        <legend>Deliver</legend>
-        <label><input name="eventTypes" type="checkbox" value="reconciliation_alert" ${eventTypes.includes('reconciliation_alert') ? 'checked' : ''}> Reconciliation alerts</label>
-        <label><input name="eventTypes" type="checkbox" value="weekly_status_report" ${eventTypes.includes('weekly_status_report') ? 'checked' : ''}> Weekly status report</label>
-        <label><input name="eventTypes" type="checkbox" value="daily_operations_brief" ${eventTypes.includes('daily_operations_brief') ? 'checked' : ''}> Daily operations brief</label>
+        <legend>${et('Deliver')}</legend>
+        <label><input name="eventTypes" type="checkbox" value="reconciliation_alert" ${eventTypes.includes('reconciliation_alert') ? 'checked' : ''}> ${et('Reconciliation alerts')}</label>
+        <label><input name="eventTypes" type="checkbox" value="weekly_status_report" ${eventTypes.includes('weekly_status_report') ? 'checked' : ''}> ${et('Weekly status report')}</label>
+        <label><input name="eventTypes" type="checkbox" value="daily_operations_brief" ${eventTypes.includes('daily_operations_brief') ? 'checked' : ''}> ${et('Daily operations brief')}</label>
       </fieldset>
-      <label>Channel
+      <label>${et('Channel')}
         <select name="channel" required>
-          <option value="slack_webhook" ${channel === 'slack_webhook' ? 'selected' : ''}>Slack webhook</option>
-          <option value="teams_webhook" ${channel === 'teams_webhook' ? 'selected' : ''}>Teams webhook</option>
-          <option value="generic_webhook" ${channel === 'generic_webhook' ? 'selected' : ''}>Generic webhook</option>
-          <option value="email" ${channel === 'email' ? 'selected' : ''}>Email (Resend)</option>
+          <option value="slack_webhook" ${channel === 'slack_webhook' ? 'selected' : ''}>${et('Slack webhook')}</option>
+          <option value="teams_webhook" ${channel === 'teams_webhook' ? 'selected' : ''}>${et('Teams webhook')}</option>
+          <option value="generic_webhook" ${channel === 'generic_webhook' ? 'selected' : ''}>${et('Generic webhook')}</option>
+          <option value="email" ${channel === 'email' ? 'selected' : ''}>${et('Email (Resend)')}</option>
         </select>
       </label>
-      <label>Destination label<input name="destinationLabel" type="text" maxlength="160" required value="${escapeHtml(policy?.destinationLabel || '')}" placeholder="Project operations channel"></label>
-      <label id="notificationWebhookDestination">HTTPS webhook URL<input name="destinationUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://..."></label>
-      <label id="notificationEmailDestination" hidden>Email recipient<input name="destinationEmail" type="email" inputmode="email" autocomplete="email" placeholder="operations@example.com"></label>
-      ${isEdit && policy.destinationConfigured ? '<div class="notice">Encrypted destination retained unless you enter a replacement.</div>' : ''}
+      <label>${et('Destination label')}<input name="destinationLabel" type="text" maxlength="160" required value="${escapeHtml(policy?.destinationLabel || '')}" placeholder="${et('Project operations channel')}"></label>
+      <label id="notificationWebhookDestination">${et('HTTPS webhook URL')}<input name="destinationUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://..."></label>
+      <label id="notificationEmailDestination" hidden>${et('Email recipient')}<input name="destinationEmail" type="email" inputmode="email" autocomplete="email" placeholder="operations@example.com"></label>
+      ${isEdit && policy.destinationConfigured ? `<div class="notice">${et('Encrypted destination retained unless you enter a replacement.')}</div>` : ''}
       <div id="notificationAlertSettings">
-      <label>Minimum severity
+      <label>${et('Minimum severity')}
         <select name="minimumSeverity">
-          <option value="warning" ${policy?.minimumSeverity !== 'critical' ? 'selected' : ''}>Warning and critical</option>
-          <option value="critical" ${policy?.minimumSeverity === 'critical' ? 'selected' : ''}>Critical only</option>
+          <option value="warning" ${policy?.minimumSeverity !== 'critical' ? 'selected' : ''}>${et('Warning and critical')}</option>
+          <option value="critical" ${policy?.minimumSeverity === 'critical' ? 'selected' : ''}>${et('Critical only')}</option>
         </select>
       </label>
-      <label><input name="quietHoursEnabled" type="checkbox" ${quietHours.enabled ? 'checked' : ''}> Defer warning alerts during quiet hours (critical alerts stay immediate)</label>
+      <label><input name="quietHoursEnabled" type="checkbox" ${quietHours.enabled ? 'checked' : ''}> ${et('Defer warning alerts during quiet hours (critical alerts stay immediate)')}</label>
       <div class="form-grid">
-        <label>Quiet start UTC<input name="quietStartHourUtc" type="number" min="0" max="23" value="${escapeHtml(quietHours.startHourUtc)}"></label>
-        <label>Quiet end UTC<input name="quietEndHourUtc" type="number" min="0" max="23" value="${escapeHtml(quietHours.endHourUtc)}"></label>
+        <label>${et('Quiet start UTC')}<input name="quietStartHourUtc" type="number" min="0" max="23" value="${escapeHtml(quietHours.startHourUtc)}"></label>
+        <label>${et('Quiet end UTC')}<input name="quietEndHourUtc" type="number" min="0" max="23" value="${escapeHtml(quietHours.endHourUtc)}"></label>
       </div>
-      <label><input name="digestEnabled" type="checkbox" ${digest.enabled ? 'checked' : ''}> Send warning evidence as one daily digest (critical alerts stay immediate)</label>
+      <label><input name="digestEnabled" type="checkbox" ${digest.enabled ? 'checked' : ''}> ${et('Send warning evidence as one daily digest (critical alerts stay immediate)')}</label>
       <div class="form-grid">
-        <label>Digest hour UTC<input name="digestHourUtc" type="number" min="0" max="23" value="${escapeHtml(digest.hourUtc)}"></label>
-        <label>Maximum digest items<input name="digestMaximumItems" type="number" min="1" max="25" value="${escapeHtml(digest.maximumItems)}"></label>
+        <label>${et('Digest hour UTC')}<input name="digestHourUtc" type="number" min="0" max="23" value="${escapeHtml(digest.hourUtc)}"></label>
+        <label>${et('Maximum digest items')}<input name="digestMaximumItems" type="number" min="1" max="25" value="${escapeHtml(digest.maximumItems)}"></label>
       </div>
       </div>
       <div id="notificationReportSettings" hidden>
         <div class="form-grid">
-          <label>Weekly day UTC
+          <label>${et('Weekly day UTC')}
             <select name="reportDayOfWeekUtc">
-              <option value="1" ${Number(reportSchedule.dayOfWeekUtc) === 1 ? 'selected' : ''}>Monday</option><option value="2" ${Number(reportSchedule.dayOfWeekUtc) === 2 ? 'selected' : ''}>Tuesday</option><option value="3" ${Number(reportSchedule.dayOfWeekUtc) === 3 ? 'selected' : ''}>Wednesday</option><option value="4" ${Number(reportSchedule.dayOfWeekUtc) === 4 ? 'selected' : ''}>Thursday</option><option value="5" ${Number(reportSchedule.dayOfWeekUtc) === 5 ? 'selected' : ''}>Friday</option><option value="6" ${Number(reportSchedule.dayOfWeekUtc) === 6 ? 'selected' : ''}>Saturday</option><option value="0" ${Number(reportSchedule.dayOfWeekUtc) === 0 ? 'selected' : ''}>Sunday</option>
+              <option value="1" ${Number(reportSchedule.dayOfWeekUtc) === 1 ? 'selected' : ''}>${et('Monday')}</option><option value="2" ${Number(reportSchedule.dayOfWeekUtc) === 2 ? 'selected' : ''}>${et('Tuesday')}</option><option value="3" ${Number(reportSchedule.dayOfWeekUtc) === 3 ? 'selected' : ''}>${et('Wednesday')}</option><option value="4" ${Number(reportSchedule.dayOfWeekUtc) === 4 ? 'selected' : ''}>${et('Thursday')}</option><option value="5" ${Number(reportSchedule.dayOfWeekUtc) === 5 ? 'selected' : ''}>${et('Friday')}</option><option value="6" ${Number(reportSchedule.dayOfWeekUtc) === 6 ? 'selected' : ''}>${et('Saturday')}</option><option value="0" ${Number(reportSchedule.dayOfWeekUtc) === 0 ? 'selected' : ''}>${et('Sunday')}</option>
             </select>
           </label>
-          <label>Delivery hour UTC<input name="reportHourUtc" type="number" min="0" max="23" value="${escapeHtml(reportSchedule.hourUtc)}"></label>
+          <label>${et('Delivery hour UTC')}<input name="reportHourUtc" type="number" min="0" max="23" value="${escapeHtml(reportSchedule.hourUtc)}"></label>
         </div>
       </div>
       <div id="notificationDailyBriefSettings" hidden>
         <div class="form-grid">
-          <label>Daily delivery hour UTC<input name="dailyBriefHourUtc" type="number" min="0" max="23" value="${escapeHtml(dailyBriefSchedule.hourUtc)}"></label>
+          <label>${et('Daily delivery hour UTC')}<input name="dailyBriefHourUtc" type="number" min="0" max="23" value="${escapeHtml(dailyBriefSchedule.hourUtc)}"></label>
         </div>
-        <div class="notice">The daily brief is read-only: it summarizes current decisions, risks, follow-ups, and the morning plan. It never changes a provider account.</div>
+        <div class="notice">${et('The daily brief is read-only: it summarizes current decisions, risks, follow-ups, and the morning plan. It never changes a provider account.')}</div>
       </div>
-      <div class="notice">${isEdit ? `Changes keep this policy ${escapeHtml(policy.status)}. Activation remains a separate confirmation.` : 'The policy starts paused. Activate it separately when this workspace is ready to deliver its configured alerts, daily brief, or weekly status report.'}</div>
+      <div class="notice">${isEdit
+    ? et('Changes keep this policy {status}. Activation remains a separate confirmation.', { status: t(String(policy.status).replaceAll('_', ' ')) })
+    : et('The policy starts paused. Activate it separately when this workspace is ready to deliver its configured alerts, daily brief, or weekly status report.')}</div>
       <div class="toolbar modal-actions">
-        <button class="button" type="button" id="cancelNotificationPolicy">Cancel</button>
-        <button class="button primary" type="submit">${isEdit ? 'Save changes' : 'Save paused policy'}</button>
+        <button class="button" type="button" id="cancelNotificationPolicy">${et('Cancel')}</button>
+        <button class="button primary" type="submit">${et(isEdit ? 'Save changes' : 'Save paused policy')}</button>
       </div>
     </form>
   `;
@@ -5779,7 +5322,7 @@ function openNotificationPolicyForm(policy = null) {
     alertSettings.hidden = !selectedEventTypes.includes('reconciliation_alert');
     reportSettings.hidden = !selectedEventTypes.includes('weekly_status_report');
     dailyBriefSettings.hidden = !selectedEventTypes.includes('daily_operations_brief');
-    eventTypeInputs[0].setCustomValidity(selectedEventTypes.length ? '' : 'Select at least one delivery type');
+    eventTypeInputs[0].setCustomValidity(selectedEventTypes.length ? '' : t('Select at least one delivery type'));
   };
   eventTypeInputs.forEach(input => input.addEventListener('change', syncEventSettings));
   syncDestinationInput();
@@ -5788,7 +5331,7 @@ function openNotificationPolicyForm(policy = null) {
     event.preventDefault();
     const submitButton = event.currentTarget.querySelector('button[type="submit"]');
     submitButton.disabled = true;
-    submitButton.textContent = 'Saving...';
+    submitButton.textContent = t('Saving...');
     try {
       const form = event.currentTarget;
       const formValues = Object.fromEntries(new FormData(form).entries());
@@ -5833,8 +5376,8 @@ function openNotificationPolicyForm(policy = null) {
       closeModal();
     } catch (error) {
       submitButton.disabled = false;
-      submitButton.textContent = isEdit ? 'Save changes' : 'Save paused policy';
-      openNotice('Policy not saved', error.message);
+      submitButton.textContent = t(isEdit ? 'Save changes' : 'Save paused policy');
+      openNotice(t('Policy not saved'), error.message);
     }
   });
 }
@@ -5849,7 +5392,7 @@ async function updateNotificationPolicy(policyId, body) {
     await loadOperationsLedger();
     return true;
   } catch (error) {
-    openNotice('Policy update blocked', error.message);
+    openNotice(t('Policy update blocked'), error.message);
     return false;
   }
 }
@@ -5858,17 +5401,17 @@ function openNotificationActivation(policyId) {
   const policy = (state.ledger.notificationPolicies || []).find(item => getId(item.id || item._id) === policyId);
   if (!policy) return;
   const eventLabels = [];
-  if ((policy.eventTypes || []).includes('reconciliation_alert')) eventLabels.push(`${policy.minimumSeverity} reconciliation evidence alerts`);
-  if ((policy.eventTypes || []).includes('weekly_status_report')) eventLabels.push('weekly status reports');
-  if ((policy.eventTypes || []).includes('daily_operations_brief')) eventLabels.push('daily operations briefs');
-  els.modalTitle.textContent = 'Activate delivery policy';
+  if ((policy.eventTypes || []).includes('reconciliation_alert')) eventLabels.push(t('{severity} reconciliation evidence alerts', { severity: t(policy.minimumSeverity) }));
+  if ((policy.eventTypes || []).includes('weekly_status_report')) eventLabels.push(t('weekly status reports'));
+  if ((policy.eventTypes || []).includes('daily_operations_brief')) eventLabels.push(t('daily operations briefs'));
+  els.modalTitle.textContent = t('Activate delivery policy');
   els.modalBody.innerHTML = `
     <form id="activateNotificationPolicyForm" class="notice-stack">
-      <div class="notice">Activating <strong>${escapeHtml(policy.name)}</strong> permits ${escapeHtml(eventLabels.join(' and ') || 'configured deliveries')} to <strong>${escapeHtml(policy.destinationLabel || 'the configured destination')}</strong>.</div>
-      <label><input type="checkbox" name="confirmActivation" required> I confirm this workspace may deliver these notifications.</label>
+      <div class="notice">${et('Activating')} <strong>${escapeHtml(policy.name)}</strong> ${et('permits {deliveries} to', { deliveries: eventLabels.join(` ${t('and')} `) || t('configured deliveries') })} <strong>${escapeHtml(policy.destinationLabel || t('the configured destination'))}</strong>.</div>
+      <label><input type="checkbox" name="confirmActivation" required> ${et('I confirm this workspace may deliver these notifications.')}</label>
       <div class="toolbar modal-actions">
-        <button class="button" type="button" id="cancelNotificationActivation">Cancel</button>
-        <button class="button primary" type="submit">Activate policy</button>
+        <button class="button" type="button" id="cancelNotificationActivation">${et('Cancel')}</button>
+        <button class="button primary" type="submit">${et('Activate policy')}</button>
       </div>
     </form>
   `;
@@ -5878,12 +5421,12 @@ function openNotificationActivation(policyId) {
     event.preventDefault();
     const submitButton = event.currentTarget.querySelector('button[type="submit"]');
     submitButton.disabled = true;
-    submitButton.textContent = 'Activating...';
+    submitButton.textContent = t('Activating...');
     try {
       if (await updateNotificationPolicy(policyId, { status: 'active' })) closeModal();
     } finally {
       submitButton.disabled = false;
-      submitButton.textContent = 'Activate policy';
+      submitButton.textContent = t('Activate policy');
     }
   });
 }
@@ -5891,14 +5434,14 @@ function openNotificationActivation(policyId) {
 function openNotificationTest(policyId) {
   const policy = (state.ledger.notificationPolicies || []).find(item => getId(item.id || item._id) === policyId);
   if (!policy) return;
-  els.modalTitle.textContent = 'Send test alert';
+  els.modalTitle.textContent = t('Send test alert');
   els.modalBody.innerHTML = `
     <form id="notificationTestForm" class="notice-stack">
-      <div class="notice">This sends a real test delivery to <strong>${escapeHtml(policy.destinationLabel || 'the configured destination')}</strong>. It does not activate the policy.</div>
-      <label><input type="checkbox" name="confirmDelivery" required> I understand this sends an external test notification.</label>
+      <div class="notice">${et('This sends a real test delivery to')} <strong>${escapeHtml(policy.destinationLabel || t('the configured destination'))}</strong>. ${et('It does not activate the policy.')}</div>
+      <label><input type="checkbox" name="confirmDelivery" required> ${et('I understand this sends an external test notification.')}</label>
       <div class="toolbar modal-actions">
-        <button class="button" type="button" id="cancelNotificationTest">Cancel</button>
-        <button class="button primary" type="submit">Send test</button>
+        <button class="button" type="button" id="cancelNotificationTest">${et('Cancel')}</button>
+        <button class="button primary" type="submit">${et('Send test')}</button>
       </div>
     </form>
   `;
@@ -5908,7 +5451,7 @@ function openNotificationTest(policyId) {
     event.preventDefault();
     const submitButton = event.currentTarget.querySelector('button[type="submit"]');
     submitButton.disabled = true;
-    submitButton.textContent = 'Sending...';
+    submitButton.textContent = t('Sending...');
     try {
       await fetchApi(`/api/notifications/policies/${encodeURIComponent(policyId)}/test`, {
         method: 'POST',
@@ -5917,11 +5460,11 @@ function openNotificationTest(policyId) {
       });
       closeModal();
       await loadOperationsLedger();
-      openNotice('Test delivered', 'The external destination accepted the test alert.');
+      openNotice(t('Test delivered'), t('The external destination accepted the test alert.'));
     } catch (error) {
       submitButton.disabled = false;
-      submitButton.textContent = 'Send test';
-      openNotice('Test delivery failed', error.message);
+      submitButton.textContent = t('Send test');
+      openNotice(t('Test delivery failed'), error.message);
     }
   });
 }
@@ -5943,12 +5486,12 @@ function inviteTokenFromUrl() {
 }
 
 function openInviteAcceptance(rawToken) {
-  els.modalTitle.textContent = 'Join workspace';
+  els.modalTitle.textContent = t('Join workspace');
   els.modalBody.innerHTML = `
     <form id="acceptWorkspaceInviteForm" class="notice-stack">
-      <label>Name<input name="displayName" type="text" autocomplete="name" required></label>
+      <label>${et('Name')}<input name="displayName" type="text" autocomplete="name" required></label>
       <div class="toolbar modal-actions">
-        <button class="button primary" type="submit">Join workspace</button>
+        <button class="button primary" type="submit">${et('Join workspace')}</button>
       </div>
     </form>
   `;
@@ -5957,7 +5500,7 @@ function openInviteAcceptance(rawToken) {
     event.preventDefault();
     const submitButton = event.currentTarget.querySelector('button[type="submit"]');
     submitButton.disabled = true;
-    submitButton.textContent = 'Joining...';
+    submitButton.textContent = t('Joining...');
     try {
       const values = new FormData(event.currentTarget);
       const data = await fetchApi('/api/workspaces/invitations/accept', {
@@ -5973,7 +5516,9 @@ function openInviteAcceptance(rawToken) {
       await loadAll({ force: true });
       showView('overview');
     } catch (error) {
-      openNotice('Unable to join workspace', error.message);
+      submitButton.disabled = false;
+      submitButton.textContent = t('Join workspace');
+      openNotice(t('Unable to join workspace'), error.message);
     }
   });
 }

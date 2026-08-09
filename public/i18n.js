@@ -103,7 +103,6 @@
     'disabled': 'uitgeschakeld',
     'connected': 'gekoppeld',
     'linked': 'verbonden',
-    'ready': 'gereed',
     'setup': 'instellen',
     'retired': 'beeindigd',
     'legacy': 'verouderd',
@@ -326,7 +325,6 @@
     '{repairable} repairable, {review} need review': '{repairable} herstelbaar, {review} te beoordelen',
     'Internal database only': 'Alleen interne database',
     'No provider writes': 'Geen providerschrijfacties',
-    'Repair derived state': 'Afgeleide status herstellen',
     'No integrity drift found.': 'Geen integriteitsafwijking gevonden.',
     'Run a bounded retention scan.': 'Voer een begrensde bewaarscan uit.',
     '{count} due record': '{count} te verwijderen record',
@@ -337,7 +335,6 @@
     'Notifications {days}d': 'Meldingen {days}d',
     'Credentials {days}d': 'Inloggegevens {days}d',
     'Audit, approvals, actions, active credentials, pending deliveries, and current project data stay protected': 'Audit, goedkeuringen, acties, actieve inloggegevens, openstaande leveringen en huidige projectgegevens blijven beschermd',
-    'Prune due records': 'Vervallen records verwijderen',
     '{count} day': '{count} dag',
     '{count} days': '{count} dagen',
     'Before {date}': 'Voor {date}',
@@ -437,7 +434,6 @@
     'Runtime check unavailable.': 'Runtimecontrole niet beschikbaar.',
     'Startup preference failed': 'Opstartvoorkeur mislukt',
     'Sneup could not save this startup mode.': 'Sneup kon deze opstartmodus niet opslaan.',
-    'Overview': 'Overzicht',
     'Daily command': 'Dagelijkse sturing',
     'Start here to see what needs attention now, what can proceed automatically, and where delivery confidence is changing.': 'Begin hier om te zien wat nu aandacht nodig heeft, wat automatisch verder kan en waar de leveringszekerheid verandert.',
     'Read the operations brief for the smallest set of decisions that unblock work.': 'Lees het bewerkingenoverzicht voor de kleinste reeks beslissingen die werk vrijmaakt.',
@@ -564,10 +560,6 @@
     'Review follow-up': 'Opvolging beoordelen',
     'Review failed action': 'Mislukte actie beoordelen',
     'Review board health': 'Bordstatus beoordelen',
-    'critical': 'kritiek',
-    'high': 'hoog',
-    'medium': 'gemiddeld',
-    'low': 'laag',
     'healthy': 'gezond',
     'at_risk': 'risico',
     'overloaded': 'overbelast',
@@ -605,7 +597,17 @@
     '{count} tracked job': '{count} gevolgde taak',
     '{count} tracked jobs': '{count} gevolgde taken',
     '{count} check needs attention.': '{count} controle vereist aandacht.',
-    '{count} checks need attention.': '{count} controles vereisen aandacht.'
+    '{count} checks need attention.': '{count} controles vereisen aandacht.',
+    'The approval view loaded without its runtime. Try again.': 'De goedkeuringsweergave is zonder runtime geladen. Probeer het opnieuw.',
+    'The approval view could not be loaded. Check the connection and try again.': 'De goedkeuringsweergave kon niet worden geladen. Controleer de verbinding en probeer het opnieuw.',
+    'Cancel': 'Annuleren',
+    'Saving...': 'Opslaan...',
+    'Email': 'E-mail',
+    'Name': 'Naam',
+    'system': 'systeem',
+    'Join workspace': 'Deelnemen aan werkruimte',
+    'Joining...': 'Deelnemen...',
+    'Unable to join workspace': 'Deelnemen aan werkruimte mislukt'
   });
 
   const normalizeLocale = value => String(value || '').toLowerCase().startsWith('nl') ? 'nl' : 'en';
@@ -618,6 +620,9 @@
     const storage = options.storage || runtimeRoot?.localStorage;
     const navigatorLanguage = options.language || runtimeRoot?.navigator?.languages?.[0] || runtimeRoot?.navigator?.language;
     const documentStates = new WeakMap();
+    const messages = {
+      nl: Object.assign(Object.create(null), NL_MESSAGES)
+    };
     let locale;
     try {
       locale = normalizeLocale(storage?.getItem(STORAGE_KEY) || navigatorLanguage);
@@ -626,14 +631,26 @@
     }
 
     const t = (message, params = {}) => interpolate(
-      locale === 'nl' && Object.prototype.hasOwnProperty.call(NL_MESSAGES, message) ? NL_MESSAGES[message] : message,
+      locale === 'nl' && Object.prototype.hasOwnProperty.call(messages.nl, message) ? messages.nl[message] : message,
       params
     );
-    const hasTranslation = message => Object.prototype.hasOwnProperty.call(NL_MESSAGES, message);
+    const hasTranslation = message => Object.prototype.hasOwnProperty.call(messages.nl, message);
     const plural = (singular, pluralMessage, count, params = {}) => t(count === 1 ? singular : pluralMessage, { ...params, count });
     const localeTag = () => LOCALE_TAGS[locale];
     const formatNumber = (value, formatOptions = {}) => new Intl.NumberFormat(localeTag(), formatOptions).format(value);
     const formatDate = (value, formatOptions = {}) => new Intl.DateTimeFormat(localeTag(), formatOptions).format(new Date(value));
+
+    function registerMessages(value, additions = {}) {
+      const targetLocale = normalizeLocale(value);
+      if (targetLocale !== 'nl' || !additions || typeof additions !== 'object') return 0;
+      let registered = 0;
+      Object.entries(additions).forEach(([key, translation]) => {
+        if (['__proto__', 'constructor', 'prototype'].includes(key) || typeof translation !== 'string') return;
+        messages.nl[key] = translation;
+        registered += 1;
+      });
+      return registered;
+    }
 
     function captureStatic(document) {
       if (!document || documentStates.has(document)) return documentStates.get(document);
@@ -703,6 +720,7 @@
       plural,
       formatNumber,
       formatDate,
+      registerMessages,
       applyStatic,
       setLocale
     };

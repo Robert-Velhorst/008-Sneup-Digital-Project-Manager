@@ -5,6 +5,7 @@ const path = require('path');
 const ASSET_VERSION_TOKEN = '__SNEUP_ASSET_VERSION__';
 const FINGERPRINTED_ASSETS = Object.freeze([
   'app.js',
+  'approvalView.js',
   'connectorView.js',
   'workspaceView.js',
   'formPersistence.js',

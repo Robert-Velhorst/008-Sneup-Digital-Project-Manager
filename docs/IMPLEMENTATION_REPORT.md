@@ -47,8 +47,8 @@ Reduced avoidable resource use:
 - Duplicate Mongoose index declarations were removed to reduce startup warnings and index churn.
 - The command center loads hidden views on demand and exposes bounded, recent response-time p50/p95 summaries for the known view APIs. The telemetry retains neither request data nor unbounded history.
 - Context-sensitive help is a separate static browser module covering all command-center views, setup, decision safety, and privacy. It builds no hidden topic DOM until first open, and its search and rendering use no API request, storage, database work, provider traffic, polling, or new dependency.
-- English/Dutch localization is a standalone 48,439-byte browser module with exact-message translation, local date/number/plural formatting, and one bounded local-storage preference. It now covers complete connector and workspace renderer chrome while never auto-translating provider, user, audit, or source-evidence text.
-- Connector and workspace rendering use separate demand-loaded browser modules. Sneup starts each module fetch and API request concurrently, reuses each controller, and clears failed loads for retry. The eager app is 19,045 bytes smaller than 2.3.17; even with the expanded catalog, initial app-plus-localization is 13,128 raw and 2,062 gzip bytes smaller. All eight initial/deferred assets share a content-derived immutable-cache version.
+- English/Dutch localization uses a 600-key startup catalog plus 373 approval-only and 145 workspace-only messages registered only with those deferred views. Exact-message translation, local date/number/plural formatting, and one bounded local-storage preference never auto-translate provider, user, audit, free-text, error, identifier, or payload evidence.
+- Connector, workspace, and approval rendering use separate demand-loaded browser modules. Sneup starts each module fetch and API read concurrently, reuses controllers, and clears failed loads for retry. Compared with 2.3.18, initial app-plus-localization is 21,649 raw, 3,876 gzip, and 3,008 Brotli bytes smaller. All nine initial/deferred assets share a content-derived immutable-cache version.
 - API rate limiting has a hard bounded bucket map, expires stale state first, evicts least-recently-used pressure state only when needed, and exposes aggregate capacity metrics without request identifiers.
 - NLP imports only the tokenization, sentence splitting, TF-IDF, English AFINN sentiment, and Porter stemming modules used by Sneup. The Windows build excludes Natural's unused language packs, classifiers, WordNet, and unused storage-client dependencies while preserving the existing NLP implementations.
 - NLP is now demand-loaded only when card-content analysis runs, so normal server and desktop startup do not initialize Natural. Routine successful requests also avoid disk logging unless explicitly enabled; rejected, failed, and slow requests remain visible.
@@ -67,19 +67,19 @@ Added:
 - Secure preload bridge in `desktop/preload.js`.
 - `npm run desktop` for local desktop testing.
 - `npm run build:installer` / `npm run dist:win` for Windows NSIS packaging.
-- Current release target: `release/Sneup-Setup-2.3.17.exe`.
+- Current release target: `release/Sneup-Setup-2.3.19.exe`.
 
-The verified local 2.3.17 installer is 109,464,295 bytes with SHA-256 `0FDEAA4465A2C742FCFD26F89AF7654CAC63B28A68F1293B419B19168FB7F5E4`. It is intentionally reported as unsigned until an owner-controlled publisher certificate is available. The packaged executable reports product/file version 2.3.17 and retains the Windows x64 native ngrok binding.
+The verified local 2.3.19 installer is 109,475,145 bytes with SHA-256 `0C38644685A321F887C9B3FF1887EABBDED41723792D72882859AEBF0BC31CB8`. It is intentionally reported as unsigned until an owner-controlled publisher certificate is available. The packaged executable reports product/file version 2.3.19 and retains the Windows x64 native ngrok binding.
 
 The desktop app starts Sneup on `127.0.0.1` and opens the command center in an app window. On first run it starts in demo mode. The workspace choice stores only the non-secret `demo` or `live` startup preference in the Electron user-data directory, then relaunches before Sneup initializes. Production live mode fails closed before opening the HTTP listener when MongoDB is unavailable. The Windows error dialog can persist an explicit read-only demo choice and relaunch, preventing a failed live preference from trapping the user. An explicitly set `SNEUP_DEMO_MODE` environment variable takes precedence over the local preference until the user chooses the recovery action.
 
 ## Verification
 
 - Syntax checks passed for changed JavaScript files.
-- The final quality gate passed 108 suites/809 tests, lint, and the 5/5 recommendation evaluation.
-- The current demo startup profile imported 251 modules at 67.0 MB RSS and served the complete initial overview at 71.2 MB RSS without loading Mongoose.
+- The final quality gate passed 109 suites/817 tests, lint, and the 5/5 recommendation evaluation.
+- Three current demo startup samples imported 251 modules at 71.4-73.2 MB RSS and served the complete initial overview at 75.5-76.3 MB RSS without loading Mongoose. Absolute timings varied under concurrent machine load, so the controlled bundle-size comparison is the release optimization evidence.
 - The guarded real-Mongo scale profile passed 60 boards and 15,000 cards at 1.26 seconds cold and 0.61-1.11 seconds repeated-read latency; its exact query index was selected and provider writes remained false.
-- The in-app Browser passed demand-loaded connector and workspace behavior, English/Dutch restoration, refresh/module reuse, provider/user/evidence preservation, shared asset versioning, desktop/480x844 containment, and zero current console errors.
-- The packaged 2.3.18 demo settled to four processes, 361.9 MB working set, 295.3 MB private memory, and 1.328 cumulative CPU seconds after 30 seconds; normal close released every process and the loopback port.
+- The in-app Browser passed demand-loaded connector, workspace, and approval behavior, English/Dutch restoration, refresh/module reuse, exact evidence/payload preservation, shared asset versioning, desktop/480x844 containment, and zero current console errors. Focused DOM/source regressions cover the final lazy-catalog split.
+- The packaged 2.3.19 demo used four processes, 359.9 MB working set, 294.2 MB private memory, and 1.531 cumulative CPU seconds in the repeatable verifier; normal close released every process and the loopback port.
 - Production-only and complete dependency audits both reported zero vulnerabilities; the five-secret production release check passed without exposing values.
 - Prior live disposable-workspace draft and preset coverage remains part of the browser acceptance evidence.

@@ -129,4 +129,17 @@ describe('English and Dutch operator localization', () => {
     expect(appSource).toContain("i18n.setLocale(event.target.value, { notify: false });");
     expect(appSource).toContain("et('Read-only demo preview')");
   });
+
+  test('registers demand-loaded Dutch catalogs without accepting prototype keys', () => {
+    const i18n = createRuntime({ root: null, storage: createStorage(), language: 'nl' });
+    const additions = Object.create(null);
+    additions['Lazy operator phrase'] = 'Lui geladen beheerderstekst';
+    additions.__proto__ = 'blocked';
+    additions.constructor = 'blocked';
+
+    expect(i18n.registerMessages('nl', additions)).toBe(1);
+    expect(i18n.t('Lazy operator phrase')).toBe('Lui geladen beheerderstekst');
+    expect(i18n.hasTranslation('__proto__')).toBe(false);
+    expect(i18n.registerMessages('en', { Hello: 'Hallo' })).toBe(0);
+  });
 });

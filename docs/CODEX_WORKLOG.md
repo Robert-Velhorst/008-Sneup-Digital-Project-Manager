@@ -12,6 +12,17 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-09 approval operations continuation
+
+- Re-read the governing operations-ledger specification and traced approval rendering, protected evidence, localization, guarded actions, asset caching, and modal ownership end to end.
+- Extracted the complete Approvals and operations-ledger renderer into a retry-safe 56,476-byte module that loads in parallel with approval data and notification health only when the view first opens.
+- Kept API, session, credential, approval, execution, reconciliation, notification, follow-up, response, and workspace mutations in the authenticated controller; the renderer receives named callbacks and has no direct authority.
+- Added complete Dutch approval and consequential workspace form/modal copy while preserving free text, identifiers, provider/audit evidence, server errors, and exact payload JSON verbatim.
+- Moved 373 approval-only and 145 workspace-only Dutch messages out of startup, with a prototype-key-safe lazy catalog registry. Initial app-plus-localization fell by 21,649 raw, 3,876 gzip, and 3,008 Brotli bytes versus 2.3.18.
+- In-app Browser QA passed lazy loading, English/Dutch approval rendering, exact evidence and payload preservation, Robert filtering, read-only workspace safety, compact containment, and a clean console. Focused jsdom/source tests then covered the final lazy-catalog registration split.
+- Final local quality passed 109 suites/817 tests, 5/5 recommendation evaluation, both zero-vulnerability dependency audits, and purpose-separated five-secret release validation without exposing values.
+- Built and verified unsigned `Sneup-Setup-2.3.19.exe`: 109,475,145 bytes, SHA-256 `0C38644685A321F887C9B3FF1887EABBDED41723792D72882859AEBF0BC31CB8`. Four packaged processes used 359.9 MB working set and 294.2 MB private memory, then closed normally and released the loopback port.
+
 ## 2026-08-09 workspace administration continuation
 
 - Re-read the governing operations-ledger specification and audited the remaining localization, maintenance, browser-load, cache, action-safety, and resource gaps around Workspace administration.
