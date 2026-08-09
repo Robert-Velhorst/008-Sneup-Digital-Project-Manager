@@ -12,6 +12,78 @@ const i18n = window.SneupI18n || {
 const t = (message, params) => i18n.t(message, params);
 const tp = (singular, pluralMessage, count, params) => i18n.plural(singular, pluralMessage, count, params);
 const et = (message, params) => escapeHtml(t(message, params));
+const appAssetVersion = (() => {
+  try {
+    return new URL(document.currentScript?.src || '', window.location.href).searchParams.get('v') || '';
+  } catch (error) {
+    return '';
+  }
+})();
+let connectorViewPromise;
+
+function loadBrowserModule(path, globalName) {
+  if (window[globalName]) return Promise.resolve(window[globalName]);
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    const url = new URL(path, window.location.href);
+    if (appAssetVersion) url.searchParams.set('v', appAssetVersion);
+    script.src = url.toString();
+    script.async = true;
+    script.dataset.sneupModule = globalName;
+    script.addEventListener('load', () => {
+      if (window[globalName]) {
+        resolve(window[globalName]);
+        return;
+      }
+      script.remove();
+      reject(new Error(t('The connector view loaded without its runtime. Try again.')));
+    }, { once: true });
+    script.addEventListener('error', () => {
+      script.remove();
+      reject(new Error(t('The connector view could not be loaded. Check the connection and try again.')));
+    }, { once: true });
+    document.head.appendChild(script);
+  });
+}
+
+function loadConnectorView() {
+  if (!connectorViewPromise) {
+    connectorViewPromise = loadBrowserModule('/connectorView.js', 'SneupConnectorView')
+      .then(module => module.createController({
+        document,
+        window,
+        state,
+        elements: els,
+        t,
+        plural: tp,
+        escapeHtml,
+        formatDate,
+        isFeatureEnabled,
+        callbacks: {
+          loadConnectors,
+          startConnection,
+          syncConnectorAccount,
+          openNotice,
+          openWorkerResponseBindingsModal,
+          openJiraSiteModal,
+          openConfluenceSiteModal,
+          openAsanaWorkspaceModal,
+          openBasecampAccountModal,
+          openResourceGuruAccountModal,
+          openFigmaTeamModal,
+          openSharePointSiteModal,
+          openMuralWorkspaceModal,
+          openXeroTenantModal,
+          openProcoreCompanyModal
+        }
+      }))
+      .catch((error) => {
+        connectorViewPromise = null;
+        throw error;
+      });
+  }
+  return connectorViewPromise;
+}
 
 const state = {
   snapshot: null,
@@ -1228,7 +1300,10 @@ async function loadConnectors({ append = false } = {}) {
     if (state.connectorReadiness !== 'all') query.set('readiness', state.connectorReadiness);
     if (state.search) query.set('search', state.search);
 
-    const data = await fetchApi(`/api/connectors?${query}`, { signal: request.signal });
+    const [data, connectorView] = await Promise.all([
+      fetchApi(`/api/connectors?${query}`, { signal: request.signal }),
+      loadConnectorView()
+    ]);
     if (state.connectorRequest !== request) return;
     const connectors = data.connectors || [];
     state.connectors = append ? [...state.connectors, ...connectors] : connectors;
@@ -1238,7 +1313,7 @@ async function loadConnectors({ append = false } = {}) {
     state.connectorTotal = data.total || 0;
     state.connectorCatalogTotal = data.catalogTotal || state.connectorTotal;
     state.connectorSyncReadiness = data.syncReadiness || null;
-    renderConnectors();
+    connectorView.render();
   } catch (error) {
     if (error.name === 'AbortError' || state.connectorRequest !== request) return;
     els.connectorGrid.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
@@ -5042,276 +5117,6 @@ function renderWorkSignalContract(contract, connected) {
       </div>
       <div class="meta">${(contract.syncTargets || []).slice(0, 5).map(escapeHtml).join(' | ') || 'No sync targets declared'}</div>
       <div class="meta">${escapeHtml(contract.safeWritePolicy)}</div>
-    </div>
-  `;
-}
-
-function renderConnectors() {
-  els.connectorCount.textContent = state.connectorCatalogTotal || state.connectorTotal || state.connectors.length;
-  els.connectedCount.textContent = `${state.accounts.length} connected`;
-  renderCategories();
-
-  const selectedCategory = state.categories.find(category => category.id === state.category);
-  const readinessLabel = state.connectorReadiness === 'ready'
-    ? 'ready to connect'
-    : state.connectorReadiness === 'catalog_only'
-      ? 'catalog only'
-      : '';
-  els.connectorHeading.textContent = [selectedCategory ? selectedCategory.name : 'All connectors', readinessLabel]
-    .filter(Boolean)
-    .join(' - ');
-  document.querySelectorAll('[data-connector-readiness]').forEach((button) => {
-    button.classList.toggle('active', button.dataset.connectorReadiness === state.connectorReadiness);
-  });
-  renderConnectorSafety();
-
-  const accountsByConnectorId = new Map(state.accounts.map(account => [account.connectorId, account]));
-  els.connectorGrid.innerHTML = state.connectorTotal === 0
-    ? '<div class="empty">No connectors match this view.</div>'
-    : state.connectors.map(connector => renderConnector(connector, accountsByConnectorId.get(connector.id))).join('');
-  els.connectorPagination.innerHTML = state.connectorTotal > 0
-    ? `<span class="meta">Showing ${state.connectors.length} of ${state.connectorTotal} tools</span>${state.connectors.length < state.connectorTotal ? '<button class="button" data-load-more-connectors type="button">Show more</button>' : ''}`
-    : '';
-
-  document.querySelectorAll('[data-connect]').forEach((button) => {
-    button.addEventListener('click', () => startConnection(button.dataset.connect));
-  });
-  document.querySelectorAll('[data-rotate-credential]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const account = state.accounts.find(item => item.id === button.dataset.rotateCredential);
-      if (account) startConnection(account.connectorId, { account });
-    });
-  });
-  document.querySelectorAll('[data-connector-sync]').forEach((button) => {
-    button.addEventListener('click', () => syncConnectorAccount(button.dataset.connectorSync));
-  });
-  document.querySelectorAll('[data-jira-site]').forEach((button) => {
-    button.addEventListener('click', () => openJiraSiteModal(button.dataset.jiraSite));
-  });
-  document.querySelectorAll('[data-confluence-site]').forEach((button) => {
-    button.addEventListener('click', () => openConfluenceSiteModal(button.dataset.confluenceSite));
-  });
-  document.querySelectorAll('[data-asana-workspace]').forEach((button) => {
-    button.addEventListener('click', () => openAsanaWorkspaceModal(button.dataset.asanaWorkspace));
-  });
-  document.querySelectorAll('[data-basecamp-account]').forEach((button) => {
-    button.addEventListener('click', () => openBasecampAccountModal(button.dataset.basecampAccount));
-  });
-  document.querySelectorAll('[data-resource-guru-account]').forEach((button) => {
-    button.addEventListener('click', () => openResourceGuruAccountModal(button.dataset.resourceGuruAccount));
-  });
-  document.querySelectorAll('[data-figma-team]').forEach((button) => {
-    button.addEventListener('click', () => openFigmaTeamModal(button.dataset.figmaTeam));
-  });
-  document.querySelectorAll('[data-sharepoint-site]').forEach((button) => {
-    button.addEventListener('click', () => openSharePointSiteModal(button.dataset.sharepointSite));
-  });
-  document.querySelectorAll('[data-mural-workspace]').forEach((button) => {
-    button.addEventListener('click', () => openMuralWorkspaceModal(button.dataset.muralWorkspace));
-  });
-  document.querySelectorAll('[data-xero-tenant]').forEach((button) => {
-    button.addEventListener('click', () => openXeroTenantModal(button.dataset.xeroTenant));
-  });
-  document.querySelectorAll('[data-procore-company]').forEach((button) => {
-    button.addEventListener('click', () => openProcoreCompanyModal(button.dataset.procoreCompany));
-  });
-  document.querySelectorAll('[data-load-more-connectors]').forEach((button) => {
-    button.addEventListener('click', () => {
-      loadConnectors({ append: true });
-    });
-  });
-  document.querySelectorAll('[data-copy-webhook-endpoint]').forEach((button) => {
-    button.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(button.dataset.copyWebhookEndpoint);
-        openNotice('Webhook endpoint copied', 'Configure the source to send a signed metadata-only event to this endpoint.');
-      } catch (error) {
-        openNotice('Webhook endpoint', button.dataset.copyWebhookEndpoint);
-      }
-    });
-  });
-  document.querySelectorAll('[data-worker-response-bindings]').forEach((button) => {
-    button.addEventListener('click', () => openWorkerResponseBindingsModal(button.dataset.workerResponseBindings));
-  });
-}
-
-function renderConnectorSafety() {
-  const safety = state.connectorSafety;
-  if (!safety) {
-    els.connectorSafety.innerHTML = '';
-    return;
-  }
-  const liveAdapters = state.connectorSyncReadiness?.ready || 0;
-  const syncRollout = isFeatureEnabled('connector_sync')
-    ? `${liveAdapters} provider sync adapters are live. Signals are read-only.`
-    : 'Read-only connector synchronization is paused by this workspace rollout.';
-  els.connectorSafety.innerHTML = `
-    <div>
-      <strong>${safety.providerWritesBlocked} tools are write-blocked</strong>
-      <span>${escapeHtml(syncRollout)} ${safety.scopeReviews} account links require a scope review.</span>
-    </div>
-    <span>${safety.providerScopeReviews} broad provider grants flagged</span>
-  `;
-}
-
-function renderCategories() {
-  const allCount = state.connectorCatalogTotal || state.connectorTotal || state.connectors.length;
-  const rows = [{ id: 'all', name: 'All tools', count: allCount }, ...state.categories];
-  els.categoryList.innerHTML = rows.map(category => `
-    <button class="${state.category === category.id ? 'active' : ''}" data-category="${category.id}" type="button">
-      <span>${escapeHtml(category.name)}</span>
-      <span>${category.count}</span>
-    </button>
-  `).join('');
-  document.querySelectorAll('[data-category]').forEach((button) => {
-    button.addEventListener('click', () => {
-      state.category = button.dataset.category;
-      loadConnectors();
-    });
-  });
-}
-
-function renderConnector(connector, account) {
-  const connected = Boolean(account);
-  const initials = connector.name.split(/\s+/).slice(0, 2).map(word => word[0]).join('').toUpperCase();
-  const configured = connector.auth.configured;
-  const authLabel = connector.auth.displayType || (connector.auth.type === 'oauth2' ? 'OAuth' : connector.auth.type.replaceAll('_', ' '));
-  const safety = connector.safety || {};
-  const syncReady = connector.syncReadiness?.accountConnectionAvailable === true;
-  const adapterImplemented = syncReady;
-  const catalogAvailability = connector.syncReadiness?.availabilityStatus || 'unavailable';
-  const accountStatus = account?.status || '';
-  const connectionLabel = connected && accountStatus === 'failed' ? 'needs attention'
-    : connected && accountStatus === 'disabled' ? 'disabled'
-      : connected ? (adapterImplemented ? 'connected' : 'linked') : syncReady ? (configured ? 'ready' : 'setup') : catalogAvailability === 'retired' ? 'retired' : catalogAvailability === 'legacy' ? 'legacy' : 'unavailable';
-  const connectionStatusClass = connected && accountStatus === 'failed' ? 'high'
-    : connected && accountStatus === 'disabled' ? 'review'
-      : connected && adapterImplemented ? 'connected' : connected || (syncReady && configured) ? 'review' : 'high';
-  const adapterSummary = syncReady
-    ? 'Read-only sync adapter available.'
-    : connector.syncReadiness?.reason || 'Account connection is not available yet.';
-  const isJira = connector.id === 'jira_software' || connector.id === 'jira_service_management';
-  const isConfluence = connector.id === 'confluence';
-  const isAsana = connector.id === 'asana';
-  const selectedJiraCloudId = account?.metadata?.fields?.cloudId;
-  const selectedConfluenceCloudId = account?.metadata?.fields?.confluenceCloudId;
-  const selectedAsanaWorkspaceGid = account?.metadata?.fields?.asanaWorkspaceGid;
-  const selectedBasecampAccountId = account?.metadata?.fields?.basecampAccountId;
-  const isBasecamp = connector.id === 'basecamp';
-  const selectedResourceGuruAccountId = account?.metadata?.fields?.resourceGuruAccountId;
-  const isResourceGuru = connector.id === 'resource_guru';
-  const selectedFigmaTeamId = account?.metadata?.fields?.figmaTeamId;
-  const isFigma = connector.id === 'figma';
-  const selectedSharePointSiteId = account?.metadata?.fields?.sharePointSiteId;
-  const isSharePoint = connector.id === 'sharepoint';
-  const selectedXeroTenantId = account?.metadata?.fields?.xeroTenantId;
-  const isXero = connector.id === 'xero';
-  const selectedProcoreCompanyId = account?.metadata?.fields?.procoreCompanyId;
-  const isProcore = connector.id === 'procore';
-  const selectedMuralWorkspaceId = account?.metadata?.fields?.muralWorkspaceId;
-  const isMural = connector.id === 'mural';
-  const isGenericWebhook = connector.id === 'webhook_generic';
-  const workerResponseBindingCount = account?.metadata?.inboundWorkerResponses?.bindingCount || 0;
-  const genericWebhookEndpoint = isGenericWebhook && account
-    ? `${window.location.origin}/api/webhooks/generic/${account.id}`
-    : '';
-  const canSync = Boolean(isFeatureEnabled('connector_sync') && account && adapterImplemented && !isGenericWebhook && (!isFigma || selectedFigmaTeamId) && (!isConfluence || selectedConfluenceCloudId) && (!isSharePoint || selectedSharePointSiteId) && (!isXero || selectedXeroTenantId) && (!isProcore || selectedProcoreCompanyId) && (!isMural || selectedMuralWorkspaceId));
-  const lastSync = account?.metadata?.lastWorkSignalSync || {};
-  const sourceLabel = lastSync.source === 'github_api' ? 'GitHub API'
-    : lastSync.source === 'trello_api' ? 'Trello API'
-      : lastSync.source === 'jira_api' ? 'Jira API'
-        : lastSync.source === 'asana_api' ? 'Asana API'
-          : lastSync.source === 'slack_api' ? 'Slack API'
-            : lastSync.source === 'google_workspace_api' ? 'Google Workspace API'
-              : lastSync.source === 'microsoft_graph' ? 'Microsoft Graph'
-                : lastSync.source === 'linear_graphql' ? 'Linear GraphQL'
-                  : lastSync.source === 'notion_api' ? 'Notion API'
-                    : lastSync.source === 'monday_api' ? 'monday.com API'
-                      : lastSync.source === 'clickup_api' ? 'ClickUp API'
-                        : lastSync.source === 'azure_devops_api' ? 'Azure DevOps API'
-                          : lastSync.source === 'wrike_api' ? 'Wrike API'
-                            : lastSync.source === 'smartsheet_api' ? 'Smartsheet API'
-                              : lastSync.source === 'airtable_api' ? 'Airtable API'
-                                : lastSync.source === 'todoist_api' ? 'Todoist API'
-                                  : lastSync.source === 'shortcut_api' ? 'Shortcut API'
-                                    : lastSync.source === 'bitbucket_api' ? 'Bitbucket API'
-                                        : lastSync.source === 'basecamp_api' ? 'Basecamp API'
-                                        : lastSync.source === 'scoro_project_task_metadata' ? 'Scoro API'
-                                        : lastSync.source === 'plane_project_work_item_metadata' ? 'Plane API'
-                                        : lastSync.source === 'openproject_project_work_package_metadata' ? 'OpenProject API'
-                                        : lastSync.source === 'microsoft_project_planner_graph' ? 'Microsoft Graph Planner'
-                                        : lastSync.source === 'quip_thread_metadata' ? 'Quip thread index'
-                                        : lastSync.source === 'xero_sales_invoice_metadata' ? 'Xero invoices'
-                                        : lastSync.source === 'google_forms_metadata' ? 'Google Forms metadata'
-                                        : lastSync.source === 'data_studio_asset_metadata' ? 'Data Studio API'
-                                        : lastSync.source === 'zapier_automation_metadata' ? 'Zapier Workflow API'
-                                          : lastSync.source === 'mural_active_mural_metadata' ? 'Mural metadata'
-                                          : lastSync.source === 'confluence_page_space_metadata' ? 'Confluence metadata'
-                                          : lastSync.source === 'proofhub_api_v3' ? 'ProofHub API v3'
-                                          : 'Sync';
-  const syncSummary = canSync && lastSync.finishedAt
-    ? `<div class="meta"><span>${sourceLabel} ${formatDate(lastSync.finishedAt)}</span><span>${lastSync.signalCount || 0} signals</span>${lastSync.repositories ? `<span>${lastSync.repositories} repos</span>` : ''}${lastSync.boards ? `<span>${lastSync.boards} boards</span>` : ''}${lastSync.sites ? `<span>${lastSync.sites} Jira site${lastSync.sites === 1 ? '' : 's'}</span>` : ''}${lastSync.workspaces ? `<span>${lastSync.workspaces} Asana workspace${lastSync.workspaces === 1 ? '' : 's'}</span>` : ''}${lastSync.projects ? `<span>${lastSync.projects} projects</span>` : ''}${lastSync.tasks ? `<span>${lastSync.tasks} tasks</span>` : ''}${lastSync.todoLists ? `<span>${lastSync.todoLists} to-do lists</span>` : ''}${lastSync.channels ? `<span>${lastSync.channels} channels</span>` : ''}${lastSync.calendars ? `<span>${lastSync.calendars} calendars</span>` : ''}${lastSync.events ? `<span>${lastSync.events} events</span>` : ''}${lastSync.taskLists ? `<span>${lastSync.taskLists} task lists</span>` : ''}${lastSync.todoTasks ? `<span>${lastSync.todoTasks} To Do tasks</span>` : ''}${lastSync.files ? `<span>${lastSync.files} files</span>` : ''}${lastSync.issues ? `<span>${lastSync.issues} issues</span>` : ''}${lastSync.items ? `<span>${lastSync.items} items</span>` : ''}${lastSync.forms ? `<span>${lastSync.forms} forms</span>` : ''}${lastSync.workflows ? `<span>${lastSync.workflows} automations</span>` : ''}${lastSync.reports ? `<span>${lastSync.reports} reports</span>` : ''}${lastSync.salesInvoices ? `<span>${lastSync.salesInvoices} sales invoices</span>` : ''}${lastSync.spaces ? `<span>${lastSync.spaces} spaces</span>` : ''}${lastSync.pages ? `<span>${lastSync.pages} pages</span>` : ''}${lastSync.dataSources ? `<span>${lastSync.dataSources} data sources</span>` : ''}</div>`
-    : '';
-  const consentSummary = account?.consent?.acknowledgedAt
-    ? `<div class="meta"><span>scope review ${escapeHtml(formatDate(account.consent.acknowledgedAt))}</span><span>${escapeHtml(account.consent.acknowledgedBy || 'local user')}</span></div>`
-    : '';
-  const credentialRotation = account?.credentialRotation;
-  const credentialRotationSummary = credentialRotation?.required && credentialRotation.status !== 'unknown'
-    ? `<div class="connector-policy ${credentialRotation.status === 'overdue' ? 'review' : ''}">${credentialRotation.status === 'overdue'
-      ? `Credential rotation overdue by ${Math.abs(credentialRotation.daysUntilDue)} day${Math.abs(credentialRotation.daysUntilDue) === 1 ? '' : 's'}.`
-      : credentialRotation.status === 'due_soon'
-        ? `Rotate this credential within ${credentialRotation.daysUntilDue} day${credentialRotation.daysUntilDue === 1 ? '' : 's'}.`
-        : `Credential rotation current. Next review ${escapeHtml(formatDate(credentialRotation.dueAt))}.`}</div>`
-    : credentialRotation?.required
-      ? '<div class="connector-policy review">Credential rotation date is unavailable. Rotate the credential to establish a review deadline.</div>'
-      : '';
-  const syncFreshness = account?.syncFreshness;
-  const syncFreshnessSummary = canSync && syncFreshness
-    ? syncFreshness.status === 'stale'
-      ? `<div class="connector-policy review">Sync review overdue by ${Math.abs(syncFreshness.hoursUntilDue)} hour${Math.abs(syncFreshness.hoursUntilDue) === 1 ? '' : 's'}. Run a read-only sync to refresh this connector.</div>`
-      : syncFreshness.status === 'not_synced'
-        ? '<div class="connector-policy review">No completed read-only sync yet. Run a sync before relying on this connector in operations.</div>'
-        : `<div class="connector-policy">Sync current. Freshness review ${escapeHtml(formatDate(syncFreshness.dueAt))}.</div>`
-    : '';
-  return `
-    <div class="connector-card">
-      <div class="connector-top">
-        <div class="connector-identity">
-          <div class="connector-logo">${escapeHtml(initials)}</div>
-          <div>
-            <h3>${escapeHtml(connector.name)}</h3>
-            <div class="meta"><span>${escapeHtml(connector.categoryName)}</span><span>${escapeHtml(authLabel)}</span><span>${safety.scopeRisk === 'review' ? 'scope review' : 'read-only'}</span></div>
-          </div>
-        </div>
-        <span class="pill ${connectionStatusClass}">${connectionLabel}</span>
-      </div>
-      <p>${escapeHtml(connector.description)}</p>
-      ${syncReady ? `<div class="connector-policy ${safety.scopeRisk === 'review' ? 'review' : ''}">${escapeHtml(safety.summary || 'Read-only ingestion only.')}</div>` : ''}
-      <div class="meta"><span>${escapeHtml(isGenericWebhook ? 'HMAC-verified inbound event adapter available.' : adapterSummary)}</span></div>
-      ${consentSummary}
-      ${credentialRotationSummary}
-      ${syncFreshnessSummary}
-      ${syncSummary}
-      ${genericWebhookEndpoint ? `<div class="connector-policy"><code>${escapeHtml(genericWebhookEndpoint)}</code><span>Send a compact JSON event, sign its exact request body with <code>x-sneup-signature: sha256=&lt;HMAC-SHA256&gt;</code>, and include a stable <code>x-sneup-delivery-id</code> for retry-safe delivery.</span></div>` : ''}
-      <div class="connector-actions">
-        <span class="meta">${connector.sync.slice(0, 3).map(escapeHtml).join('  |  ')}</span>
-        ${isJira && account ? `<button class="button" data-jira-site="${escapeHtml(account.id)}" type="button">${selectedJiraCloudId ? 'Jira site selected' : 'Select Jira site'}</button>` : ''}
-        ${isConfluence && account ? `<button class="button" data-confluence-site="${escapeHtml(account.id)}" type="button">${selectedConfluenceCloudId ? 'Confluence site selected' : 'Select Confluence site'}</button>` : ''}
-        ${isAsana && account ? `<button class="button" data-asana-workspace="${escapeHtml(account.id)}" type="button">${selectedAsanaWorkspaceGid ? 'Asana workspace selected' : 'Select Asana workspace'}</button>` : ''}
-        ${isBasecamp && account ? `<button class="button" data-basecamp-account="${escapeHtml(account.id)}" type="button">${selectedBasecampAccountId ? 'Basecamp account selected' : 'Select Basecamp account'}</button>` : ''}
-        ${isResourceGuru && account ? `<button class="button" data-resource-guru-account="${escapeHtml(account.id)}" type="button">${selectedResourceGuruAccountId ? 'Resource Guru account selected' : 'Select Resource Guru account'}</button>` : ''}
-        ${isFigma && account ? `<button class="button" data-figma-team="${escapeHtml(account.id)}" type="button">${selectedFigmaTeamId ? 'Figma team selected' : 'Configure Figma team'}</button>` : ''}
-        ${isSharePoint && account ? `<button class="button" data-sharepoint-site="${escapeHtml(account.id)}" type="button">${selectedSharePointSiteId ? 'SharePoint site selected' : 'Select SharePoint site'}</button>` : ''}
-        ${isXero && account ? `<button class="button" data-xero-tenant="${escapeHtml(account.id)}" type="button">${selectedXeroTenantId ? 'Xero organisation selected' : 'Select Xero organisation'}</button>` : ''}
-        ${isProcore && account ? `<button class="button" data-procore-company="${escapeHtml(account.id)}" type="button">${selectedProcoreCompanyId ? 'Procore company selected' : 'Select Procore company'}</button>` : ''}
-        ${isMural && account ? `<button class="button" data-mural-workspace="${escapeHtml(account.id)}" type="button">${selectedMuralWorkspaceId ? 'Mural workspace selected' : 'Select Mural workspace'}</button>` : ''}
-        ${genericWebhookEndpoint ? `<button class="button" data-copy-webhook-endpoint="${escapeHtml(genericWebhookEndpoint)}" type="button">Copy endpoint</button>` : ''}
-        ${isGenericWebhook && account ? `<button class="button" data-worker-response-bindings="${escapeHtml(account.id)}" type="button">${workerResponseBindingCount ? `Response mappings (${workerResponseBindingCount})` : 'Configure response mappings'}</button>` : ''}
-        ${canSync ? `<button class="button" data-connector-sync="${escapeHtml(account.id)}" type="button">Sync now</button>` : ''}
-        ${syncReady ? (connected && connector.auth.type !== 'oauth2'
-          ? `<button class="button primary" data-rotate-credential="${escapeHtml(account.id)}" type="button">Rotate credential</button>`
-          : `<button class="button ${configured ? 'primary' : ''}" data-connect="${connector.id}" type="button">${connected ? 'Reconnect' : 'Connect'}</button>`) : ''}
-      </div>
     </div>
   `;
 }

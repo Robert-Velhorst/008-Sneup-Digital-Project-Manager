@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.3.17 - 2026-08-09
+
+### Demand-loaded connector marketplace
+
+- Moved connector catalog rendering, safety status, freshness and credential-rotation guidance, pagination, filtering, and account actions out of the eager command-center bundle into a retry-safe module loaded only when Connectors is opened.
+- Start the connector API read and module fetch in parallel, reuse one module instance across search/filter/pagination renders, and reset failed loads so a refresh can genuinely retry instead of leaving a blank view.
+- Localized the complete connector operator chrome in English and Dutch while preserving provider names, descriptions, scopes, availability reasons, safety summaries, and sync evidence verbatim.
+
+### Cache correctness and verification
+
+- Expanded the shared content fingerprint and immutable-cache allowlist to every initial and demand-loaded command-center asset, preventing connector-, help-, persistence-, or localization-only releases from serving stale browser code.
+- Reduced the eager app script by 18,823 raw bytes and 3,526 gzip bytes. Even after the larger Dutch catalog, the initial app-plus-localization payload is 9,878 raw bytes and 1,215 gzip bytes smaller; the 21,089-byte connector renderer is fetched only on demand.
+- Added connector rendering/action/catalog-completeness tests and per-asset fingerprint mutation tests; the full gate passes 107 suites/805 tests, two zero-vulnerability audits, browser acceptance, and Windows packaging.
+
 ## 2.3.16 - 2026-08-09
 
 ### English and Dutch operator experience

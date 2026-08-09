@@ -45,7 +45,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 038 Fake provider lab | Implemented | Provider mocks are test-only and cannot activate production success. |
 | 039 Test factories/fixtures | Implemented | Deterministic service/provider fixtures across test suites. |
 | 040 Backend tests | Implemented | Jest regression suite and CI gate. |
-| 041 Frontend/component tests | Partial | Static/UI assertions plus isolated jsdom coverage verify drafts/presets and every help topic, context fallback, search, keyboard/focus behavior, safe routing, and browser initialization; broader command-center component coverage remains backlog. |
+| 041 Frontend/component tests | Partial | Static/UI assertions plus isolated jsdom coverage verify drafts/presets, help, connector rendering and actions, complete connector localization, demand-load boundaries, and per-asset cache fingerprints; broader approval/workspace component coverage remains backlog. |
 | 042 Worker/job tests | Implemented | Sync, notification, retention, outcome, job execution coverage. |
 | 043 End-to-end tests | Partial | Local browser flows exist; live-provider E2E is external. |
 | 044 Acceptance matrix | Implemented | `ACCEPTANCE_TESTS.md`. |
@@ -54,14 +54,14 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 047 Path traversal/file safety | Implemented | Controlled static/report paths and traversal/security tests. |
 | 048 Provider failure simulation | Implemented | Retry, timeout, partial write, truncation, and reconciliation tests. |
 | 049 Accessibility | Partial | Labels, modal semantics, contextual focus, focus containment/restoration, Escape/F1 behavior, and responsive help navigation are covered; assistive-technology certification remains external. |
-| 050 Responsive/browser compatibility | Partial | Browser regressions and packaged Windows 150% scaling pass; clean-VM 125%/200% matrix pending. |
+| 050 Responsive/browser compatibility | Partial | Help and the demand-loaded connector marketplace pass desktop/minimum-viewport containment with no control overflow; packaged Windows 150% scaling passes, while the clean-VM 125%/200% matrix remains pending. |
 | 051 Performance/indexing | Implemented | Bounded queries, indexes, concurrency, batching, response timing, and cross-process duplicate-work suppression. |
 | 052 Large data/pagination | Implemented | Provider caps/pages are tested; a guarded real-Mongo profiler exercises 60 boards/300 lists/15,000 cards/100 members through mission control, verifies bounded 10/12/12 outputs and evidence, confirms the exact compound query index, enforces latency/RSS budgets, performs no provider writes, and drops only its dedicated database. |
 | 053 Backup/restore | Partial | Runbook is defined; production-like restore evidence is external. |
 | 054 Reconciliation/repair | Implemented | Trello reconciliation remains evidence-gated; the generalized dry-run-first repair CLI and administration UI repair only bounded internal derived state, re-scan before atomic apply, and audit every successful change. |
 | 055 Local-first analytics | Implemented | Local response/job/recommendation metrics; no forced telemetry. |
 | 056 SaaS without billing | Implemented | Multi-workspace identity exists; billing is not required. |
-| 057 Dutch/English readiness | Partial | A persistent, tested English/Dutch catalog covers the static shell, setup guidance, command palette, contextual help/search, dates/numbers/counts, and primary mission-control workflow chrome. Provider/user/audit evidence is intentionally preserved verbatim; secondary dynamic operator surfaces still need explicit semantic catalogs. |
+| 057 Dutch/English readiness | Partial | A persistent, tested English/Dutch catalog covers the static shell, setup, command palette, contextual help/search, primary mission control, and complete connector marketplace chrome including safety, freshness, rotation, filtering, and account actions. Provider/user/audit evidence is intentionally preserved verbatim; remaining approval/workspace dynamic chrome still needs explicit semantic catalogs. |
 | 058 Feature flags/rollout | Implemented | Four optional capabilities have workspace-scoped persisted controls, deterministic percentage rollout, optimistic revisions, bounded cache/history, manager UI, and live fail-closed behavior. Safety and provider-write authorization are outside the flag system. |
 | 059 Formal state machines | Implemented | Enumerated persisted lifecycle states and guarded transitions. |
 | 060 Domain model | Implemented | Mongoose models and operations-ledger domain boundaries. |
@@ -118,7 +118,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 111 Ambiguous external actions | Implemented | Claimed state, partial-step evidence, manual reconciliation. |
 | 112 Version/changelog | Implemented | Semantic package release and `CHANGELOG.md`. |
 | 113 Regression baseline | Implemented | Full Jest/lint/evaluation commands and CI. |
-| 114 Maintenance/refactor review | Partial | Form persistence and contextual help are isolated from the 6,500-line command-center script behind small bounded modules; broader command-center modularization remains backlog. |
+| 114 Maintenance/refactor review | Partial | Form persistence, contextual help, localization, and connector rendering are isolated behind bounded modules; connector code is demand-loaded with retry recovery and the eager app is down to 6,054 lines. Approval/workspace modularization remains backlog. |
 | 115 Human operator readiness | External | Requires signed clean-VM install and authorized live Trello acceptance. |
 
 ## Honest completion boundary

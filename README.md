@@ -628,7 +628,7 @@ For issues, questions, or feature requests, please open an issue on GitHub.
 - [x] Policy-controlled daily reconciliation digests
 - [x] Slack, Teams, and generic reconciliation-alert webhooks
 - [ ] Advanced machine learning for predictions
-- [x] English/Dutch shell, help, setup, and primary workflow localization
+- [x] English/Dutch shell, help, setup, primary workflow, and connector-marketplace localization
 - [ ] Complete localization of secondary dynamic operator surfaces
 - [ ] Mobile app
 

@@ -3,7 +3,15 @@ const fs = require('fs');
 const path = require('path');
 
 const ASSET_VERSION_TOKEN = '__SNEUP_ASSET_VERSION__';
-const FINGERPRINTED_ASSETS = Object.freeze(['app.js', 'styles.css', 'favicon.svg']);
+const FINGERPRINTED_ASSETS = Object.freeze([
+  'app.js',
+  'connectorView.js',
+  'formPersistence.js',
+  'helpCenter.js',
+  'i18n.js',
+  'styles.css',
+  'favicon.svg'
+]);
 const IMMUTABLE_CACHE_CONTROL = 'public, max-age=31536000, immutable';
 const HTML_CACHE_CONTROL = 'no-cache';
 

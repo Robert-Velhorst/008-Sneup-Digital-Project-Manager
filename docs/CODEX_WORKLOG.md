@@ -12,6 +12,18 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-09 connector marketplace continuation
+
+- Re-read the governing operations-ledger specification and audited the remaining code-owned completion gaps, connector catalog path, eager browser bundle, localization boundary, and shared asset-fingerprint contract.
+- Extracted connector rendering, status/safety/freshness/rotation guidance, pagination, filters, and action binding into a retry-safe 21,089-byte browser module that loads only when Connectors opens.
+- Run the connector API request and module fetch concurrently, retain one controller across rerenders, remove failed script loads, and clear the rejected promise so the next operator attempt can recover.
+- Localized all connector operator chrome, category/status/count labels, and account-selection actions in Dutch while preserving provider descriptions, scope/safety summaries, availability reasons, source names, and sync evidence verbatim.
+- Found that the shared cache version omitted localization, help, persistence, and deferred modules; expanded the authoritative fingerprint and immutable allowlist to all seven command-center assets and proved each file independently changes the version.
+- The eager app fell from 329,496 to 310,673 bytes and from 62,782 to 59,256 gzip bytes. Including the larger Dutch catalog, the initial app-plus-localization payload still fell by 9,878 raw and 1,215 gzip bytes; the deferred connector module is 5,582 gzip bytes.
+- In-app Browser QA proved the module is absent on Overview, loads once with the app fingerprint, renders 24/117 entries, supports Trello search and all four catalog-only providers, restores English/Dutch, preserves provider evidence, and remains contained at the minimum viewport with zero current console warnings/errors.
+- Final local quality passed 107 suites/805 tests, 5/5 recommendation evaluation, both zero-vulnerability dependency audits, synthetic purpose-separated release-secret validation, and a 67.5 MB RSS startup import with MongoDB still deferred.
+- Built and verified the unsigned `Sneup-Setup-2.3.17.exe`: 109,464,295 bytes, SHA-256 `0FDEAA4465A2C742FCFD26F89AF7654CAC63B28A68F1293B419B19168FB7F5E4`. Four packaged processes settled to 360.5 MB working set and 294.6 MB private memory, then closed normally and released the loopback port.
+
 ## 2026-08-09 English/Dutch localization continuation
 
 - Re-read the governing operations-ledger specification and audited the current completion matrix, static shell, generated operator chrome, setup flow, command palette, and contextual help catalog.
