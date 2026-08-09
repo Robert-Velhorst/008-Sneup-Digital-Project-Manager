@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.3.15 - 2026-08-09
+
+### Portfolio-scale mission control
+
+- Added a guarded MongoDB-backed profiler for 60 boards, 300 lists, 15,000 cards, 100 members, and 60 analytics records through the real mission-control path.
+- Added the compound workspace/open-card/due/risk index used by the portfolio query and verify its winning MongoDB plan during the scale run.
+- Replaced eager focus, risk, and command evidence construction with stable bounded ranking so only visible winners receive rich evidence payloads.
+
+### Performance and verification
+
+- Reduced worst-case 15,000-card focus generation from 42.8 ms to 16.2 ms, risk generation from 50.5 ms to 19.9 ms, and command generation from 90.3 ms to 43.2 ms in the same local benchmark.
+- Reduced worst-case command-generation peak RSS from about 165 MB to 106 MB while preserving score order, tie stability, evidence, and approval boundaries.
+- Added regressions for bounded evidence materialization, deterministic ties, and graph-score displacement; the real-path scale profile passed at 1.26 seconds cold and 0.61-1.11 seconds repeated-read latency with no provider writes.
+
 ## 2.3.14 - 2026-08-09
 
 ### Context-sensitive operator help

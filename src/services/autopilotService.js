@@ -412,9 +412,40 @@ class AutopilotService {
     });
   }
 
+  retainRanked(selected, candidate, limit) {
+    if (selected.length < limit) {
+      selected.push(candidate);
+      return;
+    }
+
+    let worstIndex = 0;
+    for (let index = 1; index < selected.length; index += 1) {
+      const current = selected[index];
+      const worst = selected[worstIndex];
+      if (current.rank < worst.rank || (current.rank === worst.rank && current.order > worst.order)) {
+        worstIndex = index;
+      }
+    }
+
+    if (candidate.rank > selected[worstIndex].rank) selected[worstIndex] = candidate;
+  }
+
+  sortRanked(selected) {
+    return selected.sort((a, b) => b.rank - a.rank || a.order - b.order);
+  }
+
   buildFocusQueue(cards) {
-    return cards
-      .map(card => ({
+    const selected = [];
+    cards.forEach((card, order) => {
+      this.retainRanked(selected, {
+        card,
+        rank: this.calculatePriorityScore(card),
+        order
+      }, 10);
+    });
+
+    return this.sortRanked(selected)
+      .map(({ card, rank }) => ({
         id: card._id,
         name: card.name,
         boardName: card.boardId?.name || 'Unknown board',
@@ -422,18 +453,27 @@ class AutopilotService {
         members: (card.members || []).map(member => member.username || member.fullName),
         due: card.due,
         riskLevel: card.riskLevel || 'none',
-        priorityScore: this.calculatePriorityScore(card),
+        priorityScore: rank,
         reasons: this.getPriorityReasons(card),
         sourceEvidence: this.buildCardEvidence(card, 'Priority score and focus queue position')
-      }))
-      .sort((a, b) => b.priorityScore - a.priorityScore)
-      .slice(0, 10);
+      }));
   }
 
   buildRiskRadar(cards, analyticsByBoard, graphCandidates = [], teamLoad = []) {
-    const cardRisks = cards
-      .flatMap(card => this.getCardRisks(card))
-      .sort((a, b) => b.score - a.score);
+    const selectedCardRisks = [];
+    let cardRiskOrder = 0;
+    for (const card of cards) {
+      for (const risk of this.getCardRiskDescriptors(card)) {
+        this.retainRanked(selectedCardRisks, {
+          risk,
+          rank: risk.score,
+          order: cardRiskOrder
+        }, 12);
+        cardRiskOrder += 1;
+      }
+    }
+    const cardRisks = this.sortRanked(selectedCardRisks)
+      .map(({ risk }) => this.materializeCardRisk(risk));
 
     const boardRisks = Object.values(analyticsByBoard).flatMap(analytics =>
       (analytics.bottlenecks || []).map(bottleneck => ({
@@ -490,14 +530,23 @@ class AutopilotService {
   }
 
   buildCommandQueue({ cards, boardSummaries, teamLoad, interventions, graphCandidates = [], forecast = null }) {
-    const commands = [];
+    const selected = [];
+    let order = 0;
+    const consider = (severity, build, graphScore = 0) => {
+      this.retainRanked(selected, {
+        build,
+        rank: this.severityScore(severity) * 100 + graphScore,
+        order
+      }, MAX_COMMAND_QUEUE);
+      order += 1;
+    };
 
     for (const card of cards) {
       const score = this.calculatePriorityScore(card);
       const primaryMember = card.members && card.members[0];
 
       if (this.isCardOverdue(card)) {
-        commands.push(this.createCommand({
+        consider('critical', () => this.createCommand({
           type: 'escalate_overdue',
           severity: 'critical',
           title: `Recover overdue card: ${card.name}`,
@@ -511,7 +560,7 @@ class AutopilotService {
       }
 
       if (!card.members || card.members.length === 0) {
-        commands.push(this.createCommand({
+        consider('high', () => this.createCommand({
           type: 'assign_owner',
           severity: 'high',
           title: `Assign an owner: ${card.name}`,
@@ -525,7 +574,7 @@ class AutopilotService {
       }
 
       if (score >= 75 && !this.isCardOverdue(card)) {
-        commands.push(this.createCommand({
+        consider('high', () => this.createCommand({
           type: 'focus_now',
           severity: 'high',
           title: `Move into today's focus: ${card.name}`,
@@ -539,7 +588,7 @@ class AutopilotService {
       }
 
       if (this.daysSince(card.lastActivity) > 5) {
-        commands.push(this.createCommand({
+        consider('medium', () => this.createCommand({
           type: 'request_update',
           severity: 'medium',
           title: `Request a crisp update: ${card.name}`,
@@ -556,9 +605,10 @@ class AutopilotService {
     for (const member of teamLoad) {
       const scheduledCapacityRisk = this.getScheduledCapacityRisk(member);
       if (scheduledCapacityRisk) {
-        commands.push(this.createCommand({
+        const severity = scheduledCapacityRisk.ratio > 1.5 ? 'critical' : 'high';
+        consider(severity, () => this.createCommand({
           type: 'review_scheduled_capacity',
-          severity: scheduledCapacityRisk.ratio > 1.5 ? 'critical' : 'high',
+          severity,
           title: `Review ${member.username || member.fullName || 'team member'}'s scheduled capacity`,
           target: member.fullName || member.username || 'Team member',
           owner: 'Sneup',
@@ -575,7 +625,7 @@ class AutopilotService {
         }));
       }
       if (member.capacityState === 'overloaded' && !scheduledCapacityRisk) {
-        commands.push(this.createCommand({
+        consider('high', () => this.createCommand({
           type: 'rebalance_workload',
           severity: 'high',
           title: `Rebalance ${member.username}'s workload`,
@@ -591,9 +641,10 @@ class AutopilotService {
 
     for (const board of boardSummaries) {
       if (board.health === 'critical' || board.health === 'at_risk') {
-        commands.push(this.createCommand({
+        const severity = board.health === 'critical' ? 'critical' : 'high';
+        consider(severity, () => this.createCommand({
           type: 'board_recovery',
-          severity: board.health === 'critical' ? 'critical' : 'high',
+          severity,
           title: `Run recovery plan for ${board.name}`,
           target: board.name,
           owner: 'Sneup',
@@ -606,7 +657,7 @@ class AutopilotService {
     }
 
     for (const intervention of interventions) {
-      commands.push(this.createCommand({
+      consider(intervention.severity, () => this.createCommand({
         type: 'retry_intervention',
         severity: intervention.severity,
         title: intervention.action,
@@ -620,12 +671,14 @@ class AutopilotService {
     }
 
     for (const candidate of graphCandidates) {
-      commands.push(this.createGraphDecisionCommand(candidate));
+      consider(
+        candidate.riskLevel || 'medium',
+        () => this.createGraphDecisionCommand(candidate),
+        candidate.graphScore || 0
+      );
     }
 
-    return commands
-      .sort((a, b) => this.commandScore(b) - this.commandScore(a))
-      .slice(0, MAX_COMMAND_QUEUE);
+    return this.sortRanked(selected).map(candidate => candidate.build());
   }
 
   createGraphDecisionCommand(candidate) {
@@ -785,6 +838,18 @@ class AutopilotService {
   }
 
   getCardRisks(card) {
+    return this.getCardRiskDescriptors(card).map(risk => this.materializeCardRisk(risk));
+  }
+
+  materializeCardRisk(risk) {
+    const { card, evidenceReason, ...output } = risk;
+    return {
+      ...output,
+      sourceEvidence: this.buildCardEvidence(card, evidenceReason)
+    };
+  }
+
+  getCardRiskDescriptors(card) {
     const risks = [];
 
     if (this.isCardOverdue(card)) {
@@ -796,7 +861,8 @@ class AutopilotService {
         boardName: card.boardId?.name || 'Unknown board',
         score: 100,
         detail: `Overdue by ${Math.abs(this.daysUntil(card.due))} day${Math.abs(this.daysUntil(card.due)) === 1 ? '' : 's'}`,
-        sourceEvidence: this.buildCardEvidence(card, 'Overdue risk')
+        card,
+        evidenceReason: 'Overdue risk'
       });
     }
 
@@ -809,7 +875,8 @@ class AutopilotService {
         boardName: card.boardId?.name || 'Unknown board',
         score: card.riskLevel === 'critical' ? 95 : 78,
         detail: (card.riskFactors || []).join(', ') || 'High delivery risk',
-        sourceEvidence: this.buildCardEvidence(card, 'High delivery risk')
+        card,
+        evidenceReason: 'High delivery risk'
       });
     }
 
@@ -822,7 +889,8 @@ class AutopilotService {
         boardName: card.boardId?.name || 'Unknown board',
         score: 74,
         detail: 'No owner assigned',
-        sourceEvidence: this.buildCardEvidence(card, 'Ownership gap risk')
+        card,
+        evidenceReason: 'Ownership gap risk'
       });
     }
 

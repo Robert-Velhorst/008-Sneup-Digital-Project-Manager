@@ -40,6 +40,8 @@ Reduced avoidable resource use:
 - Relationship analysis is now capped by `RELATIONSHIP_ANALYSIS_LIMIT` and runs in targeted card/board modes.
 - Mission-control analytics lookup now batches latest analytics by board.
 - Mission-control card counting now indexes cards by board/list/member instead of repeatedly scanning the whole list.
+- Mission-control focus, risk, and command ranking retains only the stable top 10/12/12 candidates before constructing rich evidence, avoiding portfolio-sized discarded payloads.
+- The live portfolio card query uses a compound workspace/open-card/due/risk index. `npm run profile:portfolio-scale` verifies the winning MongoDB plan and real service path against a guarded disposable 60-board/15,000-card dataset.
 - Background workers pause automatically when MongoDB is not connected.
 - The OpenAI SDK and client are not loaded or constructed unless a non-placeholder `OPENAI_API_KEY` is present and a non-quick chat response actually needs the provider.
 - Duplicate Mongoose index declarations were removed to reduce startup warnings and index churn.
@@ -63,18 +65,19 @@ Added:
 - Secure preload bridge in `desktop/preload.js`.
 - `npm run desktop` for local desktop testing.
 - `npm run build:installer` / `npm run dist:win` for Windows NSIS packaging.
-- Current release target: `release/Sneup-Setup-2.3.14.exe`.
+- Current release target: `release/Sneup-Setup-2.3.15.exe`.
 
-The verified local 2.3.14 installer is 109,453,766 bytes with SHA-256 `1F55E031B6079FEC3CF56992C4578BBD23893EEC3A84F21449BB5ADB8B672F79`. It is intentionally reported as unsigned until an owner-controlled publisher certificate is available. The packaged executable reports product/file version 2.3.14 and retains the Windows x64 native ngrok binding.
+The verified local 2.3.15 installer is 109,454,208 bytes with SHA-256 `EDDC7030114E5D424398ACA79BB8683A6DE08B919F9AC7BD7955F9AF81068FD6`. It is intentionally reported as unsigned until an owner-controlled publisher certificate is available. The packaged executable reports product/file version 2.3.15 and retains the Windows x64 native ngrok binding.
 
 The desktop app starts Sneup on `127.0.0.1` and opens the command center in an app window. On first run it starts in demo mode. The workspace choice stores only the non-secret `demo` or `live` startup preference in the Electron user-data directory, then relaunches before Sneup initializes. Production live mode fails closed before opening the HTTP listener when MongoDB is unavailable. The Windows error dialog can persist an explicit read-only demo choice and relaunch, preventing a failed live preference from trapping the user. An explicitly set `SNEUP_DEMO_MODE` environment variable takes precedence over the local preference until the user chooses the recovery action.
 
 ## Verification
 
 - Syntax checks passed for changed JavaScript files.
-- The final quality gate passed 103 suites/789 tests, lint, and the 5/5 recommendation evaluation.
-- Three repeat demo startup profiles imported 251 modules at 70.2-71.9 MB RSS and served the complete initial overview at 73.9-75.5 MB RSS without loading Mongoose.
+- The final quality gate passed 104 suites/793 tests, lint, and the 5/5 recommendation evaluation.
+- The current demo startup profile imported 251 modules at 71.1 MB RSS and served the complete initial overview at 76.0 MB RSS without loading Mongoose.
+- The guarded real-Mongo scale profile passed 60 boards and 15,000 cards at 1.26 seconds cold and 0.61-1.11 seconds repeated-read latency; its exact query index was selected and provider writes remained false.
 - The in-app Browser passed contextual Forecasts help, local search, Decision Safety guidance, Approvals handoff, focus placement, desktop and narrow responsive containment, and zero current console errors.
-- The packaged 2.3.14 demo settled to four processes, 356.7 MB working set, 289.2 MB private memory, and 1.734 cumulative CPU seconds after 30 seconds; normal close released every process and the loopback port.
+- The packaged 2.3.15 demo settled to four processes, 358.8 MB working set, 287.4 MB private memory, and 2.391 cumulative CPU seconds after 30 seconds; normal close released every process and the loopback port.
 - Production-only and complete dependency audits both reported zero vulnerabilities; the five-secret production release check passed without exposing values.
 - Prior live disposable-workspace draft and preset coverage remains part of the browser acceptance evidence.

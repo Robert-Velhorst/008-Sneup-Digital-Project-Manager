@@ -12,6 +12,18 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-09 portfolio-scale continuation
+
+- Re-read the complete governing operations-ledger specification and traced the live mission-control path through projected MongoDB reads, analytics, lists, forecast capacity, work graph, evidence, and approval-safe command generation.
+- Found that focus, risk, and command builders eagerly created rich evidence for thousands of candidates before discarding all but 10 or 12; replaced that work with stable bounded ranking while preserving score order and first-seen ties.
+- Added the exact `{ workspaceId, closed, due, riskLevel }` compound card index used by the live portfolio query.
+- Added focused regressions proving evidence is materialized only for visible winners and graph score can still displace lower-ranked commands.
+- Added `profile:portfolio-scale`, guarded to a dedicated disposable database name, which seeds and exercises 60 boards, 300 lists, 15,000 cards, 100 members, and 60 analytics records through the real service and drops only that database afterward.
+- MongoDB 7 verification passed: 898.7 ms seed, 1,264.9 ms cold snapshot, repeated reads of 759.9/613.0/1,111.0 ms, 353.5 MB peak verifier RSS, exact compound-index selection, bounded 10/12/12 output, approval required, and no provider writes. The exact temporary container was removed and its port released.
+- The same worst-case 15,000-card algorithm sample improved focus from 42.8 to 16.2 ms, risks from 50.5 to 19.9 ms, and commands from 90.3 to 43.2 ms; command peak RSS fell from about 165 to 106 MB.
+- Final local quality passed 104 suites/793 tests, 5/5 recommendation evaluation, both zero-vulnerability dependency audits, positive five-secret production verification, and a 71.1 MB RSS startup import with MongoDB still deferred.
+- Built and verified the unsigned `Sneup-Setup-2.3.15.exe`: 109,454,208 bytes, SHA-256 `EDDC7030114E5D424398ACA79BB8683A6DE08B919F9AC7BD7955F9AF81068FD6`. Four packaged processes settled to 358.8 MB working set and 287.4 MB private memory, then closed normally and released the loopback port.
+
 ## 2026-08-09 contextual help continuation
 
 - Re-audited the governing operations-ledger specification and current completion matrix after the verified 2.3.13 release; the remaining high-priority production gates require owner infrastructure or live provider consent.

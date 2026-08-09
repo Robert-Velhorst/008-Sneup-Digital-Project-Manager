@@ -137,6 +137,7 @@ const cardSchema = new mongoose.Schema({
 cardSchema.index({ workspaceId: 1, boardId: 1, listId: 1 });
 cardSchema.index({ workspaceId: 1, trelloId: 1 }, { unique: true });
 cardSchema.index({ workspaceId: 1, shortLink: 1 }, { sparse: true });
+cardSchema.index({ workspaceId: 1, closed: 1, due: 1, riskLevel: -1 });
 cardSchema.index({ workspaceId: 1, closed: 1, 'attachments.linkedCardShortLink': 1 });
 cardSchema.index({ boardId: 1, listId: 1 });
 cardSchema.index({ closed: 1, due: 1 });
