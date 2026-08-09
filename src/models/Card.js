@@ -10,6 +10,15 @@ const cardSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  shortLink: {
+    type: String,
+    trim: true,
+    index: true
+  },
+  url: {
+    type: String,
+    trim: true
+  },
   name: {
     type: String,
     required: true
@@ -59,7 +68,11 @@ const cardSchema = new mongoose.Schema({
   attachments: [{
     id: String,
     name: String,
-    url: String
+    url: String,
+    linkedCardShortLink: {
+      type: String,
+      trim: true
+    }
   }],
   checklists: [{
     id: String,
@@ -123,6 +136,8 @@ const cardSchema = new mongoose.Schema({
 // Indexes for efficient queries
 cardSchema.index({ workspaceId: 1, boardId: 1, listId: 1 });
 cardSchema.index({ workspaceId: 1, trelloId: 1 }, { unique: true });
+cardSchema.index({ workspaceId: 1, shortLink: 1 }, { sparse: true });
+cardSchema.index({ workspaceId: 1, closed: 1, 'attachments.linkedCardShortLink': 1 });
 cardSchema.index({ boardId: 1, listId: 1 });
 cardSchema.index({ closed: 1, due: 1 });
 cardSchema.index({ members: 1, closed: 1 });

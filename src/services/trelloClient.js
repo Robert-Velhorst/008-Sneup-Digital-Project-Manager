@@ -81,8 +81,10 @@ const boardApi = {
       const cards = await client.boards.getBoardCards({
         id: boardId,
         attachments: 'true',
+        attachment_fields: 'id,name,url',
         checklists: 'all',
-        members: 'true'
+        members: 'true',
+        member_fields: 'id,username,fullName'
       });
       return cards;
     } catch (error) {
@@ -140,8 +142,10 @@ const cardApi = {
       const card = await client.cards.getCard({
         id: cardId,
         attachments: 'true',
+        attachment_fields: 'id,name,url',
         checklists: 'all',
-        members: 'true'
+        members: 'true',
+        member_fields: 'id,username,fullName'
       });
       return card;
     } catch (error) {

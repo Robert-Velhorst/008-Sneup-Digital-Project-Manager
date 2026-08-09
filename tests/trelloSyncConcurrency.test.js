@@ -2,6 +2,7 @@ const Board = require('../src/models/Board');
 const trelloClient = require('../src/services/trelloClient');
 const {
   getBoardSyncConcurrency,
+  mapTrelloAttachments,
   parseTrelloActivityAt,
   reconcileCardMemberAssignments,
   runSerialized,
@@ -47,6 +48,16 @@ describe('Trello board sync concurrency', () => {
     expect(parseTrelloActivityAt('2026-07-23T12:34:56.000Z')).toEqual(new Date('2026-07-23T12:34:56.000Z'));
     expect(parseTrelloActivityAt('not-a-date')).toBeNull();
     expect(parseTrelloActivityAt()).toBeNull();
+  });
+
+  test('retains only stable linked-card evidence from Trello attachments', () => {
+    expect(mapTrelloAttachments([
+      { id: 'attachment-1', name: 'Blocker', url: 'https://trello.com/c/Ab12Cd34/blocker' },
+      { id: 'attachment-2', name: 'Document', url: 'https://example.com/private.pdf' }
+    ])).toEqual([
+      { id: 'attachment-1', name: 'Blocker', url: 'https://trello.com/c/Ab12Cd34/blocker', linkedCardShortLink: 'Ab12Cd34' },
+      { id: 'attachment-2', name: 'Document', url: 'https://example.com/private.pdf', linkedCardShortLink: undefined }
+    ]);
   });
 
   test('reconciles each card membership into the denormalized worker workload index', async () => {

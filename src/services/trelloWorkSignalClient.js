@@ -76,9 +76,11 @@ class TrelloWorkSignalClient {
 
   async listBoardCards(board, credentials, config) {
     const response = await this.request(`/boards/${encodeURIComponent(board.id)}/cards`, credentials, config, {
-      fields: 'id,name,desc,url,closed,due,dueComplete,dateLastActivity,idList,idMembers,labels',
+      fields: 'id,name,desc,url,shortLink,shortUrl,closed,due,dueComplete,dateLastActivity,idList,idMembers,labels',
       filter: 'all',
       limit: config.maxCardsPerBoard,
+      attachments: 'true',
+      attachment_fields: 'id,name,url',
       members: 'true',
       member_fields: 'id,username,fullName'
     });
@@ -129,7 +131,8 @@ class TrelloWorkSignalClient {
       hasMore: false,
       metadata: {
         source: 'trello_api',
-        boards: boards.length
+        boards: boards.length,
+        contentPolicy: 'card_metadata_and_linked_card_attachment_urls_only'
       }
     };
   }

@@ -33,6 +33,10 @@ const workItemSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  externalAliases: [{
+    type: String,
+    trim: true
+  }],
   canonicalKey: {
     type: String,
     required: true,
@@ -112,6 +116,7 @@ const workItemSchema = new mongoose.Schema({
 });
 
 workItemSchema.index({ workspaceId: 1, sourceProvider: 1, externalId: 1 }, { unique: true });
+workItemSchema.index({ workspaceId: 1, sourceProvider: 1, externalAliases: 1 });
 workItemSchema.index({ workspaceId: 1, status: 1, priority: 1, dueAt: 1 });
 workItemSchema.index({ workspaceId: 1, canonicalKey: 1 });
 workItemSchema.index({ workspaceId: 1, ownerKeys: 1, status: 1 });

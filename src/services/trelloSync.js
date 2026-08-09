@@ -8,11 +8,19 @@ const Comment = require('../models/Comment');
 const schedule = require('node-schedule');
 const jobObservabilityService = require('./jobObservabilityService');
 const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
+const { extractTrelloCardShortLink } = require('../utils/trelloIdentifiers');
 
 const DEFAULT_BOARD_SYNC_CONCURRENCY = 2;
 const MAX_BOARD_SYNC_CONCURRENCY = 4;
 const boardSyncQueues = new Map();
 const memberSyncQueues = new Map();
+
+const mapTrelloAttachments = (attachments = []) => attachments.map(attachment => ({
+  id: attachment.id,
+  name: attachment.name,
+  url: attachment.url,
+  linkedCardShortLink: extractTrelloCardShortLink(attachment.url) || undefined
+}));
 
 const clampInteger = (value, fallback, minimum, maximum) => {
   const parsed = Number.parseInt(value, 10);
@@ -404,6 +412,8 @@ const syncCards = async (board) => {
       if (!card) {
         card = new Card({
           trelloId: trelloCard.id,
+          shortLink: extractTrelloCardShortLink(trelloCard.shortLink || trelloCard.shortUrl || trelloCard.url),
+          url: trelloCard.shortUrl || trelloCard.url,
           name: trelloCard.name,
           description: trelloCard.desc || '',
           boardId: board._id,
@@ -418,11 +428,7 @@ const syncCards = async (board) => {
             name: label.name,
             color: label.color
           })),
-          attachments: (trelloCard.attachments || []).map(att => ({
-            id: att.id,
-            name: att.name,
-            url: att.url
-          })),
+          attachments: mapTrelloAttachments(trelloCard.attachments),
           checklists: (trelloCard.checklists || []).map(checklist => ({
             id: checklist.id,
             name: checklist.name,
@@ -471,6 +477,8 @@ const syncCards = async (board) => {
         
         // Update card properties
         card.name = trelloCard.name;
+        card.shortLink = extractTrelloCardShortLink(trelloCard.shortLink || trelloCard.shortUrl || trelloCard.url);
+        card.url = trelloCard.shortUrl || trelloCard.url;
         card.description = trelloCard.desc || '';
         card.boardId = board._id;
         card.listId = list._id;
@@ -484,11 +492,7 @@ const syncCards = async (board) => {
           name: label.name,
           color: label.color
         }));
-        card.attachments = (trelloCard.attachments || []).map(att => ({
-          id: att.id,
-          name: att.name,
-          url: att.url
-        }));
+        card.attachments = mapTrelloAttachments(trelloCard.attachments);
         card.checklists = (trelloCard.checklists || []).map(checklist => ({
           id: checklist.id,
           name: checklist.name,
@@ -765,5 +769,6 @@ module.exports = {
   mapWithConcurrency,
   runSerialized,
   parseTrelloActivityAt,
+  mapTrelloAttachments,
   reconcileCardMemberAssignments
 };

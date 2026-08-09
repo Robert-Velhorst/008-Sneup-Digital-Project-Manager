@@ -5,7 +5,7 @@
 Detailed findings are tracked in [ENHANCEMENT_FINDINGS.md](ENHANCEMENT_FINDINGS.md) and exposed by `GET /api/enhancements`.
 
 1. Connector sync engine
-   - Turn linked accounts into scheduled read/write sync jobs per provider.
+   - Turn linked accounts into scheduled, bounded read-only sync jobs per provider; keep provider writes behind the separate approval ledger.
    - Normalize external tasks, messages, files, comments, owners, due dates, dependencies, and statuses into Sneup's internal work graph.
 
 2. Human-in-the-loop autonomy
@@ -29,4 +29,4 @@ Detailed findings are tracked in [ENHANCEMENT_FINDINGS.md](ENHANCEMENT_FINDINGS.
    - Add connector-specific least-privilege scope checks before allowing a provider to connect.
 
 7. Installer polish
-   - Add a branded icon, signed installer certificate, auto-update channel, first-run setup wizard, and optional bundled local database.
+   - Preserve the branded icon and first-run setup; add an owner-controlled signed installer certificate and reviewed update channel.

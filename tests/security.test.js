@@ -3988,7 +3988,8 @@ describe('work signal normalization', () => {
             name: 'Confirm launch approval',
             dateLastActivity: '2026-07-09T12:00:00Z',
             labels: [{ name: 'P1' }],
-            members: [{ username: 'robert' }]
+            members: [{ username: 'robert' }],
+            attachments: [{ id: 'attachment-1', name: 'Dependency', url: 'https://trello.com/c/Zy98Xw76/blocker' }]
           }]
         })
     };
@@ -4012,12 +4013,19 @@ describe('work signal normalization', () => {
         key: 'test-key',
         token: 'test-token',
         limit: 100,
-        filter: 'all'
+        filter: 'all',
+        attachments: 'true',
+        attachment_fields: 'id,name,url',
+        member_fields: 'id,username,fullName'
       });
       expect(result).toMatchObject({
         nextCursor: '2026-07-09T12:00:00.000Z',
         hasMore: false,
-        metadata: { source: 'trello_api', boards: 1 }
+        metadata: {
+          source: 'trello_api',
+          boards: 1,
+          contentPolicy: 'card_metadata_and_linked_card_attachment_urls_only'
+        }
       });
       expect(result.records[0]).toMatchObject({
         id: 'card-1',
@@ -7242,6 +7250,7 @@ describe('work signal normalization', () => {
     };
     const findOneAndUpdateDependency = jest.fn().mockResolvedValue({ _id: 'dep-1' });
     const resolvePending = jest.fn().mockResolvedValue({ modifiedCount: 0 });
+    const findTarget = jest.fn().mockResolvedValue(null);
 
     jest.doMock('mongoose', () => ({ connection: { readyState: 1 } }));
     jest.doMock('../src/services/workspaceScopeService', () => ({
@@ -7251,7 +7260,7 @@ describe('work signal normalization', () => {
     jest.doMock('../src/models/WorkItem', () => ({
       itemTypes: ['task', 'project', 'message', 'issue', 'pull_request', 'document', 'event', 'risk', 'decision', 'other'],
       findOneAndUpdate: jest.fn().mockResolvedValue(sourceItem),
-      findOne: jest.fn().mockResolvedValue(null)
+      findOne: findTarget
     }));
     jest.doMock('../src/models/WorkActor', () => ({ findOneAndUpdate: jest.fn().mockResolvedValue({}) }));
     jest.doMock('../src/models/WorkComment', () => ({ findOneAndUpdate: jest.fn().mockResolvedValue({}) }));
@@ -7311,10 +7320,18 @@ describe('work signal normalization', () => {
         upsert: true
       })
     );
+    expect(findTarget).toHaveBeenCalledWith(expect.objectContaining({
+      workspaceId,
+      sourceProvider: 'github',
+      $or: [
+        { externalId: { $in: ['ISSUE_kwDO999'] } },
+        { externalAliases: { $in: ['ISSUE_kwDO999'] } }
+      ]
+    }));
     expect(resolvePending).toHaveBeenCalledWith(
       expect.objectContaining({
         targetProvider: 'jira_software',
-        targetExternalId: 'OPS-42',
+        targetExternalId: { $in: ['OPS-42'] },
         resolutionStatus: 'unresolved'
       }),
       expect.objectContaining({
@@ -7565,10 +7582,11 @@ describe('work signal normalization', () => {
       externalId: 'card-1',
       sourceType: 'task',
       title: 'Client rollout',
-      status: 'open',
+      status: 'blocked',
       raw: {
+        shortLink: 'Ab12Cd34',
         attachments: [
-          { id: 'attachment-1', idModel: 'card-2', name: 'Related rollout checklist', url: 'https://trello.example/c/card-2' }
+          { id: 'attachment-1', name: 'Blocking rollout checklist', url: 'https://trello.com/c/Zy98Xw76/blocker' }
         ]
       }
     });
@@ -7611,11 +7629,12 @@ describe('work signal normalization', () => {
     ]));
     expect(trelloProjection.dependencies).toEqual([
       expect.objectContaining({
-        targetExternalId: 'card-2',
-        dependencyType: 'relates_to',
+        targetExternalId: 'Zy98Xw76',
+        dependencyType: 'blocked_by',
         sourceProvider: 'trello'
       })
     ]);
+    expect(trelloProjection.externalAliases).toEqual(['Ab12Cd34']);
   });
 
   test('routes graph work items into Robert, VA, and team decision candidates without provider writes', () => {

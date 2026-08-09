@@ -7,6 +7,7 @@ const WorkEvent = require('../models/WorkEvent');
 const WorkItem = require('../models/WorkItem');
 const Recommendation = require('../models/Recommendation');
 const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
+const { extractTrelloCardShortLink, trelloCardAliases } = require('../utils/trelloIdentifiers');
 
 const slugify = (value) => String(value || '')
   .trim()
@@ -38,6 +39,7 @@ class WorkGraphService {
   buildProjection(signal) {
     const provider = signal.provider || signal.sourceProvider || 'unknown';
     const externalId = String(signal.externalId || '').trim();
+    const externalAliases = provider === 'trello' ? trelloCardAliases(signal.raw) : [];
     const workspaceId = this.resolveWorkspaceId(signal.workspaceId);
     const canonicalKey = `${provider}:${externalId}`;
     const ownerKeys = (signal.owners || []).map(owner => `${provider}:actor:${slugify(owner)}`);
@@ -51,6 +53,7 @@ class WorkGraphService {
       connectorAccountId: signal.connectorAccountId,
       sourceSignalId: signalId(signal),
       externalId,
+      externalAliases,
       canonicalKey,
       title: signal.title,
       description: signal.description || '',
@@ -229,10 +232,14 @@ class WorkGraphService {
   async upsertDependencies(projection, item, now) {
     for (const dependency of projection.dependencies || []) {
       const targetProvider = dependency.targetProvider || projection.sourceProvider;
+      const targetAliases = [dependency.targetExternalId].filter(Boolean);
       const target = await WorkItem.findOne({
         workspaceId: projection.workspaceId,
         sourceProvider: targetProvider,
-        externalId: dependency.targetExternalId
+        $or: [
+          { externalId: { $in: targetAliases } },
+          { externalAliases: { $in: targetAliases } }
+        ]
       });
 
       await WorkDependency.findOneAndUpdate({
@@ -284,10 +291,11 @@ class WorkGraphService {
   }
 
   async resolvePendingDependenciesForItem(projection, item, now) {
+    const aliases = [projection.externalId, ...(projection.externalAliases || [])];
     await WorkDependency.updateMany({
       workspaceId: projection.workspaceId,
       targetProvider: projection.sourceProvider,
-      targetExternalId: projection.externalId,
+      targetExternalId: { $in: aliases },
       resolutionStatus: 'unresolved'
     }, {
       $set: {
@@ -623,6 +631,7 @@ class WorkGraphService {
     };
     if (cardExternalIds.length > 0) {
       query.$or.push({ externalId: { $in: cardExternalIds } });
+      query.$or.push({ externalAliases: { $in: cardExternalIds } });
     }
 
     const items = await WorkItem.find(query).sort({ priority: 1, dueAt: 1, lastSeenAt: -1 }).limit(200);
@@ -646,7 +655,10 @@ class WorkGraphService {
     const items = await WorkItem.find({
       workspaceId,
       sourceProvider: 'trello',
-      externalId: { $in: externalIds }
+      $or: [
+        { externalId: { $in: externalIds } },
+        { externalAliases: { $in: externalIds } }
+      ]
     }).sort({ lastSeenAt: -1 }).limit(10);
 
     return this.ledgerContextForItems(items, {
@@ -1121,7 +1133,7 @@ class WorkGraphService {
       ...this.jiraDependencyRefs(raw, provider, externalId),
       ...this.asanaDependencyRefs(raw, provider, externalId),
       ...this.githubDependencyRefs(raw, provider, externalId),
-      ...this.trelloDependencyRefs(raw, provider, externalId)
+      ...this.trelloDependencyRefs(raw, provider, externalId, signal.status)
     ];
     const seen = new Set();
 
@@ -1253,13 +1265,14 @@ class WorkGraphService {
     ].filter(Boolean);
   }
 
-  trelloDependencyRefs(raw, provider, externalId) {
+  trelloDependencyRefs(raw, provider, externalId, status) {
     return asArray(raw.attachments)
-      .filter(attachment => attachment.idModel || attachment.cardId || /\/c\//.test(String(attachment.url || '')))
-      .map((attachment, index) => this.dependencyRefFromTarget(attachment.idModel || attachment.cardId || attachment, {
+      .map(attachment => ({ attachment, targetShortLink: extractTrelloCardShortLink(attachment.url) }))
+      .filter(({ targetShortLink }) => targetShortLink)
+      .map(({ attachment, targetShortLink }, index) => this.dependencyRefFromTarget(targetShortLink, {
         provider,
         externalId,
-        dependencyType: 'relates_to',
+        dependencyType: this.trelloCardIsBlocked(raw, status) ? 'blocked_by' : 'relates_to',
         relationField: 'attachments',
         relationId: attachment.id,
         index,
@@ -1267,6 +1280,11 @@ class WorkGraphService {
         url: attachment.url
       }))
       .filter(Boolean);
+  }
+
+  trelloCardIsBlocked(raw = {}, status) {
+    if (String(status || raw.status || '').toLowerCase() === 'blocked') return true;
+    return asArray(raw.labels).some(label => /^blocked$/i.test(String(label?.name || label)));
   }
 
   dependencyRefFromTarget(target, context) {
@@ -1342,6 +1360,7 @@ class WorkGraphService {
       connectorAccountId: item.connectorAccountId ? String(item.connectorAccountId) : null,
       sourceSignalId: item.sourceSignalId ? String(item.sourceSignalId) : null,
       externalId: item.externalId,
+      externalAliases: item.externalAliases || [],
       canonicalKey: item.canonicalKey,
       title: item.title,
       description: item.description,

@@ -24,21 +24,35 @@ describe('intervention detection', () => {
     await expect(interventionEngine.hasNoRecentActivity(activeCard)).resolves.toBe(false);
   });
 
-  test('counts blocked dependents without loading their documents into memory', async () => {
+  test('counts only blocked dependents with an exact linked Trello card identifier', async () => {
     const countDocuments = jest.spyOn(Card, 'countDocuments').mockResolvedValue(2);
     const card = {
+      _id: 'card-record-1',
       boardId: 'board-1',
       workspaceId: 'workspace-1',
-      name: 'Launch approval'
+      name: 'Launch approval',
+      shortLink: 'Ab12Cd34',
+      url: 'https://trello.com/c/Ab12Cd34/launch-approval'
     };
 
     await expect(interventionEngine.getBlockingCount(card)).resolves.toBe(2);
     expect(countDocuments).toHaveBeenCalledWith(expect.objectContaining({
-      boardId: 'board-1',
       workspaceId: 'workspace-1',
       closed: false,
-      'labels.name': 'BLOCKED'
+      _id: { $ne: 'card-record-1' },
+      'labels.name': /^blocked$/i,
+      'attachments.linkedCardShortLink': { $in: ['Ab12Cd34'] }
     }));
+  });
+
+  test('does not run a description scan when a legacy card has no stable Trello link', async () => {
+    const countDocuments = jest.spyOn(Card, 'countDocuments');
+
+    await expect(interventionEngine.getBlockingCount({
+      workspaceId: 'workspace-1',
+      name: 'A title that may appear in unrelated cards'
+    })).resolves.toBe(0);
+    expect(countDocuments).not.toHaveBeenCalled();
   });
 
   test('selects a substantially less-loaded specialty match for reassignment', async () => {

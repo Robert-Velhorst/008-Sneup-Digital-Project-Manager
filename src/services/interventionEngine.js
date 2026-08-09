@@ -7,8 +7,8 @@ const operationsLedgerService = require('./operationsLedgerService');
 const policyRuleService = require('./policyRuleService');
 const interventionPolicy = require('./interventionPolicy');
 const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
+const { trelloCardAliases } = require('../utils/trelloIdentifiers');
 
-const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const ACTIVE_INTERVENTION_STATUSES = ['pending', 'awaiting_approval', 'executing', 'executed'];
 
 class InterventionEngine {
@@ -284,14 +284,15 @@ class InterventionEngine {
 
   // Helper: Get count of cards blocked by this card
   async getBlockingCount(card) {
-    // Check comments and descriptions for mentions of this card blocking others
-    // This is a simplified version - in production, you'd track dependencies explicitly
+    const aliases = trelloCardAliases(card);
+    if (aliases.length === 0) return 0;
+
     return Card.countDocuments({
-      boardId: card.boardId,
       workspaceId: card.workspaceId,
       closed: false,
-      'labels.name': 'BLOCKED',
-      description: new RegExp(escapeRegExp(card.name).slice(0, 200), 'i')
+      ...(card._id ? { _id: { $ne: card._id } } : {}),
+      'labels.name': /^blocked$/i,
+      'attachments.linkedCardShortLink': { $in: aliases }
     });
   }
 
