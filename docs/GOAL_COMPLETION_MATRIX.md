@@ -6,6 +6,8 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 
 2.3.28 removes a production-scale database hot spot without weakening access control. Session and API-token credentials are still read and validated for every request; only non-audit presence timestamps are coalesced into active-record-only atomic five-minute touches. A disposable real-Mongo 100-request profile reduced those writes from 200 to two.
 
+2.3.29 bounds the shared MongoDB client for standalone and cloud use. Each process defaults to 20 application sockets rather than 100, retains no idle minimum, retires idle sockets, limits simultaneous connection creation, and fails saturated pool waits after five seconds. Operators can tune each validated bound without changing code.
+
 | Phase | Status | Evidence or remaining gate |
 | --- | --- | --- |
 | 000 Repository integrity | Implemented | Baseline commit/branch/remote recorded; unrelated worktree artifacts preserved. |

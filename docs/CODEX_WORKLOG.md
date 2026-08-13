@@ -12,6 +12,16 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-14 bounded-database-pool continuation
+
+- Reconciled the complete governing operations-ledger specification against current source and confirmed that recommendation, approval, exact-payload execution, Trello-attempt evidence, Robert/VA/team queues, follow-up, audit, HAI, ngrok, and Windows boundaries remain wired.
+- Found that each live process still inherited the MongoDB driver's 100-application-socket pool and unlimited wait queue. This over-reserved database capacity across Windows/cloud processes and allowed overload requests to wait indefinitely.
+- Added validated per-process pool settings: 20 maximum sockets, zero idle minimum, two simultaneous connection establishments, 60-second idle retirement, five-second pool wait, and bounded connection/socket/buffer timeouts. Connection listeners now register once across reconnects.
+- A disposable real-Mongo profile completed 100 concurrent reads in 115.5 ms, observed 17 peak checked-out and 19 post-attach created connections under the 20-socket cap, preserved one listener per event through reconnect, and dropped its database.
+- Local quality passed 113 suites/862 tests, 5/5 recommendation evaluation, both zero-vulnerability audits, five-secret production validation, and a 15,000-card profile at 688.3 ms p50, 712.4 ms p95, and 349.1 MB peak RSS with no provider writes.
+- Browser QA passed demand-loaded Workspace rendering, disabled demo mutations, desktop/mobile containment, and zero current warnings/errors. HAI manifest/OpenAPI retained only `snapshot` and approval-gated `propose`, provider writes `never_direct`, and no approval or execution endpoint.
+- Built and verified unsigned `Sneup-Setup-2.3.29.exe`: 109,485,792 bytes, SHA-256 `CCBC1B7C8A7BA15F5B15DC8DEAAD4EB23A00D9303994379238ABBD88F15D95FA`. The final four-process probe used 357.5 MB working set and 290.7 MB private memory, closed normally, released the port, and retained byte-identical changed runtime/configuration files.
+
 ## 2026-08-14 authentication-activity continuation
 
 - Audited every API route against identity, workspace, permission, and external-write middleware. The only permissionless entry points remain signed provider callbacks/webhooks and one-time invitation acceptance; global API access still assigns an auditable principal.

@@ -7,7 +7,8 @@
 | Operational controls | Doctor, readiness, support bundle, emergency stop | Complete |
 | Focused verification | Runtime/security tests and lint | Complete |
 | Traceability | Required document set and completion matrix | Complete |
-| Full regression | 112 suites/855 tests, lint, 5/5 evaluation, two zero-vulnerability dependency audits, and positive five-secret release verification | Complete |
+| Full regression | 113 suites/862 tests, lint, 5/5 evaluation, two zero-vulnerability dependency audits, and positive five-secret release verification | Complete |
+| MongoDB pool | Validated 20-socket per-process cap, zero idle minimum, two connection establishments, idle retirement, five-second wait queue, and listener-stable real-Mongo reconnect | Complete locally |
 | Authentication activity | Every request still validates the credential and principal; a 100-request real-Mongo profile reduced non-audit presence writes from 200 to two through active-only atomic five-minute touches | Complete locally |
 | Portfolio scale | Real mission-control path over 60 boards/15,000 cards; bounded output/evidence, exact compound index, 1.54 s cold, 1.12 s measured p95, no provider writes | Complete locally |
 | Multi-instance jobs | Unit coverage plus disposable MongoDB 7 simultaneous acquisition, token, release, and expiry verification | Complete locally |
@@ -15,14 +16,22 @@
 | Feature rollouts | Four optional workloads, deterministic subjects, optimistic revisions, bounded cache/history, manager UI, 40-collection real-Mongo verification, and live fail-closed behavior | Complete locally; hosted manager acceptance pending |
 | Data integrity and repair | Bounded dry-run/apply, review-only unsafe findings, all-workspace Trello index migration, audit evidence, and disposable MongoDB verification | Complete locally |
 | Data retention | Owner-only opt-in policy, bounded preview/apply, protected evidence, distributed lease, indexed queries, pre/post audits, real MongoDB proof, and live browser flow | Complete locally |
-| Windows package | 2.3.28 NSIS build, demo diagnostics/HAI smoke, metadata, SHA-256, source-identical changed assets, repeatable resource sample, and clean close | Complete locally; publisher signing external |
-| Fresh clone | 2.3.28 exact source `9d471b5918c6a27f775a8870511c9e8195d9bc07`; Node 24 quality and Windows installer jobs in run `31751730555` | Complete |
+| Windows package | 2.3.29 NSIS build, demo diagnostics/HAI smoke, metadata, SHA-256, source-identical changed assets, repeatable resource sample, and clean close | Complete locally; publisher signing external |
+| Fresh clone | 2.3.28 exact source `9d471b5918c6a27f775a8870511c9e8195d9bc07` passed; 2.3.29 clean-checkout evidence is pending publication | Prior release complete |
 | Browser and Windows UI | Demand-loaded English/Dutch setup, connector and account-selection, workspace and policy-form, approval, Work Signals, graph, Forecasts, and Reports renderers; exact evidence/payload preservation; shared asset-version reuse; refresh; filtering; and containment passed in the in-app Browser with zero current console errors | Complete for these flows; screen-reader/clean-VM evidence pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter | Complete locally; live credentials external |
-| GitHub CI | 2.3.28 run `31751730555` passed both jobs; artifact `9201228811` was downloaded and independently checked | Complete |
+| GitHub CI | 2.3.28 run `31751730555` and artifact `9201228811` passed; 2.3.29 run is pending publication | Prior release complete |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |
+
+## 2026-08-14 - Bounded database-pool release checkpoint
+
+- Release: 2.3.29
+- Scope: bound MongoDB sockets, idle retention, simultaneous connection establishment, wait queues, and connection/listener lifecycle for each standalone or cloud Sneup process.
+- Verification: lint; 113 suites/862 tests; 5/5 safety evaluation; two zero-vulnerability audits; production-secret separation; disposable real-Mongo 100-read/reconnect profile; 15,000-card profile; in-app Browser; HAI HTTP contract; and packaged Windows behavior/source parity.
+- Installer: `release/Sneup-Setup-2.3.29.exe`, 109,485,792 bytes, unsigned, SHA-256 `CCBC1B7C8A7BA15F5B15DC8DEAAD4EB23A00D9303994379238ABBD88F15D95FA`.
+- External gates remain: live provider/ngrok/HAI acceptance, production deployment and restore, publisher signing, clean-VM scaling, and assistive-technology certification.
 
 ## 2026-08-14 - Authentication-activity release checkpoint
 

@@ -1,5 +1,12 @@
 # Technical Audit
 
+## 2.3.29 database-pool audit
+
+- The former connection options left MongoDB's 100-socket per-server default and unlimited wait queue intact for every Sneup process. Horizontal scaling multiplied that capacity and allowed an overload request to wait without a deadline.
+- Added validated low-idle pool, connection, socket, selection, buffer, and wait-queue bounds. Defaults support the existing bounded dashboard/workers while allowing explicit per-process production tuning up to a guarded maximum.
+- Removed retired Mongoose topology/parser flags and registered error/disconnect/reconnect listeners once per shared connection. A disposable real-Mongo concurrent-read and reconnect profile proved the active options and stable listener counts.
+- Full regression, audits, portfolio scale, rendered dashboard, HAI HTTP contract, and packaged Windows verification passed. Live provider/cloud acceptance and publisher signing remain external.
+
 ## 2.3.28 authentication-activity audit
 
 - Audited all API route registrations against global identity, workspace resolution, explicit permission middleware, and signed unauthenticated entry points. No unintended open mutation route was found.

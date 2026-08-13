@@ -1,5 +1,13 @@
 # Sneup Implementation Report
 
+## 2.3.29 continuation
+
+Sneup's shared Mongoose connection now defaults to a production-bounded pool: 20 application sockets per MongoDB server and process, zero idle minimum, two connections established at once, 60-second idle retirement, and a five-second wait queue. Connection, socket, selection, and model-buffer waits are bounded and every override fails closed outside its supported range. Reconnecting or embedding startup does not add duplicate connection listeners.
+
+A disposable local MongoDB run completed 100 concurrent reads in 115.5 ms, remained under the 20-socket cap, kept exactly one listener per connection event through reconnect, and dropped its database. The 15,000-card portfolio path remained below its latency/memory budgets; browser, HAI, ngrok contracts, security gates, and packaged Windows behavior also passed.
+
+The verified local installer is `release/Sneup-Setup-2.3.29.exe`, 109,485,792 bytes, unsigned, with SHA-256 `CCBC1B7C8A7BA15F5B15DC8DEAAD4EB23A00D9303994379238ABBD88F15D95FA`.
+
 ## 2.3.28 continuation
 
 Sneup no longer saves API-token/session/user activity metadata on every authenticated request. The request path still reads and validates the presented credential, hash, expiry, revocation status, user status, role, permissions, and workspace each time. Only `lastUsedAt` and `lastSeenAt` are coalesced into atomic updates at most once every five minutes, and each update requires the record to remain active.

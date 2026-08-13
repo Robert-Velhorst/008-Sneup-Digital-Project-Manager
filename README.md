@@ -550,6 +550,10 @@ pm2 startup
 | `TRELLO_API_KEY` | Trello API key | Required |
 | `TRELLO_API_TOKEN` | Trello API token | Required |
 | `MONGODB_URI` | MongoDB connection string | `mongodb://localhost:27017/sneup` |
+| `SNEUP_MONGODB_MAX_POOL_SIZE` | Maximum application sockets per MongoDB server and Sneup process (1-200) | `20` |
+| `SNEUP_MONGODB_MIN_POOL_SIZE` | Minimum retained application sockets; zero releases idle capacity | `0` |
+| `SNEUP_MONGODB_MAX_IDLE_TIME_MS` | Close an unused pooled socket after this bounded idle period | `60000` |
+| `SNEUP_MONGODB_WAIT_QUEUE_TIMEOUT_MS` | Fail a database operation instead of waiting indefinitely for a pooled socket | `5000` |
 | `PORT` | Server port | `3000` |
 | `NODE_ENV` | Environment | `development` |
 | `WEBHOOK_CALLBACK_URL` | Webhook URL | Optional |

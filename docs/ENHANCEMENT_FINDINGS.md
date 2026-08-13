@@ -1,5 +1,6 @@
 # Enhancement Findings
 
+- ENH-020 release evidence: each Sneup process now uses a validated 20-socket MongoDB application pool instead of the 100-socket driver default, retains no idle minimum, retires idle sockets, limits connection establishment, and bounds pool waits. A real-Mongo 100-read run stayed within the cap and reconnecting did not duplicate listeners.
 - ENH-003/ENH-020 release evidence: authenticated identity remains fully revalidated on each request, while active-only atomic five-minute touches coalesce non-audit session/token presence metadata. A disposable real-Mongo 100-request profile reduced activity writes from 200 to two without changing revocation, role, permission, or workspace checks.
 
 This backlog turns the high-level improvement plan into concrete engineering findings. It is also exposed through `GET /api/enhancements`.

@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.3.29 - 2026-08-14
+
+### Bounded production database connections
+
+- Replaced the MongoDB driver's 100-connection-per-server default with a validated 20-socket per-process application pool that matches Sneup's bounded dashboard and worker concurrency.
+- Retained no idle minimum, close unused sockets after 60 seconds, limit simultaneous connection establishment to two, and fail a saturated pool wait queue after five seconds instead of allowing indefinite request waits.
+- Added bounded environment overrides, removed retired Mongoose connection flags, and made connection event registration idempotent across reconnects and embedded initialization.
+
+### Production, cloud, HAI, and Windows verification
+
+- A disposable real-Mongo run completed 100 concurrent reads in 115.5 ms, observed 17 peak checked-out and at most 20 created application connections, retained exactly one listener per connection event through reconnect, and dropped its database.
+- The full gate passes 113 suites/862 tests, the 5/5 recommendation safety evaluation, two zero-vulnerability audits, and five-secret production validation. The 15,000-card profile measured 688.3 ms p50, 712.4 ms p95, and 349.1 MB peak RSS with no provider writes.
+- In-app Browser acceptance passed demand-loaded Workspace rendering, disabled demo mutations, desktop/mobile containment, and zero current console warnings/errors. HAI still exposes only `snapshot` and approval-gated `propose`, with provider writes `never_direct`.
+- Built and verified unsigned `Sneup-Setup-2.3.29.exe`: 109,485,792 bytes, SHA-256 `CCBC1B7C8A7BA15F5B15DC8DEAAD4EB23A00D9303994379238ABBD88F15D95FA`. Packaged verification passed product metadata, diagnostics, secret redaction, HAI policy, normal close, port release, and byte-identical changed runtime files.
+
 ## 2.3.28 - 2026-08-14
 
 ### Bounded authentication activity writes
