@@ -1,5 +1,12 @@
 # Technical Audit
 
+## 2.3.28 authentication-activity audit
+
+- Audited all API route registrations against global identity, workspace resolution, explicit permission middleware, and signed unauthenticated entry points. No unintended open mutation route was found.
+- Removed blocking per-request `save()` calls for API-token/session/user presence metadata. Atomic update filters require active status and a missing, null, or stale timestamp; authorization continues to query and validate every credential and principal on every request.
+- A disposable real-Mongo 100-request session profile retained all 100 credential reads and reduced metadata writes from 200 to two. The full 112-suite/855-test gate, two zero-vulnerability audits, production secret separation, 15,000-card profile, browser QA, and Windows package verification passed.
+- Live provider/ngrok/HAI acceptance, signing, production rollback, clean-VM scaling, and assistive-technology evidence remain external.
+
 ## 2.3.27 workspace-invitation audit
 
 - Found and fixed invitation forms that lost useful retry context, one-time links that depended on a second Workspace refresh, and committed accept/revoke/resend outcomes that could be misreported when only later browser persistence or refresh failed.

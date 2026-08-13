@@ -12,6 +12,16 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-14 authentication-activity continuation
+
+- Audited every API route against identity, workspace, permission, and external-write middleware. The only permissionless entry points remain signed provider callbacks/webhooks and one-time invitation acceptance; global API access still assigns an auditable principal.
+- Found that authenticated dashboard traffic performed one API-token activity save or two session/user activity saves per request. These fields are operational presence metadata rather than immutable audit evidence.
+- Kept full credential, revocation, expiry, user-status, role, permission, and workspace validation per request, while replacing blocking saves with active-record-only atomic timestamp touches every five minutes.
+- Added exact query/update tests and a 100-request regression. A disposable real-Mongo run retained 100 credential reads while reducing activity writes from 200 to two, avoiding 198 writes (99%).
+- Local quality passed 112 suites/855 tests, 5/5 recommendation evaluation, both zero-vulnerability audits, five-secret production validation, and a 15,000-card profile at 962.3 ms p50, 1,123.2 ms p95, and 355.7 MB peak RSS with no provider writes.
+- In-app Browser passed Overview exclusion, one Workspace module load, disabled demo mutations, English/Dutch responsive containment, a correlated `200` security context, and zero current console warnings/errors.
+- Built and verified unsigned `Sneup-Setup-2.3.28.exe`: 109,485,088 bytes, SHA-256 `43F1B9587E3293E35FD0BD7C369CFB660063805B72871DF7E9034879EF6B666D`. Four packaged processes used 364.1 MB working set, 328.4 MB private memory, and 1.938 cumulative CPU seconds, then closed normally and released the port; both changed runtime files were byte-identical in the archive.
+
 ## 2026-08-13 workspace-invitation continuation
 
 - Re-audited invitation creation, resend, revocation, and acceptance against the one-time-token and no-fake-success contract. Failed forms could lose entered values, one-time links depended on a second Workspace refresh, and committed server actions were blurred with later browser persistence or refresh faults.

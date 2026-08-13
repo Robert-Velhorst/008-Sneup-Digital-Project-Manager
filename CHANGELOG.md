@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.3.28 - 2026-08-14
+
+### Bounded authentication activity writes
+
+- Kept API-token and session-token lookup, hash verification, expiry, user status, role, permission, and workspace resolution on every authenticated request.
+- Replaced blocking document saves for non-audit `lastUsedAt` and `lastSeenAt` metadata with active-record-only atomic touches at a five-minute cadence. Revoked or disabled records cannot be revived by the metadata update.
+- Added regression coverage for 100 repeated session resolutions and the exact interval boundary. A disposable real-Mongo profile retained 100 credential reads while reducing identity activity writes from 200 to two, a 99% reduction.
+
+### Security, scale, browser, and Windows verification
+
+- The full local gate passes 112 suites/855 tests, the 5/5 recommendation safety evaluation, two zero-vulnerability audits, and five-secret production validation.
+- A real-Mongo 15,000-card profile measured 962.3 ms p50, 1,123.2 ms p95, and 355.7 MB peak RSS with bounded output, the intended compound index, approval required, and no provider writes.
+- In-app Browser acceptance passed demand-loaded Workspace rendering, disabled demo mutations, English/Dutch responsive containment, a correlated `200` security context, and zero current console warnings or errors.
+- Built and verified unsigned `Sneup-Setup-2.3.28.exe`: 109,485,088 bytes, SHA-256 `43F1B9587E3293E35FD0BD7C369CFB660063805B72871DF7E9034879EF6B666D`. Packaged verification passed product metadata, eight diagnostics, no secret exposure, HAI `never_direct`, normal close, port release, and byte-identical changed runtime files.
+
 ## 2.3.27 - 2026-08-13
 
 ### Truthful workspace invitation lifecycle

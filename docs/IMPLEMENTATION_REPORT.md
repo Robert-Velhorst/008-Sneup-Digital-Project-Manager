@@ -1,5 +1,13 @@
 # Sneup Implementation Report
 
+## 2.3.28 continuation
+
+Sneup no longer saves API-token/session/user activity metadata on every authenticated request. The request path still reads and validates the presented credential, hash, expiry, revocation status, user status, role, permissions, and workspace each time. Only `lastUsedAt` and `lastSeenAt` are coalesced into atomic updates at most once every five minutes, and each update requires the record to remain active.
+
+A disposable real-Mongo profile resolved the same session 100 times, retained 100 credential lookups, and reduced activity writes from 200 to two. Full quality passed 112 suites/855 tests, zero-vulnerability audits, release-secret separation, and a 15,000-card profile below its 5-second/512-MB budgets. Browser QA passed demand-loaded Workspace rendering, demo write controls, English/Dutch containment, and zero current errors.
+
+The verified local installer is `release/Sneup-Setup-2.3.28.exe`, 109,485,088 bytes, unsigned, with SHA-256 `43F1B9587E3293E35FD0BD7C369CFB660063805B72871DF7E9034879EF6B666D`.
+
 ## 2.3.27 continuation
 
 Sneup now constructs invitation creation, resend, revocation, and acceptance UI only after Workspace administration opens or an invitation URL is received. The deferred renderer owns localized bounded DOM and transient action state; the controller continues to own exact authenticated API calls and payloads, session-token persistence, workspace reload verification, and every provider boundary.

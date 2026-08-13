@@ -6,7 +6,7 @@ This report is updated from executed commands at release time. A passing local s
 
 - Branch: `main`
 - Starting commit: `4304744d2bad49fdf33470c7cd402a7166d40736`
-- Release under verification: `2.3.27`
+- Release under verification: `2.3.28`
 - Default remote: `origin`
 
 ## Verification ledger
@@ -17,7 +17,7 @@ This report is updated from executed commands at release time. A passing local s
 | Focused retention tests | Pass: owner permissions, policy bounds, dry-run exclusions, exact confirmation, pre-delete audit failure, distributed worker lease, UI wiring, and rotation across bounded workspace batches |
 | ESLint | Pass |
 | Doctor | Pass with expected local warnings for absent MongoDB/Trello configuration; no errors; ngrok disabled locally |
-| Full regression | Pass: 112 suites, 854 tests, including demand-loaded invitation/setup/connector/workspace/approval rendering, invitation commit/session/reload separation, stale-response and duplicate-action guards, complete localization, lazy-catalog safety, exact evidence preservation, per-asset fingerprint mutation, portfolio-scale bounded ranking, provider failure, API validation, and ledger compatibility |
+| Full regression | Pass: 112 suites, 855 tests, including per-request credential validation with bounded atomic activity touches, demand-loaded invitation/setup/connector/workspace/approval rendering, stale-response and duplicate-action guards, exact evidence preservation, provider failure, API validation, and ledger compatibility |
 | Recommendation evaluation | Pass: 5/5 scenarios, score 100% |
 | Production and full dependency audit | Pass: 0 vulnerabilities after lockfile remediation |
 | Release security positive check | Pass: five purpose-separated production secrets, no values exposed |
@@ -32,18 +32,19 @@ This report is updated from executed commands at release time. A passing local s
 | Real MongoDB data retention | Pass: six eligible categories deleted, six protected records retained, six pre/post audit pairs stored, seven query indexes verified, provider writes false |
 | Retention performance sample | Pass: six-category preview 35.09 ms, six audited category batches 936.39 ms, verifier RSS 94.1 MB; seven supporting indexes verified |
 | Integrity API performance sample | Pass: 30 live requests measured 14.01 ms p50 and 23.71 ms p95; server working set 119.5 MB after browser QA |
-| Portfolio-scale profile | Pass: real mission control read 60 boards/300 lists/15,000 cards/100 members/60 analytics records; 1,168.9 ms cold, 638.2 ms p50, 642.4 ms p95, 307.4 MB peak verifier RSS, exact compound card index selected, 10/12/12 outputs bounded, approval required, provider writes false |
+| Authentication activity profile | Pass: 100 real-Mongo session resolutions retained 100 credential reads and reduced token/user activity writes from 200 to two; the five-minute boundary produced the next exact pair of active-only atomic touches |
+| Portfolio-scale profile | Pass: real mission control read 60 boards/300 lists/15,000 cards/100 members/60 analytics records; 1,540 ms cold, 962.3 ms p50, 1,123.2 ms p95, 355.7 MB peak verifier RSS, exact compound card index selected, 10/12/12 outputs bounded, approval required, provider writes false |
 | Bounded-ranking resource sample | Pass: worst-case 15,000-card focus improved 42.8 to 16.2 ms, risks 50.5 to 19.9 ms, commands 90.3 to 43.2 ms, and command peak RSS about 165 to 106 MB while preserving stable rank/evidence behavior |
-| Startup profile | Pass: import loaded 251 modules without Mongoose at 65.3 MB RSS; Overview remained Mongo-free at 68.9 MB RSS. Compared with 2.3.26, initial app-plus-localization is 6,435 raw, 843 gzip, and 598 Brotli bytes smaller; invitation rendering remains deferred until Workspaces or an invitation URL is opened |
+| Startup profile | Pass: import loaded 251 modules without Mongoose in 525 ms at 73.1 MB RSS; Overview remained Mongo-free, completed in 107.4 ms, and sampled 76.2 MB RSS |
 | Optional AI resource profile | Pass: loading offline chat did not load OpenAI; loading the deferred SDK afterward added 122 modules, 6.0 MB RSS, and 4.65 seconds in this cold local sample |
-| Browser QA | Pass: in-app Browser verified the Workspace module is absent on Overview, loads once with the shared fingerprint, keeps demo mutations disabled, renders English/Dutch correctly, removes invitation query data before display, stays contained at desktop and constrained responsive widths, and emits zero current console warnings/errors. Focused DOM/source tests cover create/resend/revoke/accept retry, commit truthfulness, duplicate-action, and source-authority boundaries |
+| Browser QA | Pass: in-app Browser verified the Workspace module is absent on Overview, loads once when opened, keeps export/deletion/invitation mutations disabled in demo mode, renders English/Dutch responsive layouts without document overflow, receives a correlated `200` security context, and emits zero current console warnings/errors |
 | Windows UI automation | The installed Windows-control package did not expose its required guidance interface; no undocumented input was attempted and visual evidence is not inferred from HTTP or window metadata |
-| Packaged Windows QA | Pass: repeatable verifier confirmed 2.3.27 product metadata, healthy demo state, eight redacted diagnostics, HAI `never_direct`, normal main-window close, loopback port release, and byte-identical changed runtime files |
-| Packaged resource sample | Pass: four processes used 364.4 MB working set, 316.3 MB private memory, and 1.609 cumulative CPU seconds in the repeatable probe. This is directional local evidence rather than a production-scale budget. |
-| Windows installer | Pass: local build 109,484,457 bytes, unsigned, SHA-256 `6BF9B9918DD5B3B494504964B7620337A530B86B59301BFEE3901857FF53B1E4`; executable metadata reports 2.3.27 |
-| Fresh clone | Pass: GitHub checked out exact source `2acbc2bc5aa9e238031db736321c2dc9ff53ebb5`, installed the lockfile with Node.js 24, and completed quality plus Windows package jobs |
-| GitHub CI | Pass: run `31677406698`; quality completed in 1 minute 12 seconds and Windows installer in 2 minutes 28 seconds; both jobs succeeded |
-| GitHub installer artifact | Pass: artifact `9172127189`, `sneup-windows-installer-unsigned`, 109,490,662-byte archive, digest `sha256:45a14e769d58116c7c16ad8414dbed0ed2e2a36799989fe24653191c80e75efb`; its single downloaded installer is 109,484,739 bytes, unsigned, version 2.3.27, SHA-256 `F4086F4696F02C2C701A025A9479A02C5B8920A63334CB3527F51AC3A8184FFE` |
+| Packaged Windows QA | Pass: repeatable verifier confirmed 2.3.28 product metadata, healthy demo state, eight redacted diagnostics, HAI `never_direct`, normal main-window close, loopback port release, and byte-identical changed runtime files |
+| Packaged resource sample | Pass: four processes used 364.1 MB working set, 328.4 MB private memory, and 1.938 cumulative CPU seconds in the repeatable probe. This is directional local evidence rather than a production-scale budget. |
+| Windows installer | Pass: local build 109,485,088 bytes, unsigned, SHA-256 `43F1B9587E3293E35FD0BD7C369CFB660063805B72871DF7E9034879EF6B666D`; executable metadata reports 2.3.28 |
+| Fresh clone | Prior release evidence: GitHub checked out 2.3.27 exact source `2acbc2bc5aa9e238031db736321c2dc9ff53ebb5`; 2.3.28 publication verification is pending |
+| GitHub CI | Prior release evidence: run `31677406698` passed both 2.3.27 jobs; 2.3.28 run is pending publication |
+| GitHub installer artifact | Prior release evidence: 2.3.27 artifact `9172127189` was independently checked; the 2.3.28 artifact is pending publication |
 
 ## External gates
 

@@ -9,6 +9,9 @@ const localAddresses = new Set([
   '::ffff:127.0.0.1'
 ]);
 
+// These presence timestamps are operational metadata, not per-request audit records.
+const AUTH_ACTIVITY_TOUCH_INTERVAL_MS = 5 * 60 * 1000;
+
 const ALL_PERMISSIONS = Object.freeze([
   'api:read',
   'analysis:run',
@@ -173,6 +176,38 @@ const safeEquals = (left, right) => {
   return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
 };
 
+const activityNeedsTouch = (lastActivityAt, now = new Date()) => {
+  const observedAt = lastActivityAt ? new Date(lastActivityAt).getTime() : Number.NaN;
+  return !Number.isFinite(observedAt)
+    || now.getTime() - observedAt >= AUTH_ACTIVITY_TOUCH_INTERVAL_MS;
+};
+
+const touchAuthenticationActivity = async ({
+  model,
+  record,
+  field,
+  now = new Date(),
+  activeStatus
+}) => {
+  if (!record?._id || !activityNeedsTouch(record[field], now)) return false;
+
+  const cutoff = new Date(now.getTime() - AUTH_ACTIVITY_TOUCH_INTERVAL_MS);
+  const result = await model.updateOne({
+    _id: record._id,
+    ...(activeStatus ? { status: activeStatus } : {}),
+    $or: [
+      { [field]: { $exists: false } },
+      { [field]: null },
+      { [field]: { $lte: cutoff } }
+    ]
+  }, {
+    $set: { [field]: now }
+  });
+
+  if (result?.modifiedCount > 0) record[field] = now;
+  return result?.modifiedCount > 0;
+};
+
 const isOAuthCallback = (req) =>
   req.method === 'GET' && /^\/api\/(?:v1\/)?connectors\/[^/]+\/callback$/.test(req.path);
 
@@ -205,8 +240,13 @@ const resolveDatabaseApiToken = async (providedKey, now = new Date()) => {
     return null;
   }
 
-  candidate.lastUsedAt = now;
-  await candidate.save();
+  await touchAuthenticationActivity({
+    model: ApiToken,
+    record: candidate,
+    field: 'lastUsedAt',
+    now,
+    activeStatus: 'active'
+  });
 
   const workspace = candidate.workspaceId;
   const role = user?.role || candidate.role || 'service';
@@ -256,11 +296,23 @@ const resolveDatabaseSessionToken = async (providedKey, now = new Date()) => {
     return null;
   }
 
-  candidate.lastUsedAt = now;
-  await candidate.save();
-
-  user.lastSeenAt = now;
-  await user.save();
+  const User = require('../models/User');
+  await Promise.all([
+    touchAuthenticationActivity({
+      model: SessionToken,
+      record: candidate,
+      field: 'lastUsedAt',
+      now,
+      activeStatus: 'active'
+    }),
+    touchAuthenticationActivity({
+      model: User,
+      record: user,
+      field: 'lastSeenAt',
+      now,
+      activeStatus: 'active'
+    })
+  ]);
 
   const role = user.role || 'viewer';
 
@@ -597,6 +649,7 @@ const verifyTrelloWebhook = (req, res, next) => {
 
 module.exports = {
   ALL_PERMISSIONS,
+  AUTH_ACTIVITY_TOUCH_INTERVAL_MS,
   ROLE_PERMISSIONS,
   apiRateLimit,
   buildAuthContext,
@@ -612,6 +665,7 @@ module.exports = {
   requirePermission,
   resolveDatabaseApiToken,
   resolveDatabaseSessionToken,
+  touchAuthenticationActivity,
   validateObjectIdParam,
   verifyTrelloWebhook
 };

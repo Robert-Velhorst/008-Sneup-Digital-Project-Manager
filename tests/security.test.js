@@ -59,6 +59,7 @@ describe('request security boundaries', () => {
     jest.dontMock('../src/utils/database');
     jest.dontMock('../src/models/ApiToken');
     jest.dontMock('../src/models/SessionToken');
+    jest.dontMock('../src/models/User');
     jest.dontMock('../src/models/DecisionQueueItem');
     jest.dontMock('../src/models/Recommendation');
     jest.dontMock('../src/models/TrelloActionAttempt');
@@ -355,8 +356,7 @@ describe('request security boundaries', () => {
       workspaceId: { _id: 'workspace-1', name: 'Ops Workspace' },
       userId: { _id: 'user-1', displayName: 'Operations Lead', role: 'manager', status: 'active' },
       isUsable: jest.fn(() => true),
-      matches: jest.fn(() => true),
-      save: jest.fn().mockResolvedValue(null)
+      matches: jest.fn(() => true)
     };
     const query = {
       select: jest.fn(() => query),
@@ -365,9 +365,11 @@ describe('request security boundaries', () => {
     query.populate.mockReturnValueOnce(query).mockResolvedValueOnce(candidate);
 
     jest.doMock('../src/utils/database', () => ({ isDatabaseConnected: () => true }));
+    const updateOne = jest.fn().mockResolvedValue({ modifiedCount: 1 });
     jest.doMock('../src/models/ApiToken', () => ({
       prefixFor: jest.fn(token => String(token).slice(0, 10)),
-      findOne: jest.fn(() => query)
+      findOne: jest.fn(() => query),
+      updateOne
     }));
 
     const { requireApiAccess } = require('../src/utils/requestSecurity');
@@ -401,7 +403,15 @@ describe('request security boundaries', () => {
     });
     expect(req.auth.permissions).toEqual(expect.arrayContaining(['approvals:decide']));
     expect(req.auth.workspaceOverrideAllowed).toBe(false);
-    expect(candidate.save).toHaveBeenCalledTimes(1);
+    expect(updateOne).toHaveBeenCalledWith({
+      _id: 'token-1',
+      status: 'active',
+      $or: expect.arrayContaining([
+        { lastUsedAt: { $exists: false } },
+        { lastUsedAt: null },
+        { lastUsedAt: { $lte: expect.any(Date) } }
+      ])
+    }, { $set: { lastUsedAt: expect.any(Date) } });
   });
 
   test('restricts explicitly scoped database tokens to their declared permissions and workspace', async () => {
@@ -415,8 +425,7 @@ describe('request security boundaries', () => {
       workspaceId: { _id: 'workspace-1', name: 'Ops Workspace' },
       userId: null,
       isUsable: jest.fn(() => true),
-      matches: jest.fn(() => true),
-      save: jest.fn().mockResolvedValue(null)
+      matches: jest.fn(() => true)
     };
     const query = {
       select: jest.fn(() => query),
@@ -427,7 +436,8 @@ describe('request security boundaries', () => {
     jest.doMock('../src/utils/database', () => ({ isDatabaseConnected: () => true }));
     jest.doMock('../src/models/ApiToken', () => ({
       prefixFor: jest.fn(token => String(token).slice(0, 10)),
-      findOne: jest.fn(() => query)
+      findOne: jest.fn(() => query),
+      updateOne: jest.fn().mockResolvedValue({ modifiedCount: 1 })
     }));
 
     const requestSecurity = require('../src/utils/requestSecurity');
@@ -476,8 +486,7 @@ describe('request security boundaries', () => {
       workspaceId: { _id: 'workspace-1', name: 'Ops Workspace' },
       userId: { _id: 'user-2', displayName: 'Disabled User', role: 'admin', status: 'disabled' },
       isUsable: jest.fn(() => true),
-      matches: jest.fn(() => true),
-      save: jest.fn().mockResolvedValue(null)
+      matches: jest.fn(() => true)
     };
     const query = {
       select: jest.fn(() => query),
@@ -486,15 +495,17 @@ describe('request security boundaries', () => {
     query.populate.mockReturnValueOnce(query).mockResolvedValueOnce(candidate);
 
     jest.doMock('../src/utils/database', () => ({ isDatabaseConnected: () => true }));
+    const updateOne = jest.fn();
     jest.doMock('../src/models/ApiToken', () => ({
       prefixFor: jest.fn(token => String(token).slice(0, 10)),
-      findOne: jest.fn(() => query)
+      findOne: jest.fn(() => query),
+      updateOne
     }));
 
     const { resolveDatabaseApiToken } = require('../src/utils/requestSecurity');
 
     await expect(resolveDatabaseApiToken('db-secret-token')).resolves.toBeNull();
-    expect(candidate.save).not.toHaveBeenCalled();
+    expect(updateOne).not.toHaveBeenCalled();
   });
 
   test('resolves an active database session token into user workspace context', async () => {
@@ -511,12 +522,10 @@ describe('request security boundaries', () => {
         displayName: 'Robert',
         email: 'robert@example.test',
         role: 'admin',
-        status: 'active',
-        save: jest.fn().mockResolvedValue(null)
+        status: 'active'
       },
       isUsable: jest.fn(() => true),
-      matches: jest.fn(() => true),
-      save: jest.fn().mockResolvedValue(null)
+      matches: jest.fn(() => true)
     };
     const query = {
       select: jest.fn(() => query),
@@ -525,10 +534,14 @@ describe('request security boundaries', () => {
     query.populate.mockReturnValueOnce(query).mockResolvedValueOnce(candidate);
 
     jest.doMock('../src/utils/database', () => ({ isDatabaseConnected: () => true }));
+    const sessionUpdateOne = jest.fn().mockResolvedValue({ modifiedCount: 1 });
+    const userUpdateOne = jest.fn().mockResolvedValue({ modifiedCount: 1 });
     jest.doMock('../src/models/SessionToken', () => ({
       prefixFor: jest.fn(token => String(token).slice(0, 18)),
-      findOne: jest.fn(() => query)
+      findOne: jest.fn(() => query),
+      updateOne: sessionUpdateOne
     }));
+    jest.doMock('../src/models/User', () => ({ updateOne: userUpdateOne }));
 
     const { resolveDatabaseSessionToken } = require('../src/utils/requestSecurity');
 
@@ -545,10 +558,66 @@ describe('request security boundaries', () => {
         userId: 'user-1'
       }
     });
-    expect(candidate.lastUsedAt).toBe(now);
-    expect(candidate.userId.lastSeenAt).toBe(now);
-    expect(candidate.save).toHaveBeenCalledTimes(1);
-    expect(candidate.userId.save).toHaveBeenCalledTimes(1);
+    expect(candidate.lastUsedAt).toEqual(now);
+    expect(candidate.userId.lastSeenAt).toEqual(now);
+    expect(sessionUpdateOne).toHaveBeenCalledTimes(1);
+    expect(userUpdateOne).toHaveBeenCalledTimes(1);
+  });
+
+  test('coalesces repeated session activity and refreshes it after the bounded interval', async () => {
+    jest.resetModules();
+
+    const now = new Date('2026-06-29T09:00:00Z');
+    const candidate = {
+      _id: 'session-busy',
+      name: 'Busy dashboard session',
+      workspaceId: { _id: 'workspace-1', name: 'Ops Workspace' },
+      userId: {
+        _id: 'user-1',
+        displayName: 'Robert',
+        role: 'owner',
+        status: 'active'
+      },
+      isUsable: jest.fn(() => true),
+      matches: jest.fn(() => true)
+    };
+    const findOne = jest.fn(() => {
+      const query = { select: jest.fn(), populate: jest.fn() };
+      query.select.mockReturnValue(query);
+      query.populate.mockReturnValueOnce(query).mockResolvedValueOnce(candidate);
+      return query;
+    });
+    const sessionUpdateOne = jest.fn().mockResolvedValue({ modifiedCount: 1 });
+    const userUpdateOne = jest.fn().mockResolvedValue({ modifiedCount: 1 });
+
+    jest.doMock('../src/utils/database', () => ({ isDatabaseConnected: () => true }));
+    jest.doMock('../src/models/SessionToken', () => ({
+      prefixFor: jest.fn(token => String(token).slice(0, 18)),
+      findOne,
+      updateOne: sessionUpdateOne
+    }));
+    jest.doMock('../src/models/User', () => ({ updateOne: userUpdateOne }));
+
+    const {
+      AUTH_ACTIVITY_TOUCH_INTERVAL_MS,
+      resolveDatabaseSessionToken
+    } = require('../src/utils/requestSecurity');
+    for (let request = 0; request < 100; request += 1) {
+      await resolveDatabaseSessionToken('sneup_session_busy-secret', new Date(now.getTime() + request));
+    }
+
+    expect(findOne).toHaveBeenCalledTimes(100);
+    expect(sessionUpdateOne).toHaveBeenCalledTimes(1);
+    expect(userUpdateOne).toHaveBeenCalledTimes(1);
+    expect(candidate.lastUsedAt).toEqual(now);
+    expect(candidate.userId.lastSeenAt).toEqual(now);
+
+    const nextTouch = new Date(now.getTime() + AUTH_ACTIVITY_TOUCH_INTERVAL_MS);
+    await resolveDatabaseSessionToken('sneup_session_busy-secret', nextTouch);
+    expect(sessionUpdateOne).toHaveBeenCalledTimes(2);
+    expect(userUpdateOne).toHaveBeenCalledTimes(2);
+    expect(candidate.lastUsedAt).toEqual(nextTouch);
+    expect(candidate.userId.lastSeenAt).toEqual(nextTouch);
   });
 
   test('enforces role permissions before write handlers run', () => {
