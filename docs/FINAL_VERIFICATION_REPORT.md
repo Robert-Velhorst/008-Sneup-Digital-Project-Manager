@@ -44,9 +44,9 @@ This report is updated from executed commands at release time. A passing local s
 | Packaged Windows QA | Pass: repeatable verifier confirmed 2.3.29 product metadata, healthy demo state, eight redacted diagnostics, HAI `never_direct`, normal main-window close, loopback port release, and byte-identical changed runtime files |
 | Packaged resource sample | Pass: four processes used 357.5 MB working set, 290.7 MB private memory, and 1.734 cumulative CPU seconds in the final repeatable probe. A separate 30-second idle run returned 20 metadata requests in 1.46-3.35 ms and also closed normally. |
 | Windows installer | Pass: local build 109,485,792 bytes, unsigned, SHA-256 `CCBC1B7C8A7BA15F5B15DC8DEAAD4EB23A00D9303994379238ABBD88F15D95FA`; executable metadata reports 2.3.29 |
-| Fresh clone | Prior release evidence: GitHub checked out 2.3.28 exact source `9d471b5918c6a27f775a8870511c9e8195d9bc07`; 2.3.29 clean-checkout evidence is pending publication |
-| GitHub CI | Prior release evidence: 2.3.28 run `31751730555` passed both jobs; the 2.3.29 run is pending publication |
-| GitHub installer artifact | Prior release evidence: 2.3.28 artifact `9201228811` was independently checked; the 2.3.29 artifact is pending publication |
+| Fresh clone | Pass: GitHub checked out exact source `7fd7b9ee457cc34eff877c56690e470277abf4bb`, installed the lockfile with Node.js 24, and completed quality plus Windows package jobs |
+| GitHub CI | Pass: run `31754056380`; quality completed in 1 minute 1 second and Windows installer in 2 minutes 20 seconds; both jobs succeeded |
+| GitHub installer artifact | Pass: artifact `9202090233`, `sneup-windows-installer-unsigned`, 109,491,734-byte archive, digest `sha256:f39d8346254bc21a77f872b4160d930c41e06c7ff331e1261611720994cafbe6`; its single downloaded installer is 109,485,834 bytes, unsigned, version 2.3.29, SHA-256 `C573848981A5489F5ABD39EC63F7D2B468A655D904C74CC349CDB367F0149A56` |
 
 ## External gates
 
