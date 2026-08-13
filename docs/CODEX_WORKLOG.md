@@ -12,6 +12,17 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-13 workspace-invitation continuation
+
+- Re-audited invitation creation, resend, revocation, and acceptance against the one-time-token and no-fake-success contract. Failed forms could lose entered values, one-time links depended on a second Workspace refresh, and committed server actions were blurred with later browser persistence or refresh faults.
+- Moved invitation DOM and transient action state into `public/workspaceView.js`. Authenticated reads/writes, exact endpoints and bodies, session-token persistence, and workspace reload verification remain in `public/app.js`; the renderer has no network, credential, cookie, session, storage, or provider authority.
+- Pre-commit failures now stay inline and retryable, duplicate submits are locked, secure links render before refresh, and committed accept/revoke/resend outcomes remain truthful when only refresh or session persistence fails.
+- Initial app plus localization fell by 6,435 raw, 843 gzip, and 598 Brotli bytes. Startup imported 251 modules at 65.3 MB RSS without Mongoose; Overview reached 68.9 MB RSS with Mongoose still unloaded.
+- Local quality passed 112 suites/854 tests, 5/5 recommendation evaluation, both zero-vulnerability audits, five-secret production validation, and a 15,000-card profile at 642.4 ms p95 and 307.4 MB peak RSS with no provider writes.
+- In-app Browser passed Overview exclusion, one shared-fingerprint Workspace load, English/Dutch read-only controls, invitation-query removal, desktop/mobile containment, and zero current console warnings/errors. Protected mutation outcomes are covered by seeded DOM tests rather than fabricated live identity state.
+- Built and verified unsigned `Sneup-Setup-2.3.27.exe`: 109,484,457 bytes, SHA-256 `6BF9B9918DD5B3B494504964B7620337A530B86B59301BFEE3901857FF53B1E4`. Four packaged processes used 364.4 MB working set, 316.3 MB private memory, and 1.609 cumulative CPU seconds, then closed normally and released the loopback port; all three changed runtime files were byte-identical in the archive.
+- GitHub CI and independent artifact verification are pending the source push. Live provider/ngrok/HAI acceptance, production deployment and restore, publisher signing, clean-VM scaling, and assistive-technology certification remain external.
+
 ## 2026-08-09 first-run setup continuation
 
 - Re-audited first-run setup against the approval-gated operations contract and found eager Overview parsing, premature completion markers, non-retryable save failures, ambiguous saved-but-restart-failed messaging, and stale diagnostics responses.

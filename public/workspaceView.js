@@ -124,6 +124,7 @@
     'Send email': 'E-mail verzenden',
     'Create invitation': 'Uitnodiging maken',
     'Invitation failed': 'Uitnodiging mislukt',
+    'The invitation was created, but Workspace administration could not refresh. The secure link below is still valid.': 'De uitnodiging is gemaakt, maar Werkruimtebeheer kon niet worden vernieuwd. De beveiligde link hieronder blijft geldig.',
     'Email sent.': 'E-mail verzonden.',
     'Email was not sent: {message}.': 'E-mail is niet verzonden: {message}.',
     'provider delivery failed': 'provideraflevering mislukt',
@@ -135,11 +136,20 @@
     'Revoke invitation?': 'Uitnodiging intrekken?',
     'This will invalidate the invitation for {email} immediately.': 'Dit maakt de uitnodiging voor {email} onmiddellijk ongeldig.',
     'Revoking...': 'Intrekken...',
+    'Invitation revoked': 'Uitnodiging ingetrokken',
+    'The invitation was revoked with audit evidence.': 'De uitnodiging is ingetrokken met auditbewijs.',
+    'The invitation was revoked, but Workspace administration could not refresh. Reopen Workspaces to load the latest state.': 'De uitnodiging is ingetrokken, maar Werkruimtebeheer kon niet worden vernieuwd. Open Werkruimten opnieuw om de nieuwste status te laden.',
     'Invitation revocation failed': 'Uitnodiging intrekken mislukt',
     'Retry invitation email?': 'Uitnodigingsmail opnieuw verzenden?',
     'Sneup will invalidate the prior secure link, create a fresh one-time link, and send it to {email}. The replacement is recorded in the workspace audit ledger.': 'Sneup maakt de eerdere beveiligde link ongeldig, maakt een nieuwe eenmalige link en verstuurt die naar {email}. De vervanging wordt vastgelegd in het auditlogboek van de werkruimte.',
     'Retrying...': 'Opnieuw proberen...',
     'Invitation retry failed': 'Uitnodiging opnieuw verzenden mislukt',
+    'Join workspace': 'Deelnemen aan werkruimte',
+    'Joining...': 'Deelnemen...',
+    'Workspace joined': 'Deelname aan werkruimte voltooid',
+    'Unable to join workspace': 'Deelnemen aan werkruimte mislukt',
+    'The invitation was accepted, but Sneup could not load the workspace. Restart Sneup or refresh this page to continue.': 'De uitnodiging is geaccepteerd, maar Sneup kon de werkruimte niet laden. Start Sneup opnieuw of vernieuw deze pagina om door te gaan.',
+    'This workspace is open in the current window, but Sneup could not retain the session. Sign in again after restarting Sneup.': 'Deze werkruimte is geopend in het huidige venster, maar Sneup kon de sessie niet bewaren. Meld u opnieuw aan nadat Sneup opnieuw is gestart.',
     'Session access unavailable': 'Sessietoegang niet beschikbaar',
     'Choose a workspace user before reviewing sessions.': 'Kies een werkruimtegebruiker voordat u sessies beoordeelt.',
     'Session access': 'Sessietoegang',
@@ -163,6 +173,7 @@
   function createController(context = {}) {
     const {
       document,
+      window: browserWindowInput,
       state,
       elements,
       callbacks,
@@ -178,9 +189,255 @@
 
     const et = (message, params) => escapeHtml(t(message, params));
     const ep = (singular, pluralMessage, count, params) => escapeHtml(plural(singular, pluralMessage, count, params));
+    const browserWindow = browserWindowInput || document.defaultView;
     const listOrEmpty = (items, renderer) => items && items.length > 0
       ? items.map(renderer).join('')
       : `<div class="empty">${et('Nothing needs attention.')}</div>`;
+
+    function setInvitationStatus(message) {
+      const target = document.querySelector('[data-invitation-status]');
+      if (!target) return;
+      target.textContent = message || '';
+      target.hidden = !message;
+    }
+
+    async function refreshInvitationList(staleMessage) {
+      try {
+        await callbacks.refreshWorkspaceAdmin();
+        return true;
+      } catch (error) {
+        const target = document.getElementById('workspaceInviteRefreshStatus');
+        if (target) {
+          target.textContent = t(staleMessage);
+          target.hidden = false;
+        }
+        return false;
+      }
+    }
+
+    function renderCreatedInvitation(data) {
+      const delivery = data.delivery?.status === 'sent'
+        ? t('Email sent.')
+        : data.delivery?.status === 'failed'
+          ? t('Email was not sent: {message}.', { message: data.delivery.message || t('provider delivery failed') })
+          : t('Secure link created.');
+      elements.modalTitle.textContent = t('Invitation ready');
+      elements.modalBody.innerHTML = `
+        <div class="notice-stack">
+          <div class="notice">${escapeHtml(delivery)}</div>
+          <div class="notice" id="workspaceInviteRefreshStatus" role="status" hidden></div>
+          <label for="workspaceInviteUrl">${et('Secure invitation link')}</label>
+          <textarea id="workspaceInviteUrl" rows="4" readonly>${escapeHtml(data.inviteUrl)}</textarea>
+          <div class="toolbar modal-actions">
+            <button class="button" type="button" id="copyWorkspaceInvite">${et('Copy link')}</button>
+            <button class="button primary" type="button" id="closeWorkspaceInvite">${et('Done')}</button>
+          </div>
+        </div>
+      `;
+      elements.modal.classList.add('open');
+      document.getElementById('copyWorkspaceInvite').addEventListener('click', async (event) => {
+        try {
+          await browserWindow.navigator.clipboard.writeText(data.inviteUrl);
+          event.currentTarget.textContent = t('Copied');
+        } catch (error) {
+          const input = document.getElementById('workspaceInviteUrl');
+          input.focus();
+          input.select();
+        }
+      });
+      document.getElementById('closeWorkspaceInvite').addEventListener('click', callbacks.closeModal);
+    }
+
+    function openWorkspaceInvite() {
+      const workspaceId = state.activeWorkspaceId || state.currentWorkspace?.id;
+      if (!workspaceId) {
+        callbacks.openNotice(t('Invitation unavailable'), t('Choose a workspace before inviting a user.'));
+        return false;
+      }
+
+      elements.modalTitle.textContent = t('Invite user');
+      elements.modalBody.innerHTML = `
+        <form id="workspaceInviteForm" class="notice-stack">
+          <label>${et('Email')}<input name="email" type="email" autocomplete="email" required></label>
+          <label>${et('Name')}<input name="displayName" type="text" autocomplete="name" required></label>
+          <label>${et('Role')}
+            <select name="role">
+              <option value="viewer">${et('Viewer')}</option>
+              <option value="operator">${et('Operator')}</option>
+              <option value="manager">${et('Manager')}</option>
+              <option value="admin">${et('Admin')}</option>
+            </select>
+          </label>
+          <label>${et('Expires in days')}<input name="expiresInDays" type="number" min="1" max="30" value="7" required></label>
+          <label>${et('Delivery')}
+            <select name="deliveryMode">
+              <option value="manual">${et('Secure link')}</option>
+              <option value="email">${et('Send email')}</option>
+            </select>
+          </label>
+          <div class="notice" data-invitation-status role="alert" hidden></div>
+          <div class="toolbar modal-actions">
+            <button class="button" type="button" id="cancelWorkspaceInvite">${et('Cancel')}</button>
+            <button class="button primary" type="submit">${et('Create invitation')}</button>
+          </div>
+        </form>
+      `;
+      elements.modal.classList.add('open');
+      document.getElementById('cancelWorkspaceInvite').addEventListener('click', callbacks.closeModal);
+      const form = document.getElementById('workspaceInviteForm');
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (submitButton.disabled) return;
+        submitButton.disabled = true;
+        submitButton.textContent = t('Creating...');
+        setInvitationStatus('');
+        const values = new browserWindow.FormData(form);
+        let data;
+        try {
+          data = await callbacks.createWorkspaceInvitation(workspaceId, {
+            email: values.get('email'),
+            displayName: values.get('displayName'),
+            role: values.get('role'),
+            expiresInDays: Number(values.get('expiresInDays')),
+            deliveryMode: values.get('deliveryMode')
+          });
+        } catch (error) {
+          submitButton.disabled = false;
+          submitButton.textContent = t('Create invitation');
+          setInvitationStatus(error.message);
+          return;
+        }
+        renderCreatedInvitation(data);
+        await refreshInvitationList('The invitation was created, but Workspace administration could not refresh. The secure link below is still valid.');
+      });
+      return true;
+    }
+
+    function openInviteRevocationConfirmation(invitation) {
+      if (!invitation || invitation.status !== 'pending') return false;
+      const workspaceId = state.activeWorkspaceId || state.currentWorkspace?.id;
+      if (!workspaceId) return false;
+      elements.modalTitle.textContent = t('Revoke invitation?');
+      elements.modalBody.innerHTML = `
+        <div class="notice-stack">
+          <div class="notice">${et('This will invalidate the invitation for {email} immediately.', { email: invitation.email })}</div>
+          <div class="notice" data-invitation-status role="alert" hidden></div>
+          <div class="toolbar modal-actions">
+            <button class="button" type="button" id="cancelInviteRevoke">${et('Cancel')}</button>
+            <button class="button danger" type="button" id="confirmInviteRevoke">${et('Revoke invitation')}</button>
+          </div>
+        </div>
+      `;
+      elements.modal.classList.add('open');
+      document.getElementById('cancelInviteRevoke').addEventListener('click', callbacks.closeModal);
+      document.getElementById('confirmInviteRevoke').addEventListener('click', async (event) => {
+        const button = event.currentTarget;
+        if (button.disabled) return;
+        button.disabled = true;
+        button.textContent = t('Revoking...');
+        setInvitationStatus('');
+        try {
+          await callbacks.revokeWorkspaceInvitation(workspaceId, invitation.id);
+        } catch (error) {
+          button.disabled = false;
+          button.textContent = t('Revoke invitation');
+          setInvitationStatus(error.message);
+          return;
+        }
+        callbacks.closeModal();
+        try {
+          await callbacks.refreshWorkspaceAdmin();
+          callbacks.openNotice(t('Invitation revoked'), t('The invitation was revoked with audit evidence.'));
+        } catch (error) {
+          callbacks.openNotice(t('Invitation revoked'), t('The invitation was revoked, but Workspace administration could not refresh. Reopen Workspaces to load the latest state.'));
+        }
+      });
+      return true;
+    }
+
+    function openInviteDeliveryRetryConfirmation(invitation) {
+      if (!invitation || invitation.status !== 'pending' || invitation.delivery?.mode !== 'email') return false;
+      const workspaceId = state.activeWorkspaceId || state.currentWorkspace?.id;
+      if (!workspaceId) return false;
+      elements.modalTitle.textContent = t('Retry invitation email?');
+      elements.modalBody.innerHTML = `
+        <div class="notice-stack">
+          <div class="notice">${et('Sneup will invalidate the prior secure link, create a fresh one-time link, and send it to {email}. The replacement is recorded in the workspace audit ledger.', { email: invitation.email })}</div>
+          <div class="notice" data-invitation-status role="alert" hidden></div>
+          <div class="toolbar modal-actions">
+            <button class="button" type="button" id="cancelInviteDeliveryRetry">${et('Cancel')}</button>
+            <button class="button primary" type="button" id="confirmInviteDeliveryRetry">${et('Retry email')}</button>
+          </div>
+        </div>
+      `;
+      elements.modal.classList.add('open');
+      document.getElementById('cancelInviteDeliveryRetry').addEventListener('click', callbacks.closeModal);
+      document.getElementById('confirmInviteDeliveryRetry').addEventListener('click', async (event) => {
+        const button = event.currentTarget;
+        if (button.disabled) return;
+        button.disabled = true;
+        button.textContent = t('Retrying...');
+        setInvitationStatus('');
+        let data;
+        try {
+          data = await callbacks.retryWorkspaceInvitationDelivery(workspaceId, invitation.id);
+        } catch (error) {
+          button.disabled = false;
+          button.textContent = t('Retry email');
+          setInvitationStatus(error.message);
+          return;
+        }
+        renderCreatedInvitation(data);
+        await refreshInvitationList('The invitation was created, but Workspace administration could not refresh. The secure link below is still valid.');
+      });
+      return true;
+    }
+
+    function openInviteAcceptance(rawToken) {
+      if (!rawToken) return false;
+      elements.modalTitle.textContent = t('Join workspace');
+      elements.modalBody.innerHTML = `
+        <form id="acceptWorkspaceInviteForm" class="notice-stack">
+          <label>${et('Name')}<input name="displayName" type="text" autocomplete="name" required></label>
+          <div class="notice" data-invitation-status role="alert" hidden></div>
+          <div class="toolbar modal-actions">
+            <button class="button primary" type="submit">${et('Join workspace')}</button>
+          </div>
+        </form>
+      `;
+      elements.modal.classList.add('open');
+      const form = document.getElementById('acceptWorkspaceInviteForm');
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (submitButton.disabled) return;
+        submitButton.disabled = true;
+        submitButton.textContent = t('Joining...');
+        setInvitationStatus('');
+        const values = new browserWindow.FormData(form);
+        let accepted;
+        try {
+          accepted = await callbacks.acceptWorkspaceInvitation(rawToken, values.get('displayName'));
+        } catch (error) {
+          submitButton.disabled = false;
+          submitButton.textContent = t('Join workspace');
+          setInvitationStatus(error.message);
+          return;
+        }
+        callbacks.closeModal();
+        try {
+          await callbacks.reloadAfterInvitationAcceptance();
+        } catch (error) {
+          callbacks.openNotice(t('Workspace joined'), t('The invitation was accepted, but Sneup could not load the workspace. Restart Sneup or refresh this page to continue.'));
+          return;
+        }
+        if (accepted.sessionPersisted === false) {
+          callbacks.openNotice(t('Workspace joined'), t('This workspace is open in the current window, but Sneup could not retain the session. Sign in again after restarting Sneup.'));
+        }
+      });
+      return true;
+    }
 
     function renderPolicyHistoryFilters(policyRules = []) {
       if (!elements.policyHistoryActionFilter || !elements.policyHistoryActorFilter || !elements.policyHistoryRangeFilter) return;
@@ -609,11 +866,11 @@
       });
       document.querySelectorAll('[data-revoke-workspace-invite]').forEach((button) => {
         const invitation = state.workspaceInvitations.find(item => item.id === button.dataset.revokeWorkspaceInvite);
-        button.addEventListener('click', () => callbacks.openInviteRevocationConfirmation(invitation));
+        button.addEventListener('click', () => openInviteRevocationConfirmation(invitation));
       });
       document.querySelectorAll('[data-retry-workspace-invite-delivery]').forEach((button) => {
         const invitation = state.workspaceInvitations.find(item => item.id === button.dataset.retryWorkspaceInviteDelivery);
-        button.addEventListener('click', () => callbacks.openInviteDeliveryRetryConfirmation(invitation));
+        button.addEventListener('click', () => openInviteDeliveryRetryConfirmation(invitation));
       });
       document.querySelectorAll('[data-policy-rule]').forEach((button) => {
         button.addEventListener('click', () => callbacks.openPolicyRuleEditor(button.dataset.policyRule));
@@ -717,7 +974,16 @@
       bindActions();
     }
 
-    return { openPolicyRuleForm, render, renderIntegrityReport, renderRetentionReport };
+    return {
+      openInviteAcceptance,
+      openInviteDeliveryRetryConfirmation,
+      openInviteRevocationConfirmation,
+      openPolicyRuleForm,
+      openWorkspaceInvite,
+      render,
+      renderIntegrityReport,
+      renderRetentionReport
+    };
   }
 
   return { createController, DYNAMIC_OPERATOR_MESSAGES, NL_MESSAGES };

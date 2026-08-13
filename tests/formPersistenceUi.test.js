@@ -220,9 +220,12 @@ describe('form persistence integration boundaries', () => {
     'activateNotificationPolicyForm',
     'notificationTestForm',
     'trelloActionReconciliationForm',
+    'workspaceInviteForm',
     'acceptWorkspaceInviteForm'
   ])('does not persist sensitive or consequential form %s', (formId) => {
-    const source = [
+    const source = ['workspaceInviteForm', 'acceptWorkspaceInviteForm'].includes(formId)
+      ? workspaceViewSource
+      : [
       'notificationPolicyForm',
       'activateNotificationPolicyForm',
       'notificationTestForm'

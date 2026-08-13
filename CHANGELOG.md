@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.3.27 - 2026-08-13
+
+### Truthful workspace invitation lifecycle
+
+- Moved invitation creation, resend, revocation, and acceptance rendering into the deferred Workspace module while authenticated API calls, exact payloads, session persistence, and workspace reload authority remain in `public/app.js`.
+- Kept failed pre-commit actions inline and retryable, blocked duplicate submissions, and rendered one-time invitation links before attempting a follow-up refresh so committed links are not lost or falsely reported as failed.
+- Separated server acceptance, browser-session persistence, and workspace reload outcomes. A committed invitation acceptance or revocation remains a truthful success when only local persistence or the subsequent refresh fails.
+
+### Resource, security, browser, and Windows verification
+
+- Reduced initial app-plus-localization delivery by 6,435 raw, 843 gzip, and 598 Brotli bytes compared with 2.3.26. Invitation controls remain absent from Overview and load only with Workspaces or an invitation URL.
+- The full local gate passes 112 suites/854 tests, the 5/5 recommendation safety evaluation, two zero-vulnerability audits, five-secret production validation, and a real-Mongo 15,000-card profile at 642.4 ms measured p95 and 307.4 MB peak RSS with no provider writes.
+- In-app Browser acceptance passed one-time fingerprinted Workspace loading, read-only demo controls, English/Dutch rendering, invitation-query removal, desktop/mobile containment, and zero current console warnings or errors.
+- Built and verified unsigned `Sneup-Setup-2.3.27.exe`: 109,484,457 bytes, SHA-256 `6BF9B9918DD5B3B494504964B7620337A530B86B59301BFEE3901857FF53B1E4`. Packaged verification passed product metadata, eight diagnostics, no secret exposure, HAI `never_direct`, normal close, port release, and byte-identical changed runtime files.
+
 ## 2.3.26 - 2026-08-09
 
 ### Demand-loaded and truthful first-run setup

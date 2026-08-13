@@ -1,5 +1,15 @@
 # Sneup Implementation Report
 
+## 2.3.27 continuation
+
+Sneup now constructs invitation creation, resend, revocation, and acceptance UI only after Workspace administration opens or an invitation URL is received. The deferred renderer owns localized bounded DOM and transient action state; the controller continues to own exact authenticated API calls and payloads, session-token persistence, workspace reload verification, and every provider boundary.
+
+Failed pre-commit actions remain inline and retryable, active submits are locked, and one-time secure links render before the follow-up Workspace refresh. Server acceptance and revocation are reported as committed even if only session persistence or the later reload fails, preventing duplicate or misleading actions.
+
+Initial app plus localization is 6,435 raw, 843 gzip, and 598 Brotli bytes smaller than 2.3.26. The full local gate passes 112 suites/854 tests, two zero-vulnerability audits, five-secret production validation, real-Mongo portfolio budgets, in-app Browser acceptance, and packaged Windows verification.
+
+The verified local installer is `release/Sneup-Setup-2.3.27.exe`, 109,484,457 bytes, unsigned, with SHA-256 `6BF9B9918DD5B3B494504964B7620337A530B86B59301BFEE3901857FF53B1E4`.
+
 ## 2.3.26 continuation
 
 Sneup now constructs browser and Windows first-run setup only after the operator opens **Set up**. The deferred module owns localized, escaped, bounded DOM plus transient diagnostics and action state; the application controller continues to own authenticated diagnostics reads, desktop settings and restart IPC, the local completion marker, and connector navigation.

@@ -576,8 +576,6 @@
     'Email': 'E-mail',
     'Name': 'Naam',
     'system': 'systeem',
-    'Join workspace': 'Deelnemen aan werkruimte',
-    'Joining...': 'Deelnemen...',
     'Unable to join workspace': 'Deelnemen aan werkruimte mislukt'
   });
 

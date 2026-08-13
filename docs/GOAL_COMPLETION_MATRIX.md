@@ -2,7 +2,7 @@
 
 Status meanings: **Implemented** is present and locally verified; **Partial** has useful implementation but an identified gap; **External** requires owner-controlled accounts or infrastructure; **N/A** is outside the product's current surface. No phase is marked complete from documentation alone.
 
-2.3.26 also keeps first-run setup demand-loaded. Its renderer has no API, credential, cookie, session, storage, or desktop authority; diagnostics reads, desktop settings/restart IPC, local completion state, and connector navigation remain in the controller. Completion is recorded only after the desktop settings write commits, while failed saves remain retryable and post-commit restart failures remain truthful.
+2.3.27 also keeps the complete workspace invitation interface demand-loaded. Its renderer has no API, credential, cookie, session, storage, or provider authority; exact authenticated calls, session persistence, and workspace reload verification remain in the controller. One-time links render before refresh, failed pre-commit actions remain retryable, and committed server outcomes are not relabelled as failed when only later local work fails.
 
 | Phase | Status | Evidence or remaining gate |
 | --- | --- | --- |

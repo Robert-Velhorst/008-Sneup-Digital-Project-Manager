@@ -120,6 +120,7 @@ function loadWorkspaceView() {
         i18n.registerMessages('nl', module.NL_MESSAGES);
         return module.createController({
           document,
+          window,
           state,
           elements: els,
           t,
@@ -132,13 +133,18 @@ function loadWorkspaceView() {
             openRetentionPolicy,
             openRetentionApply,
             openWorkspaceUserSessions,
-            openInviteRevocationConfirmation,
-            openInviteDeliveryRetryConfirmation,
             openPolicyRuleEditor,
             openFeatureFlagEditor,
             openFeatureFlagHistory,
             loadPolicyHistory,
+            createWorkspaceInvitation,
+            revokeWorkspaceInvitation,
+            retryWorkspaceInvitationDelivery,
+            acceptWorkspaceInvitation,
+            refreshWorkspaceAdmin: () => loadWorkspaceAdmin({ throwOnError: true }),
+            reloadAfterInvitationAcceptance,
             closeModal,
+            openNotice,
             enhanceForm: form => formPersistence?.enhanceForm(form)
           }
         });
@@ -1305,7 +1311,7 @@ async function loadWorkSignals() {
   }
 }
 
-async function loadWorkspaceAdmin() {
+async function loadWorkspaceAdmin(options = {}) {
   try {
     const [current] = await Promise.all([
       fetchApi('/api/workspaces/current'),
@@ -1391,6 +1397,7 @@ async function loadWorkspaceAdmin() {
     } else {
       els.workspaceList.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
     }
+    if (options.throwOnError) throw error;
   }
 }
 
@@ -3037,166 +3044,36 @@ function openWorkspaceDeletion() {
   });
 }
 
-function openWorkspaceInvite() {
-  const workspaceId = state.activeWorkspaceId || state.currentWorkspace?.id;
-  if (!workspaceId) {
-    openNotice(t('Invitation unavailable'), t('Choose a workspace before inviting a user.'));
-    return;
+async function openWorkspaceInvite() {
+  try {
+    const controller = await loadWorkspaceView();
+    controller.openWorkspaceInvite();
+  } catch (error) {
+    openNotice(t('Invitation unavailable'), error.message);
   }
+}
 
-  els.modalTitle.textContent = t('Invite user');
-  els.modalBody.innerHTML = `
-    <form id="workspaceInviteForm" class="notice-stack">
-      <label>${et('Email')}<input name="email" type="email" autocomplete="email" required></label>
-      <label>${et('Name')}<input name="displayName" type="text" autocomplete="name" required></label>
-      <label>${et('Role')}
-        <select name="role">
-          <option value="viewer">${et('Viewer')}</option>
-          <option value="operator">${et('Operator')}</option>
-          <option value="manager">${et('Manager')}</option>
-          <option value="admin">${et('Admin')}</option>
-        </select>
-      </label>
-      <label>${et('Expires in days')}<input name="expiresInDays" type="number" min="1" max="30" value="7" required></label>
-      <label>${et('Delivery')}
-        <select name="deliveryMode">
-          <option value="manual">${et('Secure link')}</option>
-          <option value="email">${et('Send email')}</option>
-        </select>
-      </label>
-      <div class="toolbar modal-actions">
-        <button class="button" type="button" id="cancelWorkspaceInvite">${et('Cancel')}</button>
-        <button class="button primary" type="submit">${et('Create invitation')}</button>
-      </div>
-    </form>
-  `;
-  els.modal.classList.add('open');
-  document.getElementById('cancelWorkspaceInvite').addEventListener('click', closeModal);
-  document.getElementById('workspaceInviteForm').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const submitButton = event.currentTarget.querySelector('button[type="submit"]');
-    submitButton.disabled = true;
-    submitButton.textContent = t('Creating...');
-    const values = new FormData(event.currentTarget);
-    try {
-      const data = await fetchApi(`/api/workspaces/${encodeURIComponent(workspaceId)}/invitations`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: values.get('email'),
-          displayName: values.get('displayName'),
-          role: values.get('role'),
-          expiresInDays: Number(values.get('expiresInDays')),
-          deliveryMode: values.get('deliveryMode')
-        })
-      });
-      await loadWorkspaceAdmin();
-      renderCreatedInvitation(data);
-    } catch (error) {
-      submitButton.disabled = false;
-      submitButton.textContent = t('Create invitation');
-      openNotice(t('Invitation failed'), error.message);
-    }
+function createWorkspaceInvitation(workspaceId, draft) {
+  return fetchApi(`/api/workspaces/${encodeURIComponent(workspaceId)}/invitations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(draft)
   });
 }
 
-function renderCreatedInvitation(data) {
-  const delivery = data.delivery?.status === 'sent'
-    ? t('Email sent.')
-    : data.delivery?.status === 'failed'
-      ? t('Email was not sent: {message}.', { message: data.delivery.message || t('provider delivery failed') })
-      : t('Secure link created.');
-  els.modalTitle.textContent = t('Invitation ready');
-  els.modalBody.innerHTML = `
-    <div class="notice-stack">
-      <div class="notice">${escapeHtml(delivery)}</div>
-      <label for="workspaceInviteUrl">${et('Secure invitation link')}</label>
-      <textarea id="workspaceInviteUrl" rows="4" readonly>${escapeHtml(data.inviteUrl)}</textarea>
-      <div class="toolbar modal-actions">
-        <button class="button" type="button" id="copyWorkspaceInvite">${et('Copy link')}</button>
-        <button class="button primary" type="button" id="closeWorkspaceInvite">${et('Done')}</button>
-      </div>
-    </div>
-  `;
-  document.getElementById('copyWorkspaceInvite').addEventListener('click', async (event) => {
-    try {
-      await navigator.clipboard.writeText(data.inviteUrl);
-      event.currentTarget.textContent = t('Copied');
-    } catch (error) {
-      const input = document.getElementById('workspaceInviteUrl');
-      input.focus();
-      input.select();
-    }
-  });
-  document.getElementById('closeWorkspaceInvite').addEventListener('click', closeModal);
-}
-
-function openInviteRevocationConfirmation(invitation) {
-  if (!invitation || invitation.status !== 'pending') return;
-  els.modalTitle.textContent = t('Revoke invitation?');
-  els.modalBody.innerHTML = `
-    <div class="notice-stack">
-      <div class="notice">${et('This will invalidate the invitation for {email} immediately.', { email: invitation.email })}</div>
-      <div class="toolbar modal-actions">
-        <button class="button" type="button" id="cancelInviteRevoke">${et('Cancel')}</button>
-        <button class="button danger" type="button" id="confirmInviteRevoke">${et('Revoke invitation')}</button>
-      </div>
-    </div>
-  `;
-  document.getElementById('cancelInviteRevoke').addEventListener('click', closeModal);
-  document.getElementById('confirmInviteRevoke').addEventListener('click', async (event) => {
-    const workspaceId = state.activeWorkspaceId || state.currentWorkspace?.id;
-    if (!workspaceId) return;
-    event.currentTarget.disabled = true;
-    event.currentTarget.textContent = t('Revoking...');
-    try {
-      await fetchApi(`/api/workspaces/${encodeURIComponent(workspaceId)}/invitations/${encodeURIComponent(invitation.id)}/revoke`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
-      });
-      closeModal();
-      await loadWorkspaceAdmin();
-    } catch (error) {
-      event.currentTarget.disabled = false;
-      event.currentTarget.textContent = t('Revoke invitation');
-      openNotice(t('Invitation revocation failed'), error.message);
-    }
+function revokeWorkspaceInvitation(workspaceId, invitationId) {
+  return fetchApi(`/api/workspaces/${encodeURIComponent(workspaceId)}/invitations/${encodeURIComponent(invitationId)}/revoke`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({})
   });
 }
 
-function openInviteDeliveryRetryConfirmation(invitation) {
-  if (!invitation || invitation.status !== 'pending' || invitation.delivery?.mode !== 'email') return;
-  const workspaceId = state.activeWorkspaceId || state.currentWorkspace?.id;
-  if (!workspaceId) return;
-
-  els.modalTitle.textContent = t('Retry invitation email?');
-  els.modalBody.innerHTML = `
-    <div class="notice-stack">
-      <div class="notice">${et('Sneup will invalidate the prior secure link, create a fresh one-time link, and send it to {email}. The replacement is recorded in the workspace audit ledger.', { email: invitation.email })}</div>
-      <div class="toolbar modal-actions">
-        <button class="button" type="button" id="cancelInviteDeliveryRetry">${et('Cancel')}</button>
-        <button class="button primary" type="button" id="confirmInviteDeliveryRetry">${et('Retry email')}</button>
-      </div>
-    </div>
-  `;
-  document.getElementById('cancelInviteDeliveryRetry').addEventListener('click', closeModal);
-  document.getElementById('confirmInviteDeliveryRetry').addEventListener('click', async (event) => {
-    event.currentTarget.disabled = true;
-    event.currentTarget.textContent = t('Retrying...');
-    try {
-      const data = await fetchApi(`/api/workspaces/${encodeURIComponent(workspaceId)}/invitations/${encodeURIComponent(invitation.id)}/retry-delivery`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
-      });
-      await loadWorkspaceAdmin();
-      renderCreatedInvitation(data);
-    } catch (error) {
-      event.currentTarget.disabled = false;
-      event.currentTarget.textContent = t('Retry email');
-      openNotice(t('Invitation retry failed'), error.message);
-    }
+function retryWorkspaceInvitationDelivery(workspaceId, invitationId) {
+  return fetchApi(`/api/workspaces/${encodeURIComponent(workspaceId)}/invitations/${encodeURIComponent(invitationId)}/retry-delivery`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({})
   });
 }
 
@@ -3860,42 +3737,43 @@ function inviteTokenFromUrl() {
   return token;
 }
 
-function openInviteAcceptance(rawToken) {
-  els.modalTitle.textContent = t('Join workspace');
-  els.modalBody.innerHTML = `
-    <form id="acceptWorkspaceInviteForm" class="notice-stack">
-      <label>${et('Name')}<input name="displayName" type="text" autocomplete="name" required></label>
-      <div class="toolbar modal-actions">
-        <button class="button primary" type="submit">${et('Join workspace')}</button>
-      </div>
-    </form>
-  `;
-  els.modal.classList.add('open');
-  document.getElementById('acceptWorkspaceInviteForm').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const submitButton = event.currentTarget.querySelector('button[type="submit"]');
-    submitButton.disabled = true;
-    submitButton.textContent = t('Joining...');
-    try {
-      const values = new FormData(event.currentTarget);
-      const data = await fetchApi('/api/workspaces/invitations/accept', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: rawToken, displayName: values.get('displayName') })
-      });
-      state.sessionToken = data.sessionToken;
-      sessionStorage.setItem(SESSION_TOKEN_KEY, data.sessionToken);
-      state.activeWorkspaceId = data.workspace.id;
-      localStorage.setItem('sneup.workspaceId', state.activeWorkspaceId);
-      closeModal();
-      await loadAll({ force: true });
-      showView('overview');
-    } catch (error) {
-      submitButton.disabled = false;
-      submitButton.textContent = t('Join workspace');
-      openNotice(t('Unable to join workspace'), error.message);
-    }
+async function openInviteAcceptance(rawToken) {
+  try {
+    const controller = await loadWorkspaceView();
+    controller.openInviteAcceptance(rawToken);
+  } catch (error) {
+    openNotice(t('Unable to join workspace'), error.message);
+  }
+}
+
+async function acceptWorkspaceInvitation(rawToken, displayName) {
+  const data = await fetchApi('/api/workspaces/invitations/accept', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: rawToken, displayName })
   });
+  state.sessionToken = data.sessionToken;
+  state.activeWorkspaceId = data.workspace.id;
+  let sessionPersisted = true;
+  try {
+    sessionStorage.setItem(SESSION_TOKEN_KEY, data.sessionToken);
+  } catch (error) {
+    sessionPersisted = false;
+  }
+  try {
+    localStorage.setItem('sneup.workspaceId', state.activeWorkspaceId);
+  } catch (error) {
+    // The accepted in-memory session remains usable in the current window.
+  }
+  return { sessionPersisted };
+}
+
+async function reloadAfterInvitationAcceptance() {
+  await loadAll({ force: true });
+  if (!state.securityContext || state.securityContext.workspaceId !== state.activeWorkspaceId) {
+    throw new Error('The accepted workspace could not be confirmed in the active session.');
+  }
+  await showView('overview');
 }
 
 function listOrEmpty(items, renderer) {

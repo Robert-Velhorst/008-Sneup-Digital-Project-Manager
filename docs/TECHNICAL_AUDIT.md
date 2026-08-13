@@ -1,5 +1,13 @@
 # Technical Audit
 
+## 2.3.27 workspace-invitation audit
+
+- Found and fixed invitation forms that lost useful retry context, one-time links that depended on a second Workspace refresh, and committed accept/revoke/resend outcomes that could be misreported when only later browser persistence or refresh failed.
+- Moved invitation DOM, Dutch copy, and transient action locks into the deferred Workspace module while keeping exact authenticated calls, payloads, session storage, workspace verification, and provider authority in the application controller.
+- Added duplicate-submit guards, inline pre-commit retries, secure-link-before-refresh rendering, and explicit server-commit/session-persistence/workspace-reload outcome separation.
+- Measured a 6,435 raw, 843 gzip, and 598 Brotli byte reduction in initial app-plus-localization delivery. Startup retained 251 import modules without Mongoose; the real-Mongo 15,000-card profile measured 642.4 ms p95 and 307.4 MB peak RSS within budget.
+- Verified 112 suites/854 tests, zero dependency vulnerabilities, production secret separation, English/Dutch browser containment, and the 2.3.27 Windows package. Live provider/ngrok/HAI acceptance, signing, production rollback, clean-VM scaling, and assistive-technology evidence remain external.
+
 ## 2.3.26 first-run setup audit
 
 - Found and fixed eager setup parsing, a premature local completion marker before desktop persistence, modal replacement that prevented failed-save retry, ambiguous committed-save/restart-failure handling, and stale diagnostics responses.

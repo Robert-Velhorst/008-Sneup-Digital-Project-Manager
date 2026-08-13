@@ -18,15 +18,28 @@ const makeCallbacks = () => ({
   openRetentionPolicy: jest.fn(),
   openRetentionApply: jest.fn(),
   openWorkspaceUserSessions: jest.fn(),
-  openInviteRevocationConfirmation: jest.fn(),
-  openInviteDeliveryRetryConfirmation: jest.fn(),
   openPolicyRuleEditor: jest.fn(),
   openFeatureFlagEditor: jest.fn(),
   openFeatureFlagHistory: jest.fn(),
   loadPolicyHistory: jest.fn(),
+  createWorkspaceInvitation: jest.fn().mockResolvedValue({
+    inviteUrl: 'https://sneup.example.test/?invite=created-token',
+    delivery: { status: 'manual' }
+  }),
+  revokeWorkspaceInvitation: jest.fn().mockResolvedValue({ success: true }),
+  retryWorkspaceInvitationDelivery: jest.fn().mockResolvedValue({
+    inviteUrl: 'https://sneup.example.test/?invite=replacement-token',
+    delivery: { status: 'sent' }
+  }),
+  acceptWorkspaceInvitation: jest.fn().mockResolvedValue({ sessionPersisted: true }),
+  refreshWorkspaceAdmin: jest.fn().mockResolvedValue(undefined),
+  reloadAfterInvitationAcceptance: jest.fn().mockResolvedValue(undefined),
   closeModal: jest.fn(),
+  openNotice: jest.fn(),
   enhanceForm: jest.fn()
 });
+
+const settle = () => new Promise(resolve => setImmediate(resolve));
 
 const elementIds = [
   'workspaceCount', 'workspaceMetrics', 'workspaceMode', 'workspaceList', 'workspaceSelect',
@@ -119,6 +132,7 @@ const createHarness = (locale = 'nl') => {
   const elements = Object.fromEntries(elementIds.map(id => [id, dom.window.document.getElementById(id)]));
   const controller = createController({
     document: dom.window.document,
+    window: dom.window,
     state,
     elements,
     callbacks,
@@ -158,14 +172,18 @@ describe('demand-loaded workspace view', () => {
     harness.dom.window.close();
   });
 
-  test('delegates every consequential action to the existing guarded controller', () => {
+  test('delegates guarded workspace actions and owns invitation confirmations without API authority', () => {
     const harness = createHarness('en');
     harness.controller.render();
     const { document } = harness.dom.window;
 
     document.querySelector('[data-workspace-user-sessions]').click();
     document.querySelector('[data-retry-workspace-invite-delivery]').click();
+    expect(harness.elements.modalTitle.textContent).toBe('Retry invitation email?');
+    document.getElementById('cancelInviteDeliveryRetry').click();
     document.querySelector('[data-revoke-workspace-invite]').click();
+    expect(harness.elements.modalTitle.textContent).toBe('Revoke invitation?');
+    document.getElementById('cancelInviteRevoke').click();
     document.querySelector('[data-policy-rule]').click();
     document.querySelector('[data-feature-history]').click();
     document.querySelector('[data-feature-flag]').click();
@@ -174,8 +192,6 @@ describe('demand-loaded workspace view', () => {
     document.querySelector('[data-retention-apply]').click();
 
     expect(harness.callbacks.openWorkspaceUserSessions).toHaveBeenCalledWith('user-1');
-    expect(harness.callbacks.openInviteDeliveryRetryConfirmation).toHaveBeenCalledWith(harness.state.workspaceInvitations[0]);
-    expect(harness.callbacks.openInviteRevocationConfirmation).toHaveBeenCalledWith(harness.state.workspaceInvitations[0]);
     expect(harness.callbacks.openPolicyRuleEditor).toHaveBeenCalledWith('move_card');
     expect(harness.callbacks.openFeatureFlagHistory).toHaveBeenCalledWith('connector_sync');
     expect(harness.callbacks.openFeatureFlagEditor).toHaveBeenCalledWith('connector_sync');
@@ -240,6 +256,136 @@ describe('demand-loaded workspace view', () => {
     harness.dom.window.close();
   });
 
+  test('keeps a failed invitation creation retryable and preserves the one-time link when refresh fails', async () => {
+    const harness = createHarness('en');
+    harness.callbacks.createWorkspaceInvitation
+      .mockRejectedValueOnce(new Error('Temporary invitation failure'))
+      .mockResolvedValueOnce({
+        inviteUrl: 'https://sneup.example.test/?invite=one-time-evidence',
+        delivery: { status: 'manual' }
+      });
+    harness.callbacks.refreshWorkspaceAdmin.mockRejectedValueOnce(new Error('Workspace refresh unavailable'));
+
+    expect(harness.controller.openWorkspaceInvite()).toBe(true);
+    let form = harness.dom.window.document.getElementById('workspaceInviteForm');
+    form.elements.email.value = 'person@example.test';
+    form.elements.displayName.value = 'Invitation Person';
+    form.dispatchEvent(new harness.dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    await settle();
+
+    expect(harness.callbacks.createWorkspaceInvitation).toHaveBeenCalledTimes(1);
+    expect(form.elements.email.value).toBe('person@example.test');
+    expect(form.querySelector('button[type="submit"]').disabled).toBe(false);
+    expect(form.querySelector('[data-invitation-status]').textContent).toBe('Temporary invitation failure');
+
+    form.dispatchEvent(new harness.dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    await settle();
+
+    expect(harness.callbacks.createWorkspaceInvitation).toHaveBeenCalledTimes(2);
+    expect(harness.callbacks.refreshWorkspaceAdmin).toHaveBeenCalledTimes(1);
+    expect(harness.dom.window.document.getElementById('workspaceInviteUrl').value).toBe('https://sneup.example.test/?invite=one-time-evidence');
+    expect(harness.dom.window.document.getElementById('workspaceInviteRefreshStatus').textContent)
+      .toBe('The invitation was created, but Workspace administration could not refresh. The secure link below is still valid.');
+    expect(harness.callbacks.openNotice).not.toHaveBeenCalled();
+    harness.dom.window.close();
+  });
+
+  test('locks duplicate invitation submits and renders a replacement link before refreshing', async () => {
+    const harness = createHarness('en');
+    let resolveCreate;
+    harness.callbacks.createWorkspaceInvitation.mockReturnValue(new Promise((resolve) => { resolveCreate = resolve; }));
+    harness.controller.openWorkspaceInvite();
+    const form = harness.dom.window.document.getElementById('workspaceInviteForm');
+    form.elements.email.value = 'person@example.test';
+    form.elements.displayName.value = 'Invitation Person';
+    const submit = new harness.dom.window.Event('submit', { bubbles: true, cancelable: true });
+    form.dispatchEvent(submit);
+    form.dispatchEvent(new harness.dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    expect(harness.callbacks.createWorkspaceInvitation).toHaveBeenCalledTimes(1);
+
+    resolveCreate({
+      inviteUrl: 'https://sneup.example.test/?invite=single-submit',
+      delivery: { status: 'sent' }
+    });
+    await settle();
+    expect(harness.dom.window.document.getElementById('workspaceInviteUrl').value).toContain('single-submit');
+    expect(harness.callbacks.refreshWorkspaceAdmin).toHaveBeenCalledTimes(1);
+    harness.dom.window.close();
+  });
+
+  test('keeps resend and revoke commit outcomes truthful when workspace refresh fails', async () => {
+    const retryHarness = createHarness('en');
+    retryHarness.callbacks.refreshWorkspaceAdmin.mockRejectedValueOnce(new Error('Workspace refresh unavailable'));
+    retryHarness.controller.openInviteDeliveryRetryConfirmation(retryHarness.state.workspaceInvitations[0]);
+    retryHarness.dom.window.document.getElementById('confirmInviteDeliveryRetry').click();
+    await settle();
+    expect(retryHarness.callbacks.retryWorkspaceInvitationDelivery).toHaveBeenCalledTimes(1);
+    expect(retryHarness.dom.window.document.getElementById('workspaceInviteUrl').value).toContain('replacement-token');
+    expect(retryHarness.dom.window.document.getElementById('workspaceInviteRefreshStatus').textContent)
+      .toContain('secure link below is still valid');
+    retryHarness.dom.window.close();
+
+    const revokeHarness = createHarness('en');
+    revokeHarness.callbacks.revokeWorkspaceInvitation
+      .mockRejectedValueOnce(new Error('Revocation temporarily unavailable'))
+      .mockResolvedValueOnce({ success: true });
+    revokeHarness.callbacks.refreshWorkspaceAdmin.mockRejectedValueOnce(new Error('Workspace refresh unavailable'));
+    revokeHarness.controller.openInviteRevocationConfirmation(revokeHarness.state.workspaceInvitations[0]);
+    let button = revokeHarness.dom.window.document.getElementById('confirmInviteRevoke');
+    button.click();
+    await settle();
+    expect(button.disabled).toBe(false);
+    expect(revokeHarness.dom.window.document.querySelector('[data-invitation-status]').textContent)
+      .toBe('Revocation temporarily unavailable');
+    button.click();
+    await settle();
+    expect(revokeHarness.callbacks.revokeWorkspaceInvitation).toHaveBeenCalledTimes(2);
+    expect(revokeHarness.callbacks.openNotice).toHaveBeenCalledWith(
+      'Invitation revoked',
+      'The invitation was revoked, but Workspace administration could not refresh. Reopen Workspaces to load the latest state.'
+    );
+    revokeHarness.dom.window.close();
+  });
+
+  test('separates invitation acceptance, session persistence, and workspace reload outcomes', async () => {
+    const harness = createHarness('en');
+    harness.callbacks.acceptWorkspaceInvitation
+      .mockRejectedValueOnce(new Error('Invitation not accepted'))
+      .mockResolvedValueOnce({ sessionPersisted: false });
+    harness.controller.openInviteAcceptance('raw-one-time-token');
+    let form = harness.dom.window.document.getElementById('acceptWorkspaceInviteForm');
+    form.elements.displayName.value = 'Accepted Person';
+    form.dispatchEvent(new harness.dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    await settle();
+    expect(form.elements.displayName.value).toBe('Accepted Person');
+    expect(form.querySelector('button[type="submit"]').disabled).toBe(false);
+    expect(form.querySelector('[data-invitation-status]').textContent).toBe('Invitation not accepted');
+
+    form.dispatchEvent(new harness.dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    await settle();
+    expect(harness.callbacks.acceptWorkspaceInvitation).toHaveBeenCalledTimes(2);
+    expect(harness.callbacks.reloadAfterInvitationAcceptance).toHaveBeenCalledTimes(1);
+    expect(harness.callbacks.openNotice).toHaveBeenCalledWith(
+      'Workspace joined',
+      'This workspace is open in the current window, but Sneup could not retain the session. Sign in again after restarting Sneup.'
+    );
+    harness.dom.window.close();
+
+    const staleHarness = createHarness('en');
+    staleHarness.callbacks.reloadAfterInvitationAcceptance.mockRejectedValueOnce(new Error('Workspace reload unavailable'));
+    staleHarness.controller.openInviteAcceptance('another-one-time-token');
+    form = staleHarness.dom.window.document.getElementById('acceptWorkspaceInviteForm');
+    form.elements.displayName.value = 'Accepted Person';
+    form.dispatchEvent(new staleHarness.dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    await settle();
+    expect(staleHarness.callbacks.acceptWorkspaceInvitation).toHaveBeenCalledTimes(1);
+    expect(staleHarness.callbacks.openNotice).toHaveBeenCalledWith(
+      'Workspace joined',
+      'The invitation was accepted, but Sneup could not load the workspace. Restart Sneup or refresh this page to continue.'
+    );
+    staleHarness.dom.window.close();
+  });
+
   test('keeps every workspace operator message in the Dutch catalog', () => {
     const runtime = createRuntime({ root: null, language: 'nl', storage: null });
     runtime.registerMessages('nl', WORKSPACE_NL_MESSAGES);
@@ -272,12 +418,12 @@ describe('demand-loaded workspace view', () => {
     }
     expect([...messages].filter(message => !runtime.hasTranslation(message))).toEqual([]);
     expect(appSource).toContain("els.modalTitle.textContent = t('Delete archived workspace?')");
-    expect(appSource).toContain("els.modalTitle.textContent = t('Retry invitation email?')");
+    expect(moduleSource).toContain("elements.modalTitle.textContent = t('Retry invitation email?')");
     expect(appSource).toContain("els.modalTitle.textContent = t('Revoke session?')");
     expect(appSource).toContain("i18n.registerMessages('nl', module.NL_MESSAGES)");
-    expect(appSource).toContain("submitButton.textContent = t('Create invitation')");
+    expect(moduleSource).toContain("submitButton.textContent = t('Create invitation')");
     expect(appSource).toContain("button.textContent = t('Revoke session')");
-    expect(appSource).toContain("submitButton.textContent = t('Join workspace')");
+    expect(moduleSource).toContain("submitButton.textContent = t('Join workspace')");
   });
 
   test('loads the renderer only with the workspace view and retries a failed module fetch', () => {
@@ -293,9 +439,26 @@ describe('demand-loaded workspace view', () => {
     expect(appSource).toContain("fetchApi(`/api/policy-rules/${encodeURIComponent(actionType)}`");
     expect(appSource).toContain("ownerType: ['high', 'critical'].includes(risk) ? 'robert'");
     expect(appSource).not.toContain('id="policyRuleForm"');
+    expect(appSource).not.toContain('id="workspaceInviteForm"');
+    expect(appSource).not.toContain('id="acceptWorkspaceInviteForm"');
+    expect(appSource).toContain("fetchApi(`/api/workspaces/${encodeURIComponent(workspaceId)}/invitations`");
+    expect(appSource).toContain("fetchApi('/api/workspaces/invitations/accept'");
+    expect(appSource).toContain('sessionStorage.setItem(SESSION_TOKEN_KEY, data.sessionToken)');
+    const acceptanceSource = appSource.slice(
+      appSource.indexOf('async function acceptWorkspaceInvitation('),
+      appSource.indexOf('async function reloadAfterInvitationAcceptance(')
+    );
+    expect(acceptanceSource.indexOf("fetchApi('/api/workspaces/invitations/accept'")).toBeLessThan(
+      acceptanceSource.indexOf('sessionStorage.setItem(SESSION_TOKEN_KEY, data.sessionToken)')
+    );
+    expect(acceptanceSource).toContain('sessionPersisted = false');
+    expect(acceptanceSource).toContain('return { sessionPersisted };');
     expect(appSource).not.toContain('function renderWorkspace(workspace)');
     expect(moduleSource).toContain('id="policyRuleForm"');
+    expect(moduleSource).toContain('id="workspaceInviteForm"');
+    expect(moduleSource).toContain('id="acceptWorkspaceInviteForm"');
     expect(moduleSource).not.toContain('fetchApi(');
+    expect(moduleSource).not.toMatch(/Authorization|Bearer|sessionToken/);
     expect(moduleSource).not.toMatch(/SESSION_TOKEN|localStorage|sessionStorage|document\.cookie/);
   });
 });
