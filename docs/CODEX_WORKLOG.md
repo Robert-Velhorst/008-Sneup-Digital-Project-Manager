@@ -12,6 +12,15 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-14 concurrent-review continuation
+
+- Re-audited exact-payload approval and found that simultaneous approve/reject/change/edit requests used read-then-save transitions. A stale queue snooze or delegate request could also rewrite an approved or executed recommendation into a reviewable state, permitting a second approval and duplicate provider action.
+- Added recommendation revision compare-and-swap transitions, exact `currentApprovalId` binding, losing-approval cleanup, active-approval execution/expiry checks, open-only queue mutation, pending linked-recommendation guards, rollback after a lost queue claim, and terminal-item UI control suppression.
+- A disposable real-Mongo verifier raced approve against reject and approve against payload edit, produced one winner per revision, retained no orphan approvals, blocked stale open and terminal queue calls against an executed recommendation, created zero Trello attempts, issued zero provider writes, and dropped its dedicated database.
+- The final local gate passed 125 suites/910 tests, lint, 5/5 safety evaluation, two zero-vulnerability audits, and positive five-secret production validation. The 60-board/15,000-card profile measured 888.1 ms p50, 1,022.1 ms p95, and 305.6 MB peak RSS within the established budgets.
+- In-app Browser rendered ENH-034 and the approval ledger at desktop and 390 x 844 with no horizontal overflow or console errors. HAI retained only snapshot/proposal paths, human approval, `never_direct`, and no approval or execution operation.
+- Built and verified unsigned `release/Sneup-Setup-2.3.35.exe`, 109,493,402 bytes, SHA-256 `91FB8AD4C65BEBDC3357F45D8C5711F8B24F546F3EA2AA08891A0B6A39F93E83`. The packaged app passed at 371.7 MB working set, 335.2 MB private memory, and 1.844 CPU seconds; all four changed runtime modules are byte-identical inside the ASAR.
+
 ## 2026-08-14 latest-board-health continuation
 
 - Re-audited the 60-board operating path and found that daily brief and workspace ledger limited newest history rows before deduplicating by board. At the verified portfolio size, at least ten boards could be absent and repeated history could hide a critical board from Robert, notifications, reports, or HAI.

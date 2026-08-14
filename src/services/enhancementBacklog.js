@@ -515,6 +515,24 @@ const enhancements = [
       'The query uses the workspace, board, and generated-at compound index with a bounded execution time.',
       'Daily brief, workspace ledger, notifications, reports, and HAI consume the same query contract.'
     ]
+  },
+  {
+    id: 'ENH-034',
+    priority: 'P0',
+    area: 'autonomy',
+    title: 'Make review decisions race-safe and terminal states irreversible',
+    evidence: 'Approve, reject, change, and exact-payload edits now compare and increment the recommendation revision atomically. The winning approval is bound by ID on the recommendation, losing approval records are removed, execution resolves only that active approval, and expiry clears the binding. Decision queue resolve, snooze, and delegate actions accept only an open item; linked snooze/delegate transitions require a still-pending recommendation and roll back if the queue claim is lost. Terminal items render without stale action controls. A disposable real-Mongo verifier races approve against reject and payload editing, confirms one winner with no orphan approval, and proves stale queue calls cannot revive an executed recommendation or create a Trello attempt.',
+    impact: 'Prevents simultaneous reviewers or stale browser requests from reopening an executed recommendation and causing a duplicate provider write.',
+    effort: 'M',
+    status: 'done',
+    nextStep: 'Observe review-conflict rates in a multi-operator hosted workspace before changing user-facing retry guidance.',
+    acceptanceCriteria: [
+      'Only one simultaneous review transition can win for a recommendation revision.',
+      'Execution resolves the exact active approval rather than the newest loosely related approval record.',
+      'Snooze, delegate, and resolve cannot mutate terminal decision queue items.',
+      'A stale queue item cannot change an approved, executing, executed, failed, rejected, or cancelled recommendation.',
+      'Losing review races create no provider write and leave no orphan approval authority.'
+    ]
   }
 ];
 

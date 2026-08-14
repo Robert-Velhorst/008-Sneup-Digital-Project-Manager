@@ -18,11 +18,12 @@ npm.cmd test -- --runInBand
 npm.cmd run evaluate:recommendations
 npm.cmd audit --omit=dev --audit-level=high
 npm.cmd run check:release-security
+npm.cmd run verify:review-concurrency
 npm.cmd run build:installer
 npm.cmd run verify:packaged
 ```
 
-`check:release-security` must run with the real production environment. Do not paste its secrets into logs or tickets.
+`check:release-security` must run with the real production environment. Do not paste its secrets into logs or tickets. `verify:review-concurrency` requires `SNEUP_REVIEW_CONCURRENCY_VERIFICATION_MONGO_URI` to name a dedicated disposable `sneup_review_concurrency_verification_*` database; it never contacts Trello.
 
 ## Emergency stop
 

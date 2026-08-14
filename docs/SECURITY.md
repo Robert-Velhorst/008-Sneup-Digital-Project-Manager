@@ -12,6 +12,7 @@ Sneup separates browser/API identity, workspace-scoped persistence, encrypted co
 - Independent 32+ character production peppers; separate connector encryption and OAuth-state secrets; placeholder and secret-reuse rejection.
 - OAuth state signing, redirect validation, fixed provider hosts, atomic expiring token-refresh leases, encrypted refresh-token rotation, secret-free refresh audits, SSRF/DNS protections where custom hosts are supported, redirect denial, timeouts, bounded pages, and redacted retained fields.
 - Exact approval payload snapshot, expiry, action policy, atomic claim, idempotency evidence, timeout/reset/HTTP 408/5xx ambiguity classification, multi-step partial-write evidence, and no automatic retry after ambiguous writes.
+- Recommendation review transitions use revision-aware atomic compare-and-set updates. The winning decision is bound by ID to the approved payload, losing decision records are removed, and stale or terminal queue entries cannot reopen or mutate completed work.
 - Graceful restart stops request admission and future schedules, drains active work before database teardown, bounds overlong connections, and reports component codes without request or credential content.
 - Board-health evidence is matched to the authenticated workspace before newest-per-board aggregation; bounded caps occur after deduplication and cannot mix another workspace current state.
 - Deployment emergency stop: set `SNEUP_PROVIDER_WRITES_DISABLED=true` and restart. Denials are audited before policy resolution or execution claim.

@@ -45,6 +45,7 @@ const REJECTABLE_RECOMMENDATION_STATUSES = new Set(['pending', 'approved', 'chan
 const CHANGEABLE_RECOMMENDATION_STATUSES = new Set(['pending', 'approved', 'snoozed', 'delegated']);
 const PAYLOAD_EDITABLE_RECOMMENDATION_STATUSES = new Set(['pending', 'change_requested', 'snoozed', 'delegated']);
 const ACTIVE_DECISION_QUEUE_STATUSES = ['open', 'approved', 'change_requested', 'snoozed', 'delegated'];
+const MUTABLE_DECISION_QUEUE_STATUSES = new Set(['open']);
 const AMBIGUOUS_TRELLO_WRITE_CODES = new Set([
   'ECONNABORTED',
   'ECONNRESET',
@@ -273,10 +274,63 @@ class OperationsLedgerService {
   }
 
   clearRecommendationApproval(recommendation) {
+    recommendation.currentApprovalId = undefined;
     recommendation.approvedAt = undefined;
     recommendation.approvalExpiresAt = undefined;
     recommendation.approvalExpiredAt = undefined;
     recommendation.approvalExpiryReason = undefined;
+  }
+
+  recommendationRevisionQuery(recommendation) {
+    const query = {
+      _id: recommendation._id,
+      status: recommendation.status
+    };
+    query.__v = Number.isInteger(recommendation.__v)
+      ? recommendation.__v
+      : { $exists: false };
+    return query;
+  }
+
+  async transitionRecommendationReview(recommendation, options, update) {
+    const transitioned = await Recommendation.findOneAndUpdate(
+      this.workspaceQuery(options, this.recommendationRevisionQuery(recommendation)),
+      {
+        ...update,
+        $inc: {
+          ...(update.$inc || {}),
+          __v: 1
+        }
+      },
+      { new: true, runValidators: true }
+    );
+    if (transitioned) return transitioned;
+
+    const error = new Error('Recommendation changed while this review was being saved. Refresh the current decision before trying again.');
+    error.code = 'SNEUP_RECOMMENDATION_REVIEW_CONFLICT';
+    error.statusCode = 409;
+    throw error;
+  }
+
+  async discardUncommittedApproval(approval) {
+    if (!approval?._id) return;
+    try {
+      await Approval.deleteOne({
+        _id: approval._id,
+        workspaceId: approval.workspaceId,
+        recommendationId: approval.recommendationId
+      });
+    } catch (error) {
+      logger.error('Failed to remove an uncommitted approval decision after a review conflict.', error);
+    }
+  }
+
+  requireMutableDecisionQueueItem(item, action) {
+    if (MUTABLE_DECISION_QUEUE_STATUSES.has(item.status)) return;
+    const error = new Error(`A decision queue item in ${item.status || 'unknown'} status cannot be ${action}`);
+    error.code = 'SNEUP_DECISION_QUEUE_TERMINAL';
+    error.statusCode = 409;
+    throw error;
   }
 
   async createRecommendationFromIntervention(intervention, policy = null) {
@@ -819,18 +873,31 @@ class OperationsLedgerService {
       approvedPayloadSnapshot: recommendation.actionPayload,
       expiresAt
     });
-
-    recommendation.status = 'approved';
-    recommendation.approvedAt = approval.decidedAt;
-    recommendation.approvalExpiresAt = approval.expiresAt;
-    recommendation.approvalExpiredAt = undefined;
-    recommendation.approvalExpiryReason = undefined;
-    recommendation.actionPayload = approval.approvedPayloadSnapshot;
-    await recommendation.save();
+    let approvedRecommendation;
+    try {
+      approvedRecommendation = await this.transitionRecommendationReview(recommendation, body, {
+        $set: {
+          status: 'approved',
+          currentApprovalId: approval._id,
+          approvedAt: approval.decidedAt,
+          approvalExpiresAt: approval.expiresAt,
+          actionPayload: approval.approvedPayloadSnapshot
+        },
+        $unset: {
+          approvalExpiredAt: 1,
+          approvalExpiryReason: 1,
+          rejectedAt: 1,
+          failureReason: 1
+        }
+      });
+    } catch (error) {
+      await this.discardUncommittedApproval(approval);
+      throw error;
+    }
 
     await DecisionQueueItem.updateMany(
-      this.workspaceQuery({ workspaceId: recommendation.workspaceId }, {
-        recommendationId: recommendation._id,
+      this.workspaceQuery({ workspaceId: approvedRecommendation.workspaceId }, {
+        recommendationId: approvedRecommendation._id,
         status: { $in: ['open', 'change_requested', 'snoozed', 'delegated'] }
       }),
       {
@@ -843,23 +910,23 @@ class OperationsLedgerService {
 
     await this.recordAudit({
       entityType: 'recommendation',
-      entityId: recommendation._id,
+      entityId: approvedRecommendation._id,
       action: 'recommendation_approved',
       actor: approval.decidedBy,
       source: 'approval',
-      riskLevel: recommendation.riskLevel,
+      riskLevel: approvedRecommendation.riskLevel,
       approvalId: approval._id,
-      recommendationId: recommendation._id,
+      recommendationId: approvedRecommendation._id,
       afterState: approval.toObject()
     });
-    await this.recordRecommendationLearningFeedback(recommendation, {
+    await this.recordRecommendationLearningFeedback(approvedRecommendation, {
       decision: 'approved',
       accepted: true,
       executed: false,
       outcome: 'unknown'
     });
 
-    return { recommendation, approval };
+    return { recommendation: approvedRecommendation, approval };
   }
 
   async rejectRecommendation(recommendationId, body = {}) {
@@ -885,15 +952,29 @@ class OperationsLedgerService {
       decisionReason: body.decisionReason || 'Rejected',
       approvedPayloadSnapshot: recommendation.actionPayload
     });
-
-    recommendation.status = 'rejected';
-    recommendation.rejectedAt = approval.decidedAt;
-    this.clearRecommendationApproval(recommendation);
-    await recommendation.save();
+    let rejectedRecommendation;
+    try {
+      rejectedRecommendation = await this.transitionRecommendationReview(recommendation, body, {
+        $set: {
+          status: 'rejected',
+          rejectedAt: approval.decidedAt
+        },
+        $unset: {
+          currentApprovalId: 1,
+          approvedAt: 1,
+          approvalExpiresAt: 1,
+          approvalExpiredAt: 1,
+          approvalExpiryReason: 1
+        }
+      });
+    } catch (error) {
+      await this.discardUncommittedApproval(approval);
+      throw error;
+    }
 
     await DecisionQueueItem.updateMany(
-      this.workspaceQuery({ workspaceId: recommendation.workspaceId }, {
-        recommendationId: recommendation._id,
+      this.workspaceQuery({ workspaceId: rejectedRecommendation.workspaceId }, {
+        recommendationId: rejectedRecommendation._id,
         status: { $in: ACTIVE_DECISION_QUEUE_STATUSES }
       }),
       {
@@ -904,32 +985,32 @@ class OperationsLedgerService {
       }
     );
 
-    if (recommendation.interventionId) {
+    if (rejectedRecommendation.interventionId) {
       await Intervention.findOneAndUpdate(
-        { _id: recommendation.interventionId, workspaceId: recommendation.workspaceId },
+        { _id: rejectedRecommendation.interventionId, workspaceId: rejectedRecommendation.workspaceId },
         { status: 'cancelled' }
       );
     }
 
     await this.recordAudit({
       entityType: 'recommendation',
-      entityId: recommendation._id,
+      entityId: rejectedRecommendation._id,
       action: 'recommendation_rejected',
       actor: approval.decidedBy,
       source: 'approval',
-      riskLevel: recommendation.riskLevel,
+      riskLevel: rejectedRecommendation.riskLevel,
       approvalId: approval._id,
-      recommendationId: recommendation._id,
+      recommendationId: rejectedRecommendation._id,
       afterState: approval.toObject()
     });
-    await this.recordRecommendationLearningFeedback(recommendation, {
+    await this.recordRecommendationLearningFeedback(rejectedRecommendation, {
       decision: 'rejected',
       accepted: false,
       executed: false,
       outcome: 'unknown'
     });
 
-    return { recommendation, approval };
+    return { recommendation: rejectedRecommendation, approval };
   }
 
   async requestRecommendationChange(recommendationId, body = {}) {
@@ -955,14 +1036,26 @@ class OperationsLedgerService {
       decisionReason: body.decisionReason || 'Change requested',
       approvedPayloadSnapshot: recommendation.actionPayload
     });
-
-    recommendation.status = 'change_requested';
-    this.clearRecommendationApproval(recommendation);
-    await recommendation.save();
+    let changedRecommendation;
+    try {
+      changedRecommendation = await this.transitionRecommendationReview(recommendation, body, {
+        $set: { status: 'change_requested' },
+        $unset: {
+          currentApprovalId: 1,
+          approvedAt: 1,
+          approvalExpiresAt: 1,
+          approvalExpiredAt: 1,
+          approvalExpiryReason: 1
+        }
+      });
+    } catch (error) {
+      await this.discardUncommittedApproval(approval);
+      throw error;
+    }
 
     await DecisionQueueItem.updateMany(
-      this.workspaceQuery({ workspaceId: recommendation.workspaceId }, {
-        recommendationId: recommendation._id,
+      this.workspaceQuery({ workspaceId: changedRecommendation.workspaceId }, {
+        recommendationId: changedRecommendation._id,
         status: { $in: ACTIVE_DECISION_QUEUE_STATUSES }
       }),
       {
@@ -975,23 +1068,23 @@ class OperationsLedgerService {
 
     await this.recordAudit({
       entityType: 'recommendation',
-      entityId: recommendation._id,
+      entityId: changedRecommendation._id,
       action: 'recommendation_change_requested',
       actor: approval.decidedBy,
       source: 'approval',
-      riskLevel: recommendation.riskLevel,
+      riskLevel: changedRecommendation.riskLevel,
       approvalId: approval._id,
-      recommendationId: recommendation._id,
+      recommendationId: changedRecommendation._id,
       afterState: approval.toObject()
     });
-    await this.recordRecommendationLearningFeedback(recommendation, {
+    await this.recordRecommendationLearningFeedback(changedRecommendation, {
       decision: 'change_requested',
       accepted: false,
       executed: false,
       outcome: 'unknown'
     });
 
-    return { recommendation, approval };
+    return { recommendation: changedRecommendation, approval };
   }
   async updateRecommendationPayload(recommendationId, body = {}) {
     this.requireDatabase();
@@ -1010,33 +1103,40 @@ class OperationsLedgerService {
     }
 
     const beforeState = recommendation.toObject();
-    recommendation.actionPayload = recommendationPayloadPolicy.applyPatch(
+    const actionPayload = recommendationPayloadPolicy.applyPatch(
       recommendation.actionType,
       recommendation.actionPayload,
       body.actionPayload
     );
-    await this.validateEditablePayloadTarget(recommendation, recommendation.actionPayload);
-    recommendation.status = 'pending';
-    recommendation.failureReason = undefined;
-    recommendation.approvedAt = undefined;
-    recommendation.approvalExpiresAt = undefined;
-    recommendation.approvalExpiredAt = undefined;
-    recommendation.approvalExpiryReason = undefined;
-    await recommendation.save();
+    await this.validateEditablePayloadTarget(recommendation, actionPayload);
+    const updatedRecommendation = await this.transitionRecommendationReview(recommendation, body, {
+      $set: {
+        actionPayload,
+        status: 'pending'
+      },
+      $unset: {
+        currentApprovalId: 1,
+        failureReason: 1,
+        approvedAt: 1,
+        approvalExpiresAt: 1,
+        approvalExpiredAt: 1,
+        approvalExpiryReason: 1
+      }
+    });
 
     await this.recordAudit({
       entityType: 'recommendation',
-      entityId: recommendation._id,
+      entityId: updatedRecommendation._id,
       action: 'recommendation_payload_updated',
       actor: body.updatedBy || 'robert',
       source: 'api',
-      riskLevel: recommendation.riskLevel,
-      recommendationId: recommendation._id,
+      riskLevel: updatedRecommendation.riskLevel,
+      recommendationId: updatedRecommendation._id,
       beforeState,
-      afterState: recommendation.toObject()
+      afterState: updatedRecommendation.toObject()
     });
 
-    return recommendation;
+    return updatedRecommendation;
   }
 
   async validateEditablePayloadTarget(recommendation, payload) {
@@ -1126,11 +1226,15 @@ class OperationsLedgerService {
       throw error;
     }
 
-    const approval = await Approval.findOne({
+    const approvalQuery = {
       workspaceId: recommendation.workspaceId,
       recommendationId: recommendation._id,
       decision: 'approved'
-    }).sort({ decidedAt: -1 });
+    };
+    if (recommendation.currentApprovalId) {
+      approvalQuery._id = recommendation.currentApprovalId;
+    }
+    const approval = await Approval.findOne(approvalQuery).sort({ decidedAt: -1 });
 
     if (actionPolicy.requiresApproval && !approval) {
       const error = new Error('Approved payload snapshot not found');
@@ -1328,6 +1432,8 @@ class OperationsLedgerService {
 
   isApprovalCurrent(approval, recommendation, now = new Date()) {
     if (!approval?.expiresAt || !recommendation?.approvalExpiresAt) return false;
+    if (recommendation.currentApprovalId
+      && String(recommendation.currentApprovalId) !== String(approval._id)) return false;
     const approvalExpiry = new Date(approval.expiresAt);
     const recommendationExpiry = new Date(recommendation.approvalExpiresAt);
     return !Number.isNaN(approvalExpiry.getTime())
@@ -1339,12 +1445,16 @@ class OperationsLedgerService {
   async expireRecommendationApproval(recommendation, approval, options = {}) {
     const now = new Date();
     const expiryReason = 'Approval expired before execution; reapproval is required.';
+    const expiryQuery = {
+      _id: recommendation._id,
+      status: 'approved',
+      approvalExpiresAt: recommendation.approvalExpiresAt
+    };
+    if (recommendation.currentApprovalId) {
+      expiryQuery.currentApprovalId = recommendation.currentApprovalId;
+    }
     const expiredRecommendation = await Recommendation.findOneAndUpdate(
-      this.workspaceQuery(options, {
-        _id: recommendation._id,
-        status: 'approved',
-        approvalExpiresAt: recommendation.approvalExpiresAt
-      }),
+      this.workspaceQuery(options, expiryQuery),
       {
         $set: {
           status: 'pending',
@@ -1352,6 +1462,7 @@ class OperationsLedgerService {
           approvalExpiryReason: expiryReason
         },
         $unset: {
+          currentApprovalId: 1,
           approvedAt: 1,
           approvalExpiresAt: 1
         }
@@ -1553,6 +1664,20 @@ class OperationsLedgerService {
       && recommendationPayloadPolicy.isReadyForExecution(recommendation.actionType, payload);
   }
 
+  async rollbackQueueRecommendationTransition(recommendation, expectedStatus, previousState) {
+    if (!recommendation?._id) return;
+    const query = {
+      _id: recommendation._id,
+      workspaceId: recommendation.workspaceId,
+      status: expectedStatus
+    };
+    if (Number.isInteger(recommendation.__v)) query.__v = recommendation.__v;
+    await Recommendation.findOneAndUpdate(query, {
+      $set: previousState,
+      $inc: { __v: 1 }
+    });
+  }
+
   async listDecisionQueue(filters = {}) {
     this.requireDatabase();
     const query = this.workspaceQuery(filters);
@@ -1576,25 +1701,43 @@ class OperationsLedgerService {
       error.statusCode = 404;
       throw error;
     }
-
-    item.status = body.status || 'resolved';
-    item.resolvedAt = new Date();
-    item.resolvedBy = body.resolvedBy || 'robert';
-    item.resolutionNote = body.resolutionNote || '';
-    await item.save();
+    this.requireMutableDecisionQueueItem(item, 'resolved');
+    const status = body.status || 'resolved';
+    if (!['resolved', 'cancelled'].includes(status)) {
+      const error = new Error('Decision queue resolution status must be resolved or cancelled');
+      error.statusCode = 400;
+      throw error;
+    }
+    const queueQuery = this.workspaceQuery(body, { _id: item._id, status: item.status });
+    queueQuery.__v = Number.isInteger(item.__v) ? item.__v : { $exists: false };
+    const resolvedItem = await DecisionQueueItem.findOneAndUpdate(queueQuery, {
+      $set: {
+        status,
+        resolvedAt: new Date(),
+        resolvedBy: body.resolvedBy || 'robert',
+        resolutionNote: body.resolutionNote || ''
+      },
+      $inc: { __v: 1 }
+    }, { new: true, runValidators: true });
+    if (!resolvedItem) {
+      const error = new Error('Decision queue item changed before it could be resolved. Refresh and review its current state.');
+      error.code = 'SNEUP_DECISION_QUEUE_CONFLICT';
+      error.statusCode = 409;
+      throw error;
+    }
 
     await this.recordAudit({
       entityType: 'decision_queue_item',
-      entityId: item._id,
+      entityId: resolvedItem._id,
       action: 'decision_queue_item_resolved',
-      actor: item.resolvedBy,
+      actor: resolvedItem.resolvedBy,
       source: 'api',
-      riskLevel: item.riskLevel,
-      recommendationId: item.recommendationId,
-      afterState: item.toObject()
+      riskLevel: resolvedItem.riskLevel,
+      recommendationId: resolvedItem.recommendationId,
+      afterState: resolvedItem.toObject()
     });
 
-    return item;
+    return resolvedItem;
   }
   async snoozeDecisionQueueItem(itemId, body = {}) {
     this.requireDatabase();
@@ -1604,6 +1747,7 @@ class OperationsLedgerService {
       error.statusCode = 404;
       throw error;
     }
+    this.requireMutableDecisionQueueItem(item, 'snoozed');
 
     const snoozePolicy = await policyRuleService.getDecisionQueueSnoozePolicy({ workspaceId: item.workspaceId });
     const snoozedUntil = resolveSnoozedUntil({
@@ -1612,34 +1756,60 @@ class OperationsLedgerService {
     });
 
     const beforeState = item.toObject();
-    item.status = 'snoozed';
-    item.snoozedUntil = snoozedUntil;
-    item.dueAt = snoozedUntil;
-    item.resolvedAt = undefined;
-    item.resolvedBy = body.snoozedBy || 'robert';
-    item.resolutionNote = body.reason || 'Snoozed from Sneup command center';
-    await item.save();
-
+    let transitionedRecommendation;
     if (item.recommendationId) {
-      await Recommendation.findOneAndUpdate(this.workspaceQuery({ workspaceId: item.workspaceId }, { _id: item.recommendationId }), { status: 'snoozed' });
+      transitionedRecommendation = await Recommendation.findOneAndUpdate(
+        this.workspaceQuery({ workspaceId: item.workspaceId }, {
+          _id: item.recommendationId,
+          status: 'pending'
+        }),
+        { $set: { status: 'snoozed' }, $inc: { __v: 1 } },
+        { new: true, runValidators: true }
+      );
+      if (!transitionedRecommendation) {
+        const error = new Error('The linked recommendation is no longer pending and cannot be snoozed. Refresh the approval queue.');
+        error.code = 'SNEUP_DECISION_QUEUE_STALE';
+        error.statusCode = 409;
+        throw error;
+      }
+    }
+    const queueQuery = this.workspaceQuery(body, { _id: item._id, status: item.status });
+    queueQuery.__v = Number.isInteger(item.__v) ? item.__v : { $exists: false };
+    const snoozedItem = await DecisionQueueItem.findOneAndUpdate(queueQuery, {
+      $set: {
+        status: 'snoozed',
+        snoozedUntil,
+        dueAt: snoozedUntil,
+        resolvedBy: body.snoozedBy || 'robert',
+        resolutionNote: body.reason || 'Snoozed from Sneup command center'
+      },
+      $unset: { resolvedAt: 1 },
+      $inc: { __v: 1 }
+    }, { new: true, runValidators: true });
+    if (!snoozedItem) {
+      await this.rollbackQueueRecommendationTransition(transitionedRecommendation, 'snoozed', { status: 'pending' });
+      const error = new Error('Decision queue item changed before it could be snoozed. Refresh and review its current state.');
+      error.code = 'SNEUP_DECISION_QUEUE_CONFLICT';
+      error.statusCode = 409;
+      throw error;
     }
 
     await this.recordAudit({
       entityType: 'decision_queue_item',
-      entityId: item._id,
+      entityId: snoozedItem._id,
       action: 'decision_queue_item_snoozed',
-      actor: item.resolvedBy,
+      actor: snoozedItem.resolvedBy,
       source: 'api',
-      riskLevel: item.riskLevel,
-      recommendationId: item.recommendationId,
+      riskLevel: snoozedItem.riskLevel,
+      recommendationId: snoozedItem.recommendationId,
       beforeState,
       afterState: {
-        ...item.toObject(),
+        ...snoozedItem.toObject(),
         appliedDefaultSnoozeHours: body.snoozedUntil ? null : snoozePolicy.defaultSnoozeHours
       }
     });
 
-    return item;
+    return snoozedItem;
   }
 
   async delegateDecisionQueueItem(itemId, body = {}) {
@@ -1650,6 +1820,7 @@ class OperationsLedgerService {
       error.statusCode = 404;
       throw error;
     }
+    this.requireMutableDecisionQueueItem(item, 'delegated');
 
     const ownerType = body.ownerType || 'team';
     if (!['robert', 'va', 'team'].includes(ownerType)) {
@@ -1659,34 +1830,60 @@ class OperationsLedgerService {
     }
 
     const beforeState = item.toObject();
-    item.ownerType = ownerType;
-    item.status = 'delegated';
-    item.delegatedTo = body.delegatedTo || ownerType;
-    item.delegatedBy = body.delegatedBy || 'robert';
-    item.delegatedAt = new Date();
-    item.resolutionNote = body.reason || `Delegated to ${ownerType}`;
-    await item.save();
-
+    let transitionedRecommendation;
     if (item.recommendationId) {
-      await Recommendation.findOneAndUpdate(this.workspaceQuery({ workspaceId: item.workspaceId }, { _id: item.recommendationId }), {
+      transitionedRecommendation = await Recommendation.findOneAndUpdate(
+        this.workspaceQuery({ workspaceId: item.workspaceId }, {
+          _id: item.recommendationId,
+          status: 'pending'
+        }),
+        { $set: { ownerType, status: 'delegated' }, $inc: { __v: 1 } },
+        { new: true, runValidators: true }
+      );
+      if (!transitionedRecommendation) {
+        const error = new Error('The linked recommendation is no longer pending and cannot be delegated. Refresh the approval queue.');
+        error.code = 'SNEUP_DECISION_QUEUE_STALE';
+        error.statusCode = 409;
+        throw error;
+      }
+    }
+    const queueQuery = this.workspaceQuery(body, { _id: item._id, status: item.status });
+    queueQuery.__v = Number.isInteger(item.__v) ? item.__v : { $exists: false };
+    const delegatedItem = await DecisionQueueItem.findOneAndUpdate(queueQuery, {
+      $set: {
         ownerType,
-        status: 'delegated'
+        status: 'delegated',
+        delegatedTo: body.delegatedTo || ownerType,
+        delegatedBy: body.delegatedBy || 'robert',
+        delegatedAt: new Date(),
+        resolutionNote: body.reason || `Delegated to ${ownerType}`
+      },
+      $inc: { __v: 1 }
+    }, { new: true, runValidators: true });
+    if (!delegatedItem) {
+      await this.rollbackQueueRecommendationTransition(transitionedRecommendation, 'delegated', {
+        ownerType: item.ownerType,
+        status: 'pending'
       });
+      const error = new Error('Decision queue item changed before it could be delegated. Refresh and review its current state.');
+      error.code = 'SNEUP_DECISION_QUEUE_CONFLICT';
+      error.statusCode = 409;
+      throw error;
     }
 
     await this.recordAudit({
       entityType: 'decision_queue_item',
-      entityId: item._id,
+      entityId: delegatedItem._id,
       action: 'decision_queue_item_delegated',
-      actor: item.delegatedBy,
+      actor: delegatedItem.delegatedBy,
       source: 'api',
-      riskLevel: item.riskLevel,
-      recommendationId: item.recommendationId,
+      riskLevel: delegatedItem.riskLevel,
+      recommendationId: delegatedItem.recommendationId,
       beforeState,
-      afterState: item.toObject()
+      afterState: delegatedItem.toObject()
     });
 
-    return item;
+    return delegatedItem;
   }
 
   async reopenDueSnoozedDecisionQueueItems(options = {}) {

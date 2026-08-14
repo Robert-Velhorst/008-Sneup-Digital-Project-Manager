@@ -9563,14 +9563,26 @@ describe('approved Trello action execution safety', () => {
       save: jest.fn().mockResolvedValue(undefined),
       toObject: jest.fn(() => ({ _id: 'recommendation-1', status: 'rejected' }))
     };
+    const rejectedRecommendation = {
+      ...recommendation,
+      status: 'rejected',
+      rejectedAt: new Date('2026-07-23T12:00:00.000Z')
+    };
+    const findOneAndUpdate = jest.fn().mockResolvedValue(rejectedRecommendation);
     const updateMany = jest.fn().mockResolvedValue({ modifiedCount: 1 });
-    jest.doMock('../src/models/Recommendation', () => ({ findOne: jest.fn().mockResolvedValue(recommendation) }));
+    jest.doMock('../src/models/Recommendation', () => ({
+      findOne: jest.fn().mockResolvedValue(recommendation),
+      findOneAndUpdate
+    }));
     jest.doMock('../src/models/Approval', () => ({
       create: jest.fn().mockResolvedValue({
         _id: 'approval-1',
+        workspaceId: 'workspace-1',
+        recommendationId: 'recommendation-1',
         decidedAt: new Date('2026-07-23T12:00:00.000Z'),
         toObject: () => ({ _id: 'approval-1', decision: 'rejected' })
-      })
+      }),
+      deleteOne: jest.fn()
     }));
     jest.doMock('../src/models/DecisionQueueItem', () => ({ updateMany }));
     jest.doMock('../src/services/workspaceScopeService', () => ({ normalizeWorkspaceObjectId: jest.fn(value => value) }));
@@ -9580,13 +9592,21 @@ describe('approved Trello action execution safety', () => {
     jest.spyOn(operationsLedgerService, 'recordAudit').mockResolvedValue(undefined);
     jest.spyOn(operationsLedgerService, 'recordRecommendationLearningFeedback').mockResolvedValue(undefined);
 
-    await operationsLedgerService.rejectRecommendation('recommendation-1', {
+    const result = await operationsLedgerService.rejectRecommendation('recommendation-1', {
       workspaceId: 'workspace-1',
       decidedBy: 'owner-1',
       decisionReason: 'Wait for updated client context.'
     });
 
-    expect(recommendation).toMatchObject({ status: 'rejected', rejectedAt: new Date('2026-07-23T12:00:00.000Z') });
+    expect(result.recommendation).toBe(rejectedRecommendation);
+    expect(findOneAndUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      _id: 'recommendation-1',
+      status: 'approved',
+      workspaceId: 'workspace-1'
+    }), expect.objectContaining({
+      $set: expect.objectContaining({ status: 'rejected' }),
+      $inc: { __v: 1 }
+    }), { new: true, runValidators: true });
     expect(updateMany).toHaveBeenCalledWith({
       recommendationId: 'recommendation-1',
       status: { $in: expect.arrayContaining(['approved', 'open', 'change_requested', 'snoozed', 'delegated']) },

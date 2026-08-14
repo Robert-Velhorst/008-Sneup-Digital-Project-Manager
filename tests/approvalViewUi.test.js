@@ -197,6 +197,17 @@ describe('demand-loaded approval view', () => {
     harness.dom.window.close();
   });
 
+  test('does not render stale review controls for a terminal decision item', () => {
+    const harness = createHarness('en');
+    harness.state.ledger.decisions[0].status = 'approved';
+    harness.controller.render();
+
+    expect(harness.elements.decisionQueue.querySelector('[data-decision-action]')).toBeNull();
+    expect(harness.elements.decisionQueue.querySelector('[data-recommendation-action]')).toBeNull();
+    expect(harness.elements.decisionQueue.textContent).toContain('Evidence question remains verbatim?');
+    harness.dom.window.close();
+  });
+
   test('renders and saves a bounded Dutch daily-brief policy once with guarded values', async () => {
     const harness = createHarness('nl');
     const policy = {

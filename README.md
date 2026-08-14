@@ -584,6 +584,8 @@ In the Windows app, **Support file** writes a redacted JSON file to Sneup's loca
 
 Release operators can verify the unpacked Windows app with `npm.cmd run verify:packaged`. The verifier refuses an existing Sneup session or occupied port, checks health, diagnostics, and the HAI write policy, records a 30-second process-group resource sample, requests a normal window close, and confirms the loopback port is released. The Windows CI job runs the same packaged-app check before uploading an installer artifact.
 
+Before changing the review or decision-queue lifecycle, set `SNEUP_REVIEW_CONCURRENCY_VERIFICATION_MONGO_URI` to a dedicated disposable MongoDB database named `sneup_review_concurrency_verification_*` and run `npm.cmd run verify:review-concurrency`. The verifier races authenticated decisions, checks exact approval ownership and stale queue rejection, proves no orphan decision records remain, and drops only that guarded database without contacting Trello.
+
 ### MongoDB connection issues
 
 - Start MongoDB and verify `MONGODB_URI` points to the intended database.

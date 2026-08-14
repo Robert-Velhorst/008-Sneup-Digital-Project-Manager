@@ -94,6 +94,10 @@ const recommendationSchema = new mongoose.Schema({
     index: true
   },
   approvedAt: Date,
+  currentApprovalId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Approval'
+  },
   approvalExpiresAt: {
     type: Date,
     index: true

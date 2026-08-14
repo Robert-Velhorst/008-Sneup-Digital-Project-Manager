@@ -1,5 +1,12 @@
 # Technical Audit
 
+## 2.3.35 concurrent-review audit
+
+- Approval, rejection, requested-change, and payload-edit paths previously read and saved a recommendation in separate operations. Two authenticated reviewers could therefore race, retain contradictory decision records, and overwrite one another's result.
+- A stale open decision-queue row could snooze or delegate a recommendation after it had already been approved and executed, making completed work reviewable again and creating a duplicate-write path.
+- Added revision-aware atomic review transitions, exact active-approval binding, losing-decision cleanup, terminal queue guards, and rollback of a linked recommendation when a competing queue claim wins.
+- A disposable real-Mongo verifier raced approve against reject and approve against payload edit, then exercised stale and terminal queue actions. It produced one winner per race, zero orphan approvals, zero Trello attempts, and zero provider writes. The full 125-suite/910-test gate, two zero-vulnerability audits, browser QA, 15,000-card profile, HAI contract, and packaged Windows verification passed.
+
 ## 2.3.34 portfolio-health audit
 
 - Daily brief and workspace ledger limited raw health-history rows before reducing them to one row per board. At 60 boards, at least ten current boards could be absent; repeated history could also displace a critical board from bounded human or HAI evidence.

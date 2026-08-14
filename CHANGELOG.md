@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.3.35 - 2026-08-14
+
+### Race-safe review authority
+
+- Make approve, reject, change, and exact-payload edits atomic against the recommendation status and revision so simultaneous reviewers produce one durable winner.
+- Bind each approved recommendation to one exact active approval record; execution and expiry resolve that binding instead of trusting whichever approval happens to sort newest.
+- Reject stale resolve, snooze, and delegate requests for non-open queue items, require linked recommendations to remain pending, and roll back a linked transition when the queue claim is lost.
+- Remove review controls from terminal decision items and add a disposable real-Mongo verifier for approve/reject, approve/payload-edit, and stale executed-item races.
+
+### Verification
+
+- The full local gate passes 125 suites/910 tests, lint, and the 5/5 recommendation safety evaluation. Full and production dependency audits report zero vulnerabilities, and five purpose-separated production secrets pass without exposing values.
+- A dedicated MongoDB verifier completed simultaneous decision and payload races in 4.29 seconds with one winner per revision, zero orphan approvals, zero Trello attempts, and zero provider writes. The 60-board/15,000-card/180-health-snapshot profile measured 888.1 ms p50, 1,022.1 ms p95, and 305.6 MB peak RSS within existing budgets.
+- In-app Browser acceptance rendered ENH-034 and the approval ledger without console errors or horizontal overflow at desktop and 390 x 844. HAI retained only snapshot/proposal paths, human approval, `never_direct`, and no approval or execution endpoint.
+- Built and verified unsigned `Sneup-Setup-2.3.35.exe`: 109,493,402 bytes, SHA-256 `91FB8AD4C65BEBDC3357F45D8C5711F8B24F546F3EA2AA08891A0B6A39F93E83`. The packaged app passed metadata, nine diagnostics, secret redaction, HAI policy, normal close, port release, and four byte-identical changed runtime modules; its five-second sample used 371.7 MB working set, 335.2 MB private memory, and 1.844 CPU seconds.
+
 ## 2.3.34 - 2026-08-14
 
 ### Portfolio-wide board health

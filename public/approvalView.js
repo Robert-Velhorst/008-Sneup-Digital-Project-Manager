@@ -836,13 +836,14 @@
     function renderDecisionItem(item) {
       const itemId = getId(item._id);
       const recommendationId = getId(item.recommendationId);
+      const canManageDecision = (item.status || 'open') === 'open';
       return `
         <div class="item">
           <div class="item-title"><strong>${escapeHtml(item.question || item.title)}</strong><span class="pill ${severityClass(item.riskLevel)}">${es(item.ownerType)}</span></div>
           <div class="meta"><span>${escapeHtml(item.reason || t('Approval required'))}</span><span>${es(item.riskLevel, 'medium')} ${et('risk')}</span><span>${et('Answer: {answer}', { answer: semantic(item.recommendedAnswer, 'yes') })}</span></div>
           ${renderSourceEvidence(item.sourceEvidence)}
-          ${recommendationId && !state.ledger.demoMode ? renderReviewActions(recommendationId) : ''}
-          ${state.ledger.demoMode ? '' : `<div class="item-actions">
+          ${recommendationId && canManageDecision && !state.ledger.demoMode ? renderReviewActions(recommendationId) : ''}
+          ${state.ledger.demoMode || !canManageDecision ? '' : `<div class="item-actions">
             <button class="button" data-decision-id="${escapeHtml(itemId)}" data-decision-action="snooze" type="button">${et('Snooze 24h')}</button>
             <button class="button warn" data-decision-id="${escapeHtml(itemId)}" data-decision-action="delegate-team" type="button">${et('Delegate team')}</button>
             <button class="button warn" data-decision-id="${escapeHtml(itemId)}" data-decision-action="delegate-va" type="button">${et('Delegate VA')}</button>

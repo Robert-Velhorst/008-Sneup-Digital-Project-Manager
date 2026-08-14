@@ -16,6 +16,8 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 
 2.3.34 closes a portfolio-health visibility gap. Daily brief and workspace ledger now select one newest health snapshot for every board before applying a cap, rank critical boards first, and share this indexed bounded evidence with reports, notifications, and HAI. The 60-board profiler proves unique coverage over 180 historical snapshots.
 
+2.3.35 closes a concurrent-review integrity gap. Recommendation review transitions compare one exact revision atomically, approved recommendations bind one active approval record, and stale queue actions cannot reopen terminal work. Real-Mongo races produce one winner with no orphan authority, Trello attempt, or provider write.
+
 | Phase | Status | Evidence or remaining gate |
 | --- | --- | --- |
 | 000 Repository integrity | Implemented | Baseline commit/branch/remote recorded; unrelated worktree artifacts preserved. |
@@ -35,7 +37,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 014 No fake success | Implemented | Explicit read-only demo and catalog-only states; write paths fail closed. |
 | 015 File/upload/media safety | N/A | Product has no user-upload workflow; PDF reports use controlled output. |
 | 016 Jobs/schedulers/workers | Implemented | Job controls, run records, workers, health, tests, expiring per-workspace distributed leases, idempotent scheduler ownership, observed callback failures, complete partial-startup cleanup, and bounded active-work drain before database teardown. |
-| 017 Idempotency/duplicates | Implemented | Delivery receipts, atomic claims, serialized syncs, reconciliation. |
+| 017 Idempotency/duplicates | Implemented | Delivery receipts, atomic claims, serialized syncs, reconciliation, and revision-safe review decisions prevent duplicate provider writes. |
 | 018 Rate limits/quotas | Implemented | Request limits, provider bounds, pacing, retry caps, visible truncation failures. |
 | 019 Audit history | Implemented | Workspace audit events and operations-ledger timelines. |
 | 020 Dashboard/next action | Implemented | Decision, exception, policy, health, report, and ledger views; latest-per-board health is deduplicated before risk-first caps across human and HAI surfaces. |
@@ -44,7 +46,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 023 Import/export | Implemented | Provider ingestion, PDF reports, and owner-only streamed workspace export exist. |
 | 024 Templates/presets/defaults | Partial | Policy/report defaults plus up to eight workspace-scoped named presets exist for reviewed reusable form fields; arbitrary or sensitive form templating is deliberately excluded. |
 | 025 AI abstraction/fallback | Implemented | Every model call uses one demand-loaded, timeout-bounded, no-retry gateway. Missing credentials, initialization/auth/rate-limit/timeout/provider failures, malformed output, and oversized output return bounded deterministic responses with explicit provenance and redacted failure logs. |
-| 026 Human review/approval | Implemented | Queue, protected payload review, approval expiry, policy gates. |
+| 026 Human review/approval | Implemented | Queue, protected payload review, exact active-approval binding, approval expiry, atomic review revisions, and policy gates. |
 | 027 Notifications/reminders | Implemented | Explicit policies, claims, delivery evidence, quiet hours, digests. |
 | 028 Privacy/deletion | Implemented | Redaction, invitation retention, owner-only streamed export, and owner-confirmed resumable archived-workspace deletion cover local Sneup data. Provider-side grant revocation remains external. |
 | 029 Web security | Implemented | Helmet/CSP, origin controls, bounded bodies, throttling. |
@@ -68,7 +70,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 047 Path traversal/file safety | Implemented | Controlled static/report paths and traversal/security tests. |
 | 048 Provider failure simulation | Implemented | Retry, timeout, partial write, truncation, and reconciliation tests. |
 | 049 Accessibility | Partial | Labels, modal semantics, contextual focus, focus containment/restoration, Escape/F1 behavior, and responsive help navigation are covered; assistive-technology certification remains external. |
-| 050 Responsive/browser compatibility | Partial | Help plus the demand-loaded connector, workspace, and approval renderers pass desktop/480x844 containment with no control overflow; packaged Windows 150% scaling passes, while the clean-VM 125%/200% matrix remains pending. |
+| 050 Responsive/browser compatibility | Partial | Help plus the demand-loaded connector, workspace, approval, and enhancement renderers pass desktop and 390x844 containment with no control overflow; packaged Windows 150% scaling passes, while the clean-VM 125%/200% matrix remains pending. |
 | 051 Performance/indexing | Implemented | Bounded queries, indexes, concurrency, batching, response timing, and cross-process duplicate-work suppression. |
 | 052 Large data/pagination | Implemented | Provider caps/pages are tested; a guarded real-Mongo profiler exercises 60 boards/300 lists/15,000 cards/100 members and 180 health snapshots, verifies bounded mission-control output plus 60 unique latest board-health rows, confirms both compound indexes, enforces latency/RSS budgets, performs no provider writes, and drops only its dedicated database. |
 | 053 Backup/restore | Partial | Runbook is defined; production-like restore evidence is external. |
@@ -77,9 +79,9 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 056 SaaS without billing | Implemented | Multi-workspace identity exists; billing is not required. |
 | 057 Dutch/English readiness | Partial | Persistent, tested English/Dutch catalogs cover the static shell, setup, command palette, contextual help/search, primary mission control, connector marketplace, workspace administration, approval/operations ledger, and consequential workspace forms/modals. Provider, user, audit, free-text, error, identifier, and payload evidence remains verbatim by design; assistive-technology certification remains pending. |
 | 058 Feature flags/rollout | Implemented | Four optional capabilities have workspace-scoped persisted controls, deterministic percentage rollout, optimistic revisions, bounded cache/history, manager UI, and live fail-closed behavior. Safety and provider-write authorization are outside the flag system. |
-| 059 Formal state machines | Implemented | Enumerated persisted lifecycle states and guarded transitions. |
+| 059 Formal state machines | Implemented | Enumerated persisted lifecycle states, guarded transitions, revision-safe review decisions, and terminal queue immutability. |
 | 060 Domain model | Implemented | Mongoose models and operations-ledger domain boundaries. |
-| 061 Invariants/constraints | Implemented | Schema/index constraints and transition/security tests. |
+| 061 Invariants/constraints | Implemented | Schema/index constraints, exact active-approval authority, transition/security tests, and real-Mongo race verification. |
 | 062 Pre-action safety screen | Implemented | Payload, risk, policy, approval, expiry, history shown before execute. |
 | 063 Credential verification | Partial | Doctor validates presence/posture; live provider verification is external. |
 | 064 Threat model/security review | Implemented | `SECURITY.md`, technical audit, adversarial tests. |
