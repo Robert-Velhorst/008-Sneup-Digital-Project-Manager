@@ -58,7 +58,7 @@ try {
 
   if ($health.status -ne 'ok') { throw "Unexpected packaged health status: $($health.status)" }
   if ($product.version -ne $expectedVersion) { throw "Packaged version $($product.version) does not match $expectedVersion." }
-  if ($diagnostics.mode -ne 'demo' -or @($diagnostics.checks).Count -ne 8 -or $diagnostics.secretsExposed -ne $false) {
+  if ($diagnostics.mode -ne 'demo' -or @($diagnostics.checks).Count -ne 9 -or $diagnostics.secretsExposed -ne $false) {
     throw 'Packaged diagnostics did not retain the expected redacted eight-check demo contract.'
   }
   if ($haiManifest.safety.providerWrites -ne 'never_direct') {

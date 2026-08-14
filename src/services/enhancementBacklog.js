@@ -101,7 +101,7 @@ const enhancements = [
     priority: 'P1',
     area: 'desktop',
     title: 'Add first-run setup and signed desktop release polish',
-    evidence: 'The Windows installer works and first run now persists a non-secret demo/live preference in Electron user data, then relaunches before Sneup initializes so a live selection attempts the database-backed runtime. Setup shows eight live, redacted runtime and write-safety checks with exact remediation, and the desktop can create a configuration-only support file directly in its user-data folder. A branded icon, publisher certificate, and update channel still require release infrastructure.',
+    evidence: 'The Windows installer works and first run now persists a non-secret demo/live preference in Electron user data, then relaunches before Sneup initializes so a live selection attempts the database-backed runtime. Setup shows nine live, redacted runtime and write-safety checks with exact remediation, including graceful restart configuration, and the desktop can create a configuration-only support file directly in its user-data folder. A branded icon, publisher certificate, and update channel still require release infrastructure.',
     impact: 'Reduces installation friction and improves trust for Windows 11 users.',
     effort: 'M',
     status: 'in-progress',
@@ -478,6 +478,24 @@ const enhancements = [
       'Partial-startup cleanup closes HTTP and MongoDB even when another component fails to stop.',
       'Persisted job errors are bounded and redact provider credentials before they reach Job Health.',
       'Windows CI launches and closes the packaged app successfully before uploading the installer.'
+    ]
+  },
+  {
+    id: 'ENH-032',
+    priority: 'P0',
+    area: 'operations',
+    title: 'Drain active work before restart teardown',
+    evidence: 'Shutdown marks readiness unavailable, closes the HTTP listener, cancels future schedules, and waits for active HTTP requests, node-schedule callbacks, connector synchronization, retention, and workspace-deletion maintenance while MongoDB remains connected. One validated 100-120000 millisecond grace window bounds each drain; an overlong HTTP connection is force-closed, a stuck component is reported by stable code and name, and all remaining cleanup still runs. Doctor and Windows setup validate the same setting before startup.',
+    impact: 'Prevents restart-time partial writes, abandoned job evidence, database teardown races, and indefinitely hung Windows or cloud shutdowns.',
+    effort: 'M',
+    status: 'done',
+    nextStep: 'Capture a two-instance hosted rolling restart while one bounded job and one authenticated request are active.',
+    acceptanceCriteria: [
+      'Future schedules are cancelled before the drain, while already-running callbacks remain observable until they settle.',
+      'MongoDB disconnect begins only after active background and HTTP work finishes or its bounded deadline is reported.',
+      'An overlong HTTP request is force-closed without retaining request content or blocking later cleanup.',
+      'Malformed shutdown configuration fails doctor and startup with stable non-secret remediation.',
+      'The packaged Windows app still closes normally and releases its loopback port.'
     ]
   }
 ];

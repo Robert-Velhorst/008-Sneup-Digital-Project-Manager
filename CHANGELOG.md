@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.3.33 - 2026-08-14
+
+### Bounded graceful restart draining
+
+- Stop accepting HTTP work immediately during shutdown while allowing active requests to finish against the still-connected database.
+- Track every running `node-schedule` invocation separately from future schedule cancellation and wait for active callbacks before MongoDB teardown.
+- Drain in-progress connector sync, invitation retention, data retention, and workspace-deletion maintenance, including runs started outside cron callbacks.
+- Force-close HTTP connections that exceed one validated `SNEUP_SHUTDOWN_GRACE_MS` window, report the exact failed component without private request data, and continue remaining cleanup.
+- Expose the shutdown window through the redacted doctor/Windows setup diagnostics and fail startup when it is malformed.
+
+### Verification
+
+- The full local gate passes 123 suites/902 tests, lint, and the 5/5 recommendation safety evaluation. Full and production dependency audits report zero vulnerabilities, and the production configuration check accepts five purpose-separated secrets without exposing their values.
+- Cold startup imported 254 modules in 315 ms at 70.4 MB RSS and kept Mongoose unloaded through Overview. A disposable real-Mongo 15,000-card profile measured 685.1 ms p50, 741.9 ms p95, and 406.3 MB peak RSS with bounded output, the intended compound index, approval required, and no provider writes.
+- In-app Browser acceptance rendered all nine setup diagnostics and ENH-032 at desktop and 390 x 844 with equal client/scroll width. HAI exposed only bounded snapshot/proposal paths, required human approval for proposals, retained `never_direct`, and exposed no approval or execution operation.
+- Built and verified unsigned `Sneup-Setup-2.3.33.exe`: 109,490,628 bytes, SHA-256 `F397C644E8EC7BE71CCD72AA1B8F852A4EE7B3A73E7470824B1C34B1D094D32D`. The exact CI packaged-app command passed product metadata, nine diagnostics, secret redaction, HAI policy, normal close, port release, and 15 byte-identical changed runtime modules; its five-second sample used 374 MB working set, 383.7 MB private memory, and 1.422 CPU seconds.
+
 ## 2.3.32 - 2026-08-14
 
 ### Lifecycle-safe background operations

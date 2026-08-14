@@ -6,6 +6,7 @@ const {
 } = require('../utils/securityConfiguration');
 const { getProviderWriteSafetyStatus } = require('./providerWriteSafetyService');
 const { resolveTrelloTimeoutMs } = require('../utils/trelloConfiguration');
+const { getShutdownGraceMs } = require('../utils/runtimeShutdown');
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1', 'localhost']);
 
@@ -24,10 +25,16 @@ const getRuntimeDiagnostics = ({ environment = process.env, nodeVersion = proces
   const hasTrelloToken = Boolean(String(environment.TRELLO_API_TOKEN || '').trim());
   const trelloPlaceholder = isPlaceholder(environment.TRELLO_API_KEY) || isPlaceholder(environment.TRELLO_API_TOKEN);
   let trelloConfigurationValid = true;
+  let shutdownConfigurationValid = true;
   try {
     resolveTrelloTimeoutMs(environment.SNEUP_TRELLO_TIMEOUT_MS);
   } catch {
     trelloConfigurationValid = false;
+  }
+  try {
+    getShutdownGraceMs(environment);
+  } catch {
+    shutdownConfigurationValid = false;
   }
 
   checks.push(nodeMajor(nodeVersion) >= 22
@@ -37,6 +44,10 @@ const getRuntimeDiagnostics = ({ environment = process.env, nodeVersion = proces
   checks.push(diagnostic('runtime_mode', 'ok', demoMode
     ? 'Demo mode is active and external writes remain unavailable'
     : 'Live mode is selected'));
+
+  checks.push(shutdownConfigurationValid
+    ? diagnostic('runtime_shutdown', 'ok', 'Graceful restart draining is bounded and configured')
+    : diagnostic('runtime_shutdown', 'error', 'Shutdown grace must be a whole number from 100 to 120000 milliseconds'));
 
   if (demoMode) {
     checks.push(diagnostic('database_configuration', 'ok', 'Database connectivity is optional in demo mode'));

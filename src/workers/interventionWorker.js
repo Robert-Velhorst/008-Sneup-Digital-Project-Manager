@@ -5,7 +5,7 @@ const operationsLedgerService = require('../services/operationsLedgerService');
 const Board = require('../models/Board');
 const jobObservabilityService = require('../services/jobObservabilityService');
 const { listActiveWorkspaceIds } = require('../services/workspaceScopeService');
-const { observeScheduledJob } = require('../utils/scheduledJob');
+const { cancelScheduledJob, observeScheduledJob } = require('../utils/scheduledJob');
 
 class InterventionWorker {
   constructor() {
@@ -174,11 +174,7 @@ class InterventionWorker {
 
   // Stop all jobs
   stop() {
-    Object.values(this.jobs).forEach(job => {
-      if (job) {
-        job.cancel();
-      }
-    });
+    Object.values(this.jobs).forEach(cancelScheduledJob);
     this.jobs = {};
     logger.info('Intervention worker stopped');
   }

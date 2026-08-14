@@ -12,6 +12,17 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-14 active-work-drain continuation
+
+- Re-audited the governing operations-ledger contract and current 2.3.32 runtime. Approval, exact payload, provider evidence, HAI read/propose, and ngrok origin controls remain intact.
+- Found that cancelling a node-schedule job did not wait for a callback already in progress, workspace-deletion maintenance could overlap database teardown, and an active HTTP connection could keep process shutdown open indefinitely.
+- Added tracked active-job draining, drain-aware connector/retention/deletion stops, immediate HTTP admission close, bounded forced connection teardown, database-last ordering, and redacted startup/doctor validation for the shared grace window.
+- Corrected the remote-access runbook to use the implemented `SNEUP_API_KEY` setting.
+- The final local gate passed 123 suites/902 tests, lint, the 5/5 safety evaluation, two zero-vulnerability audits, and positive five-secret production validation.
+- Cold startup imported 254 modules in 315 ms at 70.4 MB RSS and kept Mongoose unloaded through Overview. The disposable real-Mongo 15,000-card profile measured 685.1 ms p50, 741.9 ms p95, and 406.3 MB peak RSS with bounded output, the intended index, approval required, and no provider writes.
+- In-app Browser acceptance rendered nine setup checks plus ENH-032 at desktop and 390 x 844 with no horizontal overflow. HAI retained only snapshot/proposal paths, proposal approval, `never_direct`, and no approval or execution operation.
+- Built and verified unsigned `release/Sneup-Setup-2.3.33.exe`, 109,490,628 bytes, SHA-256 `F397C644E8EC7BE71CCD72AA1B8F852A4EE7B3A73E7470824B1C34B1D094D32D`. The exact CI packaged-app command passed at 374 MB working set, 383.7 MB private memory, and 1.422 CPU seconds; all 15 changed runtime modules are byte-identical inside the ASAR.
+
 ## 2026-08-14 runtime-lifecycle continuation
 
 - Audited every live recurring workload and found that Trello, analytics, connector, intervention, performance, and notification schedules were not all stopped by application shutdown. Analytics and several workers could also duplicate jobs after repeated initialization or retain cancelled handles after stop.

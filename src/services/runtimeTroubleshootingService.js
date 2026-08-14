@@ -9,6 +9,10 @@ const CHECK_GUIDANCE = Object.freeze({
     title: 'Workspace mode',
     action: 'Choose demo for read-only evaluation or live after the database and Trello connection are ready.'
   },
+  runtime_shutdown: {
+    title: 'Graceful restart',
+    action: 'Set SNEUP_SHUTDOWN_GRACE_MS to a whole number from 100 to 120000 milliseconds, then restart Sneup.'
+  },
   database_configuration: {
     title: 'Database',
     action: 'Configure MONGODB_URI in the protected runtime environment, then restart Sneup in live mode.'

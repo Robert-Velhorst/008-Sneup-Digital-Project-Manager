@@ -12,6 +12,8 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 
 2.3.32 gives every recurring live workload one owned lifecycle. Schedules cannot silently duplicate or accept invalid cron configuration, recorded callback failures no longer become uncaught scheduler errors, partial-startup cleanup continues through HTTP and MongoDB after another stop fails, persisted job errors are credential-sanitized, and Windows CI must exercise the packaged app before upload.
 
+2.3.33 closes the restart-time drain gap. Sneup stops accepting HTTP work, cancels future schedules, and keeps MongoDB available while active requests, scheduled callbacks, connector synchronization, retention, and deletion maintenance finish. One validated grace window bounds shutdown, overlong HTTP connections are force-closed, and doctor/Windows setup reject invalid configuration before startup.
+
 | Phase | Status | Evidence or remaining gate |
 | --- | --- | --- |
 | 000 Repository integrity | Implemented | Baseline commit/branch/remote recorded; unrelated worktree artifacts preserved. |
@@ -30,7 +32,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 013 Platform/compliance boundaries | Partial | Data minimization is coded; final provider terms review is external. |
 | 014 No fake success | Implemented | Explicit read-only demo and catalog-only states; write paths fail closed. |
 | 015 File/upload/media safety | N/A | Product has no user-upload workflow; PDF reports use controlled output. |
-| 016 Jobs/schedulers/workers | Implemented | Job controls, run records, workers, health, tests, expiring per-workspace distributed leases, idempotent scheduler ownership, observed callback failures, and complete partial-startup cleanup. |
+| 016 Jobs/schedulers/workers | Implemented | Job controls, run records, workers, health, tests, expiring per-workspace distributed leases, idempotent scheduler ownership, observed callback failures, complete partial-startup cleanup, and bounded active-work drain before database teardown. |
 | 017 Idempotency/duplicates | Implemented | Delivery receipts, atomic claims, serialized syncs, reconciliation. |
 | 018 Rate limits/quotas | Implemented | Request limits, provider bounds, pacing, retry caps, visible truncation failures. |
 | 019 Audit history | Implemented | Workspace audit events and operations-ledger timelines. |

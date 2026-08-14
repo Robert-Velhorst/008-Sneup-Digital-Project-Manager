@@ -8,6 +8,8 @@ const packageMetadata = require('../package.json');
 const logger = require('./utils/logger');
 const { registerProcessHandlers } = require('./utils/processHandlers');
 const { createLazyRouter, createLazyValue } = require('./utils/lazyModule');
+const { waitForScheduledJobs } = require('./utils/scheduledJob');
+const { closeHttpServer, getShutdownGraceMs, withTimeout } = require('./utils/runtimeShutdown');
 const {
   apiRateLimit,
   corsOptions,
@@ -81,6 +83,7 @@ const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '127.0.0.1';
 let server;
 let shutdownPromise = null;
+let shutdownGraceMs = null;
 const startupState = {
   initialized: false,
   phase: 'starting'
@@ -235,6 +238,7 @@ const initApp = async () => {
     startupState.phase = 'initializing';
     logger.info('Starting Sneup...');
     validateRuntimeSecurityConfiguration();
+    shutdownGraceMs = getShutdownGraceMs();
     
     let databaseConnected = false;
 
@@ -345,24 +349,38 @@ const initApp = async () => {
   }
 };
 
-const closeServer = () => new Promise((resolve, reject) => {
-  if (!server) return resolve();
+const closeServer = async (options = {}) => {
+  if (!server) return { forced: false };
   const activeServer = server;
-  activeServer.close(error => {
-    if (error && error.code !== 'ERR_SERVER_NOT_RUNNING') return reject(error);
+  try {
+    return await closeHttpServer(activeServer, options);
+  } finally {
     if (server === activeServer) server = undefined;
-    return resolve();
-  });
-});
+  }
+};
 
 const shutdown = async () => {
   if (shutdownPromise) return shutdownPromise;
 
   shutdownPromise = (async () => {
+    const graceMs = shutdownGraceMs || getShutdownGraceMs();
     const failures = [];
-    const stopComponent = async (component, stop) => {
+    const preserveFailedState = startupState.phase === 'failed';
+    if (!preserveFailedState) {
+      startupState.initialized = false;
+      startupState.phase = 'stopping';
+    }
+
+    const stopComponent = async (component, stop, options = {}) => {
       try {
-        await stop();
+        const pending = stop();
+        await (options.hasOwnTimeout
+          ? pending
+          : withTimeout(pending, {
+            timeoutMs: graceMs,
+            code: 'SNEUP_SHUTDOWN_COMPONENT_TIMEOUT',
+            message: `${component} did not stop before the shutdown deadline`
+          }));
       } catch (error) {
         failures.push({ component, error });
         logger.error('Runtime shutdown component failed', {
@@ -384,12 +402,20 @@ const shutdown = async () => {
       ['Trello synchronization', () => getTrelloSync.peek()?.stopSync?.()]
     ];
 
-    for (const [component, stop] of schedulerStops) {
-      await stopComponent(component, stop);
-    }
+    const drains = schedulerStops.map(([component, stop]) => stopComponent(component, stop));
+    drains.push(stopComponent(
+      'scheduled job drain',
+      () => waitForScheduledJobs({ timeoutMs: graceMs }),
+      { hasOwnTimeout: true }
+    ));
+    drains.push(stopComponent('ngrok ingress', () => ngrokTunnelService.stop()));
+    drains.push(stopComponent(
+      'HTTP server',
+      () => closeServer({ timeoutMs: graceMs }),
+      { hasOwnTimeout: true }
+    ));
+    await Promise.all(drains);
 
-    await stopComponent('ngrok ingress', () => ngrokTunnelService.stop());
-    await stopComponent('HTTP server', closeServer);
     await stopComponent('MongoDB', async () => {
       const database = getDatabase.peek();
       if (database?.isDatabaseConnected()) await database.disconnectDatabase();
@@ -402,8 +428,13 @@ const shutdown = async () => {
       );
       error.code = 'SNEUP_SHUTDOWN_INCOMPLETE';
       error.components = failures.map(failure => failure.component);
+      startupState.initialized = false;
+      startupState.phase = 'failed';
       throw error;
     }
+
+    startupState.initialized = false;
+    if (!preserveFailedState) startupState.phase = 'stopped';
   })();
 
   try {

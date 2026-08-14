@@ -48,4 +48,18 @@ describe('runtime troubleshooting contract', () => {
     expect(report).toMatchObject({ status: 'ok', ready: true, liveCriticalPathReady: true, nextAction: null });
     expect(report.checks.every(check => check.status === 'ok' && check.action === null)).toBe(true);
   });
+
+  test('provides a bounded graceful-restart remediation', () => {
+    const report = getRuntimeTroubleshooting({ environment: {
+      NODE_ENV: 'development',
+      SNEUP_DEMO_MODE: 'true',
+      SNEUP_SHUTDOWN_GRACE_MS: 'forever'
+    }, nodeVersion: '24.6.0' });
+
+    expect(report.nextAction).toEqual({
+      checkId: 'runtime_shutdown',
+      title: 'Graceful restart',
+      action: expect.stringContaining('SNEUP_SHUTDOWN_GRACE_MS')
+    });
+  });
 });

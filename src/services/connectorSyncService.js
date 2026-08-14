@@ -8,7 +8,7 @@ const workSignalAdapterService = require('./workSignalAdapterService');
 const workSignalService = require('./workSignalService');
 const logger = require('../utils/logger');
 const { copyWorkSignalSyncCounts } = require('../utils/workSignalSyncMetadata');
-const { observeScheduledJob } = require('../utils/scheduledJob');
+const { cancelScheduledJob, observeScheduledJob } = require('../utils/scheduledJob');
 const {
   getDefaultWorkspaceObjectId,
   listActiveWorkspaceIds,
@@ -69,11 +69,10 @@ class ConnectorSyncService {
     return this.job;
   }
 
-  stop() {
-    if (this.job) {
-      this.job.cancel();
-      this.job = null;
-    }
+  async stop() {
+    cancelScheduledJob(this.job);
+    this.job = null;
+    if (this.activeScheduledSync) await this.activeScheduledSync;
   }
 
   async runTrackedSync(options = {}) {

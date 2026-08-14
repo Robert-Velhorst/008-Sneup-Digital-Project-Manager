@@ -574,10 +574,11 @@ pm2 startup
 | `LOG_LEVEL` | Logging level | `info` |
 | `SNEUP_HTTP_REQUEST_LOGS` | Log every successful HTTP request instead of only errors and slow requests | `false` |
 | `SNEUP_SLOW_REQUEST_MS` | Slow-request warning threshold, bounded from 100 to 60000 ms | `1000` |
+| `SNEUP_SHUTDOWN_GRACE_MS` | Graceful active-request/job drain window before forced teardown, bounded from 100 to 120000 ms | `15000` |
 
 ## Troubleshooting
 
-Open **Set up** in the command center first. Sneup checks the application runtime, selected workspace mode, MongoDB, Trello connection, production secrets, remote API protection, ngrok posture, and provider-write safety. Each non-ready check includes the next operator action without exposing a secret.
+Open **Set up** in the command center first. Sneup checks the application runtime, selected workspace mode, graceful restart window, MongoDB, Trello connection, production secrets, remote API protection, ngrok posture, and provider-write safety. Each non-ready check includes the next operator action without exposing a secret.
 
 In the Windows app, **Support file** writes a redacted JSON file to Sneup's local user-data support folder and opens it in File Explorer. It contains configuration status only: no environment values, credentials, tokens, connection strings, logs, or user data. Browser/server operators can create the same bounded file with `npm.cmd run support:bundle`.
 
@@ -598,7 +599,7 @@ Release operators can verify the unpacked Windows app with `npm.cmd run verify:p
 ### Remote access issues
 
 - Keep the HTTP server loopback-only unless authenticated ngrok ingress is deliberately enabled.
-- Verify `SNEUP_API_ACCESS_KEY`, `NGROK_AUTHTOKEN`, and the allowed remote origin with `npm.cmd run check:release-security`; that command reports posture, never secret values.
+- Verify `SNEUP_API_KEY`, `NGROK_AUTHTOKEN`, and the allowed remote origin with `npm.cmd run check:release-security`; that command reports posture, never secret values.
 - Require `/ready` to show the expected API protection, tunnel, and provider-write modes.
 
 ## Contributing

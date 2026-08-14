@@ -7,7 +7,7 @@ const Analytics = require('../models/Analytics');
 const schedule = require('node-schedule');
 const jobObservabilityService = require('./jobObservabilityService');
 const { getDefaultWorkspaceObjectId, listActiveWorkspaceIds, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
-const { observeScheduledJob } = require('../utils/scheduledJob');
+const { cancelScheduledJob, observeScheduledJob } = require('../utils/scheduledJob');
 
 /**
  * Analytics Service
@@ -53,7 +53,7 @@ const initAnalytics = () => {
 };
 
 const stopAnalytics = () => {
-  analyticsJob?.cancel();
+  cancelScheduledJob(analyticsJob);
   analyticsJob = null;
   logger.info('Analytics service stopped');
 };

@@ -97,6 +97,21 @@ describe('redacted runtime diagnostics', () => {
     });
   });
 
+  test('explains an invalid shutdown grace window before startup', () => {
+    const report = getRuntimeDiagnostics({ environment: {
+      NODE_ENV: 'development',
+      SNEUP_DEMO_MODE: 'true',
+      SNEUP_SHUTDOWN_GRACE_MS: 'unbounded'
+    } });
+
+    expect(report.ready).toBe(false);
+    expect(report.checks).toContainEqual({
+      id: 'runtime_shutdown',
+      status: 'error',
+      summary: 'Shutdown grace must be a whole number from 100 to 120000 milliseconds'
+    });
+  });
+
   test('fails closed when ngrok is enabled without enforced strong API authentication', () => {
     const report = getRuntimeDiagnostics({ environment: {
       NODE_ENV: 'development',

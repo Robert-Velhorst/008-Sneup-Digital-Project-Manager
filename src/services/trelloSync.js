@@ -9,7 +9,7 @@ const schedule = require('node-schedule');
 const jobObservabilityService = require('./jobObservabilityService');
 const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
 const { extractTrelloCardShortLink } = require('../utils/trelloIdentifiers');
-const { observeScheduledJob } = require('../utils/scheduledJob');
+const { cancelScheduledJob, observeScheduledJob } = require('../utils/scheduledJob');
 
 const DEFAULT_BOARD_SYNC_CONCURRENCY = 2;
 const MAX_BOARD_SYNC_CONCURRENCY = 4;
@@ -158,8 +158,8 @@ const scheduleSync = (workspaceId = normalizeWorkspaceObjectId(getDefaultWorkspa
   }), { logger, jobName: 'trello.incremental_sync' });
 
   if (!fullSync || !incrementalSync) {
-    fullSync?.cancel();
-    incrementalSync?.cancel();
+    cancelScheduledJob(fullSync);
+    cancelScheduledJob(incrementalSync);
     const error = new Error('Trello synchronization schedules could not be created');
     error.code = 'SNEUP_TRELLO_SCHEDULE_INVALID';
     throw error;
@@ -172,7 +172,7 @@ const scheduleSync = (workspaceId = normalizeWorkspaceObjectId(getDefaultWorkspa
 };
 
 const stopSync = () => {
-  Object.values(syncJobs).forEach(job => job?.cancel());
+  Object.values(syncJobs).forEach(cancelScheduledJob);
   syncJobs = {};
   logger.info('Trello synchronization schedules stopped');
 };

@@ -1,5 +1,6 @@
 # Enhancement Findings
 
+- ENH-032 release evidence: shutdown now stops admission, cancels future schedules, drains active HTTP/background/database work within one validated grace window, force-closes overlong connections, continues all cleanup after a timeout, and exposes the same configuration through redacted setup diagnostics.
 - ENH-031 release evidence: every recurring scheduler now owns an idempotent start/stop lifecycle and a non-secret error observer; partial startup continues through HTTP and MongoDB cleanup after another component fails; Job Health redacts credentials before persistence; Windows CI launches the packaged app before upload.
 - ENH-030 release evidence: the validated ngrok origin now enters the existing CORS allowlist dynamically, concurrent starts share one listener, unsafe public URLs close before publication, ephemeral restarts refresh Sneup-owned Trello callbacks, and shutdown restores prior operator configuration.
 - ENH-016 release evidence: Trello requests now honor a validated bounded timeout and transport-size ceiling. Ambiguous timeout, reset, HTTP 408/5xx, local post-write snapshot, reassignment, and checklist outcomes remain atomically claimed with exact reconciliation evidence; the operator view shows the reason and confirmed/uncertain steps without issuing another provider request.
@@ -10,7 +11,7 @@ This backlog turns the high-level improvement plan into concrete engineering fin
 
 ## Priority Summary
 
-- P0: 8 findings that block serious production use, including completed scheduler lifecycle and shutdown hardening.
+- P0: 9 findings that block serious production use, including completed scheduler lifecycle and active-work drain hardening.
 - P1: 4 findings that materially improve trust, operability, and desktop adoption, plus 2 completed operations control findings.
 - P2: 6 findings that harden scale, quality, and workflow reach.
 - P3: 1 reporting enhancement with fast user-visible value.
@@ -23,7 +24,7 @@ This backlog turns the high-level improvement plan into concrete engineering fin
 - ENH-020: All ten connector account-selection forms now load only with the Connector view. Authenticated reads and writes remain in the controller, while the deferred renderer adds complete English/Dutch copy, bounded and escaped options, duplicate-submit protection, honest empty-choice handling, cancellation, and failed-save retry. Initial app-plus-localization transfer fell by 21,493 raw, 2,131 gzip, and 1,610 Brotli bytes.
 - ENH-020: The five workspace policy forms now load with Workspace administration instead of Overview. Exact payloads and authenticated writes remain in the trusted controller; initial app-plus-localization transfer fell by 14,798 raw, 2,140 gzip, and 1,673 Brotli bytes without weakening fixed-owner, approval, draft-recovery, or provider-write boundaries.
 - ENH-020: Connector, workspace, and approval rendering are now retry-safe demand-loaded modules. Each API read and module fetch run concurrently, guarded mutations remain in the trusted controller, view-specific Dutch catalogs load with their views, the initial payload is smaller, operational evidence stays verbatim, and the shared immutable-cache fingerprint covers every initial and deferred command-center asset.
-- ENH-006: Setup now joins demo/live mode selection with eight live runtime and provider-write safety checks, prioritized remediation, and a desktop-only redacted support-file action. The file contains no environment values, credentials, logs, connection strings, or user data.
+- ENH-006: Setup now joins demo/live mode selection with nine live runtime and provider-write safety checks, including graceful restart configuration, prioritized remediation, and a desktop-only redacted support-file action. The file contains no environment values, credentials, logs, connection strings, or user data.
 - ENH-011: Trello card and attachment short links are now canonical, exact dependency identifiers. Core critical-blocker detection no longer searches descriptions for card titles, graph edges resolve across full and short Trello identifiers, and board/card reads request only attachment link metadata instead of full preview payloads.
 - ENH-028: Workspace owners can preview and opt into bounded retention for terminal operational history, snapshots, performance history, finalized notification receipts, and revoked credentials. Every category is audited before and after deletion, shares a distributed workspace lease, and excludes provider-action, approval, audit, active credential, pending delivery, and current-work evidence.
 - ENH-007: Background jobs now use one expiring MongoDB lease per workspace and job across Sneup processes. Active runs heartbeat, only the exact private token can renew or release, crashed instances recover by expiry, webhook events stay concurrent, and Job Health exposes protected/skipped evidence without lease identity.

@@ -2,7 +2,7 @@ const schedule = require('node-schedule');
 const logger = require('../utils/logger');
 const notificationService = require('../services/notificationService');
 const jobObservabilityService = require('../services/jobObservabilityService');
-const { observeScheduledJob } = require('../utils/scheduledJob');
+const { cancelScheduledJob, observeScheduledJob } = require('../utils/scheduledJob');
 
 class NotificationWorker {
   constructor() {
@@ -84,7 +84,7 @@ class NotificationWorker {
   }
 
   stop() {
-    Object.values(this.jobs).forEach(job => job?.cancel());
+    Object.values(this.jobs).forEach(cancelScheduledJob);
     this.jobs = {};
     logger.info('Notification worker stopped');
   }

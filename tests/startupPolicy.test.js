@@ -135,4 +135,19 @@ describe('database startup policy', () => {
     await app.shutdown();
     expect(app.getServer()).toBeUndefined();
   });
+
+  test('invalid graceful shutdown configuration fails before database or HTTP startup', async () => {
+    configureEnvironment({
+      NODE_ENV: 'development',
+      SNEUP_DEMO_MODE: 'true',
+      SNEUP_SHUTDOWN_GRACE_MS: 'forever'
+    });
+    const { app, database, tunnel } = loadAppWithDatabaseFailure();
+
+    await expect(app.initApp()).rejects.toMatchObject({ code: 'SNEUP_SHUTDOWN_CONFIGURATION' });
+    expect(database.connectDatabase).not.toHaveBeenCalled();
+    expect(app.getServer()).toBeUndefined();
+    expect(app.getStartupState()).toEqual({ initialized: false, phase: 'failed' });
+    expect(tunnel.stop).not.toHaveBeenCalled();
+  });
 });

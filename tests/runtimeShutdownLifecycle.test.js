@@ -61,7 +61,13 @@ describe('application runtime shutdown lifecycle', () => {
     const analytics = { initAnalytics: jest.fn(), stopAnalytics: jest.fn() };
     const connectorSync = { init: jest.fn(), stop: jest.fn() };
     const worker = () => ({ init: jest.fn(), stop: jest.fn() });
-    const workspaceDeletion = { ...worker(), run: jest.fn().mockResolvedValue(undefined) };
+    let finishWorkspaceDeletionDrain;
+    const workspaceDeletionDrain = new Promise(resolve => { finishWorkspaceDeletionDrain = resolve; });
+    const workspaceDeletion = {
+      ...worker(),
+      run: jest.fn().mockResolvedValue(undefined),
+      stop: jest.fn(() => workspaceDeletionDrain)
+    };
     const identityRetention = worker();
     const dataRetention = worker();
     const intervention = worker();
@@ -90,7 +96,12 @@ describe('application runtime shutdown lifecycle', () => {
     jest.doMock('../src/utils/processHandlers', () => ({ registerProcessHandlers: jest.fn() }));
 
     const app = require('../src/index');
-    await expect(app.initApp()).rejects.toBe(startupError);
+    const startup = app.initApp();
+    while (tunnel.start.mock.calls.length === 0) await new Promise(resolve => setImmediate(resolve));
+    await new Promise(resolve => setImmediate(resolve));
+    expect(database.disconnectDatabase).not.toHaveBeenCalled();
+    finishWorkspaceDeletionDrain();
+    await expect(startup).rejects.toBe(startupError);
 
     expect(workspaceDeletion.run).toHaveBeenCalledTimes(1);
     expect(analytics.initAnalytics).toHaveBeenCalledTimes(1);

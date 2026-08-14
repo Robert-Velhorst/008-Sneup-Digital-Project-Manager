@@ -2,7 +2,7 @@ const schedule = require('node-schedule');
 const logger = require('../utils/logger');
 const dataRetentionService = require('../services/dataRetentionService');
 const jobObservabilityService = require('../services/jobObservabilityService');
-const { observeScheduledJob } = require('../utils/scheduledJob');
+const { cancelScheduledJob, observeScheduledJob } = require('../utils/scheduledJob');
 
 class DataRetentionWorker {
   constructor() {
@@ -75,10 +75,10 @@ class DataRetentionWorker {
     return results;
   }
 
-  stop() {
-    this.job?.cancel();
+  async stop() {
+    cancelScheduledJob(this.job);
     this.job = null;
-    this.activeRun = null;
+    if (this.activeRun) await this.activeRun;
     logger.info('Data retention worker stopped');
   }
 }

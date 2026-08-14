@@ -1,5 +1,11 @@
 # Technical Audit
 
+## 2.3.33 graceful-restart audit
+
+- Scheduler cancellation removed future invocations but did not prove callbacks already in progress had completed before MongoDB disconnected. Workspace-deletion maintenance had the same gap, and an active HTTP request could keep shutdown open indefinitely.
+- Added explicit active invocation tracking, drain-aware connector/retention/deletion stops, immediate HTTP admission close, bounded forced connection teardown, and database-last ordering. Stable timeout evidence contains component/job names and codes only.
+- The same bounded shutdown setting is validated by startup, doctor, and Windows first-run diagnostics.
+
 ## 2.3.29 database-pool audit
 
 - The former connection options left MongoDB's 100-socket per-server default and unlimited wait queue intact for every Sneup process. Horizontal scaling multiplied that capacity and allowed an overload request to wait without a deadline.
