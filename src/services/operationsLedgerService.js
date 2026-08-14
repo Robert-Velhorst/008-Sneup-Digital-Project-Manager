@@ -15,20 +15,25 @@ const Board = require('../models/Board');
 const Card = require('../models/Card');
 const Member = require('../models/Member');
 const WorkItem = require('../models/WorkItem');
-const trelloClient = require('./trelloClient');
-const policyRuleService = require('./policyRuleService');
-const recommendationPayloadPolicy = require('./recommendationPayloadPolicy');
-const workGraphService = require('./workGraphService');
-const {
-  assertProviderWritesEnabled,
-  getProviderWriteSafetyStatus
-} = require('./providerWriteSafetyService');
+const { createLazyValue } = require('../utils/lazyModule');
 const logger = require('../utils/logger');
 const { normalizeWorkspaceObjectId } = require('./workspaceScopeService');
 const {
   TRELLO_WEBHOOK_ACTIONS,
   normalizeTrelloWebhookCallbackUrl
 } = require('../utils/trelloWebhookConfiguration');
+
+const getTrelloClient = createLazyValue(() => require('./trelloClient'), 'Trello client');
+const getPolicyRuleService = createLazyValue(() => require('./policyRuleService'), 'policy rule service');
+const getRecommendationPayloadPolicy = createLazyValue(
+  () => require('./recommendationPayloadPolicy'),
+  'recommendation payload policy'
+);
+const getWorkGraphService = createLazyValue(() => require('./workGraphService'), 'work graph service');
+const getProviderWriteSafetyService = createLazyValue(
+  () => require('./providerWriteSafetyService'),
+  'provider write safety service'
+);
 
 const HOURS = 60 * 60 * 1000;
 const DEFAULT_RECONCILIATION_WARNING_HOURS = 4;
@@ -357,7 +362,7 @@ class OperationsLedgerService {
 
     const savedIntervention = intervention.isNew === false ? intervention : await intervention.save();
     const workspaceId = this.resolveWorkspaceId(policy?.workspaceId || savedIntervention.workspaceId);
-    const resolvedPolicy = policy || await policyRuleService.resolveEffectivePolicy(savedIntervention.type, {
+    const resolvedPolicy = policy || await getPolicyRuleService().resolveEffectivePolicy(savedIntervention.type, {
       workspaceId,
       severity: savedIntervention.severity
     });
@@ -377,8 +382,8 @@ class OperationsLedgerService {
     if (existing) {
       return existing;
     }
-    const queueRoutingPolicy = await policyRuleService.getDecisionQueueRoutingPolicy({ workspaceId });
-    const queueRouting = policyRuleService.resolveDecisionQueueRouting({
+    const queueRoutingPolicy = await getPolicyRuleService().getDecisionQueueRoutingPolicy({ workspaceId });
+    const queueRouting = getPolicyRuleService().resolveDecisionQueueRouting({
       riskLevel: resolvedPolicy.riskLevel,
       requestedOwner: resolvedPolicy.ownerType,
       policy: queueRoutingPolicy
@@ -502,12 +507,12 @@ class OperationsLedgerService {
       };
     }
 
-    const policy = await policyRuleService.resolveEffectivePolicy(spec.actionType, {
+    const policy = await getPolicyRuleService().resolveEffectivePolicy(spec.actionType, {
       workspaceId,
       severity: 'high'
     });
-    const queueRoutingPolicy = await policyRuleService.getDecisionQueueRoutingPolicy({ workspaceId });
-    const queueRouting = policyRuleService.resolveDecisionQueueRouting({
+    const queueRoutingPolicy = await getPolicyRuleService().getDecisionQueueRoutingPolicy({ workspaceId });
+    const queueRouting = getPolicyRuleService().resolveDecisionQueueRouting({
       riskLevel: policy.riskLevel,
       requestedOwner: 'robert',
       policy: queueRoutingPolicy
@@ -590,7 +595,7 @@ class OperationsLedgerService {
     const savedFinding = finding.isNew === false ? finding : await finding.save();
     const workspaceId = this.resolveWorkspaceId(actionSpec.workspaceId || savedFinding.workspaceId);
     const actionType = actionSpec.actionType || this.defaultActionTypeForFinding(savedFinding);
-    const policy = await policyRuleService.resolveEffectivePolicy(actionType, {
+    const policy = await getPolicyRuleService().resolveEffectivePolicy(actionType, {
       workspaceId,
       severity: savedFinding.severity
     });
@@ -607,8 +612,8 @@ class OperationsLedgerService {
       return existing;
     }
 
-    const queueRoutingPolicy = await policyRuleService.getDecisionQueueRoutingPolicy({ workspaceId });
-    const queueRouting = policyRuleService.resolveDecisionQueueRouting({
+    const queueRoutingPolicy = await getPolicyRuleService().getDecisionQueueRoutingPolicy({ workspaceId });
+    const queueRouting = getPolicyRuleService().resolveDecisionQueueRouting({
       riskLevel: policy.riskLevel,
       requestedOwner: actionSpec.ownerType || savedFinding.waitingOn || policy.ownerType,
       policy: queueRoutingPolicy
@@ -706,7 +711,7 @@ class OperationsLedgerService {
     const workspaceId = this.resolveWorkspaceId(options.workspaceId);
     const { card, member, boardId, cardId, memberId } = await this.resolveAutopilotCommandRefs(normalized, { workspaceId });
     const actionSpec = this.buildAutopilotActionSpec(normalized, card, member);
-    const policy = await policyRuleService.resolveEffectivePolicy(actionSpec.actionType, {
+    const policy = await getPolicyRuleService().resolveEffectivePolicy(actionSpec.actionType, {
       workspaceId,
       severity: normalized.severity
     });
@@ -736,8 +741,8 @@ class OperationsLedgerService {
       };
     }
 
-    const queueRoutingPolicy = await policyRuleService.getDecisionQueueRoutingPolicy({ workspaceId });
-    const queueRouting = policyRuleService.resolveDecisionQueueRouting({
+    const queueRoutingPolicy = await getPolicyRuleService().getDecisionQueueRoutingPolicy({ workspaceId });
+    const queueRouting = getPolicyRuleService().resolveDecisionQueueRouting({
       riskLevel,
       requestedOwner: ownerType,
       policy: queueRoutingPolicy
@@ -815,8 +820,8 @@ class OperationsLedgerService {
       throw error;
     }
 
-    const dependencySummary = await workGraphService.dependencySummaryForItem(workItem, workspaceId);
-    const candidate = workGraphService.buildDecisionCandidate(workItem, dependencySummary);
+    const dependencySummary = await getWorkGraphService().dependencySummaryForItem(workItem, workspaceId);
+    const candidate = getWorkGraphService().buildDecisionCandidate(workItem, dependencySummary);
     if (!candidate) {
       const error = new Error('Work item does not currently need a decision queue item');
       error.statusCode = 400;
@@ -844,12 +849,12 @@ class OperationsLedgerService {
       };
     }
 
-    const policy = await policyRuleService.resolveEffectivePolicy(candidate.actionType, {
+    const policy = await getPolicyRuleService().resolveEffectivePolicy(candidate.actionType, {
       workspaceId,
       severity: candidate.riskLevel
     });
-    const queueRoutingPolicy = await policyRuleService.getDecisionQueueRoutingPolicy({ workspaceId });
-    const queueRouting = policyRuleService.resolveDecisionQueueRouting({
+    const queueRoutingPolicy = await getPolicyRuleService().getDecisionQueueRoutingPolicy({ workspaceId });
+    const queueRouting = getPolicyRuleService().resolveDecisionQueueRouting({
       riskLevel: candidate.riskLevel || policy.riskLevel,
       requestedOwner: candidate.ownerType || policy.ownerType,
       policy: queueRoutingPolicy
@@ -893,7 +898,7 @@ class OperationsLedgerService {
       riskLevel: recommendation.riskLevel,
       recommendationId: recommendation._id,
       afterState: {
-        workItem: workGraphService.sanitizeItem(workItem),
+        workItem: getWorkGraphService().sanitizeItem(workItem),
         recommendation: recommendation.toObject()
       }
     });
@@ -1262,7 +1267,7 @@ class OperationsLedgerService {
     }
 
     const beforeState = recommendation.toObject();
-    const actionPayload = recommendationPayloadPolicy.applyPatch(
+    const actionPayload = getRecommendationPayloadPolicy().applyPatch(
       recommendation.actionType,
       recommendation.actionPayload,
       body.actionPayload
@@ -1299,7 +1304,7 @@ class OperationsLedgerService {
   }
 
   async validateEditablePayloadTarget(recommendation, payload) {
-    if (!recommendationPayloadPolicy.isReadyForExecution(recommendation.actionType, payload)) return;
+    if (!getRecommendationPayloadPolicy().isReadyForExecution(recommendation.actionType, payload)) return;
 
     if (recommendation.actionType === 'reassign') {
       if (!mongoose.Types.ObjectId.isValid(payload.toMemberId)) {
@@ -1342,7 +1347,7 @@ class OperationsLedgerService {
       throw error;
     }
 
-    const providerWriteSafety = getProviderWriteSafetyStatus();
+    const providerWriteSafety = getProviderWriteSafetyService().getProviderWriteSafetyStatus();
     if (!providerWriteSafety.enabled) {
       await this.recordAudit({
         workspaceId: recommendation.workspaceId,
@@ -1359,12 +1364,12 @@ class OperationsLedgerService {
           providerWriteSafety
         }
       });
-      assertProviderWritesEnabled();
+      getProviderWriteSafetyService().assertProviderWritesEnabled();
     }
 
     await this.assertWorkspaceAllowsProviderWrites(recommendation.workspaceId, recommendation, options);
 
-    const actionPolicy = await policyRuleService.resolveEffectivePolicy(recommendation.actionType, {
+    const actionPolicy = await getPolicyRuleService().resolveEffectivePolicy(recommendation.actionType, {
       workspaceId: recommendation.workspaceId,
       severity: recommendation.riskLevel
     });
@@ -1677,24 +1682,24 @@ class OperationsLedgerService {
         return this.performTrelloWriteStep(
           recommendation.actionType,
           'comment_posted',
-          () => trelloClient.cardApi.addComment(payload.cardTrelloId, payload.commentText)
+          () => getTrelloClient().cardApi.addComment(payload.cardTrelloId, payload.commentText)
         );
       case 'move_card':
         this.requirePayload(payload, ['cardTrelloId', 'targetListId']);
         return this.performTrelloWriteStep(
           recommendation.actionType,
           'card_moved',
-          () => trelloClient.cardApi.moveCard(payload.cardTrelloId, payload.targetListId)
+          () => getTrelloClient().cardApi.moveCard(payload.cardTrelloId, payload.targetListId)
         );
       case 'reassign':
         this.requirePayload(payload, ['cardTrelloId', 'fromMemberTrelloId', 'toMemberTrelloId']);
         await this.performTrelloWriteStep(
           recommendation.actionType,
           'source_member_removed',
-          () => trelloClient.cardApi.removeMember(payload.cardTrelloId, payload.fromMemberTrelloId)
+          () => getTrelloClient().cardApi.removeMember(payload.cardTrelloId, payload.fromMemberTrelloId)
         );
         try {
-          await trelloClient.cardApi.addMember(payload.cardTrelloId, payload.toMemberTrelloId);
+          await getTrelloClient().cardApi.addMember(payload.cardTrelloId, payload.toMemberTrelloId);
         } catch (error) {
           throw this.partialReassignmentError({
             confirmedSteps: ['source_member_removed'],
@@ -1704,7 +1709,7 @@ class OperationsLedgerService {
         }
         if (payload.commentText) {
           try {
-            await trelloClient.cardApi.addComment(payload.cardTrelloId, payload.commentText);
+            await getTrelloClient().cardApi.addComment(payload.cardTrelloId, payload.commentText);
           } catch (error) {
             throw this.partialReassignmentError({
               confirmedSteps: ['source_member_removed', 'target_member_added'],
@@ -1742,7 +1747,7 @@ class OperationsLedgerService {
         await this.performTrelloWriteStep(
           recommendation.actionType,
           'escalation_comment_posted',
-          () => trelloClient.cardApi.addComment(payload.cardTrelloId, payload.commentText)
+          () => getTrelloClient().cardApi.addComment(payload.cardTrelloId, payload.commentText)
         );
         return { escalated: true };
       case 'add_label':
@@ -1750,35 +1755,35 @@ class OperationsLedgerService {
         return this.performTrelloWriteStep(
           recommendation.actionType,
           'label_added',
-          () => trelloClient.cardApi.addLabel(payload.cardTrelloId, payload.labelName, payload.labelColor || 'red')
+          () => getTrelloClient().cardApi.addLabel(payload.cardTrelloId, payload.labelName, payload.labelColor || 'red')
         );
       case 'set_due_date':
         this.requirePayload(payload, ['cardTrelloId', 'due']);
         return this.performTrelloWriteStep(
           recommendation.actionType,
           'due_date_set',
-          () => trelloClient.cardApi.updateCard(payload.cardTrelloId, { due: payload.due })
+          () => getTrelloClient().cardApi.updateCard(payload.cardTrelloId, { due: payload.due })
         );
       case 'add_checklist':
         this.requirePayload(payload, ['cardTrelloId', 'checklistName', 'checkItems']);
         return this.performTrelloWriteStep(
           recommendation.actionType,
           'checklist_created',
-          () => trelloClient.cardApi.addChecklist(payload.cardTrelloId, payload.checklistName, payload.checkItems)
+          () => getTrelloClient().cardApi.addChecklist(payload.cardTrelloId, payload.checklistName, payload.checkItems)
         );
       case TRELLO_WEBHOOK_ACTIONS.CREATE:
         this.requirePayload(payload, ['boardTrelloId', 'callbackUrl', 'description']);
         return this.performTrelloWriteStep(
           recommendation.actionType,
           'webhook_created',
-          () => trelloClient.webhookApi.createWebhook(payload.callbackUrl, payload.boardTrelloId, payload.description)
+          () => getTrelloClient().webhookApi.createWebhook(payload.callbackUrl, payload.boardTrelloId, payload.description)
         );
       case TRELLO_WEBHOOK_ACTIONS.UPDATE:
         this.requirePayload(payload, ['boardTrelloId', 'webhookId', 'callbackUrl', 'description']);
         return this.performTrelloWriteStep(
           recommendation.actionType,
           'webhook_updated',
-          () => trelloClient.webhookApi.updateWebhook(payload.webhookId, {
+          () => getTrelloClient().webhookApi.updateWebhook(payload.webhookId, {
             callbackURL: payload.callbackUrl,
             description: payload.description
           })
@@ -1789,7 +1794,7 @@ class OperationsLedgerService {
           recommendation.actionType,
           'webhook_deleted',
           async () => {
-            await trelloClient.webhookApi.deleteWebhook(payload.webhookId);
+            await getTrelloClient().webhookApi.deleteWebhook(payload.webhookId);
             return { deleted: true, webhookId: payload.webhookId };
           }
         );
@@ -1847,7 +1852,7 @@ class OperationsLedgerService {
     const payload = recommendation.actionPayload || {};
     return payload.executable === true
       && payload.draftOnly !== true
-      && recommendationPayloadPolicy.isReadyForExecution(recommendation.actionType, payload);
+      && getRecommendationPayloadPolicy().isReadyForExecution(recommendation.actionType, payload);
   }
 
   async rollbackQueueRecommendationTransition(recommendation, expectedStatus, previousState) {
@@ -1935,7 +1940,7 @@ class OperationsLedgerService {
     }
     this.requireMutableDecisionQueueItem(item, 'snoozed');
 
-    const snoozePolicy = await policyRuleService.getDecisionQueueSnoozePolicy({ workspaceId: item.workspaceId });
+    const snoozePolicy = await getPolicyRuleService().getDecisionQueueSnoozePolicy({ workspaceId: item.workspaceId });
     const snoozedUntil = resolveSnoozedUntil({
       snoozedUntil: body.snoozedUntil,
       defaultSnoozeHours: snoozePolicy.defaultSnoozeHours
@@ -2086,11 +2091,11 @@ class OperationsLedgerService {
       .limit(limit);
     if (dueItems.length === 0) return [];
 
-    const routingPolicy = await policyRuleService.getDecisionQueueRoutingPolicy({ workspaceId });
+    const routingPolicy = await getPolicyRuleService().getDecisionQueueRoutingPolicy({ workspaceId });
     const reopenedItems = [];
     for (const queuedItem of dueItems) {
       const beforeState = queuedItem.toObject();
-      const routing = policyRuleService.resolveDecisionQueueRouting({
+      const routing = getPolicyRuleService().resolveDecisionQueueRouting({
         riskLevel: queuedItem.riskLevel,
         requestedOwner: queuedItem.ownerType,
         policy: routingPolicy
@@ -2922,8 +2927,8 @@ class OperationsLedgerService {
       Card.find(this.workspaceQuery(filters, { boardId })).select('trelloId name boardId workspaceId').limit(250)
     ]);
     const graphContext = board
-      ? await workGraphService.getTrelloBoardLedgerContext(board, cards, { workspaceId, limit: 50 })
-      : workGraphService.emptyLedgerContext('board');
+      ? await getWorkGraphService().getTrelloBoardLedgerContext(board, cards, { workspaceId, limit: 50 })
+      : getWorkGraphService().emptyLedgerContext('board');
 
     const timeline = buildLedgerTimeline({ recommendations, decisions, actions, auditEvents, followUps, workerResponses, outcomes, findings });
 
@@ -2945,8 +2950,8 @@ class OperationsLedgerService {
       this.listAuditEvents({ ...filters, cardId, limit: 50 })
     ]);
     const graphContext = card
-      ? await workGraphService.getTrelloCardLedgerContext(card, { workspaceId, limit: 25 })
-      : workGraphService.emptyLedgerContext('card');
+      ? await getWorkGraphService().getTrelloCardLedgerContext(card, { workspaceId, limit: 25 })
+      : getWorkGraphService().emptyLedgerContext('card');
 
     const timeline = buildLedgerTimeline({ recommendations, decisions, actions, followUps, workerResponses, outcomes, findings, auditEvents });
 
@@ -3503,10 +3508,10 @@ class OperationsLedgerService {
     if (!['comment', 'follow_up', 'escalate', 'performance_notification'].includes(recommendation.actionType)) {
       return null;
     }
-    const timingPolicy = await policyRuleService.getScheduledInterventionTimingPolicy({
+    const timingPolicy = await getPolicyRuleService().getScheduledInterventionTimingPolicy({
       workspaceId: recommendation.workspaceId
     });
-    const timing = policyRuleService.resolveScheduledInterventionTiming({ policy: timingPolicy });
+    const timing = getPolicyRuleService().resolveScheduledInterventionTiming({ policy: timingPolicy });
 
     return FollowUpPlan.create({
       workspaceId: recommendation.workspaceId,

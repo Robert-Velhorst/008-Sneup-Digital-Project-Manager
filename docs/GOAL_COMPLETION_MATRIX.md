@@ -2,6 +2,8 @@
 
 Status meanings: **Implemented** is present and locally verified; **Partial** has useful implementation but an identified gap; **External** requires owner-controlled accounts or infrastructure; **N/A** is outside the product's current surface. No phase is marked complete from documentation alone.
 
+2.3.40 removes avoidable read-only ledger startup cost without changing authority. Demo access no longer loads MongoDB workspace scope or live ledger models, while Trello, policy, payload, graph, and provider-write modules load only for operations that need them. Live workspace resolution, human approval, execution claims, emergency-stop checks, and audit evidence remain intact.
+
 2.3.27 also keeps the complete workspace invitation interface demand-loaded. Its renderer has no API, credential, cookie, session, storage, or provider authority; exact authenticated calls, session persistence, and workspace reload verification remain in the controller. One-time links render before refresh, failed pre-commit actions remain retryable, and committed server outcomes are not relabelled as failed when only later local work fails.
 
 2.3.28 removes a production-scale database hot spot without weakening access control. Session and API-token credentials are still read and validated for every request; only non-audit presence timestamps are coalesced into active-record-only atomic five-minute touches. A disposable real-Mongo 100-request profile reduced those writes from 200 to two.

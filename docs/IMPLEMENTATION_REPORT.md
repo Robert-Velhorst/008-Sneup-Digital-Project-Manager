@@ -1,5 +1,13 @@
 # Sneup Implementation Report
 
+## 2.3.40 continuation
+
+Sneup's operations ledger now keeps read-only startup separate from live database and mutation authority. Demo requests return before workspace-scoped models load, and the service loads Trello mutation, provider-write safety, policy, payload-validation, and work-graph modules only when the exact operation needs them. Live requests still resolve authenticated workspace scope before querying the ledger, and approved execution still rechecks policy and the deployment emergency stop before its atomic claim.
+
+Across seven fresh route processes, average load improved from 844.5 to 195.4 ms, RSS growth from 50.5 to 13.4 MB, and loaded modules from 1,090 to 224. The complete 132-suite/949-test gate, real-Mongo race and webhook proofs, two dependency audits, five-secret release validation, all-view browser audit, and 15,000-card profile pass without a provider write.
+
+The verified local installer is `release/Sneup-Setup-2.3.40.exe`, 109,500,851 bytes, unsigned, with SHA-256 `48EEDDEC38A94116354E9981F3CA6E460DB77ABF246AC83DEB6724B0063F5471`. Its runtime closed normally, released its port, retained HAI `never_direct`, and matched all changed packaged runtime sources exactly.
+
 ## 2.3.39 continuation
 
 Sneup now treats connector disconnect as an authoritative local lifecycle transition instead of an unaudited hard delete. The operator must confirm the exact account name, acknowledge that provider authorization is unchanged, and submit the current account revision. The transition shares the connector synchronization workspace lease, removes stored credentials and OAuth refresh leases, preserves historical read-only evidence, and rolls back if audit evidence cannot be recorded.

@@ -605,6 +605,24 @@ const enhancements = [
       'Disabled and reconnect-required accounts cannot reach OAuth refresh or provider adapters.',
       'Audit failure restores the prior account state, and verification performs no provider write.'
     ]
+  },
+  {
+    id: 'ENH-039',
+    priority: 'P2',
+    area: 'resource',
+    title: 'Keep read-only operations-ledger startup lean',
+    evidence: 'The operations-ledger route now defers its live database service and workspace scope until a non-demo request reaches them. The service separately defers Trello mutation, provider-write safety, policy, payload-validation, and work-graph modules until the exact operation needs each dependency. Across seven fresh demo-route processes, average cold load fell from 844.5 ms to 195.4 ms, RSS growth from 50.5 MB to 13.4 MB, and loaded modules from 1,090 to 224. Regression coverage proves demo ledger access cannot load MongoDB scope or live ledger machinery, and a read-only service import cannot load provider-write dependencies.',
+    impact: 'Makes the approval workspace open faster and use less memory without weakening review, policy, workspace, or provider-write controls.',
+    effort: 'S',
+    status: 'done',
+    nextStep: 'Collect clean-VM packaged startup samples before setting a release-wide cold-start budget.',
+    acceptanceCriteria: [
+      'Demo ledger requests do not load the live database ledger or workspace-scope modules.',
+      'Read-only service import does not load Trello, policy, payload, graph, or provider-write safety modules.',
+      'Live requests still resolve workspace scope and the complete operations ledger on demand.',
+      'Approved Trello execution, reconciliation, and webhook behavior retain regression coverage.',
+      'Measured startup and memory evidence is recorded from multiple fresh processes.'
+    ]
   }
 ];
 

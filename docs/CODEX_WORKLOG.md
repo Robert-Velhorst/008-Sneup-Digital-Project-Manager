@@ -12,6 +12,15 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-14 operations-ledger resource continuation
+
+- Traced fresh demo operations-ledger loading across seven isolated processes and found that read-only startup eagerly loaded live workspace models plus Trello, policy, payload, graph, and provider-write modules.
+- Deferred live workspace scope and ledger models until a non-demo request, then deferred mutation-specific service dependencies until their exact operation. A regression now fails if demo access loads MongoDB scope/live ledger code or a read-only service import loads provider-write dependencies.
+- The seven-process route average fell from 844.5 ms to 195.4 ms, RSS growth from 50.5 MB to 13.4 MB, and loaded modules from 1,090 to 224. Full demo import remained Mongo-free at 196.4 ms and 65.2 MB RSS; the 15,000-card real-Mongo profile measured 561.1 ms p50, 561.5 ms p95, and 368 MB peak RSS.
+- Local verification passed lint, 132 suites/949 tests, 5/5 recommendation safety evaluation, two zero-vulnerability audits, five-secret production validation, real-Mongo review/follow-up/webhook proofs with zero provider writes, and all eight primary browser views without horizontal or control overflow.
+- Built and verified unsigned `release/Sneup-Setup-2.3.40.exe`, 109,500,851 bytes, SHA-256 `48EEDDEC38A94116354E9981F3CA6E460DB77ABF246AC83DEB6724B0063F5471`. Packaged runtime passed at 354.7 MB working set, 289 MB private memory, and 1.234 CPU seconds; all three changed runtime modules are byte-identical inside the ASAR and manifest identity is preserved.
+- Exact-source GitHub CI and independent artifact verification are pending publication. Publisher signing, clean-VM scaling, live provider/ngrok/HAI acceptance, and production deployment remain external.
+
 ## 2026-08-14 connector lifecycle continuation
 
 - Re-audited connector-account cleanup and found an unaudited hard-delete API, no command-center disconnect action, manual sync offered for disabled/permanent-failure accounts, and no serialization between deletion and active synchronization.

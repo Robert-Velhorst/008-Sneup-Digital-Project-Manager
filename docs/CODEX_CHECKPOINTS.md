@@ -7,23 +7,34 @@
 | Operational controls | Doctor, readiness, support bundle, emergency stop | Complete |
 | Focused verification | Runtime/security tests and lint | Complete |
 | Traceability | Required document set and completion matrix | Complete |
-| Full regression | 131 suites/947 tests, lint, 5/5 evaluation, zero-vulnerability production audit, positive five-secret release verification, and connector lifecycle/recovery real-Mongo proofs | Complete locally |
+| Full regression | 132 suites/949 tests, lint, 5/5 evaluation, two zero-vulnerability audits, positive five-secret release verification, and review/follow-up/webhook real-Mongo proofs | Complete locally |
 | MongoDB pool | Validated 20-socket per-process cap, zero idle minimum, two connection establishments, idle retirement, five-second wait queue, and listener-stable real-Mongo reconnect | Complete locally |
 | Authentication activity | Every request still validates the credential and principal; a 100-request real-Mongo profile reduced non-audit presence writes from 200 to two through active-only atomic five-minute touches | Complete locally |
-| Portfolio scale | Real mission-control path over 60 boards/15,000 cards plus 180 health snapshots; 60 unique current boards, critical-first 20-row cap, both exact indexes, 780.8 ms measured p95, no provider writes | Complete locally |
+| Portfolio scale | Real mission-control path over 60 boards/15,000 cards plus 180 health snapshots; 60 unique current boards, critical-first 20-row cap, both exact indexes, 561.5 ms measured p95, no provider writes | Complete locally |
 | Multi-instance jobs | Unit coverage plus disposable MongoDB 7 simultaneous acquisition, token, release, and expiry verification | Complete locally |
 | API contract | `/api/v1` envelope, request correlation, dashboard parser, HAI OpenAPI, live demo HTTP matrix, and compatibility tests | Complete locally |
 | Feature rollouts | Four optional workloads, deterministic subjects, optimistic revisions, bounded cache/history, manager UI, 40-collection real-Mongo verification, and live fail-closed behavior | Complete locally; hosted manager acceptance pending |
 | Data integrity and repair | Bounded dry-run/apply, review-only unsafe findings, all-workspace Trello index migration, audit evidence, and disposable MongoDB verification | Complete locally |
 | Data retention | Owner-only opt-in policy, bounded preview/apply, protected evidence, distributed lease, indexed queries, pre/post audits, real MongoDB proof, and live browser flow | Complete locally |
-| Windows package | 2.3.39 NSIS build, nine demo diagnostics, HAI smoke, metadata, SHA-256, six source-identical changed runtime modules, semantically validated transformed manifest, resource sample, and clean close | Complete locally; publisher signing external |
-| Fresh clone | Exact 2.3.39 source `00494de5e5db01f650e3090a586ad7230f3f5ea8` passed GitHub Node 24 quality and Windows packaging/runtime jobs | Complete remotely |
-| Browser and Windows UI | Connector marketplace, scope review, Dutch rendering, desktop/minimum-responsive containment, and zero console errors passed in the in-app Browser; DOM regressions cover exact disconnect/reconnect states | Complete for these flows; exact 390 px, connected live account, screen-reader, and clean-VM evidence pending |
+| Windows package | 2.3.40 NSIS build, nine demo diagnostics, HAI smoke, metadata, SHA-256, three source-identical changed runtime modules, semantically validated transformed manifest, resource sample, and clean close | Complete locally; publisher signing external |
+| Fresh clone | Exact 2.3.40 source publication and CI are pending | Pending publication |
+| Browser and Windows UI | All eight primary Dutch views, ENH-039 rendering, desktop containment, and zero horizontal/control overflow passed in the in-app Browser | Complete for these flows; exact 390 px, screen-reader, and clean-VM evidence pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter, strict listener validation, exact runtime origin admission, and restart-safe URL cleanup | Complete locally; live credentials external |
-| GitHub CI | 2.3.39 run `31772690720` passed quality in 1 minute 18 seconds and Windows packaging/runtime in 2 minutes 27 seconds; artifact `9208737219` independently verified | Complete for exact source |
+| GitHub CI | Exact 2.3.40 source run and installer artifact are pending publication | Pending publication |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |
+
+## 2026-08-14 - Operations-ledger resource release checkpoint
+
+- Release: 2.3.40
+- Scope: defer live workspace, ledger, Trello, policy, payload, graph, and provider-write dependencies until a request or operation needs them.
+- Safety boundary: workspace identity is still resolved before every live ledger query; execution still rechecks provider-write safety and policy before the atomic claim; HAI remains read/propose-only.
+- Verification: lint; 132 suites/949 tests; 5/5 safety evaluation; two zero-vulnerability audits; positive five-secret validation; disposable real-Mongo review, follow-up, and webhook proofs; 15,000-card profile; all-view Browser acceptance; and packaged Windows behavior/source parity.
+- Resource evidence: seven-process ledger route improved from 844.5 to 195.4 ms, 50.5 to 13.4 MB RSS growth, and 1,090 to 224 modules; portfolio p95 was 561.5 ms at 368 MB peak RSS.
+- Installer: `release/Sneup-Setup-2.3.40.exe`, 109,500,851 bytes, unsigned, SHA-256 `48EEDDEC38A94116354E9981F3CA6E460DB77ABF246AC83DEB6724B0063F5471`.
+- GitHub: exact-source CI and independent installer artifact verification pending publication.
+- External gates remain: owner-authorized provider/ngrok/HAI acceptance, production deployment and restore, publisher signing, clean-VM scaling, and assistive-technology certification.
 
 ## 2026-08-14 - Connector lifecycle release checkpoint
 

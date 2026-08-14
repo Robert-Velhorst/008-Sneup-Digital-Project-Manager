@@ -1,19 +1,26 @@
 const express = require('express');
 const logger = require('../utils/logger');
-const operationsLedgerService = require('../services/operationsLedgerService');
-const { getRequestWorkspaceObjectId } = require('../services/workspaceScopeService');
 const { clampInteger, requirePermission } = require('../utils/requestSecurity');
+const { createLazyValue } = require('../utils/lazyModule');
 const { getDemoOperationsLedger, isDemoMode } = require('../services/demoWorkspaceService');
 
 const router = express.Router();
+const getOperationsLedgerService = createLazyValue(
+  () => require('../services/operationsLedgerService'),
+  'operations ledger service'
+);
+const getWorkspaceScopeService = createLazyValue(
+  () => require('../services/workspaceScopeService'),
+  'workspace scope service'
+);
 
 router.get('/', requirePermission('audit:read'), async (req, res) => {
   try {
     if (isDemoMode()) {
       return res.json({ success: true, ledger: getDemoOperationsLedger() });
     }
-    const ledger = await operationsLedgerService.getWorkspaceLedger({
-      workspaceId: getRequestWorkspaceObjectId(req),
+    const ledger = await getOperationsLedgerService().getWorkspaceLedger({
+      workspaceId: getWorkspaceScopeService().getRequestWorkspaceObjectId(req),
       limit: clampInteger(req.query.limit, 50, 1, 250),
       healthLimit: clampInteger(req.query.healthLimit, 20, 1, 100),
       notificationLimit: clampInteger(req.query.notificationLimit, 100, 1, 250),
