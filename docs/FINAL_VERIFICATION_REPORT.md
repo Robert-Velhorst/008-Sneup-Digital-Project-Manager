@@ -45,9 +45,9 @@ This report is updated from executed commands at release time. A passing local s
 | Packaged Windows QA | Pass: the exact CI verifier confirmed 2.3.35 product metadata, healthy demo state, nine redacted diagnostics, HAI `never_direct`, normal main-window close, loopback port release, and four byte-identical changed runtime modules |
 | Packaged resource sample | Pass: four processes used 371.7 MB working set, 335.2 MB private memory, and 1.844 cumulative CPU seconds in the five-second CI-equivalent probe. |
 | Windows installer | Pass: local build 109,493,402 bytes, unsigned, SHA-256 `91FB8AD4C65BEBDC3357F45D8C5711F8B24F546F3EA2AA08891A0B6A39F93E83`; executable metadata reports 2.3.35 |
-| Fresh clone | Pending for 2.3.35 publication; prior 2.3.34 source `05839483c1df250ea6acb0d265ce0e9b55510e03` remains independently verified |
-| GitHub CI | Pending for 2.3.35 publication; prior 2.3.34 run `31763249069` passed both jobs |
-| GitHub installer artifact | Pending for 2.3.35 publication; prior 2.3.34 artifact `9205413905` remains independently verified |
+| Fresh clone | Pass: exact 2.3.35 source `2602cef6d7d17e44841e6b7ca9cad1c1f4ea4bed` passed clean Node 24 quality and Windows jobs |
+| GitHub CI | Pass: run `31765213372`; quality 1 minute 7 seconds; Windows build, packaged launch, verification, and upload 2 minutes 26 seconds |
+| GitHub installer artifact | Pass: artifact `9206071000`, archive digest `sha256:9925eeee06f46b004d276a69f1c0912b70faa846937e2657b11aae1a9fd6e05f`; independent download contained one 109,493,593-byte unsigned 2.3.35 installer with SHA-256 `2D8686E28567F19087278A93016119FDC8DCC419F1391215CD17F9E1E7209D95` |
 
 ## External gates
 
@@ -69,8 +69,8 @@ Live Trello critical-path acceptance, live ngrok/HAI credential acceptance, prod
 | Packaged Windows QA | Pass: version 2.3.35, nine diagnostics, no exposed secrets, HAI `never_direct`, four processes, normal close, port released, four runtime modules byte-identical |
 | Packaged resource sample | Directional pass: 371.7 MB working set, 335.2 MB private bytes, 1.844 cumulative CPU seconds after five seconds |
 | Windows installer | Pass: 109,493,402 bytes, version 2.3.35, unsigned, SHA-256 `91FB8AD4C65BEBDC3357F45D8C5711F8B24F546F3EA2AA08891A0B6A39F93E83` |
-| Fresh-clone GitHub CI | Pending publication |
-| GitHub installer artifact | Pending publication and independent download verification |
+| Fresh-clone GitHub CI | Pass: source `2602cef6d7d17e44841e6b7ca9cad1c1f4ea4bed`, run `31765213372`, both jobs green |
+| GitHub installer artifact | Pass: artifact `9206071000`; exactly one unsigned version 2.3.35 EXE; 109,493,593 bytes; SHA-256 `2D8686E28567F19087278A93016119FDC8DCC419F1391215CD17F9E1E7209D95` |
 | External gates | Live provider/ngrok/HAI acceptance, hosted multi-operator observation, production-like restore/deployment rollback, code signing, clean-VM scaling, and assistive-technology certification remain external |
 
 ## 2.3.34 continuation evidence

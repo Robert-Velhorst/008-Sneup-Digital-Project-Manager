@@ -17,10 +17,10 @@
 | Data integrity and repair | Bounded dry-run/apply, review-only unsafe findings, all-workspace Trello index migration, audit evidence, and disposable MongoDB verification | Complete locally |
 | Data retention | Owner-only opt-in policy, bounded preview/apply, protected evidence, distributed lease, indexed queries, pre/post audits, real MongoDB proof, and live browser flow | Complete locally |
 | Windows package | 2.3.35 NSIS build, nine demo diagnostics, HAI smoke, metadata, SHA-256, four source-identical changed runtime modules, repeatable resource sample, and clean close | Complete locally; publisher signing external |
-| Fresh clone | 2.3.34 exact source `05839483c1df250ea6acb0d265ce0e9b55510e03` passed; 2.3.35 publication verification pending | Complete for 2.3.34; pending for 2.3.35 |
+| Fresh clone | Exact 2.3.35 source `2602cef6d7d17e44841e6b7ca9cad1c1f4ea4bed` passed clean GitHub Node 24 and Windows jobs | Complete for 2.3.35 |
 | Browser and Windows UI | ENH-034 filtering, terminal decision-control suppression, approval-ledger rendering, and desktop/390 px containment passed in the in-app Browser and DOM regressions | Complete for these flows; screen-reader/clean-VM evidence pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter, strict listener validation, exact runtime origin admission, and restart-safe URL cleanup | Complete locally; live credentials external |
-| GitHub CI | 2.3.34 run `31763249069` and artifact `9205413905` passed; 2.3.35 publication verification pending | Complete for 2.3.34; pending for 2.3.35 |
+| GitHub CI | 2.3.35 run `31765213372` passed both jobs; artifact `9206071000` was independently downloaded and verified | Complete for 2.3.35 |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |
@@ -32,7 +32,7 @@
 - Safety boundary: losing review records are removed, non-open decision items reject mutation, linked queue transitions require a pending recommendation, and no race path issues a provider write.
 - Verification: lint; 125 suites/910 tests; 5/5 safety evaluation; two zero-vulnerability audits; positive five-secret validation; disposable real-Mongo review races; 60-board/15,000-card profile; in-app Browser desktop/390 px acceptance; HAI contract; and packaged Windows behavior/source parity.
 - Installer: `release/Sneup-Setup-2.3.35.exe`, 109,493,402 bytes, unsigned, SHA-256 `91FB8AD4C65BEBDC3357F45D8C5711F8B24F546F3EA2AA08891A0B6A39F93E83`.
-- GitHub: source, run, and independent artifact evidence pending publication.
+- GitHub: source `2602cef6d7d17e44841e6b7ca9cad1c1f4ea4bed`; run `31765213372`; quality 1 minute 7 seconds; Windows build/runtime 2 minutes 26 seconds; independently verified artifact `9206071000`, 109,493,593 bytes, unsigned, SHA-256 `2D8686E28567F19087278A93016119FDC8DCC419F1391215CD17F9E1E7209D95`.
 - External gates remain: live provider/ngrok/HAI acceptance, hosted multi-operator observation, production deployment and restore, publisher signing, clean-VM scaling, and assistive-technology certification.
 
 ## 2026-08-14 - Portfolio board-health release checkpoint

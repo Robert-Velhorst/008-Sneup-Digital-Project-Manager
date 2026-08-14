@@ -20,6 +20,7 @@ This worklog records local engineering evidence. Live Trello, production MongoDB
 - The final local gate passed 125 suites/910 tests, lint, 5/5 safety evaluation, two zero-vulnerability audits, and positive five-secret production validation. The 60-board/15,000-card profile measured 888.1 ms p50, 1,022.1 ms p95, and 305.6 MB peak RSS within the established budgets.
 - In-app Browser rendered ENH-034 and the approval ledger at desktop and 390 x 844 with no horizontal overflow or console errors. HAI retained only snapshot/proposal paths, human approval, `never_direct`, and no approval or execution operation.
 - Built and verified unsigned `release/Sneup-Setup-2.3.35.exe`, 109,493,402 bytes, SHA-256 `91FB8AD4C65BEBDC3357F45D8C5711F8B24F546F3EA2AA08891A0B6A39F93E83`. The packaged app passed at 371.7 MB working set, 335.2 MB private memory, and 1.844 CPU seconds; all four changed runtime modules are byte-identical inside the ASAR.
+- Published source `2602cef6d7d17e44841e6b7ca9cad1c1f4ea4bed`. GitHub run `31765213372` passed quality in 1 minute 7 seconds and Windows packaging plus packaged-app launch in 2 minutes 26 seconds. Artifact `9206071000` has archive digest `sha256:9925eeee06f46b004d276a69f1c0912b70faa846937e2657b11aae1a9fd6e05f`; its independently downloaded installer is 109,493,593 bytes, unsigned, version 2.3.35, SHA-256 `2D8686E28567F19087278A93016119FDC8DCC419F1391215CD17F9E1E7209D95`.
 
 ## 2026-08-14 latest-board-health continuation
 
