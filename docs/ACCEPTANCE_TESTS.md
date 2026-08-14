@@ -20,5 +20,6 @@
 | A16 | Versioned API and HAI contract | `apiContract.test.js`; live demo HTTP matrix | Call `/api/v1` through deployment ingress and correlate a support request ID | Pass locally; hosted ingress pending |
 | A17 | Optional workload canary and rollback | `featureFlagService.test.js`; 40-collection disposable MongoDB migration verifier; live demo API/HAI smoke | Manager pauses, stages, and restores one hosted optional capability while another session observes the same revision | Automated and local real-Mongo pass; hosted manager acceptance pending |
 | A18 | Owner-controlled data retention | `dataRetentionService.test.js`, route/worker tests, and `verify:data-retention` | Preview, configure, exact-slug prune, and zero rescan in a live disposable workspace | Automated, real-Mongo, and browser pass; hosted owner volume pending |
+| A19 | Authenticated ngrok browser ingress | `ngrokTunnelService.test.js`, `ngrokCorsIntegration.test.js`, and CORS security regressions | Accept an invitation and use a session through owner-controlled reserved and ephemeral domains | Automated lifecycle and real Express preflight pass; live ngrok account pending |
 
 Production acceptance requires all pending live cells to be executed with organization-owned accounts. Demo data is not evidence of live-provider success.

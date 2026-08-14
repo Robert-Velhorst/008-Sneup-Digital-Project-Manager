@@ -12,6 +12,19 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-14 ngrok-browser-lifecycle continuation
+
+- Re-audited the governing operations-ledger specification and current 2.3.30 release. The ledger, exact-payload approval, Trello evidence, Robert/VA/team queues, Windows package, and HAI proposal boundary remain wired; live provider and infrastructure acceptance remain external.
+- Traced the documented remote invitation/session workflow through ngrok startup, CORS, static command-center delivery, public invitation acceptance, database sessions, Trello webhook callbacks, and shutdown.
+- Found that ngrok discovered its origin after the CORS cache was built, but the cache neither admitted nor invalidated for that URL. Same-origin browser POSTs through the advertised tunnel could therefore fail at CORS before reaching invitation or session authentication. A closed ephemeral tunnel also left generated public/callback URLs behind, so a restart could reuse a dead Trello callback.
+- Added strict listener URL validation, one shared in-progress start, dynamic exact-origin admission, tunnel-owned environment restoration, and fresh callback generation after restart. Existing API/session authentication, loopback binding, HAI limits, and provider-write approval controls are unchanged.
+- Focused security, tunnel, and real Express preflight tests pass; full release verification follows below.
+- The final full gate passed 117 suites/884 tests, lint, the 5/5 safety evaluation, two zero-vulnerability audits, and positive five-secret production validation.
+- Cold startup imported 252 modules in 316.7 ms at 66.4 MB RSS and kept Mongoose unloaded through Overview. The disposable real-Mongo 15,000-card profile measured 685.5 ms p50, 700.7 ms p95, and 491.9 MB peak RSS, with bounded output, the intended index, approval required, and no provider writes.
+- In-app Browser acceptance rendered ENH-030 in the completed security queue. A 390 px check exposed a 45 px filter overflow; the controls now reflow with equal client/scroll width while the desktop layout remains contained.
+- HAI HTTP smoke retained only snapshot/proposal paths and `never_direct`. The packaged 2.3.31 app passed metadata, diagnostics, secret-redaction, HAI, clean-close, and port-release checks at 361.7 MB working set and 299.9 MB private memory.
+- Built unsigned `release/Sneup-Setup-2.3.31.exe`, 109,488,324 bytes, SHA-256 `73BAEE77A86E9CE26E474DEF8660536167AAAFAAF8B72367E1F8698B79AFBF15`; changed ngrok, CORS, backlog, HTML, and CSS files are byte-identical inside the ASAR.
+
 ## 2026-08-14 ambiguous-Trello-write continuation
 
 - Reconciled the governing operations-ledger contract and audited provider execution under timeouts, resets, multi-step writes, and local finalization faults.

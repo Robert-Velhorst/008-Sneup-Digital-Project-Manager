@@ -1516,6 +1516,40 @@ h1 {
     width: 100%;
   }
 
+  .enhancement-head .item-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    justify-content: stretch;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .enhancement-head .segmented {
+    display: grid;
+    width: 100%;
+  }
+
+  .enhancement-priority-filter {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .enhancement-status-filter {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .enhancement-head .segmented button {
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    min-width: 0;
+    padding-inline: 5px;
+  }
+
+  .enhancement-head label,
+  .enhancement-head .search {
+    width: 100%;
+    min-width: 0;
+  }
+
   .history-actor-filter {
     flex: 1 1 140px;
     min-width: 0;

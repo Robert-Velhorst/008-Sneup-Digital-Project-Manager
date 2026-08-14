@@ -444,6 +444,23 @@ const enhancements = [
       'Rollout changes retain bounded history and create ordinary audit events.',
       'No rollout key can bypass authentication, approval, audit, emergency-stop, workspace, or provider-write controls.'
     ]
+  },
+  {
+    id: 'ENH-030',
+    priority: 'P0',
+    area: 'security',
+    title: 'Keep authenticated ngrok browser ingress lifecycle-safe',
+    evidence: 'Sneup validates the ngrok listener as one root HTTPS origin before publishing it, closes an unsafe listener, shares concurrent startup calls, and automatically admits the discovered origin through the existing CORS boundary. Tunnel-owned public and Trello callback URLs are refreshed after an ephemeral restart and restored on close without replacing an operator-owned callback. API authentication, invitation acceptance, workspace sessions, loopback binding, and approval-gated provider writes remain unchanged.',
+    impact: 'Makes the documented remote browser and invitation workflow actually usable without broadening origin trust or leaving stale cloud callback URLs after shutdown.',
+    effort: 'S',
+    status: 'done',
+    nextStep: 'Run authorized reserved-domain and ephemeral-domain acceptance through an owner ngrok account before exposing a production workspace.',
+    acceptanceCriteria: [
+      'The discovered ngrok origin passes the real command-center CORS preflight without manual duplicate configuration.',
+      'An invalid, credential-bearing, non-root, or non-HTTPS tunnel URL is closed and never published.',
+      'Concurrent startup calls create one tunnel and a restarted ephemeral tunnel receives fresh owned callback URLs.',
+      'Shutdown restores prior environment configuration and does not overwrite a callback changed by the operator.'
+    ]
   }
 ];
 

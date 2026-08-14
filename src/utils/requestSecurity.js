@@ -532,14 +532,31 @@ const buildAllowedOrigins = () => {
     .split(',')
     .map(origin => origin.trim())
     .filter(Boolean);
+  const publicUrl = String(process.env.SNEUP_PUBLIC_URL || '').trim();
+  let publicOrigin = null;
+  try {
+    const parsed = new URL(publicUrl);
+    if (
+      ['http:', 'https:'].includes(parsed.protocol)
+      && !parsed.username
+      && !parsed.password
+      && !parsed.search
+      && !parsed.hash
+    ) {
+      publicOrigin = parsed.origin;
+    }
+  } catch {
+    publicOrigin = null;
+  }
 
   return new Set([
     'http://localhost:3000',
     'http://127.0.0.1:3000',
     `http://localhost:${localPort}`,
     `http://127.0.0.1:${localPort}`,
+    publicOrigin,
     ...configured
-  ]);
+  ].filter(Boolean));
 };
 
 let allowedOriginsCache = {
@@ -548,7 +565,11 @@ let allowedOriginsCache = {
 };
 
 const getAllowedOrigins = () => {
-  const source = `${process.env.PORT || 3000}:${process.env.SNEUP_ALLOWED_ORIGINS || ''}`;
+  const source = [
+    process.env.PORT || 3000,
+    process.env.SNEUP_ALLOWED_ORIGINS || '',
+    process.env.SNEUP_PUBLIC_URL || ''
+  ].join(':');
   if (allowedOriginsCache.source !== source || !allowedOriginsCache.set) {
     allowedOriginsCache = {
       source,

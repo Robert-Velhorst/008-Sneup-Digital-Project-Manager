@@ -6,7 +6,7 @@ This report is updated from executed commands at release time. A passing local s
 
 - Branch: `main`
 - Starting commit: `4304744d2bad49fdf33470c7cd402a7166d40736`
-- Release under verification: `2.3.29`
+- Release under verification: `2.3.31`
 - Default remote: `origin`
 
 ## Verification ledger
@@ -17,7 +17,7 @@ This report is updated from executed commands at release time. A passing local s
 | Focused retention tests | Pass: owner permissions, policy bounds, dry-run exclusions, exact confirmation, pre-delete audit failure, distributed worker lease, UI wiring, and rotation across bounded workspace batches |
 | ESLint | Pass |
 | Doctor | Pass with expected local warnings for absent MongoDB/Trello configuration; no errors; ngrok disabled locally |
-| Full regression | Pass: 113 suites, 862 tests, including bounded MongoDB connection lifecycle, per-request credential validation with bounded atomic activity touches, demand-loaded operational views, exact evidence preservation, provider failure, API validation, and ledger compatibility |
+| Full regression | Pass: 117 suites, 884 tests, including strict ngrok lifecycle/origin handling, real Express preflight, bounded MongoDB lifecycle, demand-loaded operational views, exact evidence preservation, provider failure, API validation, and ledger compatibility |
 | Recommendation evaluation | Pass: 5/5 scenarios, score 100% |
 | Production and full dependency audit | Pass: 0 vulnerabilities after lockfile remediation |
 | Release security positive check | Pass: five purpose-separated production secrets, no values exposed |
@@ -27,23 +27,23 @@ This report is updated from executed commands at release time. A passing local s
 | Demo runtime smoke | Pass: 12-route HTTP matrix covered HTML, legacy/versioned metadata, security, mission control, jobs, operations ledger, connector catalog, HAI manifest/OpenAPI/snapshot, and a versioned 404 |
 | Production database outage | Pass: packaged live mode kept port 3197 closed and displayed a stable, non-secret Windows recovery dialog with explicit demo or close choices |
 | HAI HTTP smoke | Pass: versioned manifest/OpenAPI paths, capabilities `snapshot,propose`, provider writes `never_direct`, structured demo snapshot with stable board/card identifiers |
-| ngrok packaging/safety | Pass: official Windows x64 native binding bundled; missing, weak, or placeholder remote credentials fail closed |
+| ngrok packaging/safety | Pass: official Windows x64 native binding bundled; missing, weak, or placeholder remote credentials fail closed; unsafe listener URLs are rejected and closed; concurrent starts share one tunnel; runtime exact-origin CORS admission and restart cleanup are covered |
 | Real MongoDB integrity repair | Pass: 40 collections migrated; two safe derived-state findings repaired with two audits; ambiguous Trello attempt remained review-only; provider writes false |
 | Real MongoDB data retention | Pass: six eligible categories deleted, six protected records retained, six pre/post audit pairs stored, seven query indexes verified, provider writes false |
 | Retention performance sample | Pass: six-category preview 35.09 ms, six audited category batches 936.39 ms, verifier RSS 94.1 MB; seven supporting indexes verified |
 | Integrity API performance sample | Pass: 30 live requests measured 14.01 ms p50 and 23.71 ms p95; server working set 119.5 MB after browser QA |
 | Authentication activity profile | Pass: 100 real-Mongo session resolutions retained 100 credential reads and reduced token/user activity writes from 200 to two; the five-minute boundary produced the next exact pair of active-only atomic touches |
 | MongoDB pool profile | Pass: 100 concurrent reads completed in 115.5 ms; active driver options reported 20 maximum sockets, zero idle minimum, two simultaneous connection establishments, 60-second idle retirement, and five-second wait queue; peak checkout 17, listeners stable through reconnect, disposable database dropped |
-| Portfolio-scale profile | Pass: real mission control read 60 boards/300 lists/15,000 cards/100 members/60 analytics records; 1,304.1 ms cold, 688.3 ms p50, 712.4 ms p95, 349.1 MB peak verifier RSS, exact compound card index selected, 10/12/12 outputs bounded, approval required, provider writes false |
+| Portfolio-scale profile | Pass: real mission control read 60 boards/300 lists/15,000 cards/100 members; 1,290.7 ms cold, 685.5 ms p50, 700.7 ms p95, 491.9 MB peak verifier RSS, exact compound card index selected, 10/12/12 outputs bounded, approval required, provider writes false |
 | Bounded-ranking resource sample | Pass: worst-case 15,000-card focus improved 42.8 to 16.2 ms, risks 50.5 to 19.9 ms, commands 90.3 to 43.2 ms, and command peak RSS about 165 to 106 MB while preserving stable rank/evidence behavior |
-| Startup profile | Pass: import loaded 251 modules without Mongoose in 273.3 ms at 71 MB RSS; Overview remained Mongo-free, completed in 64.1 ms, and sampled 74.9 MB RSS |
+| Startup profile | Pass: import loaded 252 modules without Mongoose in 316.7 ms at 66.4 MB RSS; Overview remained Mongo-free, completed in 66.9 ms, and sampled 69.7 MB RSS |
 | Optional AI resource profile | Pass: loading offline chat did not load OpenAI; loading the deferred SDK afterward added 122 modules, 6.0 MB RSS, and 4.65 seconds in this cold local sample |
-| Browser QA | Pass: in-app Browser verified the Workspace module is absent on Overview and loads once when opened; scoped export/deletion/invitation controls were disabled in demo mode, desktop/mobile layouts had no document overflow, and the browser emitted zero current console warnings/errors |
+| Browser QA | Pass: in-app Browser rendered ENH-030 in the completed security queue, verified desktop containment, exposed a 45 px narrow filter overflow, and confirmed the repair at 390 x 844 with equal client/scroll width and working filters |
 | HAI HTTP smoke | Pass: manifest/OpenAPI expose only bounded `snapshot` and approval-gated `propose`; provider writes `never_direct`, approval endpoint false, execution endpoint absent |
 | Windows UI automation | The installed Windows-control package did not expose its required guidance interface; no undocumented input was attempted and visual evidence is not inferred from HTTP or window metadata |
-| Packaged Windows QA | Pass: repeatable verifier confirmed 2.3.29 product metadata, healthy demo state, eight redacted diagnostics, HAI `never_direct`, normal main-window close, loopback port release, and byte-identical changed runtime files |
-| Packaged resource sample | Pass: four processes used 357.5 MB working set, 290.7 MB private memory, and 1.734 cumulative CPU seconds in the final repeatable probe. A separate 30-second idle run returned 20 metadata requests in 1.46-3.35 ms and also closed normally. |
-| Windows installer | Pass: local build 109,485,792 bytes, unsigned, SHA-256 `CCBC1B7C8A7BA15F5B15DC8DEAAD4EB23A00D9303994379238ABBD88F15D95FA`; executable metadata reports 2.3.29 |
+| Packaged Windows QA | Pass: repeatable verifier confirmed 2.3.31 product metadata, healthy demo state, eight redacted diagnostics, HAI `never_direct`, normal main-window close, loopback port release, and byte-identical changed runtime/UI files |
+| Packaged resource sample | Pass: four processes used 361.7 MB working set, 299.9 MB private memory, and 2.594 cumulative CPU seconds in the final repeatable probe. |
+| Windows installer | Pass: local build 109,488,324 bytes, unsigned, SHA-256 `73BAEE77A86E9CE26E474DEF8660536167AAAFAAF8B72367E1F8698B79AFBF15`; executable metadata reports 2.3.31 |
 | Fresh clone | Pass: GitHub checked out exact source `7fd7b9ee457cc34eff877c56690e470277abf4bb`, installed the lockfile with Node.js 24, and completed quality plus Windows package jobs |
 | GitHub CI | Pass: run `31754056380`; quality completed in 1 minute 1 second and Windows installer in 2 minutes 20 seconds; both jobs succeeded |
 | GitHub installer artifact | Pass: artifact `9202090233`, `sneup-windows-installer-unsigned`, 109,491,734-byte archive, digest `sha256:f39d8346254bc21a77f872b4160d930c41e06c7ff331e1261611720994cafbe6`; its single downloaded installer is 109,485,834 bytes, unsigned, version 2.3.29, SHA-256 `C573848981A5489F5ABD39EC63F7D2B468A655D904C74CC349CDB367F0149A56` |

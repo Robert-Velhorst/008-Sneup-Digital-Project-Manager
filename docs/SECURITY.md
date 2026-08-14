@@ -7,6 +7,7 @@ Sneup separates browser/API identity, workspace-scoped persistence, encrypted co
 ## Controls
 
 - CSP, Helmet, bounded JSON/form/webhook bodies, origin controls, request throttling, and capped in-memory rate-limit cardinality.
+- ngrok returns one validated root HTTPS origin, which is admitted dynamically without wildcard CORS; unsafe listeners close, concurrent starts share one tunnel, and tunnel-owned public/callback URLs are restored on shutdown.
 - Role permissions and workspace ownership on API tokens, sessions, invitations, connectors, jobs, policies, recommendations, actions, and audit reads.
 - Independent 32+ character production peppers; separate connector encryption and OAuth-state secrets; placeholder and secret-reuse rejection.
 - OAuth state signing, redirect validation, fixed provider hosts, atomic expiring token-refresh leases, encrypted refresh-token rotation, secret-free refresh audits, SSRF/DNS protections where custom hosts are supported, redirect denial, timeouts, bounded pages, and redacted retained fields.

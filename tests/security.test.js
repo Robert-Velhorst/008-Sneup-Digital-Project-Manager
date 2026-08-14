@@ -217,7 +217,9 @@ describe('request security boundaries', () => {
 
   test('permits the configured local application origin while rejecting an untrusted origin', async () => {
     const originalPort = process.env.PORT;
+    const originalPublicUrl = process.env.SNEUP_PUBLIC_URL;
     process.env.PORT = '3215';
+    delete process.env.SNEUP_PUBLIC_URL;
     try {
       const requestSecurity = require('../src/utils/requestSecurity');
       await expect(new Promise((resolve, reject) => {
@@ -232,9 +234,27 @@ describe('request security boundaries', () => {
           return resolve(allowed);
         });
       })).rejects.toThrow('Origin is not allowed');
+
+      process.env.SNEUP_PUBLIC_URL = 'https://dynamic-sneup.ngrok.app/onboarding';
+      await expect(new Promise((resolve, reject) => {
+        requestSecurity.corsOptions.origin('https://dynamic-sneup.ngrok.app', (error, allowed) => {
+          if (error) return reject(error);
+          return resolve(allowed);
+        });
+      })).resolves.toBe(true);
+
+      process.env.SNEUP_PUBLIC_URL = 'https://user:secret@untrusted.example/?token=secret';
+      await expect(new Promise((resolve, reject) => {
+        requestSecurity.corsOptions.origin('https://untrusted.example', (error, allowed) => {
+          if (error) return reject(error);
+          return resolve(allowed);
+        });
+      })).rejects.toThrow('Origin is not allowed');
     } finally {
       if (originalPort === undefined) delete process.env.PORT;
       else process.env.PORT = originalPort;
+      if (originalPublicUrl === undefined) delete process.env.SNEUP_PUBLIC_URL;
+      else process.env.SNEUP_PUBLIC_URL = originalPublicUrl;
     }
   });
 

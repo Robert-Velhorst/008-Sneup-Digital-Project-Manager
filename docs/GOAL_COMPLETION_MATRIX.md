@@ -8,6 +8,8 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 
 2.3.29 bounds the shared MongoDB client for standalone and cloud use. Each process defaults to 20 application sockets rather than 100, retains no idle minimum, retires idle sockets, limits simultaneous connection creation, and fails saturated pool waits after five seconds. Operators can tune each validated bound without changing code.
 
+2.3.31 closes the authenticated remote-browser lifecycle gap. The exact validated HTTPS ngrok origin enters the existing CORS boundary when the tunnel becomes available; unsafe listener URLs fail closed, concurrent starts share one tunnel, and Sneup-owned ephemeral public/callback URLs are removed or refreshed without overwriting operator changes. HAI remains read/propose-only and provider writes remain approval-gated.
+
 | Phase | Status | Evidence or remaining gate |
 | --- | --- | --- |
 | 000 Repository integrity | Implemented | Baseline commit/branch/remote recorded; unrelated worktree artifacts preserved. |
