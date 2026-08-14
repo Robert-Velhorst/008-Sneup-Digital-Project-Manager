@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
 const accountConnectorService = require('../services/accountConnectorService');
+const connectorSyncService = require('../services/connectorSyncService');
 const genericWebhookService = require('../services/genericWebhookService');
 const { getRequestWorkspaceObjectId } = require('../services/workspaceScopeService');
 const { hasPermission, requirePermission, validateObjectIdParam } = require('../utils/requestSecurity');
@@ -119,15 +120,21 @@ router.post('/accounts/:accountId/rotate-credentials', requirePermission('connec
   }
 });
 
-router.delete('/accounts/:accountId', requirePermission('connectors:manage'), async (req, res) => {
+const disconnectAccount = async (req, res) => {
   try {
-    const result = await accountConnectorService.deleteAccount(req.params.accountId, connectorRequestOptions(req));
-    res.json(result);
+    const result = await connectorSyncService.runTrackedAccountDisconnect(req.params.accountId, req.body, {
+      ...connectorRequestOptions(req),
+      triggerType: 'api'
+    });
+    res.json({ success: true, ...result });
   } catch (error) {
-    logger.error('Failed to delete connector account:', error);
+    logger.error('Failed to disconnect connector account:', error);
     sendError(res, error);
   }
-});
+};
+
+router.post('/accounts/:accountId/disconnect', requirePermission('connectors:manage'), disconnectAccount);
+router.delete('/accounts/:accountId', requirePermission('connectors:manage'), disconnectAccount);
 
 router.get('/accounts/:accountId/inbound-worker-response-bindings', requirePermission('connectors:manage'), async (req, res) => {
   try {

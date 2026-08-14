@@ -587,6 +587,24 @@ const enhancements = [
       'Successful recovery clears prior failure metadata and restores connected status.',
       'Recovery verification uses a disposable real database and performs no provider write.'
     ]
+  },
+  {
+    id: 'ENH-038',
+    priority: 'P0',
+    area: 'security',
+    title: 'Make connector disconnect and disabled states authoritative',
+    evidence: 'Connector disconnect now requires the exact account name, an explicit provider-authorization acknowledgement, and the current account revision. It shares the workspace synchronization lease, removes local credentials and OAuth refresh leases, preserves prior read-only evidence, records a secret-free audit event, and restores the prior state if audit persistence fails. Disabled and reconnect-required accounts are rejected before feature evaluation, OAuth refresh, provider pacing, or adapter reads; signed Generic Webhook intake already requires connected status. OAuth and credential reconnection reactivate the existing account and clear stale recovery state without a provider write.',
+    impact: 'Lets an operator reliably stop Sneup access without erasing evidence or implying that provider-side authorization was revoked.',
+    effort: 'M',
+    status: 'done',
+    nextStep: 'Capture hosted operator evidence for one OAuth and one credential-backed disconnect/reconnect, and revoke provider authorization separately where access must end at the provider.',
+    acceptanceCriteria: [
+      'Disconnect requires exact confirmation, provider-side acknowledgement, and a current account revision.',
+      'Disconnect cannot overlap connector synchronization in the same workspace.',
+      'Stored credentials and refresh leases are removed while historical read-only evidence remains.',
+      'Disabled and reconnect-required accounts cannot reach OAuth refresh or provider adapters.',
+      'Audit failure restores the prior account state, and verification performs no provider write.'
+    ]
   }
 ];
 

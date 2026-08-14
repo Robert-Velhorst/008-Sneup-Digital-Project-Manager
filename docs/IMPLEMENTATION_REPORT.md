@@ -1,5 +1,11 @@
 # Sneup Implementation Report
 
+## 2.3.39 continuation
+
+Sneup now treats connector disconnect as an authoritative local lifecycle transition instead of an unaudited hard delete. The operator must confirm the exact account name, acknowledge that provider authorization is unchanged, and submit the current account revision. The transition shares the connector synchronization workspace lease, removes stored credentials and OAuth refresh leases, preserves historical read-only evidence, and rolls back if audit evidence cannot be recorded.
+
+Disabled and reconnect-required accounts are rejected before feature evaluation, OAuth refresh, provider pacing, or adapter reads. Credential rotation and OAuth authorization reconnect the existing account and clear stale failure/disconnect state. Focused tests, the full 131-suite/947-test gate, browser QA, and a guarded real-Mongo lifecycle verifier pass with zero provider reads or writes after disconnect.
+
 ## 2.3.29 continuation
 
 Sneup's shared Mongoose connection now defaults to a production-bounded pool: 20 application sockets per MongoDB server and process, zero idle minimum, two connections established at once, 60-second idle retirement, and a five-second wait queue. Connection, socket, selection, and model-buffer waits are bounded and every override fails closed outside its supported range. Reconnecting or embedding startup does not add duplicate connection listeners.

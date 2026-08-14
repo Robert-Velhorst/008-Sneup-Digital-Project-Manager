@@ -145,6 +145,8 @@ Sneup can open an ngrok ingress while keeping the HTTP server on loopback. Set `
 
 After the final ngrok callback exists, Sneup compares it with Trello's current webhooks. Missing, rotated, or duplicate configuration becomes an exact high-risk item in Robert's approval queue. Startup never changes provider configuration itself, repeat observations reuse the pending decision, and approved changes retain the normal attempt and audit evidence. `npm run verify:trello-webhooks` proves this boundary against a dedicated disposable MongoDB database without contacting Trello.
 
+Connector accounts can be disconnected from Account connections with an exact account-name confirmation and current-record check. Sneup removes its stored credentials and OAuth refresh lease, blocks sync and signed webhook intake, retains read-only history and audit evidence, and reconnects the existing record when new authorization is supplied. This is local cleanup only: provider authorization is unchanged and must be revoked separately at the provider when access must end there. `npm run verify:connector-lifecycle` proves the boundary against a dedicated disposable MongoDB database with zero provider reads or writes after disconnect.
+
 See `docs/CLOUD_AND_HAI.md` for the Windows, ngrok, HAI, and shutdown flow.
 
 ## API Endpoints

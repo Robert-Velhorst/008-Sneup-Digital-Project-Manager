@@ -24,6 +24,8 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 
 2.3.38 closes the connector recovery gap. Transient provider failures persist a bounded due time and remain eligible for later scheduler passes, permanent credential failures stop automatic retries, manual and scheduled synchronization share one distributed workspace lease, and successful recovery clears the failure state. The API exposes only bounded operator guidance and the disposable real-Mongo proof performs no provider write.
 
+2.3.39 closes the connector cleanup lifecycle gap. Disconnect is exact-confirmation and revision guarded, shares the synchronization lease, purges local credentials and OAuth refresh authority, preserves prior read-only evidence, and records rollback-protected audit evidence. Disabled and reconnect-required accounts cannot reach OAuth refresh or provider adapters; reconnection updates the existing record, and the disposable real-Mongo proof performs no provider read or write after disconnect.
+
 | Phase | Status | Evidence or remaining gate |
 | --- | --- | --- |
 | 000 Repository integrity | Implemented | Baseline commit/branch/remote recorded; unrelated worktree artifacts preserved. |

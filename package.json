@@ -1,6 +1,6 @@
 {
   "name": "sneup",
-  "version": "2.3.38",
+  "version": "2.3.39",
   "description": "Autonomous AI-powered digital project manager for Trello v2.0 - proactive management, performance tracking, conversational AI, and accountability enforcement",
   "main": "desktop/main.js",
   "scripts": {
@@ -21,6 +21,7 @@
     "verify:follow-up-integrity": "node scripts/verify-follow-up-integrity.js",
     "verify:trello-webhooks": "node scripts/verify-trello-webhook-integrity.js",
     "verify:connector-recovery": "node scripts/verify-connector-sync-recovery.js",
+    "verify:connector-lifecycle": "node scripts/verify-connector-account-lifecycle.js",
     "verify:packaged": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-packaged-release.ps1",
     "doctor": "node scripts/doctor.js",
     "doctor:json": "node scripts/doctor.js --json",

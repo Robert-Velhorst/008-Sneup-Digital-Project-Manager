@@ -112,10 +112,25 @@ class ConnectorSyncService {
       try {
         return await this.syncAccount(account, options);
       } catch (error) {
-        await this.recordSyncFailure(account, error, options);
+        if (!this.isLifecycleSyncBlock(error)) await this.recordSyncFailure(account, error, options);
         throw error;
       }
     });
+  }
+
+  async runTrackedAccountDisconnect(accountId, body = {}, options = {}) {
+    const workspaceId = normalizeWorkspaceObjectId(options.workspaceId || getDefaultWorkspaceObjectId());
+    return jobObservabilityService.trackJob({
+      jobName: 'connectors.work_signals_sync',
+      jobType: 'sync',
+      triggerType: options.triggerType || 'api',
+      workspaceId,
+      metadata: { actor: options.actorId || options.actor || 'api', accountScope: 'single', accountAction: 'disconnect' }
+    }, () => this.getAccountConnectorService().disconnectAccount(accountId, body, {
+      ...options,
+      workspaceId,
+      actorId: options.actorId || options.actor || 'api'
+    }));
   }
 
   async runScheduledSyncs() {
@@ -336,7 +351,7 @@ class ConnectorSyncService {
   }
 
   async recordSyncFailure(account, error, options = {}) {
-    if (!account?.save) return null;
+    if (!account?.save || account.status === 'disabled' || this.isLifecycleSyncBlock(error)) return null;
     const now = this.now();
     const previous = account.metadata?.connectorSyncFailure || {};
     const consecutiveFailures = Math.min(
@@ -366,6 +381,25 @@ class ConnectorSyncService {
     return account.metadata.connectorSyncFailure;
   }
 
+  isLifecycleSyncBlock(error) {
+    return ['SNEUP_CONNECTOR_ACCOUNT_DISABLED', 'SNEUP_CONNECTOR_RECONNECT_REQUIRED'].includes(error?.code);
+  }
+
+  assertAccountSyncable(account) {
+    if (account?.status === 'disabled') {
+      const error = new Error('Reconnect this connector account before running a sync');
+      error.statusCode = 409;
+      error.code = 'SNEUP_CONNECTOR_ACCOUNT_DISABLED';
+      throw error;
+    }
+    if (account?.status === 'needs_attention' || account?.metadata?.connectorSyncFailure?.retryable === false) {
+      const error = new Error('Reconnect or rotate this connector account before running a sync');
+      error.statusCode = 409;
+      error.code = 'SNEUP_CONNECTOR_RECONNECT_REQUIRED';
+      throw error;
+    }
+  }
+
   async syncAccount(accountOrId, options = {}) {
     this.requireDatabase();
     let account = accountOrId;
@@ -381,6 +415,8 @@ class ConnectorSyncService {
       error.statusCode = 404;
       throw error;
     }
+
+    this.assertAccountSyncable(account);
 
     await this.getFeatureFlagService().assertEnabled('connector_sync', {
       workspaceId: account.workspaceId,

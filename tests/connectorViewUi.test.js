@@ -23,6 +23,7 @@ const makeCallbacks = () => ({
   loadConnectors: jest.fn(),
   startConnection: jest.fn(),
   syncConnectorAccount: jest.fn(),
+  openDisconnectConnectorAccount: jest.fn(),
   openNotice: jest.fn(),
   closeModal: jest.fn(),
   saveConnectorSelection: jest.fn().mockResolvedValue({}),
@@ -74,7 +75,10 @@ const createHarness = (locale = 'nl') => {
     accounts: [{
       id: 'account-1',
       connectorId: 'trello',
-      status: 'active',
+      connectorName: 'Trello',
+      accountName: 'Delivery board',
+      status: 'connected',
+      updatedAt: '2026-08-09T09:15:00.000Z',
       consent: { acknowledgedAt: '2026-08-09T08:30:00.000Z', acknowledgedBy: 'Robert' },
       credentialRotation: { required: true, status: 'overdue', daysUntilDue: -2 },
       syncFreshness: { status: 'stale', hoursUntilDue: -3 },
@@ -160,6 +164,23 @@ describe('demand-loaded connector view', () => {
     expect(harness.elements.connectorGrid.textContent).toContain('Automatische nieuwe pogingen zijn gestopt');
     expect(harness.elements.connectorGrid.textContent).toContain('3 opeenvolgende fouten');
     expect(harness.elements.connectorGrid.textContent).toContain('opnieuw');
+    expect(harness.dom.window.document.querySelector('[data-connector-sync]')).toBeNull();
+    harness.dom.window.close();
+  });
+
+  test('renders disconnected accounts as inactive and offers only reconnection', () => {
+    const harness = createHarness('nl');
+    harness.state.accounts[0].status = 'disabled';
+    harness.state.accounts[0].syncRecovery = null;
+    harness.state.accounts[0].disconnectedAt = '2026-08-09T10:00:00.000Z';
+    harness.controller.render();
+
+    expect(harness.elements.connectedCount.textContent).toBe('0 gekoppelde accounts');
+    expect(harness.elements.connectorGrid.textContent).toContain('ontkoppeld');
+    expect(harness.elements.connectorGrid.textContent).toContain('Opnieuw koppelen');
+    expect(harness.dom.window.document.querySelector('[data-connector-sync]')).toBeNull();
+    expect(harness.dom.window.document.querySelector('[data-disconnect-connector]')).toBeNull();
+    expect(harness.dom.window.document.querySelector('[data-rotate-credential]')).toBeNull();
     harness.dom.window.close();
   });
 
@@ -176,6 +197,9 @@ describe('demand-loaded connector view', () => {
 
     harness.dom.window.document.querySelector('[data-connector-sync]').click();
     expect(harness.callbacks.syncConnectorAccount).toHaveBeenCalledWith('account-1');
+
+    harness.dom.window.document.querySelector('[data-disconnect-connector]').click();
+    expect(harness.callbacks.openDisconnectConnectorAccount).toHaveBeenCalledWith('account-1');
 
     harness.dom.window.document.querySelector('[data-rotate-credential]').click();
     expect(harness.callbacks.startConnection).toHaveBeenCalledWith('trello', { account: harness.state.accounts[0] });

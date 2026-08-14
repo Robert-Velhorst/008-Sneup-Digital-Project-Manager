@@ -2788,7 +2788,12 @@ describe('connector registry', () => {
       accountName: 'Delivery organization',
       externalAccountId: 'delivery',
       credentials: { apiKey: accountConnectorService.encrypt(JSON.stringify({ token: 'old-secret' })) },
-      metadata: { fields: { organizationUrl: 'https://dev.azure.com/delivery' }, sync: ['projects', 'work_items'] },
+      metadata: {
+        fields: { organizationUrl: 'https://dev.azure.com/delivery' },
+        sync: ['projects', 'work_items'],
+        connectorSyncFailure: { retryable: false, consecutiveFailures: 2 },
+        connectorDisconnected: { at: new Date('2026-08-14T08:00:00.000Z') }
+      },
       consent: { acknowledgedBy: 'previous-operator', scopeReviewRequired: true },
       lastError: 'Provider rejected the old token',
       save: jest.fn().mockResolvedValue(undefined)
@@ -2808,6 +2813,8 @@ describe('connector registry', () => {
       expect(account.credentials.apiKey).not.toContain('old-secret');
       expect(account.status).toBe('connected');
       expect(account.lastError).toBeUndefined();
+      expect(account.metadata).not.toHaveProperty('connectorSyncFailure');
+      expect(account.metadata).not.toHaveProperty('connectorDisconnected');
       expect(account.credentialsLastRotatedAt).toBeInstanceOf(Date);
       expect(rotated).not.toHaveProperty('credentials');
       expect(rotated.credentialsLastRotatedAt).toBe(account.credentialsLastRotatedAt);

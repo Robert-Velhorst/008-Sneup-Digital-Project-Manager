@@ -45,7 +45,7 @@
     'Project and work management', 'Software delivery', 'Communication', 'Calendar and email',
     'Docs and knowledge', 'Files and assets', 'Whiteboard and design', 'Time, finance, and resourcing',
     'CRM, support, and stakeholders', 'Automation, forms, and data', 'Incident, quality, and monitoring',
-    'needs attention', 'retry scheduled', 'disabled', 'connected', 'linked', 'ready', 'setup', 'retired', 'legacy', 'unavailable',
+    'needs attention', 'retry scheduled', 'disconnected', 'connected', 'linked', 'ready', 'setup', 'retired', 'legacy', 'unavailable',
     'scope review', 'read-only', 'Jira site selected', 'Select Jira site', 'Confluence site selected',
     'Select Confluence site', 'Asana workspace selected', 'Select Asana workspace', 'Basecamp account selected',
     'Select Basecamp account', 'Resource Guru account selected', 'Select Resource Guru account',
@@ -56,6 +56,19 @@
 
   const NL_MESSAGES = Object.freeze({
     'Connector selection unavailable': 'Connectorselectie niet beschikbaar',
+    'disconnected': 'ontkoppeld',
+    'Disconnect': 'Ontkoppelen',
+    'Disconnect {name}?': '{name} ontkoppelen?',
+    'Account name': 'Accountnaam',
+    'Type the account name exactly to confirm.': 'Typ de accountnaam exact om te bevestigen.',
+    'Sneup will remove its stored credentials and stop future synchronization. Existing read-only history and audit evidence remain.': 'Sneup verwijdert de opgeslagen inloggegevens en stopt toekomstige synchronisatie. Bestaande alleen-lezen geschiedenis en auditbewijs blijven behouden.',
+    'The provider authorization is not revoked. Revoke it in the provider too when access must end there.': 'De autorisatie bij de provider wordt niet ingetrokken. Trek deze ook bij de provider in wanneer de toegang daar moet eindigen.',
+    'I understand provider authorization is unchanged.': 'Ik begrijp dat de providerautorisatie ongewijzigd blijft.',
+    'Disconnect account': 'Account ontkoppelen',
+    'Disconnecting...': 'Bezig met ontkoppelen...',
+    'Connector disconnected': 'Koppeling ontkoppeld',
+    'Stored credentials were removed and future synchronization is blocked. Provider authorization was not changed.': 'Opgeslagen inloggegevens zijn verwijderd en toekomstige synchronisatie is geblokkeerd. De providerautorisatie is niet gewijzigd.',
+    'Connector disconnect failed': 'Ontkoppelen van koppeling mislukt',
     'retry scheduled': 'nieuwe poging gepland',
     'Automatic retry scheduled {date} after {count} consecutive failure. You can run a read-only sync now.': 'Automatische nieuwe poging gepland op {date} na {count} opeenvolgende fout. U kunt nu ook een alleen-lezen synchronisatie uitvoeren.',
     'Automatic retry scheduled {date} after {count} consecutive failures. You can run a read-only sync now.': 'Automatische nieuwe poging gepland op {date} na {count} opeenvolgende fouten. U kunt nu ook een alleen-lezen synchronisatie uitvoeren.',
@@ -729,7 +742,7 @@
       const accountStatus = account?.status || '';
       const connectionLabel = connected && account?.syncRecovery?.status === 'retry_scheduled' ? 'retry scheduled'
         : connected && ['failed', 'needs_attention'].includes(accountStatus) ? 'needs attention'
-        : connected && accountStatus === 'disabled' ? 'disabled'
+        : connected && accountStatus === 'disabled' ? 'disconnected'
           : connected ? (syncReady ? 'connected' : 'linked') : syncReady ? (configured ? 'ready' : 'setup') : catalogAvailability === 'retired' ? 'retired' : catalogAvailability === 'legacy' ? 'legacy' : 'unavailable';
       const connectionStatusClass = connected && account?.syncRecovery?.status === 'retry_scheduled' ? 'review'
         : connected && ['failed', 'needs_attention'].includes(accountStatus) ? 'high'
@@ -750,8 +763,11 @@
       const isProcore = connector.id === 'procore';
       const isMural = connector.id === 'mural';
       const isGenericWebhook = connector.id === 'webhook_generic';
-      const genericWebhookEndpoint = isGenericWebhook && account ? `${window.location.origin}/api/webhooks/generic/${account.id}` : '';
+      const accountActive = connected && accountStatus !== 'disabled';
+      const genericWebhookEndpoint = isGenericWebhook && accountActive ? `${window.location.origin}/api/webhooks/generic/${account.id}` : '';
       const canSync = Boolean(isFeatureEnabled('connector_sync') && account && syncReady && !isGenericWebhook
+        && accountStatus !== 'disabled' && accountStatus !== 'needs_attention'
+        && account?.syncRecovery?.status !== 'reconnect_required'
         && (!isFigma || fields.figmaTeamId) && (!isConfluence || fields.confluenceCloudId)
         && (!isSharePoint || fields.sharePointSiteId) && (!isXero || fields.xeroTenantId)
         && (!isProcore || fields.procoreCompanyId) && (!isMural || fields.muralWorkspaceId));
@@ -759,16 +775,16 @@
         ? `<div class="meta"><span>${et('Scope review {date}', { date: formatDate(account.consent.acknowledgedAt) })}</span><span>${escapeHtml(account.consent.acknowledgedBy || t('local user'))}</span></div>`
         : '';
       const selectionButtons = [
-        isJira && account ? ['jira-site', fields.cloudId ? 'Jira site selected' : 'Select Jira site'] : null,
-        isConfluence && account ? ['confluence-site', fields.confluenceCloudId ? 'Confluence site selected' : 'Select Confluence site'] : null,
-        isAsana && account ? ['asana-workspace', fields.asanaWorkspaceGid ? 'Asana workspace selected' : 'Select Asana workspace'] : null,
-        isBasecamp && account ? ['basecamp-account', fields.basecampAccountId ? 'Basecamp account selected' : 'Select Basecamp account'] : null,
-        isResourceGuru && account ? ['resource-guru-account', fields.resourceGuruAccountId ? 'Resource Guru account selected' : 'Select Resource Guru account'] : null,
-        isFigma && account ? ['figma-team', fields.figmaTeamId ? 'Figma team selected' : 'Configure Figma team'] : null,
-        isSharePoint && account ? ['sharepoint-site', fields.sharePointSiteId ? 'SharePoint site selected' : 'Select SharePoint site'] : null,
-        isXero && account ? ['xero-tenant', fields.xeroTenantId ? 'Xero organisation selected' : 'Select Xero organisation'] : null,
-        isProcore && account ? ['procore-company', fields.procoreCompanyId ? 'Procore company selected' : 'Select Procore company'] : null,
-        isMural && account ? ['mural-workspace', fields.muralWorkspaceId ? 'Mural workspace selected' : 'Select Mural workspace'] : null
+        isJira && accountActive ? ['jira-site', fields.cloudId ? 'Jira site selected' : 'Select Jira site'] : null,
+        isConfluence && accountActive ? ['confluence-site', fields.confluenceCloudId ? 'Confluence site selected' : 'Select Confluence site'] : null,
+        isAsana && accountActive ? ['asana-workspace', fields.asanaWorkspaceGid ? 'Asana workspace selected' : 'Select Asana workspace'] : null,
+        isBasecamp && accountActive ? ['basecamp-account', fields.basecampAccountId ? 'Basecamp account selected' : 'Select Basecamp account'] : null,
+        isResourceGuru && accountActive ? ['resource-guru-account', fields.resourceGuruAccountId ? 'Resource Guru account selected' : 'Select Resource Guru account'] : null,
+        isFigma && accountActive ? ['figma-team', fields.figmaTeamId ? 'Figma team selected' : 'Configure Figma team'] : null,
+        isSharePoint && accountActive ? ['sharepoint-site', fields.sharePointSiteId ? 'SharePoint site selected' : 'Select SharePoint site'] : null,
+        isXero && accountActive ? ['xero-tenant', fields.xeroTenantId ? 'Xero organisation selected' : 'Select Xero organisation'] : null,
+        isProcore && accountActive ? ['procore-company', fields.procoreCompanyId ? 'Procore company selected' : 'Select Procore company'] : null,
+        isMural && accountActive ? ['mural-workspace', fields.muralWorkspaceId ? 'Mural workspace selected' : 'Select Mural workspace'] : null
       ].filter(Boolean).map(([attribute, label]) => `<button class="button" data-${attribute}="${escapeHtml(account.id)}" type="button">${et(label)}</button>`).join('');
       const workerResponseBindingCount = account?.metadata?.inboundWorkerResponses?.bindingCount || 0;
 
@@ -788,7 +804,7 @@
           ${syncReady ? `<div class="connector-policy ${safety.scopeRisk === 'review' ? 'review' : ''}">${safety.summary ? escapeHtml(safety.summary) : et('Read-only ingestion only.')}</div>` : ''}
           <div class="meta"><span>${isGenericWebhook ? et('HMAC-verified inbound event adapter available.') : escapeHtml(adapterSummary)}</span></div>
           ${consentSummary}
-          ${renderCredentialRotation(account?.credentialRotation)}
+          ${accountStatus === 'disabled' ? '' : renderCredentialRotation(account?.credentialRotation)}
           ${renderSyncRecovery(account?.syncRecovery)}
           ${renderSyncFreshness(account?.syncFreshness, canSync)}
           ${renderSyncSummary(account, canSync)}
@@ -797,9 +813,12 @@
             <span class="meta">${connector.sync.slice(0, 3).map(escapeHtml).join(' | ')}</span>
             ${selectionButtons}
             ${genericWebhookEndpoint ? `<button class="button" data-copy-webhook-endpoint="${escapeHtml(genericWebhookEndpoint)}" type="button">${et('Copy endpoint')}</button>` : ''}
-            ${isGenericWebhook && account ? `<button class="button" data-worker-response-bindings="${escapeHtml(account.id)}" type="button">${workerResponseBindingCount ? et('Response mappings ({count})', { count: workerResponseBindingCount }) : et('Configure response mappings')}</button>` : ''}
+            ${isGenericWebhook && accountActive ? `<button class="button" data-worker-response-bindings="${escapeHtml(account.id)}" type="button">${workerResponseBindingCount ? et('Response mappings ({count})', { count: workerResponseBindingCount }) : et('Configure response mappings')}</button>` : ''}
             ${canSync ? `<button class="button" data-connector-sync="${escapeHtml(account.id)}" type="button">${et('Sync now')}</button>` : ''}
-            ${syncReady ? (connected && connector.auth.type !== 'oauth2'
+            ${accountActive ? `<button class="button danger" data-disconnect-connector="${escapeHtml(account.id)}" type="button">${et('Disconnect')}</button>` : ''}
+            ${syncReady ? (accountStatus === 'disabled'
+              ? `<button class="button ${configured ? 'primary' : ''}" data-connect="${escapeHtml(connector.id)}" type="button">${et('Reconnect')}</button>`
+              : connected && connector.auth.type !== 'oauth2'
               ? `<button class="button primary" data-rotate-credential="${escapeHtml(account.id)}" type="button">${et('Rotate credential')}</button>`
               : `<button class="button ${configured ? 'primary' : ''}" data-connect="${escapeHtml(connector.id)}" type="button">${et(connected ? 'Reconnect' : 'Connect')}</button>`) : ''}
           </div>
@@ -816,6 +835,7 @@
         });
       });
       document.querySelectorAll('[data-connector-sync]').forEach(button => button.addEventListener('click', () => callbacks.syncConnectorAccount(button.dataset.connectorSync)));
+      document.querySelectorAll('[data-disconnect-connector]').forEach(button => button.addEventListener('click', () => callbacks.openDisconnectConnectorAccount(button.dataset.disconnectConnector)));
       SELECTION_ACTIONS.forEach(([selector, datasetKey, callbackName]) => {
         document.querySelectorAll(selector).forEach(button => button.addEventListener('click', () => callbacks[callbackName](button.dataset[datasetKey])));
       });
@@ -835,7 +855,8 @@
 
     function render() {
       elements.connectorCount.textContent = state.connectorCatalogTotal || state.connectorTotal || state.connectors.length;
-      elements.connectedCount.textContent = plural('{count} connected account', '{count} connected accounts', state.accounts.length);
+      const connectedAccountCount = state.accounts.filter(account => account.status !== 'disabled').length;
+      elements.connectedCount.textContent = plural('{count} connected account', '{count} connected accounts', connectedAccountCount);
       renderCategories();
       const selectedCategory = state.categories.find(category => category.id === state.category);
       const readinessLabel = state.connectorReadiness === 'ready' ? t('ready to connect')
@@ -843,7 +864,13 @@
       elements.connectorHeading.textContent = [selectedCategory ? t(selectedCategory.name) : t('All connectors'), readinessLabel].filter(Boolean).join(' - ');
       document.querySelectorAll('[data-connector-readiness]').forEach(button => button.classList.toggle('active', button.dataset.connectorReadiness === state.connectorReadiness));
       renderSafety();
-      const accountsByConnectorId = new Map(state.accounts.map(account => [account.connectorId, account]));
+      const accountsByConnectorId = new Map();
+      state.accounts.forEach((account) => {
+        const current = accountsByConnectorId.get(account.connectorId);
+        if (!current || (current.status === 'disabled' && account.status !== 'disabled')) {
+          accountsByConnectorId.set(account.connectorId, account);
+        }
+      });
       elements.connectorGrid.innerHTML = state.connectorTotal === 0
         ? `<div class="empty">${et('No connectors match this view.')}</div>`
         : state.connectors.map(connector => renderConnector(connector, accountsByConnectorId.get(connector.id))).join('');

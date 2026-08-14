@@ -7,23 +7,33 @@
 | Operational controls | Doctor, readiness, support bundle, emergency stop | Complete |
 | Focused verification | Runtime/security tests and lint | Complete |
 | Traceability | Required document set and completion matrix | Complete |
-| Full regression | 130 suites/939 tests, lint, 5/5 evaluation, two dependency audits, and positive five-secret release verification | Complete locally |
+| Full regression | 131 suites/947 tests, lint, 5/5 evaluation, zero-vulnerability production audit, positive five-secret release verification, and connector lifecycle/recovery real-Mongo proofs | Complete locally |
 | MongoDB pool | Validated 20-socket per-process cap, zero idle minimum, two connection establishments, idle retirement, five-second wait queue, and listener-stable real-Mongo reconnect | Complete locally |
 | Authentication activity | Every request still validates the credential and principal; a 100-request real-Mongo profile reduced non-audit presence writes from 200 to two through active-only atomic five-minute touches | Complete locally |
-| Portfolio scale | Real mission-control path over 60 boards/15,000 cards plus 180 health snapshots; 60 unique current boards, critical-first 20-row cap, both exact indexes, 741.7 ms measured p95, no provider writes | Complete locally |
+| Portfolio scale | Real mission-control path over 60 boards/15,000 cards plus 180 health snapshots; 60 unique current boards, critical-first 20-row cap, both exact indexes, 780.8 ms measured p95, no provider writes | Complete locally |
 | Multi-instance jobs | Unit coverage plus disposable MongoDB 7 simultaneous acquisition, token, release, and expiry verification | Complete locally |
 | API contract | `/api/v1` envelope, request correlation, dashboard parser, HAI OpenAPI, live demo HTTP matrix, and compatibility tests | Complete locally |
 | Feature rollouts | Four optional workloads, deterministic subjects, optimistic revisions, bounded cache/history, manager UI, 40-collection real-Mongo verification, and live fail-closed behavior | Complete locally; hosted manager acceptance pending |
 | Data integrity and repair | Bounded dry-run/apply, review-only unsafe findings, all-workspace Trello index migration, audit evidence, and disposable MongoDB verification | Complete locally |
 | Data retention | Owner-only opt-in policy, bounded preview/apply, protected evidence, distributed lease, indexed queries, pre/post audits, real MongoDB proof, and live browser flow | Complete locally |
-| Windows package | 2.3.38 NSIS build, nine demo diagnostics, HAI smoke, metadata, SHA-256, seven source-identical changed runtime/config modules, repeatable resource sample, and clean close | Complete locally; publisher signing external |
-| Fresh clone | Exact 2.3.38 source `8d510d20a7617dab5c82e88a758518b24f1661af` passed clean GitHub Node 24 and Windows jobs | Complete for 2.3.38 |
-| Browser and Windows UI | Connector readiness filtering, Dutch connector rendering, ENH-037 evidence, desktop/minimum-responsive containment, and zero console errors passed in the in-app Browser; DOM regressions cover the exact recovery states | Complete for these flows; exact 390 px, screen-reader, and clean-VM evidence pending |
+| Windows package | 2.3.39 NSIS build, nine demo diagnostics, HAI smoke, metadata, SHA-256, six source-identical changed runtime modules, semantically validated transformed manifest, resource sample, and clean close | Complete locally; publisher signing external |
+| Fresh clone | Exact 2.3.39 source is awaiting GitHub Node 24 and Windows jobs | Pending remote verification for 2.3.39 |
+| Browser and Windows UI | Connector marketplace, scope review, Dutch rendering, desktop/minimum-responsive containment, and zero console errors passed in the in-app Browser; DOM regressions cover exact disconnect/reconnect states | Complete for these flows; exact 390 px, connected live account, screen-reader, and clean-VM evidence pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter, strict listener validation, exact runtime origin admission, and restart-safe URL cleanup | Complete locally; live credentials external |
-| GitHub CI | 2.3.38 run `31770300777` passed both jobs; artifact `9207912643` was independently downloaded and verified | Complete for 2.3.38 |
+| GitHub CI | 2.3.39 source and installer artifact await publication; 2.3.38 run `31770300777` remains the last independently verified remote release | Pending for 2.3.39 |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |
+
+## 2026-08-14 - Connector lifecycle release checkpoint
+
+- Release: 2.3.39
+- Scope: replace unaudited hard deletion with exact-confirmation local disconnect, make disabled/reconnect-required state authoritative, and reconnect the existing account record.
+- Safety boundary: credentials and refresh authority are purged under the synchronization lease, prior read-only evidence remains, audit failure rolls back, provider authorization is explicitly unchanged, HAI stays proposal-only, and post-disconnect verification issues no provider read or write.
+- Verification: lint; 131 suites/947 tests; 5/5 safety evaluation; zero-vulnerability production audit; positive five-secret validation; disposable real-Mongo lifecycle and recovery proofs; 15,000-card profile; Browser/HAI acceptance; and packaged Windows behavior/source parity.
+- Installer: `release/Sneup-Setup-2.3.39.exe`, 109,500,269 bytes, unsigned, SHA-256 `51E89FB4AB173D053C54441C968EE3ACC04F18A08A878E8B5AA50FEA522B0812`.
+- GitHub: exact source, CI run, and independently downloaded artifact pending publication.
+- External gates remain: hosted OAuth/credential disconnect and reconnect, provider-side revocation, owner-authorized live provider/ngrok/HAI acceptance, production deployment and restore, publisher signing, clean-VM scaling, and assistive-technology certification.
 
 ## 2026-08-14 - Connector recovery release checkpoint
 

@@ -12,6 +12,15 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-14 connector lifecycle continuation
+
+- Re-audited connector-account cleanup and found an unaudited hard-delete API, no command-center disconnect action, manual sync offered for disabled/permanent-failure accounts, and no serialization between deletion and active synchronization.
+- Replaced deletion with an exact-confirmation, revision-aware local disconnect under the existing workspace sync lease. It removes credentials and OAuth refresh leases, preserves prior read-only evidence, records secret-free audit evidence, and restores prior state when audit persistence fails.
+- Disabled and reconnect-required accounts now fail before feature evaluation, OAuth refresh, provider pacing, or adapter reads. Signed Generic Webhook intake remains connected-account-only. Credential rotation and OAuth reconnect reactivate the existing account and clear stale lifecycle failures.
+- A guarded disposable MongoDB verifier rejected an inexact confirmation, purged credentials and the refresh lease, blocked sync before any feature/provider call, reconnected the same record, issued zero provider reads/writes, and dropped its database. Browser QA passed the connector marketplace and scope-review interaction without console errors or horizontal overflow; the connected disconnect form is covered by jsdom because demo mode intentionally stores no accounts.
+- The final local gate passed 131 suites/947 tests, lint, 5/5 recommendation safety evaluation, a zero-vulnerability production dependency audit, and positive five-secret production release validation. The 15,000-card profile measured 738.6 ms p50, 780.8 ms p95, and 352.2 MB peak RSS; cold demo import remained Mongo-free at 304.8 ms and 64.6 MB RSS.
+- Built and verified unsigned `release/Sneup-Setup-2.3.39.exe`, 109,500,269 bytes, version 2.3.39, SHA-256 `51E89FB4AB173D053C54441C968EE3ACC04F18A08A878E8B5AA50FEA522B0812`. Packaged runtime passed at 360.8 MB working set, 294.9 MB private memory, and 1.812 CPU seconds; all six changed runtime modules are byte-identical inside the ASAR and the transformed manifest retains exact identity, version, entry point, engines, and runtime dependencies.
+
 ## 2026-08-14 connector recovery continuation
 
 - Re-audited account synchronization and found a transient provider outage could set an account to `failed` and permanently remove it from every later scheduler pass. Manual synchronization also bypassed the shared distributed job lease and exposed no exact retry-versus-reconnect posture.

@@ -741,11 +741,14 @@ class AccountConnectorService {
     account.credentials = {
       apiKey: Object.keys(secretPayload).length > 0 ? this.encrypt(JSON.stringify(secretPayload)) : undefined
     };
-    account.metadata = {
+    const nextMetadata = {
       ...(account.metadata || {}),
       fields: { ...(account.metadata?.fields || {}), ...metadataFields },
       sync: connector.sync || account.metadata?.sync || []
     };
+    delete nextMetadata.connectorSyncFailure;
+    delete nextMetadata.connectorDisconnected;
+    account.metadata = nextMetadata;
     account.accountName = body.accountName || account.accountName || metadataFields.workspaceUrl || metadataFields.baseUrl || connector.name;
     account.externalAccountId = body.externalAccountId || account.externalAccountId || account.accountName;
     account.consent = this.createConsentEvidence(connector, {
@@ -801,29 +804,92 @@ class AccountConnectorService {
     return JSON.parse(JSON.stringify(metadata || {}));
   }
 
-  async deleteAccount(accountId, options = {}) {
-    this.requireDatabase();
+  getDisconnectConfirmation(account) {
+    return String(account?.accountName || account?.connectorName || '').trim();
+  }
 
-    const account = await ConnectorAccount.findOne({
-      _id: accountId,
-      workspaceId: this.resolveWorkspaceId(options.workspaceId)
-    });
-    if (!account) {
-      const error = new Error('Connector account not found');
-      error.statusCode = 404;
+  async disconnectAccount(accountId, body = {}, options = {}) {
+    this.requireDatabase();
+    const account = await this.getManagedAccount(accountId, options);
+    if (account.status === 'disabled') {
+      const error = new Error('Connector account is already disconnected');
+      error.statusCode = 409;
+      error.code = 'SNEUP_CONNECTOR_ALREADY_DISCONNECTED';
       throw error;
     }
 
-    await account.deleteOne();
-    return { success: true };
+    const confirmation = this.getDisconnectConfirmation(account);
+    if (!confirmation || String(body.confirmation || '') !== confirmation) {
+      const error = new Error('Connector account confirmation does not match the account name');
+      error.statusCode = 400;
+      error.code = 'SNEUP_CONNECTOR_DISCONNECT_CONFIRMATION_MISMATCH';
+      throw error;
+    }
+    if (body.acknowledgeProviderAuthorization !== true) {
+      const error = new Error('Confirm that disconnecting Sneup does not revoke access at the provider');
+      error.statusCode = 400;
+      error.code = 'SNEUP_CONNECTOR_PROVIDER_AUTHORIZATION_ACK_REQUIRED';
+      throw error;
+    }
+
+    const expectedUpdatedAt = new Date(body.expectedUpdatedAt || 0);
+    const currentUpdatedAt = new Date(account.updatedAt || 0);
+    if (
+      Number.isNaN(expectedUpdatedAt.getTime()) ||
+      Number.isNaN(currentUpdatedAt.getTime()) ||
+      expectedUpdatedAt.getTime() !== currentUpdatedAt.getTime()
+    ) {
+      const error = new Error('Connector account changed after the disconnect form was opened. Review it and try again.');
+      error.statusCode = 409;
+      error.code = 'SNEUP_CONNECTOR_DISCONNECT_STALE';
+      throw error;
+    }
+
+    const beforeState = this.sanitizeAccount(account);
+    const rollback = {
+      credentials: account.credentials ? { ...account.credentials.toObject?.(), ...account.credentials } : undefined,
+      oauthRefreshLease: account.oauthRefreshLease ? { ...account.oauthRefreshLease.toObject?.(), ...account.oauthRefreshLease } : undefined,
+      metadata: this.cloneMetadata(account.metadata),
+      status: account.status,
+      lastError: account.lastError
+    };
+    const metadata = this.cloneMetadata(account.metadata);
+    delete metadata.connectorSyncFailure;
+    metadata.connectorDisconnected = {
+      at: this.now(),
+      actor: options.actorId || 'local-user'
+    };
+
+    account.status = 'disabled';
+    account.credentials = undefined;
+    account.oauthRefreshLease = undefined;
+    account.lastError = undefined;
+    account.metadata = metadata;
+    await account.save();
+
+    try {
+      await this.recordDisconnectAudit(account, options.actorId, beforeState);
+    } catch (error) {
+      Object.assign(account, rollback);
+      await account.save();
+      const auditError = new Error('Connector account was not disconnected because audit evidence could not be recorded');
+      auditError.statusCode = 503;
+      auditError.code = 'SNEUP_CONNECTOR_DISCONNECT_AUDIT_FAILED';
+      throw auditError;
+    }
+
+    return {
+      account: this.sanitizeAccount(account),
+      providerAuthorizationChanged: false
+    };
   }
 
   async getManagedAccount(accountId, options = {}) {
     this.requireDatabase();
-    const account = await ConnectorAccount.findOne({
+    const account = await this.connectorAccountModel.findOne({
       _id: accountId,
       workspaceId: this.resolveWorkspaceId(options.workspaceId)
-    }).select('+credentials');
+    }).select('+credentials +oauthRefreshLease');
     if (!account) {
       const error = new Error('Connector account not found');
       error.statusCode = 404;
@@ -1144,13 +1210,19 @@ class AccountConnectorService {
   async markAccountValidated(accountId, options = {}) {
     this.requireDatabase();
 
-    const account = await ConnectorAccount.findOne({
+    const account = await this.connectorAccountModel.findOne({
       _id: accountId,
       workspaceId: this.resolveWorkspaceId(options.workspaceId)
     });
     if (!account) {
       const error = new Error('Connector account not found');
       error.statusCode = 404;
+      throw error;
+    }
+    if (account.status === 'disabled') {
+      const error = new Error('Reconnect this connector account before validating it');
+      error.statusCode = 409;
+      error.code = 'SNEUP_CONNECTOR_ACCOUNT_DISABLED';
       throw error;
     }
 
@@ -1226,8 +1298,74 @@ class AccountConnectorService {
       tokenResponse.team?.id ||
       accountName;
 
-    const account = new ConnectorAccount({
-      workspaceId: this.resolveWorkspaceId(options.workspaceId),
+    const workspaceId = this.resolveWorkspaceId(options.workspaceId);
+    const credentials = {
+      accessToken: accessToken ? this.encrypt(accessToken) : undefined,
+      refreshToken: refreshToken ? this.encrypt(refreshToken) : undefined,
+      tokenType: tokenResponse.token_type || 'Bearer',
+      expiresAt
+    };
+    const oauthMetadata = this.extractOAuthMetadata(connector, tokenResponse);
+    let account = await this.connectorAccountModel.findOne({
+      workspaceId,
+      connectorId: connector.id,
+      externalAccountId
+    }).select('+credentials +oauthRefreshLease');
+
+    if (account) {
+      const rollback = {
+        accountName: account.accountName,
+        category: account.category,
+        authType: account.authType,
+        status: account.status,
+        scopes: [...(account.scopes || [])],
+        consent: { ...(account.consent?.toObject?.() || account.consent || {}) },
+        credentials: account.credentials ? { ...account.credentials.toObject?.(), ...account.credentials } : undefined,
+        oauthRefreshLease: account.oauthRefreshLease ? { ...account.oauthRefreshLease.toObject?.(), ...account.oauthRefreshLease } : undefined,
+        metadata: this.cloneMetadata(account.metadata),
+        connectedBy: account.connectedBy,
+        lastValidatedAt: account.lastValidatedAt,
+        lastError: account.lastError
+      };
+      const metadata = {
+        ...(account.metadata || {}),
+        fields: {
+          ...(account.metadata?.fields || {}),
+          ...oauthMetadata,
+          ...(options.callbackMetadata || {})
+        },
+        providerResponseKeys: Object.keys(tokenResponse || {}),
+        sync: connector.sync || []
+      };
+      delete metadata.connectorSyncFailure;
+      delete metadata.connectorDisconnected;
+
+      account.accountName = accountName;
+      account.category = connector.category;
+      account.authType = 'oauth2';
+      account.status = 'connected';
+      account.scopes = this.normalizeScopes(tokenResponse.scope || connector.auth.scopes || []);
+      account.consent = options.consent || this.createConsentEvidence(connector, options);
+      account.credentials = credentials;
+      account.oauthRefreshLease = undefined;
+      account.metadata = metadata;
+      account.connectedBy = options.actorId || options.consent?.acknowledgedBy || account.connectedBy || 'local-user';
+      account.lastValidatedAt = this.now();
+      account.lastError = undefined;
+      await account.save();
+
+      try {
+        await this.recordConnectionAudit(account, options.actorId || options.consent?.acknowledgedBy, { rollbackAccount: false });
+      } catch (error) {
+        Object.assign(account, rollback);
+        await account.save();
+        throw error;
+      }
+      return account;
+    }
+
+    account = new this.connectorAccountModel({
+      workspaceId,
       connectorId: connector.id,
       connectorName: connector.name,
       category: connector.category,
@@ -1237,25 +1375,21 @@ class AccountConnectorService {
       externalAccountId,
       scopes: this.normalizeScopes(tokenResponse.scope || connector.auth.scopes || []),
       consent: options.consent || this.createConsentEvidence(connector, options),
-      credentials: {
-        accessToken: accessToken ? this.encrypt(accessToken) : undefined,
-        refreshToken: refreshToken ? this.encrypt(refreshToken) : undefined,
-        tokenType: tokenResponse.token_type || 'Bearer',
-        expiresAt
-      },
+      credentials,
       metadata: {
         fields: {
-          ...this.extractOAuthMetadata(connector, tokenResponse),
+          ...oauthMetadata,
           ...(options.callbackMetadata || {})
         },
         providerResponseKeys: Object.keys(tokenResponse || {}),
         sync: connector.sync || []
       },
-      lastValidatedAt: new Date()
+      connectedBy: options.actorId || options.consent?.acknowledgedBy || 'local-user',
+      lastValidatedAt: this.now()
     });
 
     await account.save();
-    await this.recordConnectionAudit(account, options.consent?.acknowledgedBy);
+    await this.recordConnectionAudit(account, options.actorId || options.consent?.acknowledgedBy);
     return account;
   }
 
@@ -1345,7 +1479,7 @@ class AccountConnectorService {
     };
   }
 
-  async recordConnectionAudit(account, actor) {
+  async recordConnectionAudit(account, actor, options = {}) {
     try {
       await AuditEvent.create({
         workspaceId: account.workspaceId,
@@ -1364,9 +1498,10 @@ class AccountConnectorService {
         }
       });
     } catch (error) {
-      await account.deleteOne?.();
+      if (options.rollbackAccount !== false) await account.deleteOne?.();
       const auditError = new Error('Connector account was not linked because consent evidence could not be recorded');
       auditError.statusCode = 503;
+      auditError.code = 'SNEUP_CONNECTOR_CONNECTION_AUDIT_FAILED';
       throw auditError;
     }
   }
@@ -1382,6 +1517,23 @@ class AccountConnectorService {
       riskLevel: account.consent?.scopeReviewRequired ? 'medium' : 'low',
       beforeState,
       afterState: this.sanitizeAccount(account)
+    });
+  }
+
+  async recordDisconnectAudit(account, actor, beforeState) {
+    await this.auditEventModel.create({
+      workspaceId: account.workspaceId,
+      entityType: 'connector_account',
+      entityId: account._id,
+      action: 'connector_account_disconnected',
+      actor: actor || account.connectedBy || 'local-user',
+      source: 'api',
+      riskLevel: 'medium',
+      beforeState,
+      afterState: {
+        ...this.sanitizeAccount(account),
+        providerAuthorizationChanged: false
+      }
     });
   }
 
@@ -1545,6 +1697,7 @@ class AccountConnectorService {
       credentialRotation: this.getCredentialRotationHealth(account, options),
       syncFreshness: this.getSyncFreshnessHealth(account, options),
       syncRecovery: this.getSyncRecoveryHealth(account),
+      disconnectedAt: account.metadata?.connectorDisconnected?.at || null,
       lastSyncAt: account.lastSyncAt,
       lastError: account.lastError,
       createdAt: account.createdAt,

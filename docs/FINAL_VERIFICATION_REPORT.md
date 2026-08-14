@@ -6,7 +6,7 @@ This report is updated from executed commands at release time. A passing local s
 
 - Branch: `main`
 - Starting commit: `a22d9323b18bc0c948f670b8890462577236a1a8`
-- Release under verification: `2.3.38`
+- Release under verification: `2.3.39`
 - Default remote: `origin`
 
 ## Verification ledger
@@ -17,7 +17,7 @@ This report is updated from executed commands at release time. A passing local s
 | Focused retention tests | Pass: owner permissions, policy bounds, dry-run exclusions, exact confirmation, pre-delete audit failure, distributed worker lease, UI wiring, and rotation across bounded workspace batches |
 | ESLint | Pass |
 | Doctor | Pass with expected local warnings for absent MongoDB/Trello configuration; no errors; ngrok disabled locally |
-| Full regression | Pass: 130 suites, 939 tests, including durable connector recovery, exact webhook approval payloads, ngrok-aware startup ordering, low-level provider-write denial, worker-response ownership, revision-safe review decisions, active-work draining, provider failure, API validation, and ledger compatibility |
+| Full regression | Pass: 131 suites, 947 tests, including authoritative connector disconnect/reconnect, durable connector recovery, exact webhook approval payloads, ngrok-aware startup ordering, low-level provider-write denial, worker-response ownership, revision-safe review decisions, active-work draining, provider failure, API validation, and ledger compatibility |
 | Recommendation evaluation | Pass: 5/5 scenarios, score 100% |
 | Production and full dependency audit | Pass: 0 vulnerabilities after lockfile remediation |
 | Release security positive check | Pass: five purpose-separated production secrets, no values exposed |
@@ -37,23 +37,43 @@ This report is updated from executed commands at release time. A passing local s
 | Review-concurrency profile | Pass: disposable real MongoDB raced approve/reject and approve/payload-edit; one winner per revision, exact active approval, zero orphan approvals, stale open and terminal queue actions blocked, zero Trello attempts, zero provider writes, database dropped |
 | Follow-up integrity profile | Pass: simultaneous provider responses produced one owner and one WorkerResponse, exact intervention binding, only the matching follow-up resolved, adjacent same-card work remained due, simultaneous manual resolutions produced one winner, both audits used the authenticated workspace, zero Trello attempts, zero provider writes, database dropped |
 | Trello webhook integrity profile | Pass: three boards and four observed webhooks produced exact create/update/delete recommendations, four decisions, four audits, zero attempts, zero provider writes, and zero new decisions on repeated reconciliation; low-level emergency stop denied mutation; database dropped |
-| Portfolio-scale profile | Pass: real mission control read 60 boards/300 lists/15,000 cards/100 members plus 180 health snapshots; 766.5 ms cold, 509.5 ms p50, 538.6 ms p95, 348.8 MB peak verifier RSS, both compound indexes selected, 60 unique current boards, critical-first 20-row cap, 10/12/12 outputs bounded, approval required, provider writes false |
+| Portfolio-scale profile | Pass: real mission control read 60 boards/300 lists/15,000 cards/100 members plus 180 health snapshots; 1148.2 ms cold, 738.6 ms p50, 780.8 ms p95, 352.2 MB peak verifier RSS, both compound indexes selected, 60 unique current boards, critical-first 20-row cap, 10/12/12 outputs bounded, approval required, provider writes false |
 | Bounded-ranking resource sample | Pass: worst-case 15,000-card focus improved 42.8 to 16.2 ms, risks 50.5 to 19.9 ms, commands 90.3 to 43.2 ms, and command peak RSS about 165 to 106 MB while preserving stable rank/evidence behavior |
-| Startup profile | Pass: import loaded 254 modules without Mongoose in 222.5 ms at 60.2 MB RSS; Overview remained Mongo-free, completed in 58.4 ms, and sampled 64.6 MB RSS |
+| Startup profile | Pass: import loaded 254 modules without Mongoose in 304.8 ms at 64.6 MB RSS; Overview remained Mongo-free, completed in 68.2 ms, and sampled 68.6 MB RSS |
 | Optional AI resource profile | Pass: loading offline chat did not load OpenAI; loading the deferred SDK afterward added 122 modules, 6.0 MB RSS, and 4.65 seconds in this cold local sample |
-| Browser QA | Pass: in-app Browser exercised connector readiness filtering and rendered Dutch connectors plus ENH-037 with no console errors, document overflow, or overflowing buttons at desktop and the browser's 749 CSS-pixel minimum; this runtime could not expose an exact 390 CSS-pixel viewport |
+| Browser QA | Pass: in-app Browser exercised the Dutch connector marketplace and scope-review modal with no console errors, framework overlay, or horizontal document overflow at desktop and the browser runtime's responsive minimum; exact connected-account disconnect/reconnect states passed jsdom, while demo mode intentionally retained no account credentials |
 | HAI HTTP smoke | Pass: manifest/OpenAPI expose only bounded `snapshot` and approval-gated `propose`; provider writes `never_direct`, approval endpoint false, execution endpoint absent |
 | Windows UI automation | The installed Windows-control package did not expose its required guidance interface; no undocumented input was attempted and visual evidence is not inferred from HTTP or window metadata |
-| Packaged Windows QA | Pass: the exact CI verifier confirmed 2.3.38 product metadata, healthy demo state, nine redacted diagnostics, HAI `never_direct`, normal main-window close, loopback port release, and seven byte-identical changed runtime/config modules |
-| Packaged resource sample | Pass: four processes used 371.2 MB working set, 335.9 MB private memory, and 2.031 cumulative CPU seconds in the five-second CI-equivalent probe. |
-| Windows installer | Pass: local build 109,498,183 bytes, unsigned, SHA-256 `1A23AEC8A1FF83EE2FE0157D0CD7526F2FED018C96134430B816D3044EC099DC`; executable metadata reports 2.3.38 |
-| Fresh clone | Pass: exact 2.3.38 source `8d510d20a7617dab5c82e88a758518b24f1661af` passed clean Node 24 quality and Windows jobs |
-| GitHub CI | Pass: run `31770300777`; quality 1 minute 5 seconds; Windows build, packaged launch, verification, and upload 3 minutes 11 seconds |
-| GitHub installer artifact | Pass: artifact `9207912643`, 109,504,496 bytes, archive digest `sha256:c6277cff26ef4d701b7ced79983d3e455b45d99f3ada52c0cd3b2d19aa83939a`; independent download contained exactly one 109,498,445-byte unsigned 2.3.38 installer with SHA-256 `CB13929F88B6E99E3C436F139D1A65FD528BF19B181273DA35751B67226C5699` |
+| Packaged Windows QA | Pass locally: 2.3.39 product metadata, healthy demo state, nine redacted diagnostics, HAI `never_direct`, normal main-window close, loopback port release, six byte-identical changed runtime modules, and a semantically validated builder-transformed manifest |
+| Packaged resource sample | Pass: four processes used 360.8 MB working set, 294.9 MB private memory, and 1.812 cumulative CPU seconds in the five-second CI-equivalent probe. |
+| Windows installer | Pass locally: 109,500,269 bytes, unsigned, SHA-256 `51E89FB4AB173D053C54441C968EE3ACC04F18A08A878E8B5AA50FEA522B0812`; executable metadata reports 2.3.39 |
+| Fresh clone | Pending for exact 2.3.39 source; the last verified remote release remains 2.3.38 source `8d510d20a7617dab5c82e88a758518b24f1661af` |
+| GitHub CI | Pending for 2.3.39; last verified run `31770300777` covers 2.3.38 |
+| GitHub installer artifact | Pending for 2.3.39; last independently checked artifact `9207912643` covers 2.3.38 |
 
 ## External gates
 
 Live Trello critical-path acceptance, live ngrok/HAI credential acceptance, production database restore, hosted multi-instance lease observation, hosted canary/rollback, OAuth consent reviews, Windows publisher signing, and assistive-technology certification require owner-controlled accounts or infrastructure and are not reported as complete.
+
+## 2.3.39 continuation evidence
+
+| Check | Result |
+| --- | --- |
+| Scope | Exact-confirmation, revision-aware connector disconnect; local authority purge; authoritative disabled state; in-place reconnect |
+| Full quality gate | Pass: lint, 131 suites/947 tests, and 5/5 recommendation scenarios at 100% |
+| Dependency security | Pass: production audit reports 0 vulnerabilities |
+| Release secrets | Pass: five independent production-style values accepted; values not printed or exposed |
+| Real-Mongo connector lifecycle | Pass: inexact confirmation rejected, credentials and refresh lease absent after disconnect, sync blocked before feature/provider work, same account reconnected, zero provider reads/writes |
+| Recovery compatibility | Pass: 2 initial failures, 0 immediate retries, 1 due recovery, permanent account attempted once, compound index present, zero provider writes |
+| Startup and portfolio scale | Pass: 304.8 ms/64.6 MB Mongo-free import; 68.2 ms/68.6 MB Overview; 15,000-card p95 780.8 ms and peak RSS 352.2 MB |
+| Browser QA | Pass: connector marketplace and scope-review interaction, Dutch rendering, contained responsive layout, and zero console warnings; exact connected-account lifecycle states passed jsdom |
+| HAI | Pass: only `snapshot` and approval-gated `propose`; `never_direct`; no approval or execution endpoint |
+| Packaged Windows QA | Pass locally: version 2.3.39, nine diagnostics, no exposed secrets, HAI `never_direct`, four processes, normal close, port released, six runtime modules byte-identical and manifest semantics preserved |
+| Packaged resource sample | Pass: 360.8 MB working set, 294.9 MB private bytes, and 1.812 cumulative CPU seconds after five seconds |
+| Windows installer | Pass locally: 109,500,269 bytes, version 2.3.39, unsigned, SHA-256 `51E89FB4AB173D053C54441C968EE3ACC04F18A08A878E8B5AA50FEA522B0812` |
+| Fresh-clone GitHub CI | Pending publication |
+| GitHub installer artifact | Pending publication and independent download |
+| External gates | Hosted OAuth/credential lifecycle, provider-side revocation, owner-authorized provider/ngrok/HAI acceptance, deployment/restore, signing, clean VM, and assistive technology remain external |
 
 ## 2.3.38 continuation evidence
 

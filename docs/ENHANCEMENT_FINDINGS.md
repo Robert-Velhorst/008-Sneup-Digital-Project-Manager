@@ -1,5 +1,6 @@
 # Enhancement Findings
 
+- ENH-038 release evidence: connector disconnect now requires exact account confirmation, provider-side acknowledgement, and the current account revision under the shared synchronization lease. Credentials and refresh leases are purged, audit failure rolls back, disabled/reconnect-required accounts stop before OAuth or provider work, and reconnection updates the existing account. Unit/UI/browser and disposable real-Mongo evidence records zero provider reads or writes after disconnect.
 - ENH-036 release evidence: webhook observation now starts after ngrok establishes the final callback; missing, stale, and duplicate Trello state becomes an exact protected Robert-owned recommendation. Repeated real-Mongo reconciliation produced four decisions and four audits with zero attempts or provider writes, while the low-level emergency stop independently denied mutation.
 - ENH-035 release evidence: worker responses now claim one executed communication intervention atomically, bind the winning response ID, resolve only the strongest matching follow-up identity, reject stale terminal transitions, normalize provider audit sources, and keep audit evidence in the authenticated workspace. Unit/UI coverage plus a disposable real-Mongo race verifier prove one response owner, one manual resolution winner, an adjacent same-card follow-up unchanged, no Trello attempts, and no provider writes.
 - ENH-034 release evidence: recommendation reviews now use revision-safe atomic transitions and one exact active approval binding; stale or terminal queue actions cannot revive executed work. Unit/UI coverage plus a disposable real-Mongo race verifier prove one decision winner, no orphan approvals, no Trello attempts, and no provider writes.
@@ -15,9 +16,9 @@ This backlog turns the high-level improvement plan into concrete engineering fin
 
 ## Priority Summary
 
-- P0: 13 findings that block serious production use, including completed lifecycle draining, portfolio-wide board-health correctness, race-safe approval authority, exact worker follow-up evidence, and approval-gated webhook configuration.
-- P1: 4 findings that materially improve trust, operability, and desktop adoption, plus 2 completed operations control findings.
-- P2: 6 findings that harden scale, quality, and workflow reach.
+- P0: 15 findings that block serious production use, including connector lifecycle authority, completed lifecycle draining, portfolio-wide board-health correctness, race-safe approval authority, exact worker follow-up evidence, and approval-gated webhook configuration.
+- P1: 12 findings that materially improve trust, operability, forecasting, resourcing, and desktop adoption.
+- P2: 7 findings that harden scale, quality, and workflow reach.
 - P3: 1 reporting enhancement with fast user-visible value.
 
 ## Latest updates

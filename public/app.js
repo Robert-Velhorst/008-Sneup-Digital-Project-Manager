@@ -80,6 +80,7 @@ function loadConnectorView() {
             loadConnectors,
             startConnection,
             syncConnectorAccount,
+            openDisconnectConnectorAccount,
             openNotice,
             closeModal,
             saveConnectorSelection,
@@ -3474,6 +3475,62 @@ async function syncConnectorAccount(accountId) {
   } catch (error) {
     openNotice('Connector sync unavailable', error.message);
   }
+}
+
+async function disconnectConnectorAccount(accountId, body) {
+  return fetchApi(`/api/connectors/accounts/${encodeURIComponent(accountId)}/disconnect`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+}
+
+function openDisconnectConnectorAccount(accountId) {
+  const account = state.accounts.find(item => item.id === accountId);
+  if (!account || account.status === 'disabled') return;
+  const confirmationName = String(account.accountName || account.connectorName || '').trim();
+  if (!confirmationName || !account.updatedAt) {
+    openNotice(t('Connector disconnect failed'), t('Reload Connectors and try again.'));
+    return;
+  }
+
+  els.modalTitle.textContent = t('Disconnect {name}?', { name: account.connectorName || confirmationName });
+  els.modalBody.innerHTML = `
+    <form id="connectorDisconnectForm" class="notice-stack">
+      <div class="notice critical">${et('Sneup will remove its stored credentials and stop future synchronization. Existing read-only history and audit evidence remain.')}</div>
+      <div class="notice">${et('The provider authorization is not revoked. Revoke it in the provider too when access must end there.')}</div>
+      <label>${et('Account name')}<input name="confirmation" type="text" autocomplete="off" required placeholder="${escapeHtml(confirmationName)}"><span class="meta">${et('Type the account name exactly to confirm.')}</span></label>
+      <label><input name="acknowledgeProviderAuthorization" type="checkbox" required> ${et('I understand provider authorization is unchanged.')}</label>
+      <div class="toolbar modal-actions">
+        <button class="button" id="cancelConnectorDisconnect" type="button">${et('Cancel')}</button>
+        <button class="button danger" type="submit">${et('Disconnect account')}</button>
+      </div>
+    </form>
+  `;
+  els.modal.classList.add('open');
+  document.getElementById('cancelConnectorDisconnect').addEventListener('click', closeModal);
+  document.getElementById('connectorDisconnectForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = new FormData(form);
+    const submitButton = form.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
+    submitButton.textContent = t('Disconnecting...');
+    try {
+      await disconnectConnectorAccount(account.id, {
+        confirmation: values.get('confirmation'),
+        acknowledgeProviderAuthorization: values.get('acknowledgeProviderAuthorization') === 'on',
+        expectedUpdatedAt: account.updatedAt
+      });
+      closeModal();
+      await Promise.all([loadConnectors(), loadWorkSignals(), loadJobDashboard()]);
+      openNotice(t('Connector disconnected'), t('Stored credentials were removed and future synchronization is blocked. Provider authorization was not changed.'));
+    } catch (error) {
+      submitButton.disabled = false;
+      submitButton.textContent = t('Disconnect account');
+      openNotice(t('Connector disconnect failed'), error.message);
+    }
+  });
 }
 
 async function startConnection(connectorId, options = {}) {
