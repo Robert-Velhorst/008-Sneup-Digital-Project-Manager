@@ -23,6 +23,7 @@ This worklog records local engineering evidence. Live Trello, production MongoDB
 - In-app Browser acceptance rendered one demand-loaded Approvals module in Dutch with no desktop or effective 749 px narrow overflow and zero current console warnings/errors.
 - HAI returned its 3.1.0 OpenAPI contract and bounded demo snapshot, advertised `never_direct`, exposed no approval or execution endpoint, and returned a fail-closed service-unavailable response when proposal durability required an unavailable database.
 - Built and verified unsigned `release/Sneup-Setup-2.3.30.exe`, 109,487,238 bytes, SHA-256 `502DCF6BD59543A9148C3451DAC6FC8CD9E610B156220BBEE41DC6DEBBF5AA27`. The four-process packaged demo used 359.2 MB working set and 293.2 MB private memory, retained eight healthy redacted diagnostics and HAI `never_direct`, closed normally, released its port, and contained source-identical changed runtime files.
+- Published source `eac5a368dba90fcda2a17d63969dc523a5bd4c13`. GitHub run `31756362949` passed quality in 56 seconds and the Windows build in 2 minutes 52 seconds. Artifact `9202903661` has archive digest `sha256:f51ff875bb0e08bad3cabd2fc75538956fa23be3b6fb86803606a10f2fee647a`; its single independently downloaded installer is 109,487,543 bytes, unsigned, reports version 2.3.30, and has SHA-256 `EC0E37E151A0FA23DC02CF47FC9579857464F626B70BEAD8618A76031573BBC5`.
 
 ## 2026-08-14 bounded-database-pool continuation
 

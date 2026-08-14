@@ -15,6 +15,7 @@
 - Cold startup imported 252 modules in 237.6 ms at 68.0 MB RSS; seven demo routes remained Mongo-free. A disposable real-Mongo 15,000-card profile measured 750.6 ms p50, 828.5 ms p95, and 428.5 MB peak RSS with bounded output, the intended compound index, approval required, and no provider writes.
 - In-app Browser acceptance passed the demand-loaded Approvals view, Dutch rendering, desktop and effective 749 px narrow containment, and zero current console warnings/errors. HAI exposed only bounded snapshot/proposal paths, advertised `never_direct`, and failed closed when durable proposal storage was unavailable.
 - Built and verified unsigned `Sneup-Setup-2.3.30.exe`: 109,487,238 bytes, SHA-256 `502DCF6BD59543A9148C3451DAC6FC8CD9E610B156220BBEE41DC6DEBBF5AA27`. Packaged verification passed product metadata, eight diagnostics, secret redaction, HAI policy, normal close, port release, and source-identical changed runtime files.
+- Published source `eac5a368dba90fcda2a17d63969dc523a5bd4c13`. GitHub run `31756362949` passed quality in 56 seconds and the Windows build in 2 minutes 52 seconds. Artifact `9202903661` has archive digest `sha256:f51ff875bb0e08bad3cabd2fc75538956fa23be3b6fb86803606a10f2fee647a`; its independently downloaded installer is 109,487,543 bytes, unsigned, version 2.3.30, SHA-256 `EC0E37E151A0FA23DC02CF47FC9579857464F626B70BEAD8618A76031573BBC5`.
 
 ## 2.3.29 - 2026-08-14
 
