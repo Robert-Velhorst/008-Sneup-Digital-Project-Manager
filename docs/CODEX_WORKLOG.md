@@ -12,6 +12,15 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-14 demand-loaded Enhancements continuation
+
+- Moved enhancement filters, metrics, cards, and Dutch operator copy from the eager controller into one retry-safe demand-loaded renderer. Authenticated API calls remain in the controller, module and reads begin concurrently, superseded filter requests abort, and stale responses cannot render.
+- Reused the deterministic recommendation evaluation for the page session. Initial app-plus-localization transfer fell by 3,790 raw, 1,100 gzip, and 802 Brotli bytes; the deferred renderer is 8,860 raw, 2,494 gzip, and 2,150 Brotli bytes.
+- The final local gate passed lint, 134 suites/966 tests, all 180 route contracts, 5/5 evaluation, two zero-vulnerability audits, and five-secret production validation. The 15,000-card profile measured 478.9 ms p50, 516.2 ms p95, and 350.7 MB peak RSS with no provider writes.
+- In-app Browser QA proved Overview exclusion, one fingerprinted load, P2/completed/resource filtering, ENH-042 visibility, desktop and exact 390x844 containment, and zero current console warnings/errors.
+- Built and verified unsigned `release/Sneup-Setup-2.3.42.exe`, 109,503,700 bytes, SHA-256 `0F82F8C3950F7B7BFBB91F25AD175B16511ED880A7DC5EA4DF11CFE400FFA124`. Packaged runtime passed at 373.9 MB working set, 329.4 MB private memory, and 1.547 CPU seconds; four runtime/UI files match source byte for byte.
+- Published exact source `8ad507c495041364684bad5c228f52e6a96140df`; GitHub run `31838341964` passed quality in 1 minute 9 seconds and Windows packaging/runtime in 2 minutes 29 seconds. Independently downloaded artifact `9233384858` has archive size 109,509,955 bytes and digest `sha256:0225b1813f92d938ecccfac6a5a12ec3abe5ad43cf18fc8c2bf93f6bd961806a`; its single unsigned 2.3.42 installer is 109,504,027 bytes with SHA-256 `257181CA67720BAFB7FEEB2DE837CC3DEDF84317F9F7CBBC951F2539FF6C11CE`.
+
 ## 2026-08-14 exact-view and route-authorization continuation
 
 - Replaced the physical-line route permission test with an Espree syntax-tree inventory covering direct, multiline, chained, computed, HEAD, and every Node HTTP method declaration. The gate accounts for all 180 routes: 174 known literal permission guards and six narrowly verified public OAuth, webhook, invitation, or side-effect-free provider contracts.

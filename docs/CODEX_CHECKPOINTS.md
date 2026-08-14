@@ -7,23 +7,34 @@
 | Operational controls | Doctor, readiness, support bundle, emergency stop | Complete |
 | Focused verification | Runtime/security tests and lint | Complete |
 | Traceability | Required document set and completion matrix | Complete |
-| Full regression | 133 suites/961 tests, lint, parser-backed 180-route authorization inventory, 5/5 evaluation, two zero-vulnerability audits, positive five-secret release verification, and repeated review-race proof | Complete locally |
+| Full regression | 134 suites/966 tests, lint, parser-backed 180-route authorization inventory, 5/5 evaluation, two zero-vulnerability audits, and positive five-secret release verification | Complete locally |
 | MongoDB pool | Validated 20-socket per-process cap, zero idle minimum, two connection establishments, idle retirement, five-second wait queue, and listener-stable real-Mongo reconnect | Complete locally |
 | Authentication activity | Every request still validates the credential and principal; a 100-request real-Mongo profile reduced non-audit presence writes from 200 to two through active-only atomic five-minute touches | Complete locally |
-| Portfolio scale | Real mission-control path over 60 boards/15,000 cards plus 180 health snapshots; 60 unique current boards, critical-first 20-row cap, both exact indexes, 683.4 ms measured p95, 352.5 MB peak RSS, no provider writes | Complete locally |
+| Portfolio scale | Real mission-control path over 60 boards/15,000 cards plus 180 health snapshots; 60 unique current boards, critical-first 20-row cap, both exact indexes, 516.2 ms measured p95, 350.7 MB peak RSS, no provider writes | Complete locally |
 | Multi-instance jobs | Unit coverage plus disposable MongoDB 7 simultaneous acquisition, token, release, and expiry verification | Complete locally |
 | API contract | `/api/v1` envelope, request correlation, dashboard parser, HAI OpenAPI, live demo HTTP matrix, and compatibility tests | Complete locally |
 | Feature rollouts | Four optional workloads, deterministic subjects, optimistic revisions, bounded cache/history, manager UI, 40-collection real-Mongo verification, and live fail-closed behavior | Complete locally; hosted manager acceptance pending |
 | Data integrity and repair | Bounded dry-run/apply, review-only unsafe findings, all-workspace Trello index migration, audit evidence, and disposable MongoDB verification | Complete locally |
 | Data retention | Owner-only opt-in policy, bounded preview/apply, protected evidence, distributed lease, indexed queries, pre/post audits, real MongoDB proof, and live browser flow | Complete locally |
-| Windows package | 2.3.41 NSIS build, nine demo diagnostics, HAI smoke, metadata, SHA-256, seven source-identical runtime files, semantically validated transformed manifest, resource sample, and clean close | Complete locally; publisher signing external |
-| Fresh clone | Exact 2.3.41 source `6e6e090665908230de2cac4873a31fa7d629d253` passed GitHub Node 24 quality and Windows packaging/runtime jobs | Complete remotely |
-| Browser and Windows UI | Approval/enhancement views, ENH-041 rendering, explicit read-only controls, desktop/responsive containment, and zero console/horizontal overflow passed in the in-app Browser | Complete for these flows; screen-reader and clean-VM evidence pending |
+| Windows package | 2.3.42 NSIS build, nine demo diagnostics, HAI smoke, metadata, SHA-256, four source-identical runtime/UI files, semantically validated transformed manifest, resource sample, and clean close | Complete locally; publisher signing external |
+| Fresh clone | Exact 2.3.42 source `8ad507c495041364684bad5c228f52e6a96140df` passed GitHub Node 24 quality and Windows packaging/runtime jobs | Complete remotely |
+| Browser and Windows UI | Demand-loaded Enhancements, ENH-042 filtering, desktop/390x844 containment, and zero console/horizontal/control overflow passed in the in-app Browser | Complete for these flows; screen-reader and clean-VM evidence pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter, strict listener validation, exact runtime origin admission, and restart-safe URL cleanup | Complete locally; live credentials external |
-| GitHub CI | 2.3.41 run `31776949353` passed quality in 1 minute 15 seconds and Windows packaging/runtime in 2 minutes 23 seconds; artifact `9210268095` independently verified | Complete for exact source |
+| GitHub CI | 2.3.42 run `31838341964` passed quality in 1 minute 9 seconds and Windows packaging/runtime in 2 minutes 29 seconds; artifact `9233384858` independently verified | Complete for exact source |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |
+
+## 2026-08-14 - Demand-loaded Enhancements release checkpoint
+
+- Release: 2.3.42
+- Scope: load Enhancements rendering, filters, metrics, cards, and Dutch operator copy only when that workspace opens; reuse deterministic evaluation and enforce latest-request-wins filtering.
+- Safety boundary: authenticated reads, sessions, credentials, and provider authority remain in the controller; the renderer has no network, cookie, storage, credential, or provider access.
+- Verification: lint; 134 suites/966 tests; 180-route authorization inventory; 5/5 safety evaluation; two zero-vulnerability audits; five-secret production validation; 15,000-card profile; desktop/390x844 in-app Browser acceptance; and packaged Windows behavior/source parity.
+- Resource evidence: initial app-plus-localization transfer improved by 3,790 raw, 1,100 gzip, and 802 Brotli bytes; startup was 248.4 ms at 69.9 MB RSS with Mongoose unloaded, portfolio p95 516.2 ms at 350.7 MB peak RSS, and packaged runtime 373.9 MB working set, 329.4 MB private memory, and 1.547 CPU seconds.
+- Installer: `release/Sneup-Setup-2.3.42.exe`, 109,503,700 bytes, unsigned, SHA-256 `0F82F8C3950F7B7BFBB91F25AD175B16511ED880A7DC5EA4DF11CFE400FFA124`.
+- GitHub: source `8ad507c495041364684bad5c228f52e6a96140df`; run `31838341964`; quality 1 minute 9 seconds; Windows build/runtime 2 minutes 29 seconds; independently verified artifact `9233384858`, 109,509,955-byte archive, digest `sha256:0225b1813f92d938ecccfac6a5a12ec3abe5ad43cf18fc8c2bf93f6bd961806a`, containing one 109,504,027-byte unsigned installer with SHA-256 `257181CA67720BAFB7FEEB2DE837CC3DEDF84317F9F7CBBC951F2539FF6C11CE`.
+- External gates remain: owner-authorized provider/ngrok/HAI acceptance, production deployment and restore, publisher signing, clean-VM scaling, and assistive-technology certification.
 
 ## 2026-08-14 - Exact-view and route-authorization release checkpoint
 

@@ -6,7 +6,7 @@ The Enhancements workspace is now a demand-loaded, fingerprinted module. It owns
 
 Initial app-plus-localization transfer fell by 3,790 raw, 1,100 gzip, and 802 Brotli bytes; the 8,860-byte renderer is fetched only when needed. The 134-suite/966-test gate, two zero-vulnerability audits, release-secret validation, 15,000-card profile, in-app Browser desktop/mobile flow, HAI boundary, and packaged Windows runtime pass locally without a provider write.
 
-Local installer `release/Sneup-Setup-2.3.42.exe` is 109,503,700 bytes, version 2.3.42, unsigned, SHA-256 `0F82F8C3950F7B7BFBB91F25AD175B16511ED880A7DC5EA4DF11CFE400FFA124`; four changed runtime/UI files match source byte for byte inside the ASAR. GitHub CI and independent artifact evidence are recorded only after the exact source is pushed and rebuilt remotely.
+Local installer `release/Sneup-Setup-2.3.42.exe` is 109,503,700 bytes, version 2.3.42, unsigned, SHA-256 `0F82F8C3950F7B7BFBB91F25AD175B16511ED880A7DC5EA4DF11CFE400FFA124`; four changed runtime/UI files match source byte for byte inside the ASAR. Exact source `8ad507c495041364684bad5c228f52e6a96140df` passed GitHub run `31838341964`. Independently downloaded artifact `9233384858` contained one unsigned version 2.3.42 installer, 109,504,027 bytes, SHA-256 `257181CA67720BAFB7FEEB2DE837CC3DEDF84317F9F7CBBC951F2539FF6C11CE`.
 
 ## 2.3.41 continuation
 

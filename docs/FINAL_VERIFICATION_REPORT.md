@@ -6,7 +6,7 @@ This report is updated from executed commands at release time. A passing local s
 
 - Branch: `main`
 - Starting commit: `a22d9323b18bc0c948f670b8890462577236a1a8`
-- Release under verification: `2.3.41`
+- Release under verification: `2.3.42`
 - Default remote: `origin`
 
 ## Verification ledger
@@ -54,6 +54,22 @@ This report is updated from executed commands at release time. A passing local s
 ## External gates
 
 Live Trello critical-path acceptance, live ngrok/HAI credential acceptance, production database restore, hosted multi-instance lease observation, hosted canary/rollback, OAuth consent reviews, Windows publisher signing, and assistive-technology certification require owner-controlled accounts or infrastructure and are not reported as complete.
+
+## 2.3.42 continuation evidence
+
+| Check | Result |
+| --- | --- |
+| Demand loading | Pass: enhancement renderer absent on Overview, loaded once with the shared immutable fingerprint when opened, authenticated reads retained in the controller |
+| Filter concurrency | Pass: a newer filter aborts prior reads, stale results cannot render, area options remain usable, and deterministic evaluation is reused for the page session |
+| Initial transfer | Pass: app plus localization reduced by 3,790 raw, 1,100 gzip, and 802 Brotli bytes; 8,860 raw bytes deferred |
+| Local quality | Pass: lint, 134 suites/966 tests, all 180 route contracts, 5/5 evaluation, two zero-vulnerability audits, and five-secret production validation |
+| Resource profile | Pass: startup 248.4 ms at 69.9 MB RSS with Mongoose unloaded; 15,000-card p50 478.9 ms, p95 516.2 ms, peak RSS 350.7 MB; no provider writes |
+| Browser | Pass: ENH-042 and P2/completed/resource filtering at desktop and 390x844, equal client/scroll width, zero overflowing controls, zero warnings/errors |
+| Packaged Windows QA | Pass locally: version 2.3.42, nine diagnostics, no exposed secrets, HAI `never_direct`, four processes, 373.9 MB working set, 329.4 MB private memory, 1.547 CPU seconds, normal close, port released, four runtime/UI files byte-identical |
+| Windows installer | Pass locally: 109,503,700 bytes, unsigned, SHA-256 `0F82F8C3950F7B7BFBB91F25AD175B16511ED880A7DC5EA4DF11CFE400FFA124` |
+| Fresh-clone GitHub CI | Pass: source `8ad507c495041364684bad5c228f52e6a96140df`, run `31838341964`; quality 1 minute 9 seconds, Windows packaging/runtime 2 minutes 29 seconds |
+| GitHub installer artifact | Pass: artifact `9233384858`, 109,509,955-byte archive digest matched GitHub; exactly one 109,504,027-byte unsigned 2.3.42 installer, SHA-256 `257181CA67720BAFB7FEEB2DE837CC3DEDF84317F9F7CBBC951F2539FF6C11CE` |
+| External gates | Live provider/ngrok/HAI acceptance, deployment/restore, publisher signing, clean VM, and assistive technology remain owner-controlled |
 
 ## 2.3.41 continuation evidence
 
