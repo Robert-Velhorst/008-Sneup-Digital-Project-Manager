@@ -45,7 +45,7 @@
     'Project and work management', 'Software delivery', 'Communication', 'Calendar and email',
     'Docs and knowledge', 'Files and assets', 'Whiteboard and design', 'Time, finance, and resourcing',
     'CRM, support, and stakeholders', 'Automation, forms, and data', 'Incident, quality, and monitoring',
-    'needs attention', 'disabled', 'connected', 'linked', 'ready', 'setup', 'retired', 'legacy', 'unavailable',
+    'needs attention', 'retry scheduled', 'disabled', 'connected', 'linked', 'ready', 'setup', 'retired', 'legacy', 'unavailable',
     'scope review', 'read-only', 'Jira site selected', 'Select Jira site', 'Confluence site selected',
     'Select Confluence site', 'Asana workspace selected', 'Select Asana workspace', 'Basecamp account selected',
     'Select Basecamp account', 'Resource Guru account selected', 'Select Resource Guru account',
@@ -56,6 +56,11 @@
 
   const NL_MESSAGES = Object.freeze({
     'Connector selection unavailable': 'Connectorselectie niet beschikbaar',
+    'retry scheduled': 'nieuwe poging gepland',
+    'Automatic retry scheduled {date} after {count} consecutive failure. You can run a read-only sync now.': 'Automatische nieuwe poging gepland op {date} na {count} opeenvolgende fout. U kunt nu ook een alleen-lezen synchronisatie uitvoeren.',
+    'Automatic retry scheduled {date} after {count} consecutive failures. You can run a read-only sync now.': 'Automatische nieuwe poging gepland op {date} na {count} opeenvolgende fouten. U kunt nu ook een alleen-lezen synchronisatie uitvoeren.',
+    'Automatic retries stopped after {count} consecutive failure. Reconnect or rotate credentials before syncing again.': 'Automatische nieuwe pogingen zijn gestopt na {count} opeenvolgende fout. Koppel opnieuw of vervang de inloggegevens voordat u opnieuw synchroniseert.',
+    'Automatic retries stopped after {count} consecutive failures. Reconnect or rotate credentials before syncing again.': 'Automatische nieuwe pogingen zijn gestopt na {count} opeenvolgende fouten. Koppel opnieuw of vervang de inloggegevens voordat u opnieuw synchroniseert.',
     'The change was saved, but the connector list could not refresh. Reopen Connectors to load the latest state.': 'De wijziging is opgeslagen, maar de koppelingenlijst kon niet worden vernieuwd. Open Koppelingen opnieuw om de nieuwste status te laden.',
     'Configure Figma team': 'Figma-team instellen',
     'Figma team ID': 'Figma-team-ID',
@@ -695,6 +700,24 @@
       return `<div class="connector-policy">${et('Sync is current. Freshness review {date}.', { date: formatDate(freshness.dueAt) })}</div>`;
     }
 
+    function renderSyncRecovery(recovery) {
+      if (!recovery) return '';
+      const count = Math.max(1, Number(recovery.consecutiveFailures) || 1);
+      if (recovery.status === 'retry_scheduled' && recovery.nextRetryAt) {
+        return `<div class="connector-policy review">${ep(
+          'Automatic retry scheduled {date} after {count} consecutive failure. You can run a read-only sync now.',
+          'Automatic retry scheduled {date} after {count} consecutive failures. You can run a read-only sync now.',
+          count,
+          { date: formatDate(recovery.nextRetryAt) }
+        )}</div>`;
+      }
+      return `<div class="connector-policy review">${ep(
+        'Automatic retries stopped after {count} consecutive failure. Reconnect or rotate credentials before syncing again.',
+        'Automatic retries stopped after {count} consecutive failures. Reconnect or rotate credentials before syncing again.',
+        count
+      )}</div>`;
+    }
+
     function renderConnector(connector, account) {
       const connected = Boolean(account);
       const initials = connector.name.split(/\s+/).slice(0, 2).map(word => word[0]).join('').toUpperCase();
@@ -704,10 +727,12 @@
       const syncReady = connector.syncReadiness?.accountConnectionAvailable === true;
       const catalogAvailability = connector.syncReadiness?.availabilityStatus || 'unavailable';
       const accountStatus = account?.status || '';
-      const connectionLabel = connected && accountStatus === 'failed' ? 'needs attention'
+      const connectionLabel = connected && account?.syncRecovery?.status === 'retry_scheduled' ? 'retry scheduled'
+        : connected && ['failed', 'needs_attention'].includes(accountStatus) ? 'needs attention'
         : connected && accountStatus === 'disabled' ? 'disabled'
           : connected ? (syncReady ? 'connected' : 'linked') : syncReady ? (configured ? 'ready' : 'setup') : catalogAvailability === 'retired' ? 'retired' : catalogAvailability === 'legacy' ? 'legacy' : 'unavailable';
-      const connectionStatusClass = connected && accountStatus === 'failed' ? 'high'
+      const connectionStatusClass = connected && account?.syncRecovery?.status === 'retry_scheduled' ? 'review'
+        : connected && ['failed', 'needs_attention'].includes(accountStatus) ? 'high'
         : connected && accountStatus === 'disabled' ? 'review'
           : connected && syncReady ? 'connected' : connected || (syncReady && configured) ? 'review' : 'high';
       const adapterSummary = syncReady
@@ -764,6 +789,7 @@
           <div class="meta"><span>${isGenericWebhook ? et('HMAC-verified inbound event adapter available.') : escapeHtml(adapterSummary)}</span></div>
           ${consentSummary}
           ${renderCredentialRotation(account?.credentialRotation)}
+          ${renderSyncRecovery(account?.syncRecovery)}
           ${renderSyncFreshness(account?.syncFreshness, canSync)}
           ${renderSyncSummary(account, canSync)}
           ${genericWebhookEndpoint ? `<div class="connector-policy"><code>${escapeHtml(genericWebhookEndpoint)}</code><span>${et('Send a compact JSON event and sign its exact request body.')} <code>x-sneup-signature: sha256=&lt;HMAC-SHA256&gt;</code> ${et('Include a stable delivery ID for retry-safe delivery.')} <code>x-sneup-delivery-id</code></span></div>` : ''}

@@ -569,6 +569,24 @@ const enhancements = [
       'Every Trello mutator enforces demo mode and the provider emergency stop at the client boundary.',
       'Webhook reconciliation records internal evidence and performs no provider write.'
     ]
+  },
+  {
+    id: 'ENH-037',
+    priority: 'P0',
+    area: 'operations',
+    title: 'Keep connector synchronization recoverable and bounded',
+    evidence: 'Transient provider and network failures now persist a bounded exponential retry deadline, remain eligible for later scheduled passes, and clear their failure state after recovery. Permanent authorization and configuration failures stop automatic retries and require operator reconnection. Scheduled and manual synchronization share one distributed workspace lease, while the account API exposes only bounded recovery status instead of raw connector metadata. A disposable real-Mongo verifier proves retry deferral, due recovery, permanent-failure isolation, index coverage, and zero provider writes.',
+    impact: 'Prevents one temporary provider outage from silently disabling an account forever while avoiding busy loops and repeated calls with invalid credentials.',
+    effort: 'M',
+    status: 'done',
+    nextStep: 'Observe hosted retry and reconnect rates before changing the default 30-minute to 24-hour backoff window.',
+    acceptanceCriteria: [
+      'Transient failures remain eligible only after their durable retry deadline.',
+      'Permanent authorization and configuration failures require reconnection and are not scheduled automatically.',
+      'Manual and scheduled connector synchronization cannot overlap for the same workspace.',
+      'Successful recovery clears prior failure metadata and restores connected status.',
+      'Recovery verification uses a disposable real database and performs no provider write.'
+    ]
   }
 ];
 

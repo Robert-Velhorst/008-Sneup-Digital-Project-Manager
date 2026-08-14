@@ -12,6 +12,16 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-14 connector recovery continuation
+
+- Re-audited account synchronization and found a transient provider outage could set an account to `failed` and permanently remove it from every later scheduler pass. Manual synchronization also bypassed the shared distributed job lease and exposed no exact retry-versus-reconnect posture.
+- Added durable bounded exponential backoff for transient failures, permanent authorization/configuration classification, due-only scheduler selection, successful recovery cleanup, one-time migration of legacy failed accounts, and shared workspace lease tracking for API-triggered account synchronization.
+- Exposed only bounded recovery status through the connector account API and rendered exact English/Dutch retry or reconnect guidance. Raw provider failure metadata remains private.
+- A guarded disposable MongoDB run classified two failures, performed zero immediate retries, recovered the due transient account, attempted the permanent account only once, selected the compound recovery index, issued zero provider writes, and dropped its database.
+- The final local gate passed 130 suites/939 tests, lint, 5/5 safety evaluation, two zero-vulnerability audits, positive five-secret validation, and a 60-board/15,000-card profile at 509.5 ms p50, 538.6 ms p95, and 348.8 MB peak RSS. Cold demo import remained Mongo-free at 222.5 ms and 60.2 MB RSS.
+- In-app Browser verified the connector readiness interaction, Dutch rendering, ENH-037 evidence, zero console warnings, zero horizontal document overflow, and zero overflowing buttons at desktop and the Browser runtime's 749 CSS-pixel minimum. Exact 390-pixel Browser evidence remains unavailable; the 390-pixel state is covered by jsdom.
+- Built and verified unsigned `release/Sneup-Setup-2.3.38.exe`, 109,498,183 bytes, version 2.3.38, SHA-256 `1A23AEC8A1FF83EE2FE0157D0CD7526F2FED018C96134430B816D3044EC099DC`. The packaged app passed at 371.2 MB working set, 335.9 MB private memory, and 2.031 CPU seconds; all seven changed runtime/config modules are byte-identical inside the ASAR.
+
 ## 2026-08-14 Trello webhook governance continuation
 
 - Re-audited provider-write entry points and found webhook setup ran before ngrok produced its callback, matched only by board, directly mutated Trello during startup, and bypassed the deployment emergency stop at the low-level client.

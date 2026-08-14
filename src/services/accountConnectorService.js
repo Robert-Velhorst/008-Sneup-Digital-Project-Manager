@@ -1488,6 +1488,43 @@ class AccountConnectorService {
     };
   }
 
+  getSyncRecoveryHealth(account) {
+    const failure = account?.metadata?.connectorSyncFailure;
+    if (!failure || typeof failure !== 'object') return null;
+
+    const consecutiveFailures = clampPositiveInt(failure.consecutiveFailures, 1, 1, 20);
+    const lastFailedAt = new Date(failure.lastFailedAt || 0);
+    const code = /^[A-Z][A-Z0-9_]{1,63}$/.test(String(failure.code || ''))
+      ? String(failure.code)
+      : 'CONNECTOR_SYNC_FAILED';
+    const common = {
+      consecutiveFailures,
+      code,
+      lastFailedAt: Number.isNaN(lastFailedAt.getTime()) || lastFailedAt.getTime() === 0
+        ? null
+        : lastFailedAt.toISOString()
+    };
+
+    if (failure.retryable === true) {
+      const nextRetryAt = new Date(failure.nextRetryAt || 0);
+      if (!Number.isNaN(nextRetryAt.getTime()) && nextRetryAt.getTime() > 0) {
+        return {
+          ...common,
+          status: 'retry_scheduled',
+          retryable: true,
+          nextRetryAt: nextRetryAt.toISOString(),
+          retryDelayMs: clampPositiveInt(failure.retryDelayMs, 0, 0, 7 * DAY_MS)
+        };
+      }
+    }
+
+    return {
+      ...common,
+      status: 'reconnect_required',
+      retryable: false
+    };
+  }
+
   sanitizeAccount(account, options = {}) {
     return {
       id: account._id,
@@ -1507,6 +1544,7 @@ class AccountConnectorService {
       credentialsLastRotatedAt: account.credentialsLastRotatedAt || null,
       credentialRotation: this.getCredentialRotationHealth(account, options),
       syncFreshness: this.getSyncFreshnessHealth(account, options),
+      syncRecovery: this.getSyncRecoveryHealth(account),
       lastSyncAt: account.lastSyncAt,
       lastError: account.lastError,
       createdAt: account.createdAt,

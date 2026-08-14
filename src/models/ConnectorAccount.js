@@ -95,6 +95,7 @@ const connectorAccountSchema = new mongoose.Schema({
 connectorAccountSchema.index({ workspaceId: 1, connectorId: 1, externalAccountId: 1 });
 connectorAccountSchema.index({ connectorId: 1, externalAccountId: 1 });
 connectorAccountSchema.index({ status: 1, updatedAt: -1 });
+connectorAccountSchema.index({ workspaceId: 1, status: 1, 'metadata.connectorSyncFailure.nextRetryAt': 1, connectorId: 1 });
 
 connectorAccountSchema.methods.markFailed = function(error) {
   this.status = 'failed';

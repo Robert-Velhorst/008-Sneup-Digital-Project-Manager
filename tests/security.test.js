@@ -2714,6 +2714,66 @@ describe('connector registry', () => {
     expect(JSON.stringify(current)).not.toContain('never-expose-this');
   });
 
+  test('exposes bounded connector recovery posture without raw failure metadata', () => {
+    const retrying = accountConnectorService.sanitizeAccount({
+      _id: 'account-retrying-1',
+      workspaceId: 'workspace-1',
+      connectorId: 'github',
+      connectorName: 'GitHub',
+      category: 'software_delivery',
+      authType: 'oauth2',
+      status: 'failed',
+      metadata: {
+        connectorSyncFailure: {
+          retryable: true,
+          consecutiveFailures: 99,
+          code: 'EAI_AGAIN',
+          lastFailedAt: '2026-08-14T09:00:00.000Z',
+          nextRetryAt: '2026-08-14T09:30:00.000Z',
+          retryDelayMs: 1800000,
+          providerPayload: 'never-expose-private-provider-payload'
+        }
+      }
+    });
+    const reconnect = accountConnectorService.sanitizeAccount({
+      _id: 'account-reconnect-1',
+      workspaceId: 'workspace-1',
+      connectorId: 'github',
+      connectorName: 'GitHub',
+      category: 'software_delivery',
+      authType: 'oauth2',
+      status: 'needs_attention',
+      metadata: {
+        connectorSyncFailure: {
+          retryable: false,
+          consecutiveFailures: 2,
+          code: 'unsafe lowercase code',
+          lastFailedAt: '2026-08-14T08:00:00.000Z',
+          providerPayload: 'never-expose-private-provider-payload'
+        }
+      }
+    });
+
+    expect(retrying.syncRecovery).toEqual({
+      status: 'retry_scheduled',
+      retryable: true,
+      consecutiveFailures: 20,
+      code: 'EAI_AGAIN',
+      lastFailedAt: '2026-08-14T09:00:00.000Z',
+      nextRetryAt: '2026-08-14T09:30:00.000Z',
+      retryDelayMs: 1800000
+    });
+    expect(reconnect.syncRecovery).toEqual({
+      status: 'reconnect_required',
+      retryable: false,
+      consecutiveFailures: 2,
+      code: 'CONNECTOR_SYNC_FAILED',
+      lastFailedAt: '2026-08-14T08:00:00.000Z'
+    });
+    expect(retrying.metadata).not.toHaveProperty('connectorSyncFailure');
+    expect(JSON.stringify({ retrying, reconnect })).not.toContain('never-expose-private-provider-payload');
+  });
+
   test('rotates token connector credentials in place with renewed consent and secret-free audit evidence', async () => {
     const originalEncryptionKey = process.env.CONNECTOR_ENCRYPTION_KEY;
     process.env.CONNECTOR_ENCRYPTION_KEY = 'connector-encryption-key-for-security-tests-123456';

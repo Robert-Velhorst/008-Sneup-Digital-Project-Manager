@@ -78,6 +78,12 @@ const createHarness = (locale = 'nl') => {
       consent: { acknowledgedAt: '2026-08-09T08:30:00.000Z', acknowledgedBy: 'Robert' },
       credentialRotation: { required: true, status: 'overdue', daysUntilDue: -2 },
       syncFreshness: { status: 'stale', hoursUntilDue: -3 },
+      syncRecovery: {
+        status: 'retry_scheduled',
+        retryable: true,
+        consecutiveFailures: 2,
+        nextRetryAt: '2026-08-09T10:00:00.000Z'
+      },
       metadata: {
         fields: {},
         lastWorkSignalSync: {
@@ -128,12 +134,32 @@ describe('demand-loaded connector view', () => {
     expect(harness.elements.connectorGrid.textContent).toContain('bereikcontrole');
     expect(harness.elements.connectorGrid.textContent).toContain('Het vervangen van de inloggegevens is 2 dagen te laat.');
     expect(harness.elements.connectorGrid.textContent).toContain('De synchronisatiecontrole is 3 uur te laat.');
+    expect(harness.elements.connectorGrid.textContent).toContain('Automatische nieuwe poging gepland');
+    expect(harness.elements.connectorGrid.textContent).toContain('2 opeenvolgende fouten');
+    expect(harness.elements.connectorGrid.textContent).toContain('nieuwe poging gepland');
     expect(harness.elements.connectorGrid.textContent).toContain('5 signalen');
     expect(harness.elements.connectorGrid.textContent).toContain('2 borden');
     expect(harness.elements.connectorGrid.textContent).toContain('Nu synchroniseren');
     expect(harness.elements.connectorGrid.textContent).toContain('Inloggegevens vervangen');
     expect(harness.elements.connectorPagination.textContent).toContain('1 van 2 tools worden getoond');
     expect(harness.elements.connectorPagination.textContent).toContain('Meer tonen');
+    harness.dom.window.close();
+  });
+
+  test('renders a permanent connector failure as reconnect-required guidance', () => {
+    const harness = createHarness('nl');
+    harness.state.accounts[0].status = 'needs_attention';
+    harness.state.accounts[0].syncRecovery = {
+      status: 'reconnect_required',
+      retryable: false,
+      consecutiveFailures: 3
+    };
+    harness.controller.render();
+
+    expect(harness.elements.connectorGrid.textContent).toContain('vereist aandacht');
+    expect(harness.elements.connectorGrid.textContent).toContain('Automatische nieuwe pogingen zijn gestopt');
+    expect(harness.elements.connectorGrid.textContent).toContain('3 opeenvolgende fouten');
+    expect(harness.elements.connectorGrid.textContent).toContain('opnieuw');
     harness.dom.window.close();
   });
 

@@ -187,8 +187,9 @@ router.post('/accounts/:accountId/upsert', requirePermission('sync:run'), async 
 
 router.post('/accounts/:accountId/sync', requirePermission('sync:run'), async (req, res) => {
   try {
-    const result = await connectorSyncService.syncAccount(req.params.accountId, {
+    const result = await connectorSyncService.runTrackedAccountSync(req.params.accountId, {
       ...requestOptions(req),
+      triggerType: 'api',
       actor: req.auth?.actorId || 'api'
     });
     res.json({

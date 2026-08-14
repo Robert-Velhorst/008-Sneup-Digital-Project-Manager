@@ -15,6 +15,10 @@ const {
   normalizeWorkspaceObjectId
 } = require('./workspaceScopeService');
 
+const DEFAULT_FAILURE_RETRY_BASE_MS = 30 * 60 * 1000;
+const DEFAULT_FAILURE_RETRY_MAX_MS = 24 * 60 * 60 * 1000;
+const MAX_CONSECUTIVE_FAILURES = 20;
+
 const clamp = (value, fallback, minimum, maximum) => {
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) ? Math.max(minimum, Math.min(maximum, parsed)) : fallback;
@@ -41,6 +45,7 @@ class ConnectorSyncService {
     this.scheduledSyncStartedAt = null;
     this.featureFlagService = options.featureFlagService || null;
     this.accountConnectorService = options.accountConnectorService || null;
+    this.now = options.now || (() => new Date());
   }
 
   getFeatureFlagService() {
@@ -94,6 +99,25 @@ class ConnectorSyncService {
     }, () => this.syncConnectedAccounts(options));
   }
 
+  async runTrackedAccountSync(accountId, options = {}) {
+    const workspaceId = normalizeWorkspaceObjectId(options.workspaceId || getDefaultWorkspaceObjectId());
+    return jobObservabilityService.trackJob({
+      jobName: 'connectors.work_signals_sync',
+      jobType: 'sync',
+      triggerType: options.triggerType || 'api',
+      workspaceId,
+      metadata: { actor: options.actor || 'api', accountScope: 'single' }
+    }, async () => {
+      const account = await this.getAccountForSync(accountId, workspaceId);
+      try {
+        return await this.syncAccount(account, options);
+      } catch (error) {
+        await this.recordSyncFailure(account, error, options);
+        throw error;
+      }
+    });
+  }
+
   async runScheduledSyncs() {
     if (this.activeScheduledSync) {
       const startedAt = this.scheduledSyncStartedAt;
@@ -144,11 +168,8 @@ class ConnectorSyncService {
       };
     }
     const connectorIds = workSignalAdapterService.getFirstWaveConnectorIds();
-    let accountsQuery = ConnectorAccount.find({
-      workspaceId,
-      status: 'connected',
-      connectorId: { $in: connectorIds }
-    });
+    const accountsFilter = this.getScheduledAccountsFilter(workspaceId, connectorIds, this.now());
+    let accountsQuery = ConnectorAccount.find(accountsFilter);
     if (typeof accountsQuery.select === 'function') accountsQuery = accountsQuery.select('+credentials');
     const accounts = await accountsQuery.sort({ updatedAt: 1 });
 
@@ -254,24 +275,105 @@ class ConnectorSyncService {
         })
       };
     } catch (error) {
-      account.status = 'failed';
-      account.lastError = this.safeErrorMessage(error);
-      await account.save();
-      logger.error(`Failed to sync connector account ${account._id}: ${this.safeErrorMessage(error)}`);
+      await this.recordSyncFailure(account, error, options);
       return { ok: false, account, error };
     }
+  }
+
+  getScheduledAccountsFilter(workspaceId, connectorIds, now = this.now()) {
+    return {
+      workspaceId,
+      connectorId: { $in: connectorIds },
+      $or: [
+        { status: 'connected' },
+        {
+          status: { $in: ['failed', 'needs_attention'] },
+          'metadata.connectorSyncFailure.retryable': true,
+          'metadata.connectorSyncFailure.nextRetryAt': { $lte: now }
+        },
+        {
+          status: 'failed',
+          'metadata.connectorSyncFailure': { $exists: false }
+        }
+      ]
+    };
+  }
+
+  getFailureRetryPolicy(environment = process.env) {
+    return {
+      baseMs: clamp(
+        environment.SNEUP_CONNECTOR_FAILURE_RETRY_BASE_MS,
+        DEFAULT_FAILURE_RETRY_BASE_MS,
+        60 * 1000,
+        24 * 60 * 60 * 1000
+      ),
+      maxMs: clamp(
+        environment.SNEUP_CONNECTOR_FAILURE_RETRY_MAX_MS,
+        DEFAULT_FAILURE_RETRY_MAX_MS,
+        5 * 60 * 1000,
+        7 * 24 * 60 * 60 * 1000
+      )
+    };
+  }
+
+  isRetryableFailure(error) {
+    const statusCode = Number(error?.statusCode || error?.response?.status || error?.status);
+    const message = String(error?.message || '').toLowerCase();
+    if ([400, 401, 403, 404, 409, 410, 422].includes(statusCode)) return false;
+    if (/(reconnect|credentials? (?:are )?required|token is missing|authorization has expired|invalid expiry)/.test(message)) {
+      return false;
+    }
+    return providerSyncPolicyService.isRetryable(error);
+  }
+
+  failureCode(error) {
+    const code = String(error?.code || '').trim();
+    if (/^[A-Z][A-Z0-9_]{1,63}$/.test(code)) return code;
+    const statusCode = Number(error?.statusCode || error?.response?.status || error?.status);
+    return Number.isInteger(statusCode) && statusCode >= 400 && statusCode <= 599
+      ? `HTTP_${statusCode}`
+      : 'CONNECTOR_SYNC_FAILED';
+  }
+
+  async recordSyncFailure(account, error, options = {}) {
+    if (!account?.save) return null;
+    const now = this.now();
+    const previous = account.metadata?.connectorSyncFailure || {};
+    const consecutiveFailures = Math.min(
+      MAX_CONSECUTIVE_FAILURES,
+      Math.max(0, Number.parseInt(previous.consecutiveFailures, 10) || 0) + 1
+    );
+    const retryable = this.isRetryableFailure(error);
+    const policy = this.getFailureRetryPolicy(options.environment);
+    const retryDelayMs = retryable
+      ? Math.min(policy.maxMs, policy.baseMs * (2 ** Math.min(consecutiveFailures - 1, 16)))
+      : null;
+    const nextRetryAt = retryable ? new Date(now.getTime() + retryDelayMs) : null;
+
+    account.status = retryable ? 'failed' : 'needs_attention';
+    account.lastError = this.safeErrorMessage(error);
+    account.metadata = {
+      ...(account.metadata || {}),
+      connectorSyncFailure: {
+        consecutiveFailures,
+        retryable,
+        code: this.failureCode(error),
+        lastFailedAt: now,
+        ...(nextRetryAt ? { nextRetryAt, retryDelayMs } : {})
+      }
+    };
+    await account.save();
+    return account.metadata.connectorSyncFailure;
   }
 
   async syncAccount(accountOrId, options = {}) {
     this.requireDatabase();
     let account = accountOrId;
     if (!(typeof accountOrId === 'object' && accountOrId._id)) {
-      let accountQuery = ConnectorAccount.findOne({
-        _id: accountOrId,
-        workspaceId: normalizeWorkspaceObjectId(options.workspaceId || getDefaultWorkspaceObjectId())
-      });
-      if (typeof accountQuery?.select === 'function') accountQuery = accountQuery.select('+credentials');
-      account = await accountQuery;
+      account = await this.getAccountForSync(
+        accountOrId,
+        normalizeWorkspaceObjectId(options.workspaceId || getDefaultWorkspaceObjectId())
+      );
     }
 
     if (!account) {
@@ -316,7 +418,7 @@ class ConnectorSyncService {
     account.status = 'connected';
     account.lastSyncAt = new Date();
     account.lastError = undefined;
-    account.metadata = {
+    const nextMetadata = {
       ...(account.metadata || {}),
       workSignalCursor: delta.nextCursor || cursor,
       workSignalAdapter: account.connectorId,
@@ -334,6 +436,8 @@ class ConnectorSyncService {
         finishedAt: new Date()
       }
     };
+    delete nextMetadata.connectorSyncFailure;
+    account.metadata = nextMetadata;
     await account.save();
 
     return {
@@ -348,6 +452,18 @@ class ConnectorSyncService {
       attemptCount: syncResult.attemptCount,
       dependencyFreshness
     };
+  }
+
+  async getAccountForSync(accountId, workspaceId) {
+    let accountQuery = ConnectorAccount.findOne({ _id: accountId, workspaceId });
+    if (typeof accountQuery?.select === 'function') accountQuery = accountQuery.select('+credentials');
+    const account = await accountQuery;
+    if (!account) {
+      const error = new Error('Connector account not found');
+      error.statusCode = 404;
+      throw error;
+    }
+    return account;
   }
 
   async finalizeDependencyFreshness(workspaceId, providers = []) {
@@ -420,3 +536,5 @@ class ConnectorSyncService {
 const connectorSyncService = new ConnectorSyncService();
 module.exports = connectorSyncService;
 module.exports.ConnectorSyncService = ConnectorSyncService;
+module.exports.DEFAULT_FAILURE_RETRY_BASE_MS = DEFAULT_FAILURE_RETRY_BASE_MS;
+module.exports.DEFAULT_FAILURE_RETRY_MAX_MS = DEFAULT_FAILURE_RETRY_MAX_MS;

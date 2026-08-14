@@ -7,7 +7,7 @@
 | Operational controls | Doctor, readiness, support bundle, emergency stop | Complete |
 | Focused verification | Runtime/security tests and lint | Complete |
 | Traceability | Required document set and completion matrix | Complete |
-| Full regression | 129 suites/932 tests, lint, 5/5 evaluation, two dependency audits, and positive five-secret release verification | Complete locally |
+| Full regression | 130 suites/939 tests, lint, 5/5 evaluation, two dependency audits, and positive five-secret release verification | Complete locally |
 | MongoDB pool | Validated 20-socket per-process cap, zero idle minimum, two connection establishments, idle retirement, five-second wait queue, and listener-stable real-Mongo reconnect | Complete locally |
 | Authentication activity | Every request still validates the credential and principal; a 100-request real-Mongo profile reduced non-audit presence writes from 200 to two through active-only atomic five-minute touches | Complete locally |
 | Portfolio scale | Real mission-control path over 60 boards/15,000 cards plus 180 health snapshots; 60 unique current boards, critical-first 20-row cap, both exact indexes, 741.7 ms measured p95, no provider writes | Complete locally |
@@ -16,7 +16,7 @@
 | Feature rollouts | Four optional workloads, deterministic subjects, optimistic revisions, bounded cache/history, manager UI, 40-collection real-Mongo verification, and live fail-closed behavior | Complete locally; hosted manager acceptance pending |
 | Data integrity and repair | Bounded dry-run/apply, review-only unsafe findings, all-workspace Trello index migration, audit evidence, and disposable MongoDB verification | Complete locally |
 | Data retention | Owner-only opt-in policy, bounded preview/apply, protected evidence, distributed lease, indexed queries, pre/post audits, real MongoDB proof, and live browser flow | Complete locally |
-| Windows package | 2.3.37 NSIS build, nine demo diagnostics, HAI smoke, metadata, SHA-256, 12 source-identical changed runtime/UI modules, repeatable resource sample, and clean close | Complete locally; publisher signing external |
+| Windows package | 2.3.38 NSIS build, nine demo diagnostics, HAI smoke, metadata, SHA-256, seven source-identical changed runtime/config modules, repeatable resource sample, and clean close | Complete locally; publisher signing external |
 | Fresh clone | Exact 2.3.37 source `68f23c58f96d2e1ae086809e4240a15a25309930` passed clean GitHub Node 24 and Windows jobs | Complete for 2.3.37 |
 | Browser and Windows UI | ENH-036 filtering, approval-ledger rendering, desktop/minimum-responsive containment, and zero console errors passed in the in-app Browser; DOM regressions pass | Complete for these flows; exact 390 px, screen-reader, and clean-VM evidence pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter, strict listener validation, exact runtime origin admission, and restart-safe URL cleanup | Complete locally; live credentials external |
@@ -24,6 +24,16 @@
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |
+
+## 2026-08-14 - Connector recovery release checkpoint
+
+- Release: 2.3.38
+- Scope: keep transient connector failures eligible for later bounded retries, stop permanent credential failures, and serialize manual and scheduled synchronization through one workspace lease.
+- Safety boundary: connector reads remain read-only, recovery metadata is redacted to a bounded operator posture, HAI stays proposal-only, and verification issues no provider write.
+- Verification: lint; 130 suites/939 tests; 5/5 safety evaluation; two zero-vulnerability audits; positive five-secret validation; disposable real-Mongo defer/recovery proof; 15,000-card profile; Browser/HAI acceptance; and packaged Windows behavior/source parity.
+- Installer: `release/Sneup-Setup-2.3.38.exe`, 109,498,183 bytes, unsigned, SHA-256 `1A23AEC8A1FF83EE2FE0157D0CD7526F2FED018C96134430B816D3044EC099DC`.
+- GitHub: source publication, clean CI, and independent artifact verification pending.
+- External gates remain: owner-authorized live provider/ngrok/HAI acceptance, production deployment and restore, publisher signing, clean-VM scaling, and assistive-technology certification.
 
 ## 2026-08-14 - Trello webhook governance release checkpoint
 

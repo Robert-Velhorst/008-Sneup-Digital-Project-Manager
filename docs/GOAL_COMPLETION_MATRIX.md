@@ -22,6 +22,8 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 
 2.3.37 closes the Trello webhook startup and governance gap. Reconciliation waits for the final ngrok callback, queues exact protected create/update/delete recommendations for Robert, deduplicates pending work, and cannot bypass the emergency stop through a direct low-level client call. Disposable real-Mongo evidence records decisions and audits without an action attempt or provider write.
 
+2.3.38 closes the connector recovery gap. Transient provider failures persist a bounded due time and remain eligible for later scheduler passes, permanent credential failures stop automatic retries, manual and scheduled synchronization share one distributed workspace lease, and successful recovery clears the failure state. The API exposes only bounded operator guidance and the disposable real-Mongo proof performs no provider write.
+
 | Phase | Status | Evidence or remaining gate |
 | --- | --- | --- |
 | 000 Repository integrity | Implemented | Baseline commit/branch/remote recorded; unrelated worktree artifacts preserved. |
