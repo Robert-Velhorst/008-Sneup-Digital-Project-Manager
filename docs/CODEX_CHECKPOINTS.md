@@ -7,23 +7,33 @@
 | Operational controls | Doctor, readiness, support bundle, emergency stop | Complete |
 | Focused verification | Runtime/security tests and lint | Complete |
 | Traceability | Required document set and completion matrix | Complete |
-| Full regression | 123 suites/902 tests, lint, 5/5 evaluation, two zero-vulnerability dependency audits, and positive five-secret release verification | Complete |
+| Full regression | 124 suites/904 tests, lint, 5/5 evaluation, two zero-vulnerability dependency audits, and positive five-secret release verification | Complete |
 | MongoDB pool | Validated 20-socket per-process cap, zero idle minimum, two connection establishments, idle retirement, five-second wait queue, and listener-stable real-Mongo reconnect | Complete locally |
 | Authentication activity | Every request still validates the credential and principal; a 100-request real-Mongo profile reduced non-audit presence writes from 200 to two through active-only atomic five-minute touches | Complete locally |
-| Portfolio scale | Real mission-control path over 60 boards/15,000 cards; bounded output/evidence, exact compound index, 1.22 s cold, 741.9 ms measured p95, no provider writes | Complete locally |
+| Portfolio scale | Real mission-control path over 60 boards/15,000 cards plus 180 health snapshots; 60 unique current boards, critical-first 20-row cap, both exact indexes, 653.7 ms measured p95, no provider writes | Complete locally |
 | Multi-instance jobs | Unit coverage plus disposable MongoDB 7 simultaneous acquisition, token, release, and expiry verification | Complete locally |
 | API contract | `/api/v1` envelope, request correlation, dashboard parser, HAI OpenAPI, live demo HTTP matrix, and compatibility tests | Complete locally |
 | Feature rollouts | Four optional workloads, deterministic subjects, optimistic revisions, bounded cache/history, manager UI, 40-collection real-Mongo verification, and live fail-closed behavior | Complete locally; hosted manager acceptance pending |
 | Data integrity and repair | Bounded dry-run/apply, review-only unsafe findings, all-workspace Trello index migration, audit evidence, and disposable MongoDB verification | Complete locally |
 | Data retention | Owner-only opt-in policy, bounded preview/apply, protected evidence, distributed lease, indexed queries, pre/post audits, real MongoDB proof, and live browser flow | Complete locally |
-| Windows package | 2.3.33 NSIS build, nine demo diagnostics, HAI smoke, metadata, SHA-256, 15 source-identical changed runtime modules, repeatable resource sample, and clean close | Complete locally; publisher signing external |
-| Fresh clone | 2.3.33 exact source `ee83ea53bcf2a019a213cc5b71bd6b2631b5c264`; Node 24 quality and Windows installer/runtime jobs in run `31761836528` | Complete |
-| Browser and Windows UI | Nine setup checks plus the completed operations backlog; ENH-032 filtering and desktop/390 px containment passed in the in-app Browser | Complete for these flows; screen-reader/clean-VM evidence pending |
+| Windows package | 2.3.34 NSIS build, nine demo diagnostics, HAI smoke, metadata, SHA-256, four source-identical changed runtime modules, repeatable resource sample, and clean close | Complete locally; publisher signing external |
+| Fresh clone | 2.3.33 exact source `ee83ea53bcf2a019a213cc5b71bd6b2631b5c264`; 2.3.34 publication verification pending | Complete for 2.3.33; pending for 2.3.34 |
+| Browser and Windows UI | Critical Board Health evidence plus ENH-033 filtering and desktop/390 px containment passed in the in-app Browser | Complete for these flows; screen-reader/clean-VM evidence pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter, strict listener validation, exact runtime origin admission, and restart-safe URL cleanup | Complete locally; live credentials external |
-| GitHub CI | 2.3.33 run `31761836528` passed both jobs, including packaged-app launch; artifact `9204933068` was downloaded and independently checked | Complete |
+| GitHub CI | 2.3.33 run `31761836528` passed both jobs, including packaged-app launch; 2.3.34 publication verification pending | Complete for 2.3.33; pending for 2.3.34 |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |
+
+## 2026-08-14 - Portfolio board-health release checkpoint
+
+- Release: 2.3.34
+- Scope: select one newest health snapshot per board before applying bounded human or HAI result caps, then rank critical and at-risk boards first.
+- Resource boundary: one five-second aggregation uses the existing workspace/board/generated-at index and populates only bounded board identity fields.
+- Verification: lint; 124 suites/904 tests; 5/5 safety evaluation; two zero-vulnerability audits; positive five-secret validation; disposable 60-board/15,000-card/180-health-snapshot profile; in-app Browser desktop/390 px acceptance; HAI contract; and packaged Windows behavior/source parity.
+- Installer: `release/Sneup-Setup-2.3.34.exe`, 109,492,015 bytes, unsigned, SHA-256 `626687D4366379FA97700A8E0ADDA265C328C3619A870F317C9634ACC8EEEA67`.
+- GitHub: source, run, and independent artifact evidence pending publication.
+- External gates remain: live provider/ngrok/HAI acceptance, production deployment and restore, publisher signing, clean-VM scaling, and assistive-technology certification.
 
 ## 2026-08-14 - Active-work drain release checkpoint
 

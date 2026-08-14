@@ -14,6 +14,8 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 
 2.3.33 closes the restart-time drain gap. Sneup stops accepting HTTP work, cancels future schedules, and keeps MongoDB available while active requests, scheduled callbacks, connector synchronization, retention, and deletion maintenance finish. One validated grace window bounds shutdown, overlong HTTP connections are force-closed, and doctor/Windows setup reject invalid configuration before startup.
 
+2.3.34 closes a portfolio-health visibility gap. Daily brief and workspace ledger now select one newest health snapshot for every board before applying a cap, rank critical boards first, and share this indexed bounded evidence with reports, notifications, and HAI. The 60-board profiler proves unique coverage over 180 historical snapshots.
+
 | Phase | Status | Evidence or remaining gate |
 | --- | --- | --- |
 | 000 Repository integrity | Implemented | Baseline commit/branch/remote recorded; unrelated worktree artifacts preserved. |
@@ -36,7 +38,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 017 Idempotency/duplicates | Implemented | Delivery receipts, atomic claims, serialized syncs, reconciliation. |
 | 018 Rate limits/quotas | Implemented | Request limits, provider bounds, pacing, retry caps, visible truncation failures. |
 | 019 Audit history | Implemented | Workspace audit events and operations-ledger timelines. |
-| 020 Dashboard/next action | Implemented | Decision, exception, policy, health, report, and ledger views. |
+| 020 Dashboard/next action | Implemented | Decision, exception, policy, health, report, and ledger views; latest-per-board health is deduplicated before risk-first caps across human and HAI surfaces. |
 | 021 Forms/validation/autosave | Partial | Reviewed non-sensitive operational forms have bounded workspace/session draft recovery with success-only cleanup; credential, consequential-confirmation, evidence, response, destination, and provider-action forms are deliberately excluded. |
 | 022 Search/filter/sort/page | Implemented | Bounded list APIs and command-center filters. |
 | 023 Import/export | Implemented | Provider ingestion, PDF reports, and owner-only streamed workspace export exist. |
@@ -68,7 +70,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 049 Accessibility | Partial | Labels, modal semantics, contextual focus, focus containment/restoration, Escape/F1 behavior, and responsive help navigation are covered; assistive-technology certification remains external. |
 | 050 Responsive/browser compatibility | Partial | Help plus the demand-loaded connector, workspace, and approval renderers pass desktop/480x844 containment with no control overflow; packaged Windows 150% scaling passes, while the clean-VM 125%/200% matrix remains pending. |
 | 051 Performance/indexing | Implemented | Bounded queries, indexes, concurrency, batching, response timing, and cross-process duplicate-work suppression. |
-| 052 Large data/pagination | Implemented | Provider caps/pages are tested; a guarded real-Mongo profiler exercises 60 boards/300 lists/15,000 cards/100 members through mission control, verifies bounded 10/12/12 outputs and evidence, confirms the exact compound query index, enforces latency/RSS budgets, performs no provider writes, and drops only its dedicated database. |
+| 052 Large data/pagination | Implemented | Provider caps/pages are tested; a guarded real-Mongo profiler exercises 60 boards/300 lists/15,000 cards/100 members and 180 health snapshots, verifies bounded mission-control output plus 60 unique latest board-health rows, confirms both compound indexes, enforces latency/RSS budgets, performs no provider writes, and drops only its dedicated database. |
 | 053 Backup/restore | Partial | Runbook is defined; production-like restore evidence is external. |
 | 054 Reconciliation/repair | Implemented | Trello reconciliation remains evidence-gated; the generalized dry-run-first repair CLI and administration UI repair only bounded internal derived state, re-scan before atomic apply, and audit every successful change. |
 | 055 Local-first analytics | Implemented | Local response/job/recommendation metrics; no forced telemetry. |

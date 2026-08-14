@@ -13,7 +13,10 @@ const List = require('../src/models/List');
 const Card = require('../src/models/Card');
 const Member = require('../src/models/Member');
 const Analytics = require('../src/models/Analytics');
+const BoardHealthSnapshot = require('../src/models/BoardHealthSnapshot');
 const autopilotService = require('../src/services/autopilotService');
+const boardHealthSnapshotService = require('../src/services/boardHealthSnapshotService');
+const { buildLatestByBoardPipeline, LATEST_BY_BOARD_INDEX } = require('../src/services/boardHealthSnapshotService');
 
 const boardCount = Math.max(50, Number.parseInt(process.env.SNEUP_SCALE_BOARDS, 10) || 60);
 const listsPerBoard = Math.max(3, Number.parseInt(process.env.SNEUP_SCALE_LISTS_PER_BOARD, 10) || 5);
@@ -40,7 +43,8 @@ const percentile = (values, quantile) => {
 
 const collectIndexScans = (node, names = []) => {
   if (!node || typeof node !== 'object') return names;
-  if (node.stage === 'IXSCAN' && node.indexName) names.push(node.indexName);
+  if (node.indexName) names.push(node.indexName);
+  if (Array.isArray(node.indexesUsed)) names.push(...node.indexesUsed);
   Object.values(node).forEach(value => {
     if (Array.isArray(value)) value.forEach(item => collectIndexScans(item, names));
     else if (value && typeof value === 'object') collectIndexScans(value, names);
@@ -97,6 +101,7 @@ const seedPortfolio = async () => {
   const boards = [];
   const lists = [];
   const analytics = [];
+  const healthSnapshots = [];
   for (let boardIndex = 0; boardIndex < boardCount; boardIndex += 1) {
     const boardId = new mongoose.Types.ObjectId();
     boards.push({
@@ -145,6 +150,22 @@ const seedPortfolio = async () => {
       },
       createdAt: new Date(now)
     });
+    const latestHealthStatus = boardIndex === boardCount - 1
+      ? 'critical'
+      : boardIndex % 10 === 0 ? 'at_risk' : 'healthy';
+    const latestGeneratedAt = new Date(now - boardIndex * 1000);
+    for (let historyIndex = 2; historyIndex >= 0; historyIndex -= 1) {
+      healthSnapshots.push({
+        _id: new mongoose.Types.ObjectId(),
+        workspaceId,
+        boardId,
+        healthScore: historyIndex === 0 ? (latestHealthStatus === 'critical' ? 25 : latestHealthStatus === 'at_risk' ? 55 : 92) : 88,
+        healthStatus: historyIndex === 0 ? latestHealthStatus : 'healthy',
+        generatedAt: new Date(latestGeneratedAt.getTime() - historyIndex * DAY_MS),
+        createdAt: new Date(latestGeneratedAt.getTime() - historyIndex * DAY_MS),
+        updatedAt: new Date(latestGeneratedAt.getTime() - historyIndex * DAY_MS)
+      });
+    }
 
     const cardBatch = Array.from({ length: cardsPerBoard }, (_, cardIndex) => {
       const globalIndex = boardIndex * cardsPerBoard + cardIndex;
@@ -184,7 +205,8 @@ const seedPortfolio = async () => {
   await Promise.all([
     Board.collection.insertMany(boards, { ordered: false }),
     List.collection.insertMany(lists, { ordered: false }),
-    Analytics.collection.insertMany(analytics, { ordered: false })
+    Analytics.collection.insertMany(analytics, { ordered: false }),
+    BoardHealthSnapshot.collection.insertMany(healthSnapshots, { ordered: false })
   ]);
   return { workspaceId, totalCards: boardCount * cardsPerBoard };
 };
@@ -206,10 +228,31 @@ const run = async () => {
   process.env.SNEUP_DEMO_MODE = 'false';
   process.env.AUTOPILOT_MODE = 'advisory';
   await mongoose.connect(uri, { serverSelectionTimeoutMS: 10000 });
-  await Promise.all([Workspace.init(), Board.init(), List.init(), Card.init(), Member.init(), Analytics.init()]);
+  await Promise.all([Workspace.init(), Board.init(), List.init(), Card.init(), Member.init(), Analytics.init(), BoardHealthSnapshot.init()]);
   const seedStarted = process.hrtime.bigint();
   const { workspaceId, totalCards } = await seedPortfolio();
   const seedDurationMs = durationMs(seedStarted);
+
+  const healthStarted = process.hrtime.bigint();
+  const latestHealth = await boardHealthSnapshotService.listLatestByBoard({ workspaceId, limit: boardCount });
+  const boardHealthDurationMs = durationMs(healthStarted);
+  assert.equal(latestHealth.length, boardCount);
+  assert.equal(new Set(latestHealth.map(item => String(item.boardId?._id || item.boardId))).size, boardCount);
+  assert.equal(latestHealth[0].healthStatus, 'critical');
+  assert.equal(latestHealth[0].boardId.trelloId, `scale-board-${boardCount - 1}`);
+  const cappedHealth = await boardHealthSnapshotService.listLatestByBoard({ workspaceId, limit: 20 });
+  assert.equal(cappedHealth.length, 20);
+  assert.equal(new Set(cappedHealth.map(item => String(item.boardId?._id || item.boardId))).size, 20);
+  assert(cappedHealth.some(item => item.healthStatus === 'critical'));
+  const healthExplain = await BoardHealthSnapshot.collection.aggregate(
+    buildLatestByBoardPipeline({ workspaceId, limit: boardCount }),
+    { hint: LATEST_BY_BOARD_INDEX }
+  ).explain('executionStats');
+  const healthIndexScans = [...new Set(collectIndexScans(healthExplain))];
+  assert(
+    healthIndexScans.includes('workspaceId_1_boardId_1_generatedAt_-1'),
+    `Board health query did not use its compound index: ${healthIndexScans.join(', ') || 'none'}`
+  );
 
   autopilotService.invalidateMissionControlForecast(workspaceId);
   const cold = await measureSnapshot(workspaceId);
@@ -244,7 +287,8 @@ const run = async () => {
       lists: boardCount * listsPerBoard,
       cards: totalCards,
       members: memberCount,
-      analyticsRecords: boardCount
+      analyticsRecords: boardCount,
+      boardHealthSnapshots: boardCount * 3
     },
     seedDurationMs: round(seedDurationMs),
     coldDurationMs: round(cold.elapsedMs),
@@ -270,6 +314,13 @@ const run = async () => {
       totalDocsExamined: explain.executionStats.totalDocsExamined,
       totalKeysExamined: explain.executionStats.totalKeysExamined,
       returned: explain.executionStats.nReturned
+    },
+    boardHealthLatest: {
+      durationMs: round(boardHealthDurationMs),
+      returnedBoards: latestHealth.length,
+      cappedBoards: cappedHealth.length,
+      topStatus: latestHealth[0].healthStatus,
+      indexScans: healthIndexScans
     },
     providerWrites: false,
     approvalRequiredForWrites: true

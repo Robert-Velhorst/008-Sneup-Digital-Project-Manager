@@ -1,7 +1,7 @@
 const operationsLedgerService = require('../src/services/operationsLedgerService');
 const notificationService = require('../src/services/notificationService');
+const boardHealthSnapshotService = require('../src/services/boardHealthSnapshotService');
 const CardFinding = require('../src/models/CardFinding');
-const BoardHealthSnapshot = require('../src/models/BoardHealthSnapshot');
 const WorkerResponse = require('../src/models/WorkerResponse');
 
 const workspaceId = '507f1f77bcf86cd799439011';
@@ -34,8 +34,8 @@ describe('workspace operations ledger', () => {
     jest.spyOn(operationsLedgerService, 'getTrelloActionReconciliationHealth').mockResolvedValue({ total: 0 });
     jest.spyOn(notificationService, 'listPolicies').mockResolvedValue([{ id: 'policy-1' }]);
     jest.spyOn(notificationService, 'listDeliveries').mockResolvedValue([{ id: 'delivery-1' }]);
+    jest.spyOn(boardHealthSnapshotService, 'listLatestByBoard').mockResolvedValue([{ id: 'health-1' }]);
     jest.spyOn(CardFinding, 'find').mockReturnValue(queryResult([{ id: 'finding-1' }]));
-    jest.spyOn(BoardHealthSnapshot, 'find').mockReturnValue(queryResult([{ id: 'health-1' }]));
   });
 
   afterEach(() => {
@@ -68,7 +68,10 @@ describe('workspace operations ledger', () => {
     expect(operationsLedgerService.listWorkerResponses).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: expect.anything(), limit: 25, lean: true }));
     expect(notificationService.listPolicies).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: expect.anything(), limit: 80, lean: true }));
     expect(CardFinding.find.mock.results[0].value.lean).toHaveBeenCalledTimes(1);
-    expect(BoardHealthSnapshot.find.mock.results[0].value.lean).toHaveBeenCalledTimes(1);
+    expect(boardHealthSnapshotService.listLatestByBoard).toHaveBeenCalledWith({
+      workspaceId: expect.anything(),
+      limit: 12
+    });
   });
 
   test('keeps other evidence available when one section cannot be read', async () => {

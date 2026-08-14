@@ -12,6 +12,15 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-14 latest-board-health continuation
+
+- Re-audited the 60-board operating path and found that daily brief and workspace ledger limited newest history rows before deduplicating by board. At the verified portfolio size, at least ten boards could be absent and repeated history could hide a critical board from Robert, notifications, reports, or HAI.
+- Added one shared latest-per-board aggregation that scopes by workspace, uses the existing compound index, selects newest evidence before limiting, ranks critical states first, caps execution time, and populates only required board identity fields.
+- A disposable 60-board/180-health-snapshot profile returned 60 unique newest boards in 17.3 ms, kept the critical board first and inside a 20-row cap, used `workspaceId_1_boardId_1_generatedAt_-1`, issued no provider writes, and dropped its dedicated database.
+- The final local gate passed 124 suites/904 tests, lint, 5/5 safety evaluation, two zero-vulnerability audits, and positive five-secret production validation. Cold startup imported 254 modules in 264.4 ms at 70.6 MB RSS and kept Mongoose unloaded through Overview.
+- In-app Browser rendered the critical Board Health card and ENH-033 at desktop and 390 x 844 with no horizontal overflow. HAI retained only snapshot/proposal paths, proposal approval, `never_direct`, and no approval or execution operation.
+- Built and verified unsigned `release/Sneup-Setup-2.3.34.exe`, 109,492,015 bytes, SHA-256 `626687D4366379FA97700A8E0ADDA265C328C3619A870F317C9634ACC8EEEA67`. The exact CI packaged-app command passed at 371.5 MB working set, 392.4 MB private memory, and 1.484 CPU seconds; all four changed runtime modules are byte-identical inside the ASAR.
+
 ## 2026-08-14 active-work-drain continuation
 
 - Re-audited the governing operations-ledger contract and current 2.3.32 runtime. Approval, exact payload, provider evidence, HAI read/propose, and ngrok origin controls remain intact.

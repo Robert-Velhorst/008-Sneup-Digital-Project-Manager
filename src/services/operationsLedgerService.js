@@ -2596,11 +2596,10 @@ class OperationsLedgerService {
         .populate('boardId cardId memberId')
         .limit(ledgerLimit)
         .lean(),
-      healthSnapshots: () => BoardHealthSnapshot.find(this.workspaceQuery(queryFilters))
-        .sort({ generatedAt: -1 })
-        .populate('boardId')
-        .limit(healthLimit)
-        .lean(),
+      healthSnapshots: () => require('./boardHealthSnapshotService').listLatestByBoard({
+        workspaceId,
+        limit: healthLimit
+      }),
       reconciliationHealth: () => this.getTrelloActionReconciliationHealth({ ...queryFilters, limit: notificationLimit }),
       notificationPolicies: () => notificationService.listPolicies({ workspaceId, limit: notificationLimit, lean: true }),
       notificationDeliveries: () => notificationService.listDeliveries({ workspaceId, limit: notificationLimit, lean: true })

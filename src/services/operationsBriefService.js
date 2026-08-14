@@ -24,7 +24,7 @@ class OperationsBriefService {
     const TrelloActionAttempt = require('../models/TrelloActionAttempt');
     const FollowUpPlan = require('../models/FollowUpPlan');
     const CardFinding = require('../models/CardFinding');
-    const BoardHealthSnapshot = require('../models/BoardHealthSnapshot');
+    const boardHealthSnapshotService = require('./boardHealthSnapshotService');
     const workGraphService = require('./workGraphService');
 
     const [
@@ -60,10 +60,10 @@ class OperationsBriefService {
         .populate('boardId cardId memberId')
         .sort({ lastObservedAt: -1 })
         .limit(limit),
-      BoardHealthSnapshot.find({ workspaceId })
-        .populate('boardId')
-        .sort({ generatedAt: -1 })
-        .limit(50),
+      boardHealthSnapshotService.listLatestByBoard({
+        workspaceId,
+        limit
+      }),
       workGraphService.listDecisionCandidates({
         workspaceId,
         limit: Math.min(limit, 25)

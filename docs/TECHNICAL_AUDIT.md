@@ -1,5 +1,11 @@
 # Technical Audit
 
+## 2.3.34 portfolio-health audit
+
+- Daily brief and workspace ledger limited raw health-history rows before reducing them to one row per board. At 60 boards, at least ten current boards could be absent; repeated history could also displace a critical board from bounded human or HAI evidence.
+- Added one workspace-scoped latest-per-board aggregation shared by daily brief, approval ledger, reports, notifications, and HAI. It selects newest rows before limiting, ranks critical states first, populates only required board identity, and enforces a five-second deadline.
+- The query explicitly hints `workspaceId_1_boardId_1_generatedAt_-1`. A disposable 60-board/180-snapshot profile returned 60 unique boards in 17.3 ms and retained the critical board first under a 20-row cap.
+
 ## 2.3.33 graceful-restart audit
 
 - Scheduler cancellation removed future invocations but did not prove callbacks already in progress had completed before MongoDB disconnected. Workspace-deletion maintenance had the same gap, and an active HTTP request could keep shutdown open indefinitely.

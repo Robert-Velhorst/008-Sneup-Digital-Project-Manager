@@ -1,5 +1,6 @@
 # Enhancement Findings
 
+- ENH-033 release evidence: daily brief and workspace-ledger health now select one newest snapshot per board before limiting, rank critical boards first, use the existing compound index with a bounded query deadline, and share the same result with reports, notifications, and HAI.
 - ENH-032 release evidence: shutdown now stops admission, cancels future schedules, drains active HTTP/background/database work within one validated grace window, force-closes overlong connections, continues all cleanup after a timeout, and exposes the same configuration through redacted setup diagnostics.
 - ENH-031 release evidence: every recurring scheduler now owns an idempotent start/stop lifecycle and a non-secret error observer; partial startup continues through HTTP and MongoDB cleanup after another component fails; Job Health redacts credentials before persistence; Windows CI launches the packaged app before upload.
 - ENH-030 release evidence: the validated ngrok origin now enters the existing CORS allowlist dynamically, concurrent starts share one listener, unsafe public URLs close before publication, ephemeral restarts refresh Sneup-owned Trello callbacks, and shutdown restores prior operator configuration.
@@ -11,7 +12,7 @@ This backlog turns the high-level improvement plan into concrete engineering fin
 
 ## Priority Summary
 
-- P0: 9 findings that block serious production use, including completed scheduler lifecycle and active-work drain hardening.
+- P0: 10 findings that block serious production use, including completed lifecycle draining and portfolio-wide board-health correctness.
 - P1: 4 findings that materially improve trust, operability, and desktop adoption, plus 2 completed operations control findings.
 - P2: 6 findings that harden scale, quality, and workflow reach.
 - P3: 1 reporting enhancement with fast user-visible value.

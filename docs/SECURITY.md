@@ -13,6 +13,7 @@ Sneup separates browser/API identity, workspace-scoped persistence, encrypted co
 - OAuth state signing, redirect validation, fixed provider hosts, atomic expiring token-refresh leases, encrypted refresh-token rotation, secret-free refresh audits, SSRF/DNS protections where custom hosts are supported, redirect denial, timeouts, bounded pages, and redacted retained fields.
 - Exact approval payload snapshot, expiry, action policy, atomic claim, idempotency evidence, timeout/reset/HTTP 408/5xx ambiguity classification, multi-step partial-write evidence, and no automatic retry after ambiguous writes.
 - Graceful restart stops request admission and future schedules, drains active work before database teardown, bounds overlong connections, and reports component codes without request or credential content.
+- Board-health evidence is matched to the authenticated workspace before newest-per-board aggregation; bounded caps occur after deduplication and cannot mix another workspace current state.
 - Deployment emergency stop: set `SNEUP_PROVIDER_WRITES_DISABLED=true` and restart. Denials are audited before policy resolution or execution claim.
 - Logs and support bundles exclude secret values. The support bundle also excludes logs and user data entirely.
 - Scheduled failures have an explicit `error` observer, and persisted Job Health failure text passes through bounded credential redaction before storage or display.

@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.3.34 - 2026-08-14
+
+### Portfolio-wide board health
+
+- Select each board newest health snapshot before applying command-center, approval-ledger, report, notification, or HAI result caps.
+- Rank critical and at-risk boards before healthy boards so bounded surfaces preserve the most consequential current evidence.
+- Share one workspace-scoped aggregation across human and HAI paths, populate only bounded board identity fields, enforce a five-second query deadline, and explicitly use the existing workspace/board/time compound index.
+- Extend the disposable portfolio profiler to prove 60 unique latest boards from 180 historical snapshots while retaining a critical board inside the 20-row approval/HAI cap.
+
+### Verification
+
+- The full local gate passes 124 suites/904 tests, lint, and the 5/5 recommendation safety evaluation. Full and production dependency audits report zero vulnerabilities, and the production configuration check accepts five purpose-separated secrets without exposing their values.
+- Cold startup imported 254 modules in 264.4 ms at 70.6 MB RSS and kept Mongoose unloaded through Overview. The expanded 60-board/15,000-card/180-health-snapshot profile measured 615.2 ms p50, 653.7 ms p95, and 357.2 MB peak RSS; the latest-health query returned 60 unique boards in 17.3 ms through its exact compound index.
+- In-app Browser acceptance rendered the critical Board Health card and ENH-033 at desktop and 390 x 844 with equal client/scroll width. HAI exposed only bounded snapshot/proposal paths, required human approval for proposals, retained `never_direct`, and exposed no approval or execution operation.
+- Built and verified unsigned `Sneup-Setup-2.3.34.exe`: 109,492,015 bytes, SHA-256 `626687D4366379FA97700A8E0ADDA265C328C3619A870F317C9634ACC8EEEA67`. The exact CI packaged-app command passed product metadata, nine diagnostics, secret redaction, HAI policy, normal close, port release, and four byte-identical changed runtime modules; its five-second sample used 371.5 MB working set, 392.4 MB private memory, and 1.484 CPU seconds.
+
 ## 2.3.33 - 2026-08-14
 
 ### Bounded graceful restart draining

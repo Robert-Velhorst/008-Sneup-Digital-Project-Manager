@@ -497,6 +497,24 @@ const enhancements = [
       'Malformed shutdown configuration fails doctor and startup with stable non-secret remediation.',
       'The packaged Windows app still closes normally and releases its loopback port.'
     ]
+  },
+  {
+    id: 'ENH-033',
+    priority: 'P0',
+    area: 'dashboard',
+    title: 'Keep every board visible in latest health evidence',
+    evidence: 'Daily brief, approval ledger, reports, notifications, and HAI now share one bounded latest-per-board health query. It selects each board newest snapshot before applying a result cap, ranks critical and at-risk boards first, uses the existing workspace/board/time compound index through an explicit hint, limits database execution time, and populates only the board identity fields the operator needs. A disposable 60-board profile with 180 historical snapshots returns 60 unique boards and retains the critical board in a 20-row cap.',
+    impact: 'Prevents repeated history from one board or a pre-deduplication limit from hiding a critical board in Robert dashboard, notifications, reports, or HAI evidence.',
+    effort: 'S',
+    status: 'done',
+    nextStep: 'Review representative hosted board-health history before changing the 100-board brief or 20-board approval/HAI display caps.',
+    acceptanceCriteria: [
+      'Health evidence contains at most one newest snapshot per board.',
+      'Result limits are applied only after newest-per-board selection.',
+      'Critical and at-risk boards sort ahead of healthy boards under a bounded cap.',
+      'The query uses the workspace, board, and generated-at compound index with a bounded execution time.',
+      'Daily brief, workspace ledger, notifications, reports, and HAI consume the same query contract.'
+    ]
   }
 ];
 

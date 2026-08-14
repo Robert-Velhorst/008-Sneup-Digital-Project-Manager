@@ -10003,6 +10003,7 @@ describe('operations daily brief', () => {
     jest.dontMock('../src/models/FollowUpPlan');
     jest.dontMock('../src/models/CardFinding');
     jest.dontMock('../src/models/BoardHealthSnapshot');
+    jest.dontMock('../src/services/boardHealthSnapshotService');
     jest.dontMock('../src/services/workGraphService');
     jest.resetModules();
   });
@@ -10032,7 +10033,8 @@ describe('operations daily brief', () => {
     jest.doMock('../src/models/TrelloActionAttempt', () => makeModel('TrelloActionAttempt'));
     jest.doMock('../src/models/FollowUpPlan', () => makeModel('FollowUpPlan'));
     jest.doMock('../src/models/CardFinding', () => makeModel('CardFinding'));
-    jest.doMock('../src/models/BoardHealthSnapshot', () => makeModel('BoardHealthSnapshot'));
+    const listLatestByBoard = jest.fn().mockResolvedValue([]);
+    jest.doMock('../src/services/boardHealthSnapshotService', () => ({ listLatestByBoard }));
     jest.doMock('../src/services/workGraphService', () => ({
       listDecisionCandidates: jest.fn().mockResolvedValue({ count: 0, candidates: [] })
     }));
@@ -10051,7 +10053,10 @@ describe('operations daily brief', () => {
     expect(queryLog.TrelloActionAttempt).toMatchObject({ workspaceId: 'workspace-object-id' });
     expect(queryLog.FollowUpPlan).toMatchObject({ workspaceId: 'workspace-object-id' });
     expect(queryLog.CardFinding).toMatchObject({ workspaceId: 'workspace-object-id' });
-    expect(queryLog.BoardHealthSnapshot).toMatchObject({ workspaceId: 'workspace-object-id' });
+    expect(listLatestByBoard).toHaveBeenCalledWith({
+      workspaceId: 'workspace-object-id',
+      limit: 5
+    });
     expect(workGraphService.listDecisionCandidates).toHaveBeenCalledWith({
       workspaceId: 'workspace-object-id',
       limit: 5
