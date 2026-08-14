@@ -17,10 +17,10 @@
 | Data integrity and repair | Bounded dry-run/apply, review-only unsafe findings, all-workspace Trello index migration, audit evidence, and disposable MongoDB verification | Complete locally |
 | Data retention | Owner-only opt-in policy, bounded preview/apply, protected evidence, distributed lease, indexed queries, pre/post audits, real MongoDB proof, and live browser flow | Complete locally |
 | Windows package | 2.3.33 NSIS build, nine demo diagnostics, HAI smoke, metadata, SHA-256, 15 source-identical changed runtime modules, repeatable resource sample, and clean close | Complete locally; publisher signing external |
-| Fresh clone | 2.3.32 exact source `8344df95e8f799c96cee5d0249ff3e48296b29c4`; 2.3.33 publication verification pending | Complete for 2.3.32; pending for 2.3.33 |
+| Fresh clone | 2.3.33 exact source `ee83ea53bcf2a019a213cc5b71bd6b2631b5c264`; Node 24 quality and Windows installer/runtime jobs in run `31761836528` | Complete |
 | Browser and Windows UI | Nine setup checks plus the completed operations backlog; ENH-032 filtering and desktop/390 px containment passed in the in-app Browser | Complete for these flows; screen-reader/clean-VM evidence pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter, strict listener validation, exact runtime origin admission, and restart-safe URL cleanup | Complete locally; live credentials external |
-| GitHub CI | 2.3.32 run `31760069838` passed both jobs, including packaged-app launch; 2.3.33 publication verification pending | Complete for 2.3.32; pending for 2.3.33 |
+| GitHub CI | 2.3.33 run `31761836528` passed both jobs, including packaged-app launch; artifact `9204933068` was downloaded and independently checked | Complete |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |
@@ -32,7 +32,7 @@
 - Safety boundary: overlong HTTP connections are force-closed after the deadline; cleanup continues after an individual component failure, and diagnostics expose only stable component/error codes.
 - Verification: lint; 123 suites/902 tests; 5/5 safety evaluation; two zero-vulnerability audits; positive five-secret production validation; cold startup; disposable real-Mongo 15,000-card profile; in-app Browser desktop/390 px acceptance; HAI HTTP contract; and packaged Windows behavior/source parity.
 - Installer: `release/Sneup-Setup-2.3.33.exe`, 109,490,628 bytes, unsigned, SHA-256 `F397C644E8EC7BE71CCD72AA1B8F852A4EE7B3A73E7470824B1C34B1D094D32D`.
-- GitHub: source, run, and independent artifact evidence pending publication.
+- GitHub: source `ee83ea53bcf2a019a213cc5b71bd6b2631b5c264`; run `31761836528`; quality 58 seconds; Windows package/runtime 2 minutes 34 seconds; independently verified artifact `9204933068`.
 - External gates remain: live provider/ngrok/HAI acceptance, production deployment and restore, publisher signing, clean-VM scaling, and assistive-technology certification.
 
 ## 2026-08-14 - Runtime scheduler lifecycle release checkpoint

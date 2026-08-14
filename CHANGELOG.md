@@ -16,6 +16,7 @@
 - Cold startup imported 254 modules in 315 ms at 70.4 MB RSS and kept Mongoose unloaded through Overview. A disposable real-Mongo 15,000-card profile measured 685.1 ms p50, 741.9 ms p95, and 406.3 MB peak RSS with bounded output, the intended compound index, approval required, and no provider writes.
 - In-app Browser acceptance rendered all nine setup diagnostics and ENH-032 at desktop and 390 x 844 with equal client/scroll width. HAI exposed only bounded snapshot/proposal paths, required human approval for proposals, retained `never_direct`, and exposed no approval or execution operation.
 - Built and verified unsigned `Sneup-Setup-2.3.33.exe`: 109,490,628 bytes, SHA-256 `F397C644E8EC7BE71CCD72AA1B8F852A4EE7B3A73E7470824B1C34B1D094D32D`. The exact CI packaged-app command passed product metadata, nine diagnostics, secret redaction, HAI policy, normal close, port release, and 15 byte-identical changed runtime modules; its five-second sample used 374 MB working set, 383.7 MB private memory, and 1.422 CPU seconds.
+- Published source `ee83ea53bcf2a019a213cc5b71bd6b2631b5c264`. GitHub run `31761836528` passed quality in 58 seconds and Windows packaging plus packaged-app launch in 2 minutes 34 seconds. Artifact `9204933068` has archive digest `sha256:c6d846baee9551c44de26f87d907eaf7b170ffd2fc57d7d4b2cfea1763165d94`; its single independently downloaded installer is 109,490,671 bytes, unsigned, version 2.3.33, SHA-256 `259C80441889783AD6727B62E44E5112EB2382CD022D24769223FFB7716416A9`.
 
 ## 2.3.32 - 2026-08-14
 

@@ -44,9 +44,9 @@ This report is updated from executed commands at release time. A passing local s
 | Packaged Windows QA | Pass: the exact CI verifier confirmed 2.3.33 product metadata, healthy demo state, nine redacted diagnostics, HAI `never_direct`, normal main-window close, loopback port release, and 15 byte-identical changed runtime modules |
 | Packaged resource sample | Pass: four processes used 374 MB working set, 383.7 MB private memory, and 1.422 cumulative CPU seconds in the five-second CI-equivalent probe. |
 | Windows installer | Pass: local build 109,490,628 bytes, unsigned, SHA-256 `F397C644E8EC7BE71CCD72AA1B8F852A4EE7B3A73E7470824B1C34B1D094D32D`; executable metadata reports 2.3.33 |
-| Fresh clone | Pending for 2.3.33 publication; prior 2.3.32 source `8344df95e8f799c96cee5d0249ff3e48296b29c4` remains independently verified |
-| GitHub CI | Pending for 2.3.33 publication; prior 2.3.32 run `31760069838` passed both jobs |
-| GitHub installer artifact | Pending for 2.3.33 publication; prior 2.3.32 artifact `9204287831` remains independently verified |
+| Fresh clone | Pass: GitHub checked out exact source `ee83ea53bcf2a019a213cc5b71bd6b2631b5c264`, installed the lockfile with Node.js 24, and completed quality plus Windows package/runtime jobs |
+| GitHub CI | Pass: run `31761836528`; quality completed in 58 seconds and Windows installer plus packaged-app launch in 2 minutes 34 seconds; both jobs succeeded |
+| GitHub installer artifact | Pass: artifact `9204933068`, `sneup-windows-installer-unsigned`, 109,496,649-byte archive, digest `sha256:c6d846baee9551c44de26f87d907eaf7b170ffd2fc57d7d4b2cfea1763165d94`; its single downloaded installer is 109,490,671 bytes, unsigned, version 2.3.33, SHA-256 `259C80441889783AD6727B62E44E5112EB2382CD022D24769223FFB7716416A9` |
 
 ## External gates
 
@@ -67,8 +67,8 @@ Live Trello critical-path acceptance, live ngrok/HAI credential acceptance, prod
 | Packaged Windows QA | Pass: version 2.3.33, nine diagnostics, no exposed secrets, HAI `never_direct`, four processes, normal close, port released, 15 runtime modules byte-identical |
 | Packaged resource sample | Directional pass: 374 MB working set, 383.7 MB private bytes, 1.422 cumulative CPU seconds after five seconds |
 | Windows installer | Pass: 109,490,628 bytes, version 2.3.33, unsigned, SHA-256 `F397C644E8EC7BE71CCD72AA1B8F852A4EE7B3A73E7470824B1C34B1D094D32D` |
-| Fresh-clone GitHub CI | Pending publication |
-| GitHub installer artifact | Pending publication and independent download verification |
+| Fresh-clone GitHub CI | Pass: run `31761836528` on source `ee83ea53bcf2a019a213cc5b71bd6b2631b5c264`; Node.js 24 quality completed in 58 seconds and Windows packaging/runtime in 2 minutes 34 seconds |
+| GitHub installer artifact | Pass: artifact `9204933068`, archive size 109,496,649 bytes, digest `sha256:c6d846baee9551c44de26f87d907eaf7b170ffd2fc57d7d4b2cfea1763165d94`; its single installer is 109,490,671 bytes, unsigned, version 2.3.33, SHA-256 `259C80441889783AD6727B62E44E5112EB2382CD022D24769223FFB7716416A9` |
 | External gates | Live provider/ngrok/HAI acceptance, production-like restore/deployment rollback, code signing, clean-VM scaling, and assistive-technology certification remain external |
 
 ## 2.3.20 continuation evidence
