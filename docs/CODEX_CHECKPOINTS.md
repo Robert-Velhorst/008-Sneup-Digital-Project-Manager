@@ -17,10 +17,10 @@
 | Data integrity and repair | Bounded dry-run/apply, review-only unsafe findings, all-workspace Trello index migration, audit evidence, and disposable MongoDB verification | Complete locally |
 | Data retention | Owner-only opt-in policy, bounded preview/apply, protected evidence, distributed lease, indexed queries, pre/post audits, real MongoDB proof, and live browser flow | Complete locally |
 | Windows package | 2.3.40 NSIS build, nine demo diagnostics, HAI smoke, metadata, SHA-256, three source-identical changed runtime modules, semantically validated transformed manifest, resource sample, and clean close | Complete locally; publisher signing external |
-| Fresh clone | Exact 2.3.40 source publication and CI are pending | Pending publication |
+| Fresh clone | Exact 2.3.40 source `0271e443f7165494165b2acfba8d6d02decf3f24` passed GitHub Node 24 quality and Windows packaging/runtime jobs | Complete remotely |
 | Browser and Windows UI | All eight primary Dutch views, ENH-039 rendering, desktop containment, and zero horizontal/control overflow passed in the in-app Browser | Complete for these flows; exact 390 px, screen-reader, and clean-VM evidence pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter, strict listener validation, exact runtime origin admission, and restart-safe URL cleanup | Complete locally; live credentials external |
-| GitHub CI | Exact 2.3.40 source run and installer artifact are pending publication | Pending publication |
+| GitHub CI | 2.3.40 run `31774312886` passed quality in 1 minute 13 seconds and Windows packaging/runtime in 2 minutes 21 seconds; artifact `9209323265` independently verified | Complete for exact source |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |
@@ -33,7 +33,7 @@
 - Verification: lint; 132 suites/949 tests; 5/5 safety evaluation; two zero-vulnerability audits; positive five-secret validation; disposable real-Mongo review, follow-up, and webhook proofs; 15,000-card profile; all-view Browser acceptance; and packaged Windows behavior/source parity.
 - Resource evidence: seven-process ledger route improved from 844.5 to 195.4 ms, 50.5 to 13.4 MB RSS growth, and 1,090 to 224 modules; portfolio p95 was 561.5 ms at 368 MB peak RSS.
 - Installer: `release/Sneup-Setup-2.3.40.exe`, 109,500,851 bytes, unsigned, SHA-256 `48EEDDEC38A94116354E9981F3CA6E460DB77ABF246AC83DEB6724B0063F5471`.
-- GitHub: exact-source CI and independent installer artifact verification pending publication.
+- GitHub: source `0271e443f7165494165b2acfba8d6d02decf3f24`; run `31774312886`; quality 1 minute 13 seconds; Windows build/runtime 2 minutes 21 seconds; independently verified artifact `9209323265`, 109,507,120-byte archive, digest `sha256:450b821e626dbb840635fed82775b07aec69d030b0f9c8b53fc090e7faa8c208`, containing one 109,501,181-byte unsigned installer with SHA-256 `EF7F9F558C9BF7B1E0F90E0F31D2FB3AA299FEAC3796A6A03B1F8491FE461DB5`.
 - External gates remain: owner-authorized provider/ngrok/HAI acceptance, production deployment and restore, publisher signing, clean-VM scaling, and assistive-technology certification.
 
 ## 2026-08-14 - Connector lifecycle release checkpoint

@@ -8,6 +8,8 @@ Across seven fresh route processes, average load improved from 844.5 to 195.4 ms
 
 The verified local installer is `release/Sneup-Setup-2.3.40.exe`, 109,500,851 bytes, unsigned, with SHA-256 `48EEDDEC38A94116354E9981F3CA6E460DB77ABF246AC83DEB6724B0063F5471`. Its runtime closed normally, released its port, retained HAI `never_direct`, and matched all changed packaged runtime sources exactly.
 
+Exact source `0271e443f7165494165b2acfba8d6d02decf3f24` passed GitHub quality and Windows runtime jobs. Independently downloaded artifact `9209323265` contained one unsigned version 2.3.40 installer, 109,501,181 bytes, with SHA-256 `EF7F9F558C9BF7B1E0F90E0F31D2FB3AA299FEAC3796A6A03B1F8491FE461DB5`.
+
 ## 2.3.39 continuation
 
 Sneup now treats connector disconnect as an authoritative local lifecycle transition instead of an unaudited hard delete. The operator must confirm the exact account name, acknowledge that provider authorization is unchanged, and submit the current account revision. The transition shares the connector synchronization workspace lease, removes stored credentials and OAuth refresh leases, preserves historical read-only evidence, and rolls back if audit evidence cannot be recorded.
