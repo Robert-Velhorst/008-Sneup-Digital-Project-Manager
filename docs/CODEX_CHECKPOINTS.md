@@ -17,10 +17,10 @@
 | Data integrity and repair | Bounded dry-run/apply, review-only unsafe findings, all-workspace Trello index migration, audit evidence, and disposable MongoDB verification | Complete locally |
 | Data retention | Owner-only opt-in policy, bounded preview/apply, protected evidence, distributed lease, indexed queries, pre/post audits, real MongoDB proof, and live browser flow | Complete locally |
 | Windows package | 2.3.39 NSIS build, nine demo diagnostics, HAI smoke, metadata, SHA-256, six source-identical changed runtime modules, semantically validated transformed manifest, resource sample, and clean close | Complete locally; publisher signing external |
-| Fresh clone | Exact 2.3.39 source is awaiting GitHub Node 24 and Windows jobs | Pending remote verification for 2.3.39 |
+| Fresh clone | Exact 2.3.39 source `00494de5e5db01f650e3090a586ad7230f3f5ea8` passed GitHub Node 24 quality and Windows packaging/runtime jobs | Complete remotely |
 | Browser and Windows UI | Connector marketplace, scope review, Dutch rendering, desktop/minimum-responsive containment, and zero console errors passed in the in-app Browser; DOM regressions cover exact disconnect/reconnect states | Complete for these flows; exact 390 px, connected live account, screen-reader, and clean-VM evidence pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter, strict listener validation, exact runtime origin admission, and restart-safe URL cleanup | Complete locally; live credentials external |
-| GitHub CI | 2.3.39 source and installer artifact await publication; 2.3.38 run `31770300777` remains the last independently verified remote release | Pending for 2.3.39 |
+| GitHub CI | 2.3.39 run `31772690720` passed quality in 1 minute 18 seconds and Windows packaging/runtime in 2 minutes 27 seconds; artifact `9208737219` independently verified | Complete for exact source |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |
@@ -32,7 +32,7 @@
 - Safety boundary: credentials and refresh authority are purged under the synchronization lease, prior read-only evidence remains, audit failure rolls back, provider authorization is explicitly unchanged, HAI stays proposal-only, and post-disconnect verification issues no provider read or write.
 - Verification: lint; 131 suites/947 tests; 5/5 safety evaluation; zero-vulnerability production audit; positive five-secret validation; disposable real-Mongo lifecycle and recovery proofs; 15,000-card profile; Browser/HAI acceptance; and packaged Windows behavior/source parity.
 - Installer: `release/Sneup-Setup-2.3.39.exe`, 109,500,269 bytes, unsigned, SHA-256 `51E89FB4AB173D053C54441C968EE3ACC04F18A08A878E8B5AA50FEA522B0812`.
-- GitHub: exact source, CI run, and independently downloaded artifact pending publication.
+- GitHub: source `00494de5e5db01f650e3090a586ad7230f3f5ea8`; run `31772690720`; quality 1 minute 18 seconds; Windows build/runtime 2 minutes 27 seconds; independently verified artifact `9208737219`, 109,506,462-byte archive, digest `sha256:fd9cc2a77a89daa2cff8b0e9ae1399d3f7043fc059e18158a3c235ae6e609647`, containing one 109,500,483-byte unsigned installer with SHA-256 `FB0AFD86B162AB79F4449A30466089B2FBBECE423FB9885E09A05297D44ABCFE`.
 - External gates remain: hosted OAuth/credential disconnect and reconnect, provider-side revocation, owner-authorized live provider/ngrok/HAI acceptance, production deployment and restore, publisher signing, clean-VM scaling, and assistive-technology certification.
 
 ## 2026-08-14 - Connector recovery release checkpoint

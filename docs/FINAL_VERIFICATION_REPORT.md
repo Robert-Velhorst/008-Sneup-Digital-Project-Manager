@@ -47,9 +47,9 @@ This report is updated from executed commands at release time. A passing local s
 | Packaged Windows QA | Pass locally: 2.3.39 product metadata, healthy demo state, nine redacted diagnostics, HAI `never_direct`, normal main-window close, loopback port release, six byte-identical changed runtime modules, and a semantically validated builder-transformed manifest |
 | Packaged resource sample | Pass: four processes used 360.8 MB working set, 294.9 MB private memory, and 1.812 cumulative CPU seconds in the five-second CI-equivalent probe. |
 | Windows installer | Pass locally: 109,500,269 bytes, unsigned, SHA-256 `51E89FB4AB173D053C54441C968EE3ACC04F18A08A878E8B5AA50FEA522B0812`; executable metadata reports 2.3.39 |
-| Fresh clone | Pending for exact 2.3.39 source; the last verified remote release remains 2.3.38 source `8d510d20a7617dab5c82e88a758518b24f1661af` |
-| GitHub CI | Pending for 2.3.39; last verified run `31770300777` covers 2.3.38 |
-| GitHub installer artifact | Pending for 2.3.39; last independently checked artifact `9207912643` covers 2.3.38 |
+| Fresh clone | Pass: exact 2.3.39 source `00494de5e5db01f650e3090a586ad7230f3f5ea8` passed GitHub Node 24 quality and Windows packaging/runtime |
+| GitHub CI | Pass: run `31772690720`; quality 1 minute 18 seconds; Windows packaging/runtime 2 minutes 27 seconds |
+| GitHub installer artifact | Pass: independently downloaded artifact `9208737219`; 109,506,462-byte archive digest `sha256:fd9cc2a77a89daa2cff8b0e9ae1399d3f7043fc059e18158a3c235ae6e609647`; exactly one 109,500,483-byte unsigned 2.3.39 installer, SHA-256 `FB0AFD86B162AB79F4449A30466089B2FBBECE423FB9885E09A05297D44ABCFE` |
 
 ## External gates
 
@@ -71,8 +71,8 @@ Live Trello critical-path acceptance, live ngrok/HAI credential acceptance, prod
 | Packaged Windows QA | Pass locally: version 2.3.39, nine diagnostics, no exposed secrets, HAI `never_direct`, four processes, normal close, port released, six runtime modules byte-identical and manifest semantics preserved |
 | Packaged resource sample | Pass: 360.8 MB working set, 294.9 MB private bytes, and 1.812 cumulative CPU seconds after five seconds |
 | Windows installer | Pass locally: 109,500,269 bytes, version 2.3.39, unsigned, SHA-256 `51E89FB4AB173D053C54441C968EE3ACC04F18A08A878E8B5AA50FEA522B0812` |
-| Fresh-clone GitHub CI | Pending publication |
-| GitHub installer artifact | Pending publication and independent download |
+| Fresh-clone GitHub CI | Pass: source `00494de5e5db01f650e3090a586ad7230f3f5ea8`, run `31772690720`, both jobs successful |
+| GitHub installer artifact | Pass: artifact `9208737219`, archive digest matched GitHub, exactly one correctly versioned unsigned installer independently downloaded and hashed |
 | External gates | Hosted OAuth/credential lifecycle, provider-side revocation, owner-authorized provider/ngrok/HAI acceptance, deployment/restore, signing, clean VM, and assistive technology remain external |
 
 ## 2.3.38 continuation evidence
