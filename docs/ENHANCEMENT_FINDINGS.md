@@ -1,5 +1,6 @@
 # Enhancement Findings
 
+- ENH-036 release evidence: webhook observation now starts after ngrok establishes the final callback; missing, stale, and duplicate Trello state becomes an exact protected Robert-owned recommendation. Repeated real-Mongo reconciliation produced four decisions and four audits with zero attempts or provider writes, while the low-level emergency stop independently denied mutation.
 - ENH-035 release evidence: worker responses now claim one executed communication intervention atomically, bind the winning response ID, resolve only the strongest matching follow-up identity, reject stale terminal transitions, normalize provider audit sources, and keep audit evidence in the authenticated workspace. Unit/UI coverage plus a disposable real-Mongo race verifier prove one response owner, one manual resolution winner, an adjacent same-card follow-up unchanged, no Trello attempts, and no provider writes.
 - ENH-034 release evidence: recommendation reviews now use revision-safe atomic transitions and one exact active approval binding; stale or terminal queue actions cannot revive executed work. Unit/UI coverage plus a disposable real-Mongo race verifier prove one decision winner, no orphan approvals, no Trello attempts, and no provider writes.
 - ENH-033 release evidence: daily brief and workspace-ledger health now select one newest snapshot per board before limiting, rank critical boards first, use the existing compound index with a bounded query deadline, and share the same result with reports, notifications, and HAI.
@@ -14,7 +15,7 @@ This backlog turns the high-level improvement plan into concrete engineering fin
 
 ## Priority Summary
 
-- P0: 12 findings that block serious production use, including completed lifecycle draining, portfolio-wide board-health correctness, race-safe approval authority, and exact worker follow-up evidence.
+- P0: 13 findings that block serious production use, including completed lifecycle draining, portfolio-wide board-health correctness, race-safe approval authority, exact worker follow-up evidence, and approval-gated webhook configuration.
 - P1: 4 findings that materially improve trust, operability, and desktop adoption, plus 2 completed operations control findings.
 - P2: 6 findings that harden scale, quality, and workflow reach.
 - P3: 1 reporting enhancement with fast user-visible value.

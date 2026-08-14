@@ -20,15 +20,16 @@ npm.cmd audit --omit=dev --audit-level=high
 npm.cmd run check:release-security
 npm.cmd run verify:review-concurrency
 npm.cmd run verify:follow-up-integrity
+npm.cmd run verify:trello-webhooks
 npm.cmd run build:installer
 npm.cmd run verify:packaged
 ```
 
-`check:release-security` must run with the real production environment. Do not paste its secrets into logs or tickets. `verify:review-concurrency` requires `SNEUP_REVIEW_CONCURRENCY_VERIFICATION_MONGO_URI` to name a dedicated disposable `sneup_review_concurrency_verification_*` database. `verify:follow-up-integrity` requires `SNEUP_FOLLOW_UP_VERIFICATION_MONGO_URI` to name a dedicated disposable `sneup_follow_up_verification_*` database. Both verifiers reject other database names, drop only their guarded database, and never contact Trello.
+`check:release-security` must run with the real production environment. Do not paste its secrets into logs or tickets. `verify:review-concurrency`, `verify:follow-up-integrity`, and `verify:trello-webhooks` require their corresponding `SNEUP_REVIEW_CONCURRENCY_VERIFICATION_MONGO_URI`, `SNEUP_FOLLOW_UP_VERIFICATION_MONGO_URI`, or `SNEUP_TRELLO_WEBHOOK_VERIFICATION_MONGO_URI` to name a dedicated disposable database with the verifier's exact prefix. They reject other database names, drop only their guarded database, and never contact Trello.
 
 ## Emergency stop
 
-Set `SNEUP_PROVIDER_WRITES_DISABLED=true`, restart every Sneup process, and verify `/ready` reports `providerWrites.mode: emergency_stop`. Keep sync/analysis available for investigation. Do not re-enable until unresolved action attempts and provider state have been reconciled.
+Set `SNEUP_PROVIDER_WRITES_DISABLED=true`, restart every Sneup process, and verify `/ready` reports `providerWrites.mode: emergency_stop`. Keep sync/analysis and webhook observation available for investigation. All low-level Trello card and webhook mutators deny writes even if called outside the operations service. Do not re-enable until unresolved action attempts and provider state have been reconciled.
 
 ## Diagnostics
 

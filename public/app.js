@@ -2219,6 +2219,9 @@ function renderProtectedPayloadSummary(payload = {}) {
   const fields = [
     ['Card', payload.cardTrelloId],
     ['Board', payload.boardId],
+    ['Trello board', payload.boardTrelloId],
+    ['Webhook', payload.webhookId],
+    ['Callback', payload.callbackUrl],
     ['Current owner', payload.fromMemberTrelloId],
     ['Source', payload.source]
   ].filter(([, value]) => value);

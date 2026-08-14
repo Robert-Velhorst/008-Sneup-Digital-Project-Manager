@@ -92,6 +92,13 @@ const trackedJobs = [
     manualTriggerAllowed: false
   },
   {
+    jobName: 'trello.webhook_reconciliation',
+    jobType: 'webhook',
+    label: 'Trello webhook reconciliation',
+    staleAfterMinutes: 26 * 60,
+    manualTriggerAllowed: false
+  },
+  {
     jobName: 'connectors.work_signals_sync',
     jobType: 'sync',
     label: 'Connector work signal sync',

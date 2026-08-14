@@ -10,6 +10,12 @@ const jobObservabilityService = require('./jobObservabilityService');
 const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
 const { extractTrelloCardShortLink } = require('../utils/trelloIdentifiers');
 const { cancelScheduledJob, observeScheduledJob } = require('../utils/scheduledJob');
+const operationsLedgerService = require('./operationsLedgerService');
+const {
+  TRELLO_WEBHOOK_ACTIONS,
+  normalizeTrelloWebhookCallbackUrl,
+  webhookCallbackUrl
+} = require('../utils/trelloWebhookConfiguration');
 
 const DEFAULT_BOARD_SYNC_CONCURRENCY = 2;
 const MAX_BOARD_SYNC_CONCURRENCY = 4;
@@ -118,9 +124,6 @@ const initSync = async () => {
     
     // Schedule regular syncs
     scheduleSync(workspaceId);
-    
-    // Set up webhooks for real-time updates
-    await setupWebhooks(workspaceId);
     
     logger.info('Trello synchronization initialized successfully');
   } catch (error) {
@@ -686,49 +689,103 @@ const syncRecentActivity = async (options = {}) => {
   }
 };
 
-// Set up webhooks for real-time updates
-const setupWebhooks = async (workspaceId = normalizeWorkspaceObjectId(getDefaultWorkspaceObjectId())) => {
-  try {
-    const callbackUrl = process.env.WEBHOOK_CALLBACK_URL;
-    if (!callbackUrl) {
-      logger.warn('Webhook callback URL not configured, skipping webhook setup');
-      return;
-    }
-    
-    logger.info('Setting up webhooks...');
-    
-    // Get existing webhooks
-    const existingWebhooks = await trelloClient.webhookApi.getWebhooks();
-    logger.info(`Found ${existingWebhooks.length} existing webhooks`);
-    
-    // Get all boards
-    const boards = await Board.find({ workspaceId, closed: false });
-    
-    // Set up webhooks for each board
+// Reconcile provider webhook state into approval-gated recommendations. Startup
+// observes Trello but never changes provider configuration directly.
+const reconcileTrelloWebhooks = async (workspaceId = normalizeWorkspaceObjectId(getDefaultWorkspaceObjectId())) => {
+  const configuredCallbackUrl = String(process.env.WEBHOOK_CALLBACK_URL || '').trim();
+  if (!configuredCallbackUrl) {
+    logger.warn('Webhook callback URL not configured, skipping webhook reconciliation');
+    return {
+      processedCount: 0,
+      successCount: 0,
+      failureCount: 0,
+      skipped: true,
+      reason: 'callback_not_configured',
+      providerWrites: false
+    };
+  }
+  const callbackUrl = normalizeTrelloWebhookCallbackUrl(configuredCallbackUrl);
+
+  return jobObservabilityService.trackJob({
+    jobName: 'trello.webhook_reconciliation',
+    jobType: 'webhook',
+    triggerType: 'startup',
+    workspaceId,
+    metadata: { providerWrites: false }
+  }, async () => {
+    const [providerWebhooks, boards] = await Promise.all([
+      trelloClient.webhookApi.getWebhooks(),
+      Board.find({ workspaceId, closed: false })
+    ]);
+    const existingWebhooks = (Array.isArray(providerWebhooks) ? providerWebhooks : [])
+      .filter(webhook => webhook?.id && webhook?.idModel)
+      .sort((left, right) => String(left.id).localeCompare(String(right.id)));
+    const queued = [];
+
+    const queue = async (board, spec) => {
+      const result = await operationsLedgerService.queueTrelloWebhookRecommendation({
+        workspaceId,
+        boardId: board._id,
+        actor: 'trello-webhook-reconciliation',
+        ...spec
+      });
+      queued.push(result);
+    };
+
     for (const board of boards) {
-      // Check if webhook already exists
-      const webhookExists = existingWebhooks.some(webhook => 
-        webhook.idModel === board.trelloId
-      );
-      
-      if (!webhookExists) {
-        try {
-          await trelloClient.webhookApi.createWebhook(
-            callbackUrl,
-            board.trelloId,
-            `Sneup webhook for board: ${board.name}`
-          );
-          logger.info(`Created webhook for board: ${board.name}`);
-        } catch (error) {
-          logger.error(`Failed to create webhook for board ${board.name}:`, error);
-        }
+      const boardWebhooks = existingWebhooks.filter(webhook => String(webhook.idModel) === String(board.trelloId));
+      const exactWebhooks = boardWebhooks.filter(webhook => webhookCallbackUrl(webhook) === callbackUrl);
+      if (exactWebhooks.length === 0 && boardWebhooks.length === 0) {
+        await queue(board, {
+          actionType: TRELLO_WEBHOOK_ACTIONS.CREATE,
+          callbackUrl,
+          description: 'Sneup webhook for synchronized board',
+          reason: 'No Trello webhook currently sends this board to the reviewed Sneup callback.'
+        });
+        continue;
+      }
+
+      const retainedWebhook = exactWebhooks[0] || boardWebhooks[0];
+      if (exactWebhooks.length === 0) {
+        await queue(board, {
+          actionType: TRELLO_WEBHOOK_ACTIONS.UPDATE,
+          webhookId: retainedWebhook.id,
+          callbackUrl,
+          observedCallbackUrl: webhookCallbackUrl(retainedWebhook),
+          description: 'Sneup webhook for synchronized board',
+          reason: 'The observed Trello webhook points to a stale callback and needs exact human-reviewed replacement.'
+        });
+      }
+
+      for (const duplicate of boardWebhooks.filter(webhook => webhook.id !== retainedWebhook.id)) {
+        await queue(board, {
+          actionType: TRELLO_WEBHOOK_ACTIONS.DELETE,
+          webhookId: duplicate.id,
+          observedCallbackUrl: webhookCallbackUrl(duplicate),
+          reason: 'More than one Trello webhook is registered for this synchronized board; remove the exact reviewed duplicate.'
+        });
       }
     }
-    
-    logger.info('Webhooks setup completed');
-  } catch (error) {
-    logger.error('Failed to set up webhooks:', error);
-  }
+
+    const createdCount = queued.filter(item => item.created).length;
+    logger.info('Trello webhook reconciliation completed without provider writes', {
+      boardCount: boards.length,
+      observedWebhookCount: existingWebhooks.length,
+      queuedRecommendations: createdCount,
+      reusedRecommendations: queued.length - createdCount
+    });
+    return {
+      processedCount: boards.length,
+      successCount: boards.length,
+      failureCount: 0,
+      providerWrites: false,
+      metadata: {
+        observedWebhookCount: existingWebhooks.length,
+        queuedRecommendations: createdCount,
+        reusedRecommendations: queued.length - createdCount
+      }
+    };
+  });
 };
 
 // Handle webhook events
@@ -787,6 +844,7 @@ module.exports = {
   syncAllBoards,
   syncBoard,
   syncRecentActivity,
+  reconcileTrelloWebhooks,
   handleWebhookEvent,
   getBoardSyncConcurrency,
   mapWithConcurrency,

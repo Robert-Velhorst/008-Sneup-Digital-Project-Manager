@@ -1,5 +1,11 @@
 # Technical Audit
 
+## 2.3.37 Trello webhook governance audit
+
+- Webhook setup previously ran before ngrok supplied its callback, matched existing configuration only by board, and wrote directly through the Trello client during startup. A changed ephemeral callback could remain stale indefinitely, and direct low-level mutation bypassed the deployment emergency stop.
+- Reconciliation now runs after listener/ngrok startup, accepts only a public root HTTPS callback ending in `/api/webhooks/trello`, and turns create/update/delete drift into deduplicated protected Robert-owned recommendations. Approved execution reuses the existing attempt, ambiguity, reconciliation, and audit system.
+- Every Trello card and webhook mutator now enforces demo mode and `SNEUP_PROVIDER_WRITES_DISABLED` at the client boundary. The 129-suite/932-test gate and a guarded repeated real-Mongo reconciliation pass with zero attempts and provider writes.
+
 ## 2.3.36 worker follow-up integrity audit
 
 - Worker-response follow-up resolution previously used recommendation, intervention, card, and member predicates as alternatives. Two unanswered follow-ups on the same card could therefore be closed by one response even when they represented different recommendations and interventions.

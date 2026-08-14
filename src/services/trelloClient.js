@@ -1,6 +1,7 @@
 const { TrelloClient } = require('trello.js');
 const logger = require('../utils/logger');
 const { buildTrelloClientOptions } = require('../utils/trelloConfiguration');
+const { assertProviderWritesEnabled } = require('./providerWriteSafetyService');
 
 let trelloClient = null;
 
@@ -170,6 +171,7 @@ const cardApi = {
   // Add a comment to a card
   async addComment(cardId, text) {
     try {
+      assertProviderWritesEnabled();
       const client = getTrelloClient();
       const comment = await client.cards.createCardComment({
         id: cardId,
@@ -186,6 +188,7 @@ const cardApi = {
   // Update a card
   async updateCard(cardId, updates) {
     try {
+      assertProviderWritesEnabled();
       const client = getTrelloClient();
       const card = await client.cards.updateCard({
         id: cardId,
@@ -202,6 +205,7 @@ const cardApi = {
   // Move a card to a different list
   async moveCard(cardId, listId) {
     try {
+      assertProviderWritesEnabled();
       const client = getTrelloClient();
       const card = await client.cards.updateCard({
         id: cardId,
@@ -218,6 +222,7 @@ const cardApi = {
   // Add a member to a card
   async addMember(cardId, memberId) {
     try {
+      assertProviderWritesEnabled();
       const client = getTrelloClient();
       await client.cards.createCardMember({
         id: cardId,
@@ -233,6 +238,7 @@ const cardApi = {
   // Remove a member from a card
   async removeMember(cardId, memberId) {
     try {
+      assertProviderWritesEnabled();
       const client = getTrelloClient();
       await client.cards.deleteCardMember({
         id: cardId,
@@ -248,6 +254,7 @@ const cardApi = {
   // Create a label on the card's board and add it to the card
   async addLabel(cardId, name, color = 'red') {
     try {
+      assertProviderWritesEnabled();
       const client = getTrelloClient();
       const label = await client.cards.createCardLabel({
         id: cardId,
@@ -265,6 +272,7 @@ const cardApi = {
   // Add a checklist to a card
   async addChecklist(cardId, name, checkItems = []) {
     try {
+      assertProviderWritesEnabled();
       const client = getTrelloClient();
       const checklist = await client.cards.createCardChecklist({
         id: cardId,
@@ -335,6 +343,7 @@ const webhookApi = {
   // Create a webhook
   async createWebhook(callbackUrl, idModel, description = 'Sneup webhook') {
     try {
+      assertProviderWritesEnabled();
       const client = getTrelloClient();
       const webhook = await client.webhooks.createWebhook({
         callbackURL: callbackUrl,
@@ -365,6 +374,7 @@ const webhookApi = {
   // Delete a webhook
   async deleteWebhook(webhookId) {
     try {
+      assertProviderWritesEnabled();
       const client = getTrelloClient();
       await client.webhooks.deleteWebhook({ id: webhookId });
       logger.info(`Deleted webhook ${webhookId}`);
@@ -377,6 +387,7 @@ const webhookApi = {
   // Update a webhook
   async updateWebhook(webhookId, updates) {
     try {
+      assertProviderWritesEnabled();
       const client = getTrelloClient();
       const webhook = await client.webhooks.updateWebhook({
         id: webhookId,

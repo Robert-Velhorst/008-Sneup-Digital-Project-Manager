@@ -12,6 +12,16 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-14 Trello webhook governance continuation
+
+- Re-audited provider-write entry points and found webhook setup ran before ngrok produced its callback, matched only by board, directly mutated Trello during startup, and bypassed the deployment emergency stop at the low-level client.
+- Moved reconciliation after listener/ngrok startup, strictly validate the callback, and convert missing, stale, or duplicate state into exact protected Robert-owned recommendations. Approved work uses the existing attempt, ambiguity, reconciliation, and audit path.
+- Enforced demo mode and the provider emergency stop inside all Trello card and webhook mutators, added bilingual exact-payload evidence, and tracked webhook reconciliation as an observable job.
+- The final source gate passed 129 suites/932 tests, lint, 5/5 safety evaluation, two zero-vulnerability dependency audits, positive five-secret validation, and a 60-board/15,000-card profile at 527.9 ms p50, 587.3 ms p95, and 350.8 MB peak RSS. A guarded real-Mongo verifier repeated reconciliation with four decisions, four audits, zero attempts, zero provider writes, and an independently blocked low-level mutation.
+- In-app Browser rendered ENH-036 and the approval ledger without console errors, document overflow, or overflowing buttons at desktop and its minimum responsive viewport. HAI retained only snapshot/proposal paths, human approval, `never_direct`, and no approval or execution endpoint.
+- Built and verified unsigned `release/Sneup-Setup-2.3.37.exe`, 109,496,625 bytes, version 2.3.37, SHA-256 `C3C9BBE31F1330E1FF4FE304831D343892D418C1B3FB2AD3AF89F671F22953B5`. The packaged app passed at 371.2 MB working set, 334.1 MB private memory, and 1.578 CPU seconds; all 12 changed runtime/UI modules are byte-identical inside the ASAR.
+- Clean-source GitHub CI and independent artifact verification remain in progress for 2.3.37.
+
 ## 2026-08-14 worker follow-up integrity continuation
 
 - Re-audited worker-response ownership and follow-up correlation. One response could close unrelated same-card follow-ups, simultaneous sources could retain duplicate response rows and overwrite intervention evidence, stale manual requests could overwrite terminal status, and provider-specific audit sources could fail after the response committed.

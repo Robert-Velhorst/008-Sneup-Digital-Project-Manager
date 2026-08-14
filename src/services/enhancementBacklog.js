@@ -551,6 +551,24 @@ const enhancements = [
       'Terminal follow-ups cannot be overwritten by stale manual actions.',
       'Response and follow-up integrity checks perform no provider write.'
     ]
+  },
+  {
+    id: 'ENH-036',
+    priority: 'P0',
+    area: 'security',
+    title: 'Make Trello webhook configuration approval-gated and ngrok-aware',
+    evidence: 'Startup now waits for the local listener and ngrok callback before observing Trello webhook state. Missing, stale, and duplicate webhooks become deduplicated Robert-owned recommendations with exact protected payloads; create, update, and delete run only through approval, attempt, ambiguity, and audit handling. The provider emergency stop is also enforced inside every low-level Trello card and webhook mutator. A guarded real-Mongo verifier proves repeated reconciliation creates no duplicate decisions, no action attempt, and no provider write.',
+    impact: 'Restores real-time ngrok readiness without allowing startup or a direct client call to silently change Trello provider configuration.',
+    effort: 'L',
+    status: 'done',
+    nextStep: 'Capture owner-authorized live Trello and ngrok acceptance for one create, one callback rotation, and one duplicate cleanup decision.',
+    acceptanceCriteria: [
+      'Webhook observation starts only after the final ngrok-managed callback URL exists.',
+      'Missing, stale, and duplicate provider state creates exact approval-gated recommendations instead of direct writes.',
+      'Repeated reconciliation reuses existing non-executed decisions.',
+      'Every Trello mutator enforces demo mode and the provider emergency stop at the client boundary.',
+      'Webhook reconciliation records internal evidence and performs no provider write.'
+    ]
   }
 ];
 

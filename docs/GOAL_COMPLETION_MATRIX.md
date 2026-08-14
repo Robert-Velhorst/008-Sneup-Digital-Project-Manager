@@ -20,6 +20,8 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 
 2.3.36 closes a worker-response evidence gap. One response now atomically owns one eligible executed intervention, follow-ups resolve by exact recommendation/intervention identity before bounded card fallback, and terminal resolutions use revision-aware guards. Real-Mongo response and resolution races produce one winner while adjacent same-card work remains due, with no Trello attempt or provider write.
 
+2.3.37 closes the Trello webhook startup and governance gap. Reconciliation waits for the final ngrok callback, queues exact protected create/update/delete recommendations for Robert, deduplicates pending work, and cannot bypass the emergency stop through a direct low-level client call. Disposable real-Mongo evidence records decisions and audits without an action attempt or provider write.
+
 | Phase | Status | Evidence or remaining gate |
 | --- | --- | --- |
 | 000 Repository integrity | Implemented | Baseline commit/branch/remote recorded; unrelated worktree artifacts preserved. |

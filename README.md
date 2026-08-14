@@ -143,6 +143,8 @@ The Windows installer uses the bundled Sneup icon. Release signing and automatic
 
 Sneup can open an ngrok ingress while keeping the HTTP server on loopback. Set `SNEUP_NGROK_ENABLED=true`, `NGROK_AUTHTOKEN`, `SNEUP_REQUIRE_API_KEY=true`, and a unique `SNEUP_API_KEY` of at least 32 characters, then start Sneup normally. An optional `SNEUP_NGROK_DOMAIN` selects a reserved domain. Startup fails closed if any authentication prerequisite is missing or ngrok returns anything other than one root HTTPS origin. The discovered origin is admitted automatically for command-center browser requests, and Sneup-owned public/callback URLs are refreshed after an ephemeral restart and restored on close. `npm run doctor` validates the prerequisite posture without exposing secret values. Remote browser users join through a one-time workspace invitation and then use the short-lived session token stored only in that browser session.
 
+After the final ngrok callback exists, Sneup compares it with Trello's current webhooks. Missing, rotated, or duplicate configuration becomes an exact high-risk item in Robert's approval queue. Startup never changes provider configuration itself, repeat observations reuse the pending decision, and approved changes retain the normal attempt and audit evidence. `npm run verify:trello-webhooks` proves this boundary against a dedicated disposable MongoDB database without contacting Trello.
+
 See `docs/CLOUD_AND_HAI.md` for the Windows, ngrok, HAI, and shutdown flow.
 
 ## API Endpoints

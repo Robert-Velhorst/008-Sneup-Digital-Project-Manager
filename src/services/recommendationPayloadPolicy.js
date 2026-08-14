@@ -7,7 +7,10 @@ const EXECUTABLE_ACTION_TYPES = new Set([
   'escalate',
   'add_label',
   'set_due_date',
-  'add_checklist'
+  'add_checklist',
+  'trello_webhook_create',
+  'trello_webhook_update',
+  'trello_webhook_delete'
 ]);
 
 const ACTION_FIELDS = Object.freeze({
@@ -22,7 +25,10 @@ const ACTION_FIELDS = Object.freeze({
   escalate: { required: ['cardTrelloId', 'commentText'], editable: ['commentText'] },
   add_label: { required: ['cardTrelloId', 'labelName'], editable: ['labelName', 'labelColor'] },
   set_due_date: { required: ['cardTrelloId', 'due'], editable: ['due'] },
-  add_checklist: { required: ['cardTrelloId', 'checklistName', 'checkItems'], editable: ['checklistName', 'checkItems'] }
+  add_checklist: { required: ['cardTrelloId', 'checklistName', 'checkItems'], editable: ['checklistName', 'checkItems'] },
+  trello_webhook_create: { required: ['boardTrelloId', 'callbackUrl', 'description'], editable: [] },
+  trello_webhook_update: { required: ['boardTrelloId', 'webhookId', 'callbackUrl', 'description'], editable: [] },
+  trello_webhook_delete: { required: ['boardTrelloId', 'webhookId'], editable: [] }
 });
 
 const MAX_TEXT_LENGTH = 4000;

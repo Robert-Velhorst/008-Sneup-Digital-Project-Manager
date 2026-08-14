@@ -7,13 +7,19 @@ const WRITE_ACTIONS = new Set([
   'add_label',
   'set_due_date',
   'add_checklist',
-  'performance_notification'
+  'performance_notification',
+  'trello_webhook_create',
+  'trello_webhook_update',
+  'trello_webhook_delete'
 ]);
 
 const HIGH_RISK_ACTIONS = new Set([
   'move_card',
   'set_due_date',
-  'escalate'
+  'escalate',
+  'trello_webhook_create',
+  'trello_webhook_update',
+  'trello_webhook_delete'
 ]);
 
 const DEFAULT_REASONS = {
@@ -25,7 +31,10 @@ const DEFAULT_REASONS = {
   add_label: 'Adding labels changes visible card classification.',
   set_due_date: 'Changing due dates affects delivery commitments.',
   add_checklist: 'Adding checklist items changes the required work on a card.',
-  performance_notification: 'Performance notifications affect worker accountability.'
+  performance_notification: 'Performance notifications affect worker accountability.',
+  trello_webhook_create: 'Creating a Trello webhook sends board events to an external callback and changes provider configuration.',
+  trello_webhook_update: 'Changing a Trello webhook redirects board events to a different external callback.',
+  trello_webhook_delete: 'Deleting a Trello webhook stops real-time board updates and changes provider configuration.'
 };
 
 const classifyAction = (actionType, options = {}) => {

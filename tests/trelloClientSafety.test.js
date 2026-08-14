@@ -78,4 +78,30 @@ describe('Trello client resource and partial-write safety', () => {
         pendingSteps: ['checklist_item_2_created']
       });
   });
+
+  test('blocks every low-level Trello mutator while the provider emergency stop is active', async () => {
+    const TrelloClient = jest.fn(() => ({}));
+    jest.doMock('trello.js', () => ({ TrelloClient }));
+    process.env.TRELLO_API_KEY = 'key';
+    process.env.TRELLO_API_TOKEN = 'token';
+    process.env.SNEUP_PROVIDER_WRITES_DISABLED = 'true';
+    const { cardApi, webhookApi } = require('../src/services/trelloClient');
+    const operations = [
+      () => cardApi.addComment('card-1', 'Comment'),
+      () => cardApi.updateCard('card-1', { due: new Date().toISOString() }),
+      () => cardApi.moveCard('card-1', 'list-1'),
+      () => cardApi.addMember('card-1', 'member-1'),
+      () => cardApi.removeMember('card-1', 'member-1'),
+      () => cardApi.addLabel('card-1', 'Risk'),
+      () => cardApi.addChecklist('card-1', 'Next', ['Review']),
+      () => webhookApi.createWebhook('https://sneup.example/api/webhooks/trello', 'board-1'),
+      () => webhookApi.updateWebhook('webhook-1', { callbackURL: 'https://sneup.example/api/webhooks/trello' }),
+      () => webhookApi.deleteWebhook('webhook-1')
+    ];
+
+    for (const operation of operations) {
+      await expect(operation()).rejects.toMatchObject({ code: 'SNEUP_PROVIDER_WRITES_DISABLED' });
+    }
+    expect(TrelloClient).not.toHaveBeenCalled();
+  });
 });

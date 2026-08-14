@@ -4,7 +4,7 @@
 
 Sneup supports the same application core in three forms:
 
-1. Windows 11 desktop through the current `Sneup-Setup-2.3.36.exe` release target.
+1. Windows 11 desktop through the current `Sneup-Setup-2.3.37.exe` release target.
 2. Local or server Node runtime through `npm start`.
 3. Authenticated ngrok ingress layered over either runtime.
 
@@ -29,6 +29,8 @@ SNEUP_NGROK_DOMAIN=
 Run `npm run doctor` before starting. `ngrok_ingress` must report `OK`. Sneup then opens one shared tunnel after the local HTTP listener is ready, validates the listener as a root HTTPS origin, and uses that origin for browser CORS, connector callbacks, and invitation links. A reserved domain is optional. An invalid, credential-bearing, non-root, custom-port, or non-HTTPS listener is closed before its URL can become active configuration.
 
 Sneup refuses to create public ingress when the ngrok token, API-key enforcement, or strong API key is absent. Concurrent startup calls share one in-progress listener. Graceful or partial-startup cleanup marks readiness unavailable, closes admission, cancels future schedules, and drains active HTTP/background work for the validated `SNEUP_SHUTDOWN_GRACE_MS` window while MongoDB remains connected. Overlong HTTP connections are force-closed, every failed component is reported by stable code/name only, and remaining cleanup still runs. Tunnel-owned ephemeral URLs are removed and operator-provided public or webhook callback configuration is restored. A later ephemeral tunnel therefore receives a fresh callback instead of reusing a dead URL.
+
+Only after that final callback exists does Sneup read Trello webhook state. A missing webhook, callback rotation, or duplicate is queued as an exact protected high-risk recommendation for Robert; startup performs no create, update, or delete. Approval and execution remain separate, and the provider emergency stop is checked again inside the low-level webhook client.
 
 ## Remote browser access
 

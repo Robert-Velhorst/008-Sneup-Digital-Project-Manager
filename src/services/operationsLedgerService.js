@@ -25,6 +25,10 @@ const {
 } = require('./providerWriteSafetyService');
 const logger = require('../utils/logger');
 const { normalizeWorkspaceObjectId } = require('./workspaceScopeService');
+const {
+  TRELLO_WEBHOOK_ACTIONS,
+  normalizeTrelloWebhookCallbackUrl
+} = require('../utils/trelloWebhookConfiguration');
 
 const HOURS = 60 * 60 * 1000;
 const DEFAULT_RECONCILIATION_WARNING_HOURS = 4;
@@ -42,6 +46,18 @@ const WORKER_RESPONSE_SOURCES = new Set(['trello_comment', 'slack', 'teams', 'go
 const INTERVENTION_RESPONSE_TYPES = new Set([...CHAT_RESPONSE_TYPES, 'ignored']);
 const RESPONSE_ELIGIBLE_INTERVENTION_TYPES = ['comment', 'follow_up', 'escalate'];
 const ACTIVE_FOLLOW_UP_STATUSES = new Set(['scheduled', 'due']);
+const TRELLO_WEBHOOK_ACTION_TYPES = new Set(Object.values(TRELLO_WEBHOOK_ACTIONS));
+const WEBHOOK_RECOMMENDATION_DEDUP_STATUSES = [
+  'pending',
+  'approved',
+  'rejected',
+  'change_requested',
+  'snoozed',
+  'delegated',
+  'executing',
+  'failed',
+  'cancelled'
+];
 const MAX_LEDGER_TIMELINE_ENTRIES = 100;
 const APPROVABLE_RECOMMENDATION_STATUSES = new Set(['pending', 'change_requested', 'snoozed', 'delegated']);
 const REJECTABLE_RECOMMENDATION_STATUSES = new Set(['pending', 'approved', 'change_requested', 'snoozed', 'delegated']);
@@ -426,6 +442,146 @@ class OperationsLedgerService {
     });
 
     return recommendation;
+  }
+
+  async queueTrelloWebhookRecommendation(spec = {}) {
+    this.requireDatabase();
+    const workspaceId = this.resolveWorkspaceId(spec.workspaceId);
+    if (!TRELLO_WEBHOOK_ACTION_TYPES.has(spec.actionType)) {
+      const error = new Error('Unsupported Trello webhook reconciliation action');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const board = await Board.findOne({ _id: spec.boardId, workspaceId });
+    if (!board?.trelloId) {
+      const error = new Error('Trello webhook reconciliation requires a synchronized board in this workspace');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const webhookId = String(spec.webhookId || '').trim();
+    if (spec.actionType !== TRELLO_WEBHOOK_ACTIONS.CREATE && !/^[a-z0-9_-]{1,128}$/i.test(webhookId)) {
+      const error = new Error('Trello webhook reconciliation requires a valid observed webhook ID');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const needsCallback = spec.actionType !== TRELLO_WEBHOOK_ACTIONS.DELETE;
+    const callbackUrl = needsCallback
+      ? normalizeTrelloWebhookCallbackUrl(spec.callbackUrl)
+      : undefined;
+    const description = needsCallback
+      ? String(spec.description || 'Sneup webhook for synchronized board').trim().slice(0, 200)
+      : undefined;
+    const actionPayload = {
+      boardTrelloId: String(board.trelloId),
+      ...(webhookId ? { webhookId } : {}),
+      ...(callbackUrl ? { callbackUrl } : {}),
+      ...(description ? { description } : {}),
+      ...(spec.observedCallbackUrl ? { observedCallbackUrl: String(spec.observedCallbackUrl).slice(0, 2048) } : {}),
+      executable: true,
+      draftOnly: false
+    };
+
+    const fingerprintQuery = {
+      workspaceId,
+      boardId: board._id,
+      actionType: spec.actionType,
+      status: { $in: WEBHOOK_RECOMMENDATION_DEDUP_STATUSES },
+      'actionPayload.boardTrelloId': actionPayload.boardTrelloId
+    };
+    if (webhookId) fingerprintQuery['actionPayload.webhookId'] = webhookId;
+    if (callbackUrl) fingerprintQuery['actionPayload.callbackUrl'] = callbackUrl;
+    const existing = await Recommendation.findOne(fingerprintQuery);
+    if (existing) {
+      return {
+        recommendation: existing,
+        decisionQueueItem: await DecisionQueueItem.findOne({ workspaceId, recommendationId: existing._id }),
+        created: false
+      };
+    }
+
+    const policy = await policyRuleService.resolveEffectivePolicy(spec.actionType, {
+      workspaceId,
+      severity: 'high'
+    });
+    const queueRoutingPolicy = await policyRuleService.getDecisionQueueRoutingPolicy({ workspaceId });
+    const queueRouting = policyRuleService.resolveDecisionQueueRouting({
+      riskLevel: policy.riskLevel,
+      requestedOwner: 'robert',
+      policy: queueRoutingPolicy
+    });
+    const labels = {
+      [TRELLO_WEBHOOK_ACTIONS.CREATE]: {
+        title: 'Connect Trello board events to Sneup',
+        action: 'Create the exact reviewed Trello webhook callback.'
+      },
+      [TRELLO_WEBHOOK_ACTIONS.UPDATE]: {
+        title: 'Refresh a stale Trello webhook callback',
+        action: 'Update the observed Trello webhook to the exact reviewed callback.'
+      },
+      [TRELLO_WEBHOOK_ACTIONS.DELETE]: {
+        title: 'Remove a duplicate Trello webhook',
+        action: 'Delete the exact observed duplicate Trello webhook.'
+      }
+    }[spec.actionType];
+
+    const recommendation = await Recommendation.create({
+      workspaceId,
+      boardId: board._id,
+      findingType: spec.actionType,
+      title: labels.title,
+      description: spec.reason || policy.approvalReason,
+      recommendedAction: labels.action,
+      actionType: spec.actionType,
+      actionPayload,
+      riskLevel: policy.riskLevel,
+      confidence: 1,
+      requiresApproval: true,
+      approvalReason: policy.approvalReason,
+      ownerType: queueRouting.ownerType,
+      sourceEvidence: [{
+        type: 'board',
+        entityId: board._id,
+        label: 'Trello webhook configuration observed during startup',
+        observedAt: new Date(),
+        data: {
+          boardTrelloId: actionPayload.boardTrelloId,
+          actionType: spec.actionType,
+          webhookId: webhookId || undefined
+        }
+      }]
+    });
+    const decisionQueueItem = await DecisionQueueItem.create({
+      workspaceId,
+      recommendationId: recommendation._id,
+      ownerType: queueRouting.ownerType,
+      boardId: board._id,
+      title: recommendation.title,
+      question: this.buildDecisionQuestion(recommendation),
+      recommendedAnswer: 'yes',
+      options: ['yes', 'no', 'change'],
+      riskLevel: recommendation.riskLevel,
+      reason: recommendation.approvalReason,
+      sourceEvidence: recommendation.sourceEvidence,
+      dueAt: this.defaultDecisionDueAt(recommendation.riskLevel, queueRouting.escalationHours)
+    });
+
+    await this.recordAudit({
+      workspaceId,
+      entityType: 'recommendation',
+      entityId: recommendation._id,
+      boardId: board._id,
+      action: 'trello_webhook_reconciliation_queued',
+      actor: spec.actor || 'sneup',
+      source: 'system',
+      riskLevel: recommendation.riskLevel,
+      recommendationId: recommendation._id,
+      afterState: recommendation.toObject()
+    });
+
+    return { recommendation, decisionQueueItem, created: true };
   }
 
   async createRecommendationFromFinding(finding, actionSpec = {}) {
@@ -1609,6 +1765,33 @@ class OperationsLedgerService {
           recommendation.actionType,
           'checklist_created',
           () => trelloClient.cardApi.addChecklist(payload.cardTrelloId, payload.checklistName, payload.checkItems)
+        );
+      case TRELLO_WEBHOOK_ACTIONS.CREATE:
+        this.requirePayload(payload, ['boardTrelloId', 'callbackUrl', 'description']);
+        return this.performTrelloWriteStep(
+          recommendation.actionType,
+          'webhook_created',
+          () => trelloClient.webhookApi.createWebhook(payload.callbackUrl, payload.boardTrelloId, payload.description)
+        );
+      case TRELLO_WEBHOOK_ACTIONS.UPDATE:
+        this.requirePayload(payload, ['boardTrelloId', 'webhookId', 'callbackUrl', 'description']);
+        return this.performTrelloWriteStep(
+          recommendation.actionType,
+          'webhook_updated',
+          () => trelloClient.webhookApi.updateWebhook(payload.webhookId, {
+            callbackURL: payload.callbackUrl,
+            description: payload.description
+          })
+        );
+      case TRELLO_WEBHOOK_ACTIONS.DELETE:
+        this.requirePayload(payload, ['boardTrelloId', 'webhookId']);
+        return this.performTrelloWriteStep(
+          recommendation.actionType,
+          'webhook_deleted',
+          async () => {
+            await trelloClient.webhookApi.deleteWebhook(payload.webhookId);
+            return { deleted: true, webhookId: payload.webhookId };
+          }
         );
       default:
         throw new Error(`Unsupported approved Trello action: ${recommendation.actionType}`);

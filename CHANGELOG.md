@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.3.37 - 2026-08-14
+
+### Approval-gated Trello webhook reconciliation
+
+- Start webhook observation only after the local listener and ngrok have established the final callback URL.
+- Turn missing, stale, and duplicate Trello webhook state into deduplicated, Robert-owned, high-risk recommendations with exact protected payloads; startup performs no provider write.
+- Execute approved webhook create, update, and delete actions through the existing action-attempt, ambiguity, reconciliation, and audit ledger.
+- Enforce demo mode and `SNEUP_PROVIDER_WRITES_DISABLED` inside every low-level Trello card and webhook mutator, including callers outside the operations service.
+- Reject unsafe callback URLs and show the exact board, webhook, and callback evidence in the bilingual approval view.
+
+### Verification
+
+- The full local gate passes 129 suites/932 tests, lint, and the 5/5 recommendation safety evaluation.
+- A dedicated MongoDB verifier observed three boards and four provider webhooks, created four exact decisions and four audits, reused every decision on a second reconciliation, created zero attempts, and issued zero provider writes. The low-level emergency stop independently blocked mutation.
+- Full and production dependency audits report zero vulnerabilities; five purpose-separated production secrets pass without exposing values. The 60-board/15,000-card/180-health profile measured 527.9 ms p50, 587.3 ms p95, and 350.8 MB peak RSS.
+- In-app Browser acceptance rendered ENH-036 and the approval ledger with no console errors, horizontal document overflow, or overflowing buttons at desktop and the browser's minimum responsive viewport. HAI retained snapshot/proposal-only routes and `never_direct` provider writes.
+- The locally built unsigned `Sneup-Setup-2.3.37.exe` is 109,496,625 bytes, SHA-256 `C3C9BBE31F1330E1FF4FE304831D343892D418C1B3FB2AD3AF89F671F22953B5`. Packaged metadata, nine diagnostics, secret redaction, HAI policy, normal close, port release, and 12 source-identical runtime/UI modules passed at 371.2 MB working set, 334.1 MB private memory, and 1.578 CPU seconds.
+- Live owner-authorized Trello/ngrok acceptance, publisher signing, and GitHub artifact evidence remain separate release gates.
+
 ## 2.3.36 - 2026-08-14
 
 ### Exact and race-safe worker follow-up evidence

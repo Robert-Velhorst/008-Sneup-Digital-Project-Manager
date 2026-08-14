@@ -323,8 +323,6 @@ const initApp = async () => {
     
     // Start server
     server = app.listen(PORT, HOST, () => {
-      startupState.initialized = true;
-      startupState.phase = 'serving';
       logger.info(`Sneup server running on http://${HOST}:${PORT}`);
       logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
     });
@@ -334,6 +332,18 @@ const initApp = async () => {
       server.once('error', reject);
     });
     await ngrokTunnelService.start({ host: HOST, port: PORT });
+    if (databaseConnected && hasTrelloCredentials) {
+      try {
+        await getTrelloSync().reconcileTrelloWebhooks();
+      } catch (error) {
+        logger.warn('Trello webhook reconciliation failed; read-only synchronization remains available', {
+          code: error.code,
+          message: error.message
+        });
+      }
+    }
+    startupState.initialized = true;
+    startupState.phase = 'serving';
 
     return server;
   } catch (error) {
