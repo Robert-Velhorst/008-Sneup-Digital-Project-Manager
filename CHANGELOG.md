@@ -15,6 +15,7 @@
 - A disposable real-Mongo 15,000-card profile measured 685.5 ms p50, 700.7 ms p95, and 491.9 MB peak RSS with bounded 10/12/12 output, the intended compound index, approval required, and no provider writes.
 - In-app Browser acceptance passed the completed security backlog on desktop and at 390 x 844 after fixing a 45 px filter overflow. HAI exposed only snapshot and proposal paths and retained `never_direct` provider-write policy.
 - Built and verified unsigned `Sneup-Setup-2.3.31.exe`: 109,488,324 bytes, SHA-256 `73BAEE77A86E9CE26E474DEF8660536167AAAFAAF8B72367E1F8698B79AFBF15`. Packaged verification passed product metadata, eight diagnostics, secret redaction, HAI policy, normal close, port release, and source-identical changed runtime and UI files.
+- Published source `9c1cacc51f9b8f586a3d6a2aa25bb71813db499e`. GitHub run `31758359073` passed quality in 1 minute 8 seconds and Windows packaging in 2 minutes 10 seconds. Artifact `9203646859` has archive digest `sha256:290774b834f6b9785566604fcdd6f50b13c87d08d1392e9517003327261ec4f0`; its single independently downloaded installer is 109,488,556 bytes, unsigned, version 2.3.31, SHA-256 `2F4608960266D2A978FFA6664CA4BE7FD8454DAB0465FC574CC9EE197D5DEBB0`.
 
 ## 2.3.30 - 2026-08-14
 

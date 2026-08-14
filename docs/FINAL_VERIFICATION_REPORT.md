@@ -44,9 +44,9 @@ This report is updated from executed commands at release time. A passing local s
 | Packaged Windows QA | Pass: repeatable verifier confirmed 2.3.31 product metadata, healthy demo state, eight redacted diagnostics, HAI `never_direct`, normal main-window close, loopback port release, and byte-identical changed runtime/UI files |
 | Packaged resource sample | Pass: four processes used 361.7 MB working set, 299.9 MB private memory, and 2.594 cumulative CPU seconds in the final repeatable probe. |
 | Windows installer | Pass: local build 109,488,324 bytes, unsigned, SHA-256 `73BAEE77A86E9CE26E474DEF8660536167AAAFAAF8B72367E1F8698B79AFBF15`; executable metadata reports 2.3.31 |
-| Fresh clone | Pass: GitHub checked out exact source `7fd7b9ee457cc34eff877c56690e470277abf4bb`, installed the lockfile with Node.js 24, and completed quality plus Windows package jobs |
-| GitHub CI | Pass: run `31754056380`; quality completed in 1 minute 1 second and Windows installer in 2 minutes 20 seconds; both jobs succeeded |
-| GitHub installer artifact | Pass: artifact `9202090233`, `sneup-windows-installer-unsigned`, 109,491,734-byte archive, digest `sha256:f39d8346254bc21a77f872b4160d930c41e06c7ff331e1261611720994cafbe6`; its single downloaded installer is 109,485,834 bytes, unsigned, version 2.3.29, SHA-256 `C573848981A5489F5ABD39EC63F7D2B468A655D904C74CC349CDB367F0149A56` |
+| Fresh clone | Pass: GitHub checked out exact source `9c1cacc51f9b8f586a3d6a2aa25bb71813db499e`, installed the lockfile with Node.js 24, and completed quality plus Windows package jobs |
+| GitHub CI | Pass: run `31758359073`; quality completed in 1 minute 8 seconds and Windows installer in 2 minutes 10 seconds; both jobs succeeded |
+| GitHub installer artifact | Pass: artifact `9203646859`, `sneup-windows-installer-unsigned`, 109,494,508-byte archive, digest `sha256:290774b834f6b9785566604fcdd6f50b13c87d08d1392e9517003327261ec4f0`; its single downloaded installer is 109,488,556 bytes, unsigned, version 2.3.31, SHA-256 `2F4608960266D2A978FFA6664CA4BE7FD8454DAB0465FC574CC9EE197D5DEBB0` |
 
 ## External gates
 

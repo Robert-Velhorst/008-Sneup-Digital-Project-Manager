@@ -17,10 +17,10 @@
 | Data integrity and repair | Bounded dry-run/apply, review-only unsafe findings, all-workspace Trello index migration, audit evidence, and disposable MongoDB verification | Complete locally |
 | Data retention | Owner-only opt-in policy, bounded preview/apply, protected evidence, distributed lease, indexed queries, pre/post audits, real MongoDB proof, and live browser flow | Complete locally |
 | Windows package | 2.3.31 NSIS build, demo diagnostics/HAI smoke, metadata, SHA-256, source-identical changed runtime/UI assets, repeatable resource sample, and clean close | Complete locally; publisher signing external |
-| Fresh clone | 2.3.30 exact source `eac5a368dba90fcda2a17d63969dc523a5bd4c13`; Node 24 quality and Windows installer jobs in run `31756362949` | Complete |
+| Fresh clone | 2.3.31 exact source `9c1cacc51f9b8f586a3d6a2aa25bb71813db499e`; Node 24 quality and Windows installer jobs in run `31758359073` | Complete |
 | Browser and Windows UI | Demand-loaded English/Dutch operational renderers plus the completed security backlog; exact evidence/payload preservation, filtering, desktop containment, and repaired 390 px enhancement controls passed in the in-app Browser | Complete for these flows; screen-reader/clean-VM evidence pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter, strict listener validation, exact runtime origin admission, and restart-safe URL cleanup | Complete locally; live credentials external |
-| GitHub CI | 2.3.30 run `31756362949` passed both jobs; artifact `9202903661` was downloaded and independently checked | Complete |
+| GitHub CI | 2.3.31 run `31758359073` passed both jobs; artifact `9203646859` was downloaded and independently checked | Complete |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |
@@ -31,6 +31,7 @@
 - Scope: safely admit the exact runtime ngrok origin for authenticated browser workflows, reject unsafe listener URLs, serialize tunnel starts, and clean up Sneup-owned public/callback URLs across shutdown and restart.
 - Verification: lint; 117 suites/884 tests; 5/5 safety evaluation; two zero-vulnerability audits; positive five-secret production validation; cold startup; disposable real-Mongo 15,000-card profile; in-app Browser desktop/390 px acceptance; HAI HTTP contract; and packaged Windows behavior/source parity.
 - Installer: `release/Sneup-Setup-2.3.31.exe`, 109,488,324 bytes, unsigned, SHA-256 `73BAEE77A86E9CE26E474DEF8660536167AAAFAAF8B72367E1F8698B79AFBF15`.
+- GitHub: source `9c1cacc51f9b8f586a3d6a2aa25bb71813db499e`; run `31758359073`; quality 1 minute 8 seconds; Windows package 2 minutes 10 seconds; independently verified artifact `9203646859`.
 - External gates remain: live provider/ngrok/HAI acceptance, production deployment and restore, publisher signing, clean-VM scaling, and assistive-technology certification.
 
 ## 2026-08-14 - Ambiguous-Trello-write release checkpoint

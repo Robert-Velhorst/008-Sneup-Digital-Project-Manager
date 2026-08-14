@@ -24,6 +24,7 @@ This worklog records local engineering evidence. Live Trello, production MongoDB
 - In-app Browser acceptance rendered ENH-030 in the completed security queue. A 390 px check exposed a 45 px filter overflow; the controls now reflow with equal client/scroll width while the desktop layout remains contained.
 - HAI HTTP smoke retained only snapshot/proposal paths and `never_direct`. The packaged 2.3.31 app passed metadata, diagnostics, secret-redaction, HAI, clean-close, and port-release checks at 361.7 MB working set and 299.9 MB private memory.
 - Built unsigned `release/Sneup-Setup-2.3.31.exe`, 109,488,324 bytes, SHA-256 `73BAEE77A86E9CE26E474DEF8660536167AAAFAAF8B72367E1F8698B79AFBF15`; changed ngrok, CORS, backlog, HTML, and CSS files are byte-identical inside the ASAR.
+- Published source `9c1cacc51f9b8f586a3d6a2aa25bb71813db499e`. GitHub run `31758359073` passed quality in 1 minute 8 seconds and Windows packaging in 2 minutes 10 seconds. Artifact `9203646859` has archive digest `sha256:290774b834f6b9785566604fcdd6f50b13c87d08d1392e9517003327261ec4f0`; its independently downloaded installer is 109,488,556 bytes, unsigned, version 2.3.31, SHA-256 `2F4608960266D2A978FFA6664CA4BE7FD8454DAB0465FC574CC9EE197D5DEBB0`.
 
 ## 2026-08-14 ambiguous-Trello-write continuation
 
