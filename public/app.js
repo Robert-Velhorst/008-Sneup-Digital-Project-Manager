@@ -2,6 +2,7 @@ const FIRST_RUN_SETUP_KEY = 'sneup.firstRun.v1';
 const SESSION_TOKEN_KEY = 'sneup.sessionToken.v1';
 const CONNECTOR_PAGE_SIZE = 24;
 let connectorSearchTimer;
+let enhancementRequest;
 const i18n = window.SneupI18n || {
   t: value => value,
   plural: (singular, pluralMessage, count) => String(count === 1 ? singular : pluralMessage).replace('{count}', count),
@@ -20,6 +21,7 @@ const appAssetVersion = (() => {
   }
 })();
 let connectorViewPromise;
+let enhancementViewPromise;
 let workspaceViewPromise;
 let workspaceViewController;
 let approvalViewPromise;
@@ -109,6 +111,31 @@ function loadConnectorView() {
       });
   }
   return connectorViewPromise;
+}
+
+function loadEnhancementView() {
+  if (!enhancementViewPromise) {
+    enhancementViewPromise = loadBrowserModule('/enhancementView.js', 'SneupEnhancementView', {
+      runtime: 'The enhancement view loaded without its runtime. Try again.',
+      load: 'The enhancement view could not be loaded. Check the connection and try again.'
+    })
+      .then((module) => {
+        i18n.registerMessages('nl', module.NL_MESSAGES);
+        return module.createController({
+          document,
+          state,
+          elements: els,
+          t,
+          escapeHtml,
+          callbacks: { loadEnhancements }
+        });
+      })
+      .catch((error) => {
+        enhancementViewPromise = null;
+        throw error;
+      });
+  }
+  return enhancementViewPromise;
 }
 
 function loadWorkspaceView() {
@@ -420,6 +447,7 @@ const state = {
   enhancements: [],
   enhancementSummary: {},
   recommendationEvaluation: null,
+  recommendationEvaluationLoaded: false,
   enhancementPriority: 'all',
   enhancementArea: 'all',
   enhancementStatus: 'all',
@@ -673,25 +701,6 @@ document.querySelectorAll('[data-signal-filter]').forEach((button) => {
     renderWorkSignals();
   });
 });
-document.querySelectorAll('[data-enhancement-priority]').forEach((button) => {
-  button.addEventListener('click', () => {
-    state.enhancementPriority = button.dataset.enhancementPriority;
-    renderEnhancementFilters();
-    loadEnhancements();
-  });
-});
-document.querySelectorAll('[data-enhancement-status]').forEach((button) => {
-  button.addEventListener('click', () => {
-    state.enhancementStatus = button.dataset.enhancementStatus;
-    renderEnhancementFilters();
-    loadEnhancements();
-  });
-});
-els.enhancementAreaFilter.addEventListener('change', () => {
-  state.enhancementArea = els.enhancementAreaFilter.value;
-  loadEnhancements();
-});
-
 async function showView(viewName, options = {}) {
   if (viewName === 'approvals' && ['all', 'robert', 'team', 'va'].includes(options.queueFilter)) {
     state.queueFilter = options.queueFilter;
@@ -880,7 +889,6 @@ async function loadView(viewName, options = {}) {
 async function loadAll(options = {}) {
   await loadSecurityContext();
   await loadFeatureFlags();
-  renderEnhancementFilters();
   if (options.force) state.loadedViews.clear();
   if (options.force || state.loadedViews.size === 0) markDeferredViewCounts();
   const activeView = document.querySelector('[data-view-button].active')?.dataset.viewButton || 'overview';
@@ -1077,34 +1085,44 @@ function downloadReport(reportType, format) {
   anchor.remove();
 }
 
-function renderEnhancementFilters() {
-  document.querySelectorAll('[data-enhancement-priority]').forEach((button) => {
-    button.classList.toggle('active', button.dataset.enhancementPriority === state.enhancementPriority);
-  });
-  document.querySelectorAll('[data-enhancement-status]').forEach((button) => {
-    button.classList.toggle('active', button.dataset.enhancementStatus === state.enhancementStatus);
-  });
-}
-
 async function loadEnhancements() {
+  if (enhancementRequest) enhancementRequest.abort();
+  const request = new AbortController();
+  enhancementRequest = request;
+  const renderer = loadEnhancementView();
   try {
     const params = new URLSearchParams();
     if (state.enhancementPriority !== 'all') params.set('priority', state.enhancementPriority);
     if (state.enhancementArea !== 'all') params.set('area', state.enhancementArea);
     if (state.enhancementStatus !== 'all') params.set('status', state.enhancementStatus);
-    const [response, evaluationResponse] = await Promise.all([
-      fetchApi(`/api/enhancements${params.toString() ? `?${params}` : ''}`),
-      fetchApi('/api/enhancements/evaluations/recommendations')
+    const evaluationRequest = state.recommendationEvaluationLoaded
+      ? Promise.resolve({ report: state.recommendationEvaluation })
+      : fetchApi('/api/enhancements/evaluations/recommendations', { signal: request.signal });
+    const [response, evaluationResponse, controller] = await Promise.all([
+      fetchApi(`/api/enhancements${params.toString() ? `?${params}` : ''}`, { signal: request.signal }),
+      evaluationRequest,
+      renderer
     ]);
+    if (enhancementRequest !== request) return;
     state.enhancements = response.enhancements || [];
     state.enhancementSummary = response.summary || {};
     state.recommendationEvaluation = evaluationResponse.report || null;
-    renderEnhancements();
+    state.recommendationEvaluationLoaded = true;
+    controller.render();
   } catch (error) {
+    if (request.signal.aborted || enhancementRequest !== request) return;
     state.enhancements = [];
     state.enhancementSummary = {};
-    state.recommendationEvaluation = null;
-    renderEnhancements(error.message);
+    if (!state.recommendationEvaluationLoaded) state.recommendationEvaluation = null;
+    try {
+      const controller = await renderer;
+      controller.render(error.message);
+    } catch (moduleError) {
+      els.enhancementsList.innerHTML = `<div class="empty">${escapeHtml(moduleError.message)}</div>`;
+      throw moduleError;
+    }
+  } finally {
+    if (enhancementRequest === request) enhancementRequest = null;
   }
 }
 
@@ -3194,98 +3212,6 @@ function openSessionRevocationConfirmation(user, session) {
   });
 }
 
-function renderEnhancements(errorMessage = '') {
-  const enhancements = state.enhancements || [];
-  const summary = state.enhancementSummary || {};
-  const statuses = enhancements.reduce((acc, item) => {
-    acc[item.status] = (acc[item.status] || 0) + 1;
-    return acc;
-  }, {});
-
-  if (state.enhancementSummary && state.enhancementSummary.byArea) {
-    const currentArea = state.enhancementArea;
-    const areaKeys = Object.keys(state.enhancementSummary.byArea).sort();
-    const selectedArea = areaKeys.includes(currentArea) ? currentArea : 'all';
-    state.enhancementArea = selectedArea;
-
-    if (els.enhancementAreaFilter && (!els.enhancementAreaFilter.dataset.populated || currentArea === 'all')) {
-      els.enhancementAreaFilter.dataset.populated = '1';
-      const options = ['<option value="all">All areas</option>', ...areaKeys.map(area => {
-        return `<option value="${escapeHtml(area)}">${escapeHtml(area)}</option>`;
-      })];
-      els.enhancementAreaFilter.innerHTML = options.join('');
-    }
-    els.enhancementAreaFilter.value = selectedArea;
-  }
-
-  const byPriority = summary.byPriority || {};
-  const byArea = summary.byArea || {};
-  const byStatus = summary.byStatus || {};
-  const evaluation = state.recommendationEvaluation;
-  els.enhancementCount.textContent = enhancements.length;
-  els.enhancementStatusSummary.textContent = `${enhancements.length} total`;
-
-  const notice = errorMessage
-    ? `<div class="notice">${escapeHtml(errorMessage)}</div>`
-    : '';
-  els.enhancementMetrics.innerHTML = [
-    ['Total', enhancements.length],
-    ['P0', byPriority.P0 || 0],
-    ['P1', byPriority.P1 || 0],
-    ['P2', byPriority.P2 || 0],
-    ['P3', byPriority.P3 || 0],
-    ['Ready', byStatus.ready || statuses.ready || 0],
-    ['In progress', byStatus['in-progress'] || statuses['in-progress'] || 0],
-    ['Needs research', byStatus['needs-research'] || statuses['needs-research'] || 0],
-    ['Done', byStatus.done || statuses.done || 0],
-    ['Blocked', byStatus.blocked || 0],
-    ['AI evaluation', evaluation ? `${evaluation.score}%` : 'not run']
-  ].map(([label, value]) => `
-    <div class="metric">
-      <span>${escapeHtml(label)}</span>
-      <strong>${escapeHtml(value)}</strong>
-    </div>
-  `).join('');
-
-  const areas = Object.entries(byArea)
-    .map(([name, count]) => `${name}: ${count}`)
-    .sort((left, right) => left.localeCompare(right))
-    .join(' | ');
-  if (areas) {
-    els.enhancementMetrics.innerHTML += `<div class="metric"><span>By area</span><strong>${escapeHtml(areas)}</strong></div>`;
-  }
-  if (evaluation) {
-    els.enhancementMetrics.innerHTML += `<div class="metric"><span>Evaluation scenarios</span><strong>${escapeHtml(`${evaluation.passed}/${evaluation.total} passed`)}</strong></div>`;
-  }
-
-  els.enhancementsList.innerHTML = notice + listOrEmpty(enhancements, renderEnhancement);
-}
-
-function renderEnhancement(item) {
-  return `
-    <div class="item" data-enhancement="${escapeHtml(item.id)}" data-enhancement-status="${escapeHtml(item.status)}">
-      <div class="item-title">
-        <strong>${escapeHtml(item.title)}</strong>
-        <span class="pill ${item.status === 'ready' ? 'healthy' : item.status === 'in-progress' ? 'review' : 'high'}">${escapeHtml(item.status)}</span>
-      </div>
-      <div class="item-title">
-        <span>${escapeHtml(item.id)} - ${escapeHtml(item.area)} - ${escapeHtml(item.priority)}</span>
-        <span class="pill ${priorityBadgeClass(item.priority)}">${escapeHtml(item.area)}</span>
-      </div>
-      <div class="meta">
-        <span>Priority ${escapeHtml(item.priority)}</span>
-        <span>Status ${escapeHtml(item.status)}</span>
-        <span>Effort ${escapeHtml(item.effort)}</span>
-      </div>
-      <div class="meta">${escapeHtml(item.impact || 'No impact summary yet.')}</div>
-      <details class="payload">
-        <summary>Next step</summary>
-        <pre>${escapeHtml(item.nextStep || 'No next step recorded.')}</pre>
-      </details>
-    </div>
-  `;
-}
-
 function renderWorkSignals() {
   workSignalsViewController?.render();
 }
@@ -3858,13 +3784,6 @@ function severityClass(value) {
   if (value === 'high' || value === 'at_risk') return 'high';
   if (value === 'connected' || value === 'healthy') return 'healthy';
   return 'review';
-}
-
-function priorityBadgeClass(priority) {
-  if (priority === 'P0') return 'critical';
-  if (priority === 'P1') return 'high';
-  if (priority === 'P2') return 'review';
-  return 'healthy';
 }
 
 function signalClass(signal = {}) {

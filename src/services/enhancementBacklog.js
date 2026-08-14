@@ -659,6 +659,24 @@ const enhancements = [
       'A stale Execute approved control cannot execute a newer recommendation revision.',
       'Concurrent approve, reject, and payload-edit races create no orphan approvals or provider writes.'
     ]
+  },
+  {
+    id: 'ENH-042',
+    priority: 'P2',
+    area: 'resource',
+    title: 'Load the enhancement workspace only when it is opened',
+    evidence: 'Enhancement filters, metrics, cards, and Dutch operator copy now live in one fingerprinted demand-loaded renderer with no API, session, credential, cookie, storage, or provider authority. Authenticated list and evaluation reads remain in the controller and start concurrently with the module load. A newer filter selection aborts the prior reads before stale results can render, and the deterministic recommendation evaluation is reused for the page session instead of running on every filter click. Initial app plus localization transfer fell by 3,790 raw, 1,100 gzip, and 802 Brotli bytes; the 8,860-byte renderer is fetched only when Enhancements opens.',
+    impact: 'Reduces initial browser work and repeated evaluation CPU while preventing rapid filter changes from restoring stale enhancement results.',
+    effort: 'S',
+    status: 'done',
+    nextStep: 'Continue controller decomposition only where a view has an explicit authority boundary and measured initial-load savings.',
+    acceptanceCriteria: [
+      'The enhancement renderer is absent from initial HTML and shares the immutable asset fingerprint.',
+      'Authenticated API reads and request cancellation remain in the trusted controller.',
+      'The renderer cannot access sessions, credentials, cookies, browser storage, or the network.',
+      'Rapid filter changes use latest-request-wins behavior and preserve usable area choices.',
+      'English and Dutch operator chrome render while enhancement evidence remains escaped and verbatim.'
+    ]
   }
 ];
 

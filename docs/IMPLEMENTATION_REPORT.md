@@ -1,5 +1,13 @@
 # Sneup Implementation Report
 
+## 2.3.42 continuation
+
+The Enhancements workspace is now a demand-loaded, fingerprinted module. It owns filters, metrics, cards, and Dutch operator copy but no authenticated or provider authority. The controller starts bounded API reads concurrently with module loading, aborts superseded filters, rejects stale results, and reuses the deterministic recommendation evaluation for the page session.
+
+Initial app-plus-localization transfer fell by 3,790 raw, 1,100 gzip, and 802 Brotli bytes; the 8,860-byte renderer is fetched only when needed. The 134-suite/966-test gate, two zero-vulnerability audits, release-secret validation, 15,000-card profile, in-app Browser desktop/mobile flow, HAI boundary, and packaged Windows runtime pass locally without a provider write.
+
+Local installer `release/Sneup-Setup-2.3.42.exe` is 109,503,700 bytes, version 2.3.42, unsigned, SHA-256 `0F82F8C3950F7B7BFBB91F25AD175B16511ED880A7DC5EA4DF11CFE400FFA124`; four changed runtime/UI files match source byte for byte inside the ASAR. GitHub CI and independent artifact evidence are recorded only after the exact source is pushed and rebuilt remotely.
+
 ## 2.3.41 continuation
 
 Sneup now inventories Express authorization from syntax rather than physical lines. All 180 routes are accounted for: 174 use known literal permissions and six retain narrowly reviewed public OAuth, signed-webhook, invitation-token, or side-effect-free provider-verification contracts. Alternate Express syntax, aliases, dynamic paths/permissions, and unsupported public behavior fail the release gate.

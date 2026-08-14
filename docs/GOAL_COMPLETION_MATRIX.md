@@ -2,6 +2,8 @@
 
 Status meanings: **Implemented** is present and locally verified; **Partial** has useful implementation but an identified gap; **External** requires owner-controlled accounts or infrastructure; **N/A** is outside the product's current surface. No phase is marked complete from documentation alone.
 
+2.3.42 removes another eager command-center cost without moving authority into the renderer. Enhancements loads its filters, metrics, cards, and Dutch catalog only when opened; authenticated reads remain in the controller, superseded requests abort, stale results cannot render, and deterministic evaluation is reused for the page session. Initial app-plus-localization transfer is 3,790 raw, 1,100 gzip, and 802 Brotli bytes smaller.
+
 2.3.41 closes two authorization blind spots. A parser-backed release gate accounts for every Express route independent of formatting or alternate route syntax, and every recommendation review, payload edit, or approved execution is bound to the exact revision the operator saw. Stale requests cannot authorize a newer payload, and the real-Mongo proof records no orphan approval, Trello attempt, or provider write.
 
 2.3.40 removes avoidable read-only ledger startup cost without changing authority. Demo access no longer loads MongoDB workspace scope or live ledger models, while Trello, policy, payload, graph, and provider-write modules load only for operations that need them. Live workspace resolution, human approval, execution claims, emergency-stop checks, and audit evidence remain intact.
@@ -73,7 +75,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 038 Fake provider lab | Implemented | Provider mocks are test-only and cannot activate production success. |
 | 039 Test factories/fixtures | Implemented | Deterministic service/provider fixtures across test suites. |
 | 040 Backend tests | Implemented | Jest regression suite and CI gate. |
-| 041 Frontend/component tests | Partial | Static/UI assertions plus isolated jsdom coverage verify drafts/presets, help, all ten connector account-selection flows, workspace, and approval rendering/action delegation, complete renderer and consequential form/modal localization, exact evidence preservation, guarded callback presence, demand-load boundaries, lazy catalog safety, and per-asset cache fingerprints; full browser automation remains partial. |
+| 041 Frontend/component tests | Partial | Static/UI assertions plus isolated jsdom coverage verify drafts/presets, help, all ten connector account-selection flows, workspace, approval, and enhancement rendering/action delegation, complete renderer and consequential form/modal localization, exact evidence preservation, guarded callback presence, latest-request-wins demand-load boundaries, lazy catalog safety, and per-asset cache fingerprints; full browser automation remains partial. |
 | 042 Worker/job tests | Implemented | Sync, notification, retention, outcome, job execution coverage. |
 | 043 End-to-end tests | Partial | Local browser flows exist; live-provider E2E is external. |
 | 044 Acceptance matrix | Implemented | `ACCEPTANCE_TESTS.md`. |
@@ -146,7 +148,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 111 Ambiguous external actions | Implemented | Claimed state, partial-step evidence, manual reconciliation. |
 | 112 Version/changelog | Implemented | Semantic package release and `CHANGELOG.md`. |
 | 113 Regression baseline | Implemented | Full Jest/lint/evaluation commands and CI. |
-| 114 Maintenance/refactor review | Partial | Form persistence, contextual help, localization, connector account-selection, workspace, and approval rendering are isolated behind bounded modules. Deferred modules are retry-safe, guarded mutations remain in the controller, and view-specific Dutch catalogs load with their views; broader controller decomposition remains backlog. |
+| 114 Maintenance/refactor review | Partial | Form persistence, contextual help, localization, connector account-selection, workspace, approval, and enhancement rendering are isolated behind bounded modules. Deferred modules are retry-safe, guarded mutations and authenticated reads remain in the controller, and view-specific Dutch catalogs load with their views; broader controller decomposition remains backlog. |
 | 115 Human operator readiness | External | Requires signed clean-VM install and authorized live Trello acceptance. |
 
 ## Honest completion boundary

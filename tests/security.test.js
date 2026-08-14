@@ -1696,6 +1696,7 @@ describe('dashboard content security policy', () => {
     const appJs = fs.readFileSync(path.join(rootDir, 'public', 'app.js'), 'utf8');
     const approvalViewJs = fs.readFileSync(path.join(rootDir, 'public', 'approvalView.js'), 'utf8');
     const connectorViewJs = fs.readFileSync(path.join(rootDir, 'public', 'connectorView.js'), 'utf8');
+    const enhancementViewJs = fs.readFileSync(path.join(rootDir, 'public', 'enhancementView.js'), 'utf8');
     const forecastViewJs = fs.readFileSync(path.join(rootDir, 'public', 'forecastView.js'), 'utf8');
     const reportViewJs = fs.readFileSync(path.join(rootDir, 'public', 'reportView.js'), 'utf8');
     const setupViewJs = fs.readFileSync(path.join(rootDir, 'public', 'setupView.js'), 'utf8');
@@ -1737,6 +1738,9 @@ describe('dashboard content security policy', () => {
     expect(appJs).toContain('it will not send a provider message');
     expect(appJs).toContain('provider retries');
     expect(connectorViewJs).toContain('data-connector-sync');
+    expect(appJs).toContain("loadBrowserModule('/enhancementView.js', 'SneupEnhancementView'");
+    expect(enhancementViewJs).toContain('data-enhancement-status');
+    expect(enhancementViewJs).not.toMatch(/fetchApi|SESSION_TOKEN|localStorage|sessionStorage|document\.cookie/);
     expect(approvalViewJs).toContain('data-recommendation-action');
     expect(approvalViewJs).not.toContain('fetchApi(');
     expect(workspaceViewJs).toContain('data-integrity-repair');
@@ -1774,6 +1778,7 @@ describe('dashboard content security policy', () => {
     expect(appJs).not.toMatch(/\sstyle=/i);
     expect(approvalViewJs).not.toMatch(/\sstyle=/i);
     expect(connectorViewJs).not.toMatch(/\sstyle=/i);
+    expect(enhancementViewJs).not.toMatch(/\sstyle=/i);
     expect(forecastViewJs).not.toMatch(/\sstyle=/i);
     expect(reportViewJs).not.toMatch(/\sstyle=/i);
     expect(setupViewJs).not.toMatch(/\sstyle=/i);

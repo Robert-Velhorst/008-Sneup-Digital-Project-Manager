@@ -7,6 +7,7 @@ const FINGERPRINTED_ASSETS = Object.freeze([
   'app.js',
   'approvalView.js',
   'connectorView.js',
+  'enhancementView.js',
   'forecastView.js',
   'reportView.js',
   'setupView.js',

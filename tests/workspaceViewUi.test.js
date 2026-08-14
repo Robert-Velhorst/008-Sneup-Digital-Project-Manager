@@ -405,7 +405,7 @@ describe('demand-loaded workspace view', () => {
   test('keeps consequential workspace forms and confirmations localized', () => {
     const runtime = createRuntime({ root: null, language: 'nl', storage: null });
     runtime.registerMessages('nl', WORKSPACE_NL_MESSAGES);
-    const range = appSource.slice(appSource.indexOf('function openIntegrityRepair'), appSource.indexOf('function renderEnhancements'));
+    const range = appSource.slice(appSource.indexOf('function openIntegrityRepair'), appSource.indexOf('function renderWorkSignals'));
     const messages = new Set([
       'Stuck card', 'No activity', 'Overdue card', 'Member overloaded', 'Blocking other work',
       'No response to follow-up', 'Performance milestone', 'Low-risk queue', 'Medium-risk queue',

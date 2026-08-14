@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.3.42 - 2026-08-14
+
+### Demand-loaded enhancement workspace
+
+- Move enhancement filters, metrics, backlog cards, and Dutch operator copy into one retry-safe fingerprinted renderer that loads only when the Enhancements view opens.
+- Keep authenticated API reads, sessions, credentials, and provider authority in the controller; start the module and bounded data reads concurrently.
+- Abort superseded filter requests and ignore stale results, while reusing the deterministic recommendation evaluation for the page session instead of recomputing it on every filter change.
+- Preserve escaped, verbatim enhancement evidence and stable area choices across filtered responses.
+
+### Verification
+
+- The full local gate passes 134 suites/966 tests, lint, the parser-backed 180-route authorization inventory, and the 5/5 recommendation safety evaluation. Production and full dependency audits report zero vulnerabilities, and five purpose-separated release secrets pass without exposing values.
+- Initial app-plus-localization transfer fell by 3,790 raw, 1,100 gzip, and 802 Brotli bytes; the 8,860-byte renderer is fetched only when Enhancements opens.
+- The 60-board/15,000-card/180-health profile measured 478.9 ms p50, 516.2 ms p95, and 350.7 MB peak RSS with no provider writes. Cold startup imported 254 modules in 248.4 ms at 69.9 MB RSS with Mongoose still unloaded through Overview.
+- In-app Browser acceptance proved deferred loading, P2/completed/resource filter interaction, ENH-042 rendering, equal document client/scroll width, zero overflowing controls at desktop and 390 x 844, and zero console warnings/errors.
+- The locally built unsigned `Sneup-Setup-2.3.42.exe` is 109,503,700 bytes, SHA-256 `0F82F8C3950F7B7BFBB91F25AD175B16511ED880A7DC5EA4DF11CFE400FFA124`. Packaged metadata, nine diagnostics, secret redaction, HAI `never_direct`, normal close, port release, and four source-identical runtime/UI modules passed at 373.9 MB working set, 329.4 MB private memory, and 1.547 CPU seconds.
+- Live owner-authorized provider/ngrok/HAI acceptance, production deployment/restore, publisher signing, clean-VM scaling, and assistive-technology certification remain separate release gates.
+
 ## 2.3.37 - 2026-08-14
 
 ### Approval-gated Trello webhook reconciliation
