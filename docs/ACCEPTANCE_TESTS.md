@@ -15,7 +15,7 @@
 | A11 | Connector read-only guarantee | adapter, OAuth renewal, contention, malformed-response, and safety-profile tests | Provider consent review | Pass for code; consent external |
 | A12 | Notifications require explicit policy | notification tests | Verified sender and destination | Automated pass, delivery pending |
 | A13 | Redacted support evidence | `runtimeDiagnostics.test.js`, `runtimeTroubleshooting.test.js`, `supportBundleService.test.js`; desktop IPC/UI wiring; `npm run support:bundle` | Inspect generated JSON | Pass locally |
-| A14 | CI and installer | `.github/workflows/ci.yml` | Green GitHub run and installer artifact | Pass for 2.3.36 source `ad7311b5cc036c83432c0994aff2590970b783ca`, run `31767164629`, and independently checked artifact `9206772471` |
+| A14 | CI and installer | `.github/workflows/ci.yml` | Green GitHub run and installer artifact | Pass for 2.3.37 source `68f23c58f96d2e1ae086809e4240a15a25309930`, run `31768820241`, and independently checked artifact `9207376171` |
 | A15 | Multi-instance background work | `jobLease.test.js`; disposable MongoDB 7 simultaneous race | Run two hosted Sneup instances against one workspace | Local real-Mongo pass; hosted evidence pending |
 | A16 | Versioned API and HAI contract | `apiContract.test.js`; live demo HTTP matrix | Call `/api/v1` through deployment ingress and correlate a support request ID | Pass locally; hosted ingress pending |
 | A17 | Optional workload canary and rollback | `featureFlagService.test.js`; 40-collection disposable MongoDB migration verifier; live demo API/HAI smoke | Manager pauses, stages, and restores one hosted optional capability while another session observes the same revision | Automated and local real-Mongo pass; hosted manager acceptance pending |

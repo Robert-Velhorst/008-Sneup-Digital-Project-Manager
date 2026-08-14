@@ -20,7 +20,7 @@ This worklog records local engineering evidence. Live Trello, production MongoDB
 - The final source gate passed 129 suites/932 tests, lint, 5/5 safety evaluation, two zero-vulnerability dependency audits, positive five-secret validation, and a 60-board/15,000-card profile at 527.9 ms p50, 587.3 ms p95, and 350.8 MB peak RSS. A guarded real-Mongo verifier repeated reconciliation with four decisions, four audits, zero attempts, zero provider writes, and an independently blocked low-level mutation.
 - In-app Browser rendered ENH-036 and the approval ledger without console errors, document overflow, or overflowing buttons at desktop and its minimum responsive viewport. HAI retained only snapshot/proposal paths, human approval, `never_direct`, and no approval or execution endpoint.
 - Built and verified unsigned `release/Sneup-Setup-2.3.37.exe`, 109,496,625 bytes, version 2.3.37, SHA-256 `C3C9BBE31F1330E1FF4FE304831D343892D418C1B3FB2AD3AF89F671F22953B5`. The packaged app passed at 371.2 MB working set, 334.1 MB private memory, and 1.578 CPU seconds; all 12 changed runtime/UI modules are byte-identical inside the ASAR.
-- Clean-source GitHub CI and independent artifact verification remain in progress for 2.3.37.
+- Published source `68f23c58f96d2e1ae086809e4240a15a25309930`. GitHub run `31768820241` passed quality in 50 seconds and Windows build/runtime in 2 minutes 27 seconds. Artifact `9207376171` is 109,502,976 bytes with archive digest `sha256:cc1c9d735ff10795211e85db4d7c5deae62df3d05e2c6f4865264acf0cd4046f`; its independent download contained exactly one 109,496,991-byte unsigned version 2.3.37 installer with SHA-256 `80C699B0D90063E6063D9E6605852BF34650F77F639EE56DAF001CF731149483`.
 
 ## 2026-08-14 worker follow-up integrity continuation
 

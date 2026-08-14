@@ -116,7 +116,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 089 Stabilization gates | Implemented | Focused, full, security, installer, and fresh-clone gates. |
 | 090 No vanity work | Implemented | Changes target operability, safety, evidence, and delivery. |
 | 091 Feature definition of done | Implemented | Status requires wiring, reachability, tests, docs, and evidence. |
-| 092 Fresh-clone run | Implemented | Exact 2.3.36 source `ad7311b5cc036c83432c0994aff2590970b783ca` passed GitHub run `31767164629`; both Node 24 quality and Windows installer jobs completed successfully, and artifact `9206772471` was independently downloaded and verified. |
+| 092 Fresh-clone run | Implemented | Exact 2.3.37 source `68f23c58f96d2e1ae086809e4240a15a25309930` passed GitHub run `31768820241`; both Node 24 quality and Windows installer jobs completed successfully, and artifact `9207376171` was independently downloaded and verified. |
 | 093 Manual evidence | Partial | The 2.3.13 live disposable-workspace form flow and 2.3.14 demo help flow verify recovery, presets, contextual search, workflow handoff, narrow stacking, viewport containment, and zero current console errors; packaged runtime and live-provider/clean-VM evidence retain their separate gates. |
 | 094 No-excuses search | Implemented | No shipped TODO/FIXME/HACK, dynamic-code, child-process, or secret-pattern finding. |
 | 095 Completion matrix | Implemented | This file, with partial/external states retained. |

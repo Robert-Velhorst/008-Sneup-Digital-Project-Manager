@@ -17,7 +17,8 @@
 - Full and production dependency audits report zero vulnerabilities; five purpose-separated production secrets pass without exposing values. The 60-board/15,000-card/180-health profile measured 527.9 ms p50, 587.3 ms p95, and 350.8 MB peak RSS.
 - In-app Browser acceptance rendered ENH-036 and the approval ledger with no console errors, horizontal document overflow, or overflowing buttons at desktop and the browser's minimum responsive viewport. HAI retained snapshot/proposal-only routes and `never_direct` provider writes.
 - The locally built unsigned `Sneup-Setup-2.3.37.exe` is 109,496,625 bytes, SHA-256 `C3C9BBE31F1330E1FF4FE304831D343892D418C1B3FB2AD3AF89F671F22953B5`. Packaged metadata, nine diagnostics, secret redaction, HAI policy, normal close, port release, and 12 source-identical runtime/UI modules passed at 371.2 MB working set, 334.1 MB private memory, and 1.578 CPU seconds.
-- Live owner-authorized Trello/ngrok acceptance, publisher signing, and GitHub artifact evidence remain separate release gates.
+- Published source `68f23c58f96d2e1ae086809e4240a15a25309930`. GitHub run `31768820241` passed quality in 50 seconds and Windows build, packaged launch, verification, and upload in 2 minutes 27 seconds. Artifact `9207376171` is 109,502,976 bytes with archive digest `sha256:cc1c9d735ff10795211e85db4d7c5deae62df3d05e2c6f4865264acf0cd4046f`; its independent download contained exactly one 109,496,991-byte unsigned 2.3.37 installer with SHA-256 `80C699B0D90063E6063D9E6605852BF34650F77F639EE56DAF001CF731149483`.
+- Live owner-authorized Trello/ngrok acceptance and publisher signing remain separate release gates.
 
 ## 2.3.36 - 2026-08-14
 
