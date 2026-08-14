@@ -37,6 +37,7 @@ jobs:
       - run: npm run build:installer
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - run: npm run verify:packaged -- -SampleSeconds 5
       - uses: actions/upload-artifact@v7.0.1
         with:
           name: sneup-windows-installer-unsigned

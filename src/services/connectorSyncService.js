@@ -8,6 +8,7 @@ const workSignalAdapterService = require('./workSignalAdapterService');
 const workSignalService = require('./workSignalService');
 const logger = require('../utils/logger');
 const { copyWorkSignalSyncCounts } = require('../utils/workSignalSyncMetadata');
+const { observeScheduledJob } = require('../utils/scheduledJob');
 const {
   getDefaultWorkspaceObjectId,
   listActiveWorkspaceIds,
@@ -55,7 +56,15 @@ class ConnectorSyncService {
   init() {
     if (this.job) return this.job;
     const cron = process.env.CONNECTOR_SYNC_CRON || '*/30 * * * *';
-    this.job = schedule.scheduleJob(cron, () => this.runScheduledSyncs());
+    this.job = observeScheduledJob(
+      schedule.scheduleJob(cron, () => this.runScheduledSyncs()),
+      { logger, jobName: 'connectors.work_signals_sync' }
+    );
+    if (!this.job) {
+      const error = new Error('Connector synchronization schedule could not be created');
+      error.code = 'SNEUP_CONNECTOR_SYNC_SCHEDULE_INVALID';
+      throw error;
+    }
     logger.info('Connector sync service initialized');
     return this.job;
   }

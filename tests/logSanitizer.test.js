@@ -51,10 +51,13 @@ describe('log sanitizer', () => {
   });
 
   test('redacts credential fragments embedded in otherwise safe diagnostic text', () => {
-    const result = sanitizeText('GET /v1/tasks?apiKey=raw-key Authorization: Bearer long-token');
+    const result = sanitizeText('GET https://user:pass@example.com/v1/tasks?apiKey=raw-key&key=trello-key Authorization: Basic dXNlcjpwYXNz token="json-token"');
 
     expect(result).not.toContain('raw-key');
-    expect(result).not.toContain('long-token');
+    expect(result).not.toContain('trello-key');
+    expect(result).not.toContain('user:pass');
+    expect(result).not.toContain('dXNlcjpwYXNz');
+    expect(result).not.toContain('json-token');
     expect(result).toContain(REDACTED);
   });
 });

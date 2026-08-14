@@ -12,6 +12,17 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-14 runtime-lifecycle continuation
+
+- Audited every live recurring workload and found that Trello, analytics, connector, intervention, performance, and notification schedules were not all stopped by application shutdown. Analytics and several workers could also duplicate jobs after repeated initialization or retain cancelled handles after stop.
+- Found that a rejected `node-schedule` callback emits an `error` event; without a listener, a routine recorded provider/database failure could become an uncaught process exception. Added one bounded observer to every scheduled job without suppressing JobRun failure evidence.
+- Made every schedule idempotent, cancellable, restartable, and invalid-cron fail-closed. Expanded partial-startup and ordinary cleanup across all scheduler groups, ngrok, HTTP, and MongoDB, while continuing cleanup after individual stop failures.
+- Sanitized and bounded Job Health failure text before persistence. Focused lifecycle, rollback, Trello, connector, retention, and sanitizer tests pass; full release verification follows.
+- The final full gate passed 120 suites/893 tests, lint, the 5/5 safety evaluation, two zero-vulnerability audits, and positive five-secret production validation.
+- Cold startup imported 252 modules in 217.9 ms at 70.9 MB RSS and kept Mongoose unloaded through Overview. The disposable real-Mongo 15,000-card profile measured 1,000.8 ms p50, 1,021.1 ms p95, and 401.2 MB peak RSS with bounded output, the intended index, approval required, and no provider writes.
+- In-app Browser acceptance rendered ENH-031 in the completed operations queue at desktop and 390 x 844 with no horizontal overflow. HAI retained only snapshot/proposal paths, `never_direct`, and no approval or execution operation.
+- Built and verified unsigned `release/Sneup-Setup-2.3.32.exe`, 109,490,159 bytes, SHA-256 `6E672DD0AF9EF23A2B52284992217AB37D879285B24B0C2D1749E75BE871E584`. The exact CI packaged-app command passed at 372.1 MB working set, 349.8 MB private memory, and 1.234 CPU seconds; all 13 changed runtime modules are byte-identical inside the ASAR.
+
 ## 2026-08-14 ngrok-browser-lifecycle continuation
 
 - Re-audited the governing operations-ledger specification and current 2.3.30 release. The ledger, exact-payload approval, Trello evidence, Robert/VA/team queues, Windows package, and HAI proposal boundary remain wired; live provider and infrastructure acceptance remain external.

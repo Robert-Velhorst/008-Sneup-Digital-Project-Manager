@@ -2,6 +2,7 @@ const schedule = require('node-schedule');
 const logger = require('../utils/logger');
 const workspaceInviteService = require('../services/workspaceInviteService');
 const jobObservabilityService = require('../services/jobObservabilityService');
+const { observeScheduledJob } = require('../utils/scheduledJob');
 
 class IdentityRetentionWorker {
   constructor() {
@@ -11,10 +12,15 @@ class IdentityRetentionWorker {
 
   init() {
     if (this.job) return this.job;
-    this.job = schedule.scheduleJob(
+    this.job = observeScheduledJob(schedule.scheduleJob(
       process.env.SNEUP_INVITE_RETENTION_CRON || '15 3 * * *',
       () => this.runScheduledRetention()
-    );
+    ), { logger, jobName: 'identity.invitation_retention' });
+    if (!this.job) {
+      const error = new Error('Invitation retention schedule could not be created');
+      error.code = 'SNEUP_INVITATION_RETENTION_SCHEDULE_INVALID';
+      throw error;
+    }
     logger.info('Identity retention worker initialized');
     return this.job;
   }

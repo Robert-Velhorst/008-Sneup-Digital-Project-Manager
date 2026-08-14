@@ -4,6 +4,7 @@ const performanceTracker = require('../services/performanceTracker');
 const Board = require('../models/Board');
 const jobObservabilityService = require('../services/jobObservabilityService');
 const { listActiveWorkspaceIds } = require('../services/workspaceScopeService');
+const { observeScheduledJob } = require('../utils/scheduledJob');
 
 class PerformanceWorker {
   constructor() {
@@ -12,33 +13,42 @@ class PerformanceWorker {
 
   // Initialize performance tracking jobs
   init() {
+    if (Object.keys(this.jobs).length > 0) return this.jobs;
     logger.info('Initializing performance worker...');
 
     // Calculate daily performance at midnight
-    this.jobs.dailyPerformance = schedule.scheduleJob(
+    this.jobs.dailyPerformance = observeScheduledJob(schedule.scheduleJob(
       process.env.DAILY_PERFORMANCE_CRON || '0 0 * * *',
       async () => {
         await this.runForActiveWorkspaces('performance.daily', 'daily');
       }
-    );
+    ), { logger, jobName: 'performance.daily' });
 
     // Calculate weekly performance every Monday at 1 AM
-    this.jobs.weeklyPerformance = schedule.scheduleJob(
+    this.jobs.weeklyPerformance = observeScheduledJob(schedule.scheduleJob(
       process.env.WEEKLY_PERFORMANCE_CRON || '0 1 * * 1',
       async () => {
         await this.runForActiveWorkspaces('performance.weekly', 'weekly');
       }
-    );
+    ), { logger, jobName: 'performance.weekly' });
 
     // Calculate monthly performance on the 1st of each month at 2 AM
-    this.jobs.monthlyPerformance = schedule.scheduleJob(
+    this.jobs.monthlyPerformance = observeScheduledJob(schedule.scheduleJob(
       process.env.MONTHLY_PERFORMANCE_CRON || '0 2 1 * *',
       async () => {
         await this.runForActiveWorkspaces('performance.monthly', 'monthly');
       }
-    );
+    ), { logger, jobName: 'performance.monthly' });
+
+    if (Object.values(this.jobs).some(job => !job)) {
+      this.stop();
+      const error = new Error('Performance schedules could not be created');
+      error.code = 'SNEUP_PERFORMANCE_SCHEDULE_INVALID';
+      throw error;
+    }
 
     logger.info('Performance worker initialized');
+    return this.jobs;
   }
 
   async runForActiveWorkspaces(jobName, period) {
@@ -88,6 +98,7 @@ class PerformanceWorker {
         job.cancel();
       }
     });
+    this.jobs = {};
     logger.info('Performance worker stopped');
   }
 }

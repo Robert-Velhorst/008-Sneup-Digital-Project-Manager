@@ -2,6 +2,7 @@ const schedule = require('node-schedule');
 const logger = require('../utils/logger');
 const dataRetentionService = require('../services/dataRetentionService');
 const jobObservabilityService = require('../services/jobObservabilityService');
+const { observeScheduledJob } = require('../utils/scheduledJob');
 
 class DataRetentionWorker {
   constructor() {
@@ -11,10 +12,15 @@ class DataRetentionWorker {
 
   init() {
     if (this.job) return this.job;
-    this.job = schedule.scheduleJob(
+    this.job = observeScheduledJob(schedule.scheduleJob(
       process.env.SNEUP_DATA_RETENTION_CRON || '45 3 * * *',
       () => this.runScheduledRetention()
-    );
+    ), { logger, jobName: 'privacy.data_retention' });
+    if (!this.job) {
+      const error = new Error('Data retention schedule could not be created');
+      error.code = 'SNEUP_DATA_RETENTION_SCHEDULE_INVALID';
+      throw error;
+    }
     logger.info('Data retention worker initialized');
     return this.job;
   }

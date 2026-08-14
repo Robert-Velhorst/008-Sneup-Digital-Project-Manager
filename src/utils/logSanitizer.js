@@ -11,12 +11,14 @@ const PRIVATE_CONTENT_FIELD = /^(body|content|data|description|messageBody|paylo
 const sanitizeText = (value, maximum = MAX_STRING_LENGTH) => {
   let text = String(value ?? '');
   text = text
-    .replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]+/gi, `$1${REDACTED}`)
-    .replace(/([?&](?:access[_-]?token|api[_-]?key|authorization|password|secret|token)=[^&\s]+)/gi, (match) => {
+    .replace(/((?:Bearer|Basic)\s+)[A-Za-z0-9._~+/=-]+/gi, `$1${REDACTED}`)
+    .replace(/(\b(?:https?|mongodb(?:\+srv)?):\/\/)([^\s/:@]+):([^\s/@]+)@/gi, `$1${REDACTED}:${REDACTED}@`)
+    .replace(/([?&](?:access[_-]?token|api[_-]?key|authorization|key|password|secret|token)=[^&\s]+)/gi, (match) => {
       const separator = match.indexOf('=');
       return `${match.slice(0, separator + 1)}${REDACTED}`;
     })
-    .replace(/(authorization\s*[:=]\s*)([^\s,;]+)/gi, `$1${REDACTED}`);
+    .replace(/(authorization\s*[:=]\s*)(?:Bearer|Basic)?\s*([^\s,;]+)/gi, `$1${REDACTED}`)
+    .replace(/(["']?(?:access[_-]?token|api[_-]?key|authorization|password|secret|session[_-]?token|signing[_-]?key|token)["']?\s*[:=]\s*["']?)([^"'\s,;&}]+)/gi, `$1${REDACTED}`);
   return text.length > maximum ? `${text.slice(0, maximum)} ${TRUNCATED}` : text;
 };
 

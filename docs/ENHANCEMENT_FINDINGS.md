@@ -1,5 +1,6 @@
 # Enhancement Findings
 
+- ENH-031 release evidence: every recurring scheduler now owns an idempotent start/stop lifecycle and a non-secret error observer; partial startup continues through HTTP and MongoDB cleanup after another component fails; Job Health redacts credentials before persistence; Windows CI launches the packaged app before upload.
 - ENH-030 release evidence: the validated ngrok origin now enters the existing CORS allowlist dynamically, concurrent starts share one listener, unsafe public URLs close before publication, ephemeral restarts refresh Sneup-owned Trello callbacks, and shutdown restores prior operator configuration.
 - ENH-016 release evidence: Trello requests now honor a validated bounded timeout and transport-size ceiling. Ambiguous timeout, reset, HTTP 408/5xx, local post-write snapshot, reassignment, and checklist outcomes remain atomically claimed with exact reconciliation evidence; the operator view shows the reason and confirmed/uncertain steps without issuing another provider request.
 - ENH-020 release evidence: each Sneup process now uses a validated 20-socket MongoDB application pool instead of the 100-socket driver default, retains no idle minimum, retires idle sockets, limits connection establishment, and bounds pool waits. A real-Mongo 100-read run stayed within the cap and reconnecting did not duplicate listeners.
@@ -9,7 +10,7 @@ This backlog turns the high-level improvement plan into concrete engineering fin
 
 ## Priority Summary
 
-- P0: 4 findings that block serious production use.
+- P0: 8 findings that block serious production use, including completed scheduler lifecycle and shutdown hardening.
 - P1: 4 findings that materially improve trust, operability, and desktop adoption, plus 2 completed operations control findings.
 - P2: 6 findings that harden scale, quality, and workflow reach.
 - P3: 1 reporting enhancement with fast user-visible value.

@@ -14,6 +14,8 @@ Sneup separates browser/API identity, workspace-scoped persistence, encrypted co
 - Exact approval payload snapshot, expiry, action policy, atomic claim, idempotency evidence, timeout/reset/HTTP 408/5xx ambiguity classification, multi-step partial-write evidence, and no automatic retry after ambiguous writes.
 - Deployment emergency stop: set `SNEUP_PROVIDER_WRITES_DISABLED=true` and restart. Denials are audited before policy resolution or execution claim.
 - Logs and support bundles exclude secret values. The support bundle also excludes logs and user data entirely.
+- Scheduled failures have an explicit `error` observer, and persisted Job Health failure text passes through bounded credential redaction before storage or display.
+- Graceful and partial-startup cleanup attempts every scheduler, ngrok, HTTP, and MongoDB boundary even when an earlier component fails to stop.
 
 ## Incident response
 

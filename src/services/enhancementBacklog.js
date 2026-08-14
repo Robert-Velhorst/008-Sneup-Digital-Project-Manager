@@ -461,6 +461,24 @@ const enhancements = [
       'Concurrent startup calls create one tunnel and a restarted ephemeral tunnel receives fresh owned callback URLs.',
       'Shutdown restores prior environment configuration and does not overwrite a callback changed by the operator.'
     ]
+  },
+  {
+    id: 'ENH-031',
+    priority: 'P0',
+    area: 'operations',
+    title: 'Make every scheduler and shutdown path lifecycle-safe',
+    evidence: 'Trello sync, analytics, connector sync, interventions, performance, notifications, invitation retention, data retention, and workspace-deletion maintenance now have one owned runtime lifecycle. Repeated initialization does not duplicate schedules, stop clears future work for restart, invalid cron schedules fail startup, and every node-schedule error event is observed without becoming an uncaught process exception. Partial-startup and ordinary shutdown attempt every component in order, then close HTTP and MongoDB even if an earlier stop fails. Job-history failure text is bounded and credential-sanitized before persistence.',
+    impact: 'Prevents duplicate background work, orphaned timers, avoidable process crashes, leaked database connections, and credential-bearing provider errors in the operations dashboard.',
+    effort: 'M',
+    status: 'done',
+    nextStep: 'Observe graceful stop and restart under two hosted instances while a bounded scheduled job is active.',
+    acceptanceCriteria: [
+      'Every recurring scheduler is idempotent, cancellable, restartable, and rejects an invalid schedule.',
+      'A failed scheduled callback records evidence without raising an unhandled EventEmitter error.',
+      'Partial-startup cleanup closes HTTP and MongoDB even when another component fails to stop.',
+      'Persisted job errors are bounded and redact provider credentials before they reach Job Health.',
+      'Windows CI launches and closes the packaged app successfully before uploading the installer.'
+    ]
   }
 ];
 

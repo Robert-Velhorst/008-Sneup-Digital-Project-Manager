@@ -10,6 +10,8 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 
 2.3.31 closes the authenticated remote-browser lifecycle gap. The exact validated HTTPS ngrok origin enters the existing CORS boundary when the tunnel becomes available; unsafe listener URLs fail closed, concurrent starts share one tunnel, and Sneup-owned ephemeral public/callback URLs are removed or refreshed without overwriting operator changes. HAI remains read/propose-only and provider writes remain approval-gated.
 
+2.3.32 gives every recurring live workload one owned lifecycle. Schedules cannot silently duplicate or accept invalid cron configuration, recorded callback failures no longer become uncaught scheduler errors, partial-startup cleanup continues through HTTP and MongoDB after another stop fails, persisted job errors are credential-sanitized, and Windows CI must exercise the packaged app before upload.
+
 | Phase | Status | Evidence or remaining gate |
 | --- | --- | --- |
 | 000 Repository integrity | Implemented | Baseline commit/branch/remote recorded; unrelated worktree artifacts preserved. |
@@ -28,7 +30,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 013 Platform/compliance boundaries | Partial | Data minimization is coded; final provider terms review is external. |
 | 014 No fake success | Implemented | Explicit read-only demo and catalog-only states; write paths fail closed. |
 | 015 File/upload/media safety | N/A | Product has no user-upload workflow; PDF reports use controlled output. |
-| 016 Jobs/schedulers/workers | Implemented | Job controls, run records, workers, health, tests, and expiring per-workspace distributed leases for protected runs. |
+| 016 Jobs/schedulers/workers | Implemented | Job controls, run records, workers, health, tests, expiring per-workspace distributed leases, idempotent scheduler ownership, observed callback failures, and complete partial-startup cleanup. |
 | 017 Idempotency/duplicates | Implemented | Delivery receipts, atomic claims, serialized syncs, reconciliation. |
 | 018 Rate limits/quotas | Implemented | Request limits, provider bounds, pacing, retry caps, visible truncation failures. |
 | 019 Audit history | Implemented | Workspace audit events and operations-ledger timelines. |

@@ -35,6 +35,9 @@ const getWorkspaceScopeService = createLazyValue(() => require('./services/works
 const getWorkspaceDeletionWorker = createLazyValue(() => require('./workers/workspaceDeletionWorker'), 'workspace deletion worker');
 const getIdentityRetentionWorker = createLazyValue(() => require('./workers/identityRetentionWorker'), 'identity retention worker');
 const getDataRetentionWorker = createLazyValue(() => require('./workers/dataRetentionWorker'), 'data retention worker');
+const getInterventionWorker = createLazyValue(() => require('./workers/interventionWorker'), 'intervention worker');
+const getPerformanceWorker = createLazyValue(() => require('./workers/performanceWorker'), 'performance worker');
+const getNotificationWorker = createLazyValue(() => require('./workers/notificationWorker'), 'notification worker');
 
 const routeDefinitions = [
   ['boards', () => require('./routes/boards')],
@@ -77,6 +80,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '127.0.0.1';
 let server;
+let shutdownPromise = null;
 const startupState = {
   initialized: false,
   phase: 'starting'
@@ -301,14 +305,9 @@ const initApp = async () => {
       getAnalyticsService().initAnalytics();
       getConnectorSyncService().init();
 
-      const interventionWorker = require('./workers/interventionWorker');
-      interventionWorker.init();
-
-      const performanceWorker = require('./workers/performanceWorker');
-      performanceWorker.init();
-
-      const notificationWorker = require('./workers/notificationWorker');
-      notificationWorker.init();
+      getInterventionWorker().init();
+      getPerformanceWorker().init();
+      getNotificationWorker().init();
 
       getIdentityRetentionWorker().init();
       getDataRetentionWorker().init();
@@ -357,13 +356,61 @@ const closeServer = () => new Promise((resolve, reject) => {
 });
 
 const shutdown = async () => {
-  getWorkspaceDeletionWorker.peek()?.stop();
-  getIdentityRetentionWorker.peek()?.stop();
-  getDataRetentionWorker.peek()?.stop();
-  await ngrokTunnelService.stop();
-  await closeServer();
-  const database = getDatabase.peek();
-  if (database?.isDatabaseConnected()) await database.disconnectDatabase();
+  if (shutdownPromise) return shutdownPromise;
+
+  shutdownPromise = (async () => {
+    const failures = [];
+    const stopComponent = async (component, stop) => {
+      try {
+        await stop();
+      } catch (error) {
+        failures.push({ component, error });
+        logger.error('Runtime shutdown component failed', {
+          component,
+          code: error?.code || 'shutdown_failed'
+        });
+      }
+    };
+
+    const schedulerStops = [
+      ['workspace deletion worker', () => getWorkspaceDeletionWorker.peek()?.stop()],
+      ['identity retention worker', () => getIdentityRetentionWorker.peek()?.stop()],
+      ['data retention worker', () => getDataRetentionWorker.peek()?.stop()],
+      ['intervention worker', () => getInterventionWorker.peek()?.stop()],
+      ['performance worker', () => getPerformanceWorker.peek()?.stop()],
+      ['notification worker', () => getNotificationWorker.peek()?.stop()],
+      ['connector synchronization', () => getConnectorSyncService.peek()?.stop()],
+      ['analytics service', () => getAnalyticsService.peek()?.stopAnalytics?.()],
+      ['Trello synchronization', () => getTrelloSync.peek()?.stopSync?.()]
+    ];
+
+    for (const [component, stop] of schedulerStops) {
+      await stopComponent(component, stop);
+    }
+
+    await stopComponent('ngrok ingress', () => ngrokTunnelService.stop());
+    await stopComponent('HTTP server', closeServer);
+    await stopComponent('MongoDB', async () => {
+      const database = getDatabase.peek();
+      if (database?.isDatabaseConnected()) await database.disconnectDatabase();
+    });
+
+    if (failures.length > 0) {
+      const error = new AggregateError(
+        failures.map(failure => failure.error),
+        'One or more Sneup runtime components did not stop cleanly'
+      );
+      error.code = 'SNEUP_SHUTDOWN_INCOMPLETE';
+      error.components = failures.map(failure => failure.component);
+      throw error;
+    }
+  })();
+
+  try {
+    return await shutdownPromise;
+  } finally {
+    shutdownPromise = null;
+  }
 };
 
 // Process handlers are global: register once even when Sneup is embedded or hot-reloaded.

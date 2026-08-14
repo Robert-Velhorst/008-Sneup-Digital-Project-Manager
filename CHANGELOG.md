@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.3.32 - 2026-08-14
+
+### Lifecycle-safe background operations
+
+- Made all recurring Trello, analytics, connector, intervention, performance, notification, invitation-retention, and data-retention schedules idempotent, cancellable, restartable, and fail closed when their cron configuration cannot create a job.
+- Attached a non-secret error observer to every `node-schedule` job so a recorded provider or database failure cannot become an uncaught EventEmitter error that shuts down the whole application.
+- Expanded shutdown and partial-startup rollback across every scheduler, ngrok, HTTP, and MongoDB. Cleanup continues after an individual stop failure and reports an aggregate failure only after all components were attempted.
+- Sanitized and bounded failure text before it enters persisted Job Health history, including bearer/basic credentials, credential-bearing URLs, Trello query keys, and JSON-style secret fragments.
+- Added packaged Windows runtime verification to GitHub Actions before the unsigned installer can be uploaded.
+
+### Verification
+
+- The full local gate passes 120 suites/893 tests, lint, and the 5/5 recommendation safety evaluation. Full and production dependency audits report zero vulnerabilities, and the production configuration check accepts five purpose-separated secrets without exposing their values.
+- Cold startup imported 252 modules in 217.9 ms at 70.9 MB RSS and kept Mongoose unloaded through Overview. A disposable real-Mongo 15,000-card profile measured 1,000.8 ms p50, 1,021.1 ms p95, and 401.2 MB peak RSS with bounded output, the intended compound index, approval required, and no provider writes.
+- In-app Browser acceptance rendered ENH-031 through the completed operations filter at desktop and 390 x 844 with equal client/scroll width. HAI exposed only bounded snapshot/proposal paths and retained `never_direct` provider-write policy.
+- Built and verified unsigned `Sneup-Setup-2.3.32.exe`: 109,490,159 bytes, SHA-256 `6E672DD0AF9EF23A2B52284992217AB37D879285B24B0C2D1749E75BE871E584`. The exact CI packaged-app command passed product metadata, eight diagnostics, secret redaction, HAI policy, normal close, port release, and source-identical changed runtime files; its five-second sample used 372.1 MB working set, 349.8 MB private memory, and 1.234 CPU seconds.
+
 ## 2.3.31 - 2026-08-14
 
 ### Lifecycle-safe ngrok browser ingress

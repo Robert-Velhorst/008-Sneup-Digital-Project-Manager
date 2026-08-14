@@ -9,11 +9,13 @@ const schedule = require('node-schedule');
 const jobObservabilityService = require('./jobObservabilityService');
 const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
 const { extractTrelloCardShortLink } = require('../utils/trelloIdentifiers');
+const { observeScheduledJob } = require('../utils/scheduledJob');
 
 const DEFAULT_BOARD_SYNC_CONCURRENCY = 2;
 const MAX_BOARD_SYNC_CONCURRENCY = 4;
 const boardSyncQueues = new Map();
 const memberSyncQueues = new Map();
+let syncJobs = {};
 
 const mapTrelloAttachments = (attachments = []) => attachments.map(attachment => ({
   id: attachment.id,
@@ -129,9 +131,11 @@ const initSync = async () => {
 
 // Schedule regular synchronization jobs
 const scheduleSync = (workspaceId = normalizeWorkspaceObjectId(getDefaultWorkspaceObjectId())) => {
+  if (syncJobs.fullSync && syncJobs.incrementalSync) return { ...syncJobs };
+
   // Full sync daily at 1 AM
   const fullSyncCron = process.env.FULL_SYNC_CRON || '0 1 * * *';
-  schedule.scheduleJob(fullSyncCron, async () => {
+  const fullSync = observeScheduledJob(schedule.scheduleJob(fullSyncCron, async () => {
     logger.info('Running scheduled full sync');
     await jobObservabilityService.trackJob({
       jobName: 'trello.full_sync',
@@ -139,11 +143,11 @@ const scheduleSync = (workspaceId = normalizeWorkspaceObjectId(getDefaultWorkspa
       triggerType: 'scheduled',
       workspaceId
     }, () => syncAllBoards({ workspaceId }));
-  });
+  }), { logger, jobName: 'trello.full_sync' });
   
   // Incremental sync every 15 minutes
   const incrementalSyncCron = process.env.INCREMENTAL_SYNC_CRON || '*/15 * * * *';
-  schedule.scheduleJob(incrementalSyncCron, async () => {
+  const incrementalSync = observeScheduledJob(schedule.scheduleJob(incrementalSyncCron, async () => {
     logger.info('Running scheduled incremental sync');
     await jobObservabilityService.trackJob({
       jobName: 'trello.incremental_sync',
@@ -151,9 +155,26 @@ const scheduleSync = (workspaceId = normalizeWorkspaceObjectId(getDefaultWorkspa
       triggerType: 'scheduled',
       workspaceId
     }, () => syncRecentActivity({ workspaceId }));
-  });
+  }), { logger, jobName: 'trello.incremental_sync' });
+
+  if (!fullSync || !incrementalSync) {
+    fullSync?.cancel();
+    incrementalSync?.cancel();
+    const error = new Error('Trello synchronization schedules could not be created');
+    error.code = 'SNEUP_TRELLO_SCHEDULE_INVALID';
+    throw error;
+  }
+
+  syncJobs = { fullSync, incrementalSync };
   
   logger.info('Sync schedules configured');
+  return { ...syncJobs };
+};
+
+const stopSync = () => {
+  Object.values(syncJobs).forEach(job => job?.cancel());
+  syncJobs = {};
+  logger.info('Trello synchronization schedules stopped');
 };
 
 // Sync all boards
@@ -761,6 +782,8 @@ const handleWebhookEvent = async (event) => {
 
 module.exports = {
   initSync,
+  scheduleSync,
+  stopSync,
   syncAllBoards,
   syncBoard,
   syncRecentActivity,

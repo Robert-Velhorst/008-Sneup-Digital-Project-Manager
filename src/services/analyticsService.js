@@ -7,20 +7,24 @@ const Analytics = require('../models/Analytics');
 const schedule = require('node-schedule');
 const jobObservabilityService = require('./jobObservabilityService');
 const { getDefaultWorkspaceObjectId, listActiveWorkspaceIds, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
+const { observeScheduledJob } = require('../utils/scheduledJob');
 
 /**
  * Analytics Service
  * Generates analytics, detects bottlenecks, and assesses project health
  */
 
+let analyticsJob = null;
+
 // Initialize analytics generation
 const initAnalytics = () => {
+  if (analyticsJob) return analyticsJob;
   try {
     logger.info('Initializing analytics service...');
     
     // Schedule analytics generation
     const analyticsCron = process.env.ANALYTICS_CRON || '0 * * * *';
-    schedule.scheduleJob(analyticsCron, async () => {
+    analyticsJob = observeScheduledJob(schedule.scheduleJob(analyticsCron, async () => {
       logger.info('Running scheduled analytics generation');
       const workspaceIds = await listActiveWorkspaceIds();
       for (const workspaceId of workspaceIds) {
@@ -31,13 +35,27 @@ const initAnalytics = () => {
           workspaceId
         }, () => generateAllAnalytics({ workspaceId }));
       }
-    });
+    }), { logger, jobName: 'analytics.generate_all' });
+
+    if (!analyticsJob) {
+      const error = new Error('Analytics schedule could not be created');
+      error.code = 'SNEUP_ANALYTICS_SCHEDULE_INVALID';
+      throw error;
+    }
     
     logger.info('Analytics service initialized');
+    return analyticsJob;
   } catch (error) {
     logger.error('Failed to initialize analytics service:', error);
+    analyticsJob = null;
     throw error;
   }
+};
+
+const stopAnalytics = () => {
+  analyticsJob?.cancel();
+  analyticsJob = null;
+  logger.info('Analytics service stopped');
 };
 
 // Generate analytics for all boards
@@ -453,6 +471,7 @@ const getAnalyticsHistory = async (boardId, days = 30, options = {}) => {
 
 module.exports = {
   initAnalytics,
+  stopAnalytics,
   generateAllAnalytics,
   generateBoardAnalytics,
   detectBottlenecks,

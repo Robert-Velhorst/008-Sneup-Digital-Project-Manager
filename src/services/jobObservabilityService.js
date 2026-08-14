@@ -1,4 +1,5 @@
 const logger = require('../utils/logger');
+const { sanitizeText } = require('../utils/logSanitizer');
 
 const DEFAULT_LIMIT = 100;
 const CONNECTOR_SYNC_REGRESSION_HISTORY_LIMIT = 4;
@@ -239,7 +240,9 @@ class JobObservabilityService {
       processedCount: result.processedCount || 0,
       successCount: result.successCount || 0,
       failureCount: result.failureCount || 0,
-      errorMessage: result.errorMessage,
+      errorMessage: result.errorMessage
+        ? sanitizeText(result.errorMessage, 500)
+        : undefined,
       metadata: {
         ...(run.metadata || {}),
         ...(result.metadata || {})

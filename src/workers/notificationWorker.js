@@ -2,6 +2,7 @@ const schedule = require('node-schedule');
 const logger = require('../utils/logger');
 const notificationService = require('../services/notificationService');
 const jobObservabilityService = require('../services/jobObservabilityService');
+const { observeScheduledJob } = require('../utils/scheduledJob');
 
 class NotificationWorker {
   constructor() {
@@ -11,18 +12,25 @@ class NotificationWorker {
   init() {
     if (this.jobs.reconciliationAlerts) return;
 
-    this.jobs.reconciliationAlerts = schedule.scheduleJob(
+    this.jobs.reconciliationAlerts = observeScheduledJob(schedule.scheduleJob(
       process.env.SNEUP_NOTIFICATION_CRON || '*/15 * * * *',
       async () => this.runScheduledReconciliationAlerts()
-    );
-    this.jobs.weeklyStatusReports = schedule.scheduleJob(
+    ), { logger, jobName: 'notifications.reconciliation_alerts' });
+    this.jobs.weeklyStatusReports = observeScheduledJob(schedule.scheduleJob(
       process.env.SNEUP_REPORT_DELIVERY_CRON || '*/15 * * * *',
       async () => this.runScheduledReports()
-    );
-    this.jobs.dailyOperationsBriefs = schedule.scheduleJob(
+    ), { logger, jobName: 'notifications.weekly_status_reports' });
+    this.jobs.dailyOperationsBriefs = observeScheduledJob(schedule.scheduleJob(
       process.env.SNEUP_DAILY_BRIEF_DELIVERY_CRON || process.env.SNEUP_REPORT_DELIVERY_CRON || '*/15 * * * *',
       async () => this.runScheduledDailyOperationsBriefs()
-    );
+    ), { logger, jobName: 'notifications.daily_operations_briefs' });
+
+    if (Object.values(this.jobs).some(job => !job)) {
+      this.stop();
+      const error = new Error('Notification schedules could not be created');
+      error.code = 'SNEUP_NOTIFICATION_SCHEDULE_INVALID';
+      throw error;
+    }
 
     logger.info('Notification worker initialized');
   }

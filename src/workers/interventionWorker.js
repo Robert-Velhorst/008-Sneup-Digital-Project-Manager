@@ -5,6 +5,7 @@ const operationsLedgerService = require('../services/operationsLedgerService');
 const Board = require('../models/Board');
 const jobObservabilityService = require('../services/jobObservabilityService');
 const { listActiveWorkspaceIds } = require('../services/workspaceScopeService');
+const { observeScheduledJob } = require('../utils/scheduledJob');
 
 class InterventionWorker {
   constructor() {
@@ -13,49 +14,58 @@ class InterventionWorker {
 
   // Initialize intervention jobs
   init() {
+    if (Object.keys(this.jobs).length > 0) return this.jobs;
     logger.info('Initializing intervention worker...');
 
     // Process interventions every 30 minutes
-    this.jobs.processInterventions = schedule.scheduleJob(
+    this.jobs.processInterventions = observeScheduledJob(schedule.scheduleJob(
       process.env.INTERVENTION_CRON || '*/30 * * * *',
       async () => {
         await this.runForActiveWorkspaces('interventions.process_all', workspaceId => this.processAllInterventions(workspaceId));
       }
-    );
+    ), { logger, jobName: 'interventions.process_all' });
 
     // Process follow-ups every hour
-    this.jobs.processFollowUps = schedule.scheduleJob(
+    this.jobs.processFollowUps = observeScheduledJob(schedule.scheduleJob(
       process.env.FOLLOWUP_CRON || '0 * * * *',
       async () => {
         await this.runForActiveWorkspaces('interventions.follow_ups', workspaceId => this.processFollowUps(workspaceId));
       }
-    );
+    ), { logger, jobName: 'interventions.follow_ups' });
 
     // Reopen Snoozed decisions promptly, then give their owner a fresh internal review window.
-    this.jobs.processDecisionQueueSnoozes = schedule.scheduleJob(
+    this.jobs.processDecisionQueueSnoozes = observeScheduledJob(schedule.scheduleJob(
       process.env.DECISION_QUEUE_SNOOZE_CRON || '*/15 * * * *',
       async () => {
         await this.runForActiveWorkspaces('interventions.decision_queue_snoozes', workspaceId => this.processDecisionQueueSnoozes(workspaceId));
       }
-    );
+    ), { logger, jobName: 'interventions.decision_queue_snoozes' });
 
     // Process escalations every 2 hours
-    this.jobs.processEscalations = schedule.scheduleJob(
+    this.jobs.processEscalations = observeScheduledJob(schedule.scheduleJob(
       process.env.ESCALATION_CRON || '0 */2 * * *',
       async () => {
         await this.runForActiveWorkspaces('interventions.escalations', workspaceId => this.processEscalations(workspaceId));
       }
-    );
+    ), { logger, jobName: 'interventions.escalations' });
 
     // Recheck completed provider actions without creating a new provider request.
-    this.jobs.processOutcomes = schedule.scheduleJob(
+    this.jobs.processOutcomes = observeScheduledJob(schedule.scheduleJob(
       process.env.OUTCOME_EVALUATION_CRON || '30 */3 * * *',
       async () => {
         await this.runForActiveWorkspaces('interventions.outcomes', workspaceId => this.processOutcomes(workspaceId));
       }
-    );
+    ), { logger, jobName: 'interventions.outcomes' });
+
+    if (Object.values(this.jobs).some(job => !job)) {
+      this.stop();
+      const error = new Error('Intervention schedules could not be created');
+      error.code = 'SNEUP_INTERVENTION_SCHEDULE_INVALID';
+      throw error;
+    }
 
     logger.info('Intervention worker initialized');
+    return this.jobs;
   }
 
   // Process interventions for all boards
@@ -169,6 +179,7 @@ class InterventionWorker {
         job.cancel();
       }
     });
+    this.jobs = {};
     logger.info('Intervention worker stopped');
   }
 }

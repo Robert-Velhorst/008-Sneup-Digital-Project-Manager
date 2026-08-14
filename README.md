@@ -581,7 +581,7 @@ Open **Set up** in the command center first. Sneup checks the application runtim
 
 In the Windows app, **Support file** writes a redacted JSON file to Sneup's local user-data support folder and opens it in File Explorer. It contains configuration status only: no environment values, credentials, tokens, connection strings, logs, or user data. Browser/server operators can create the same bounded file with `npm.cmd run support:bundle`.
 
-Release operators can verify the unpacked Windows app with `npm.cmd run verify:packaged`. The verifier refuses an existing Sneup session or occupied port, checks health, diagnostics, and the HAI write policy, records a 30-second process-group resource sample, requests a normal window close, and confirms the loopback port is released.
+Release operators can verify the unpacked Windows app with `npm.cmd run verify:packaged`. The verifier refuses an existing Sneup session or occupied port, checks health, diagnostics, and the HAI write policy, records a 30-second process-group resource sample, requests a normal window close, and confirms the loopback port is released. The Windows CI job runs the same packaged-app check before uploading an installer artifact.
 
 ### MongoDB connection issues
 
