@@ -12,6 +12,15 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-14 exact-view and route-authorization continuation
+
+- Replaced the physical-line route permission test with an Espree syntax-tree inventory covering direct, multiline, chained, computed, HEAD, and every Node HTTP method declaration. The gate accounts for all 180 routes: 174 known literal permission guards and six narrowly verified public OAuth, webhook, invitation, or side-effect-free provider contracts.
+- A real-Mongo race exposed that approval and payload editing could both succeed when the edit completed before approval read the database. Every review, payload edit, and approved execution now carries the exact revision rendered to the operator; stale or missing revisions fail before approval creation, policy resolution, or provider execution, and stale views refresh automatically.
+- Focused tests and repeated disposable databases proved one review winner, no orphan approval, no Trello attempt, and no provider write. The exact final gate passed lint, 133 suites/961 tests, 5/5 evaluation, two zero-vulnerability audits, and five-secret production validation.
+- Demo startup retained MongoDB-free import at 227.1 ms; the 15,000-card profile measured 607.9 ms p50, 683.4 ms p95, and 352.5 MB peak RSS. Browser QA found no console or horizontal-overflow issue and confirmed demo mutation controls remain absent.
+- Built and verified unsigned `release/Sneup-Setup-2.3.41.exe`, 109,502,020 bytes, SHA-256 `8C98235A0AFF195FCE544A30838E14B4AE3A02BA5441B73E771B27308849060D`. Packaged runtime passed at 358.5 MB working set, 293.9 MB private memory, and 1.594 CPU seconds; seven runtime-critical files match source byte for byte and the transformed manifest preserves version, entry point, and all runtime dependencies.
+- Published exact source `6e6e090665908230de2cac4873a31fa7d629d253`; GitHub run `31776949353` passed quality in 1 minute 15 seconds and Windows packaging/runtime in 2 minutes 23 seconds. Independently downloaded artifact `9210268095` has archive size 109,508,298 bytes and digest `sha256:2fc08cc228a18ffff3127ace2cfb4b773a9544d5149c725d4a509b860a8bfdd3`; its single unsigned 2.3.41 installer is 109,502,377 bytes with SHA-256 `6AEE8B751B3765F1F9E9C32A6F3ED60F7D2C7AC6B1E432B0A1385F98F1F87A9E`.
+
 ## 2026-08-14 operations-ledger resource continuation
 
 - Traced fresh demo operations-ledger loading across seven isolated processes and found that read-only startup eagerly loaded live workspace models plus Trello, policy, payload, graph, and provider-write modules.

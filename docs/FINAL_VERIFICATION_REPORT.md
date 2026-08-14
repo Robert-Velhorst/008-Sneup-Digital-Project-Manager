@@ -6,7 +6,7 @@ This report is updated from executed commands at release time. A passing local s
 
 - Branch: `main`
 - Starting commit: `a22d9323b18bc0c948f670b8890462577236a1a8`
-- Release under verification: `2.3.40`
+- Release under verification: `2.3.41`
 - Default remote: `origin`
 
 ## Verification ledger
@@ -17,7 +17,7 @@ This report is updated from executed commands at release time. A passing local s
 | Focused retention tests | Pass: owner permissions, policy bounds, dry-run exclusions, exact confirmation, pre-delete audit failure, distributed worker lease, UI wiring, and rotation across bounded workspace batches |
 | ESLint | Pass |
 | Doctor | Pass with expected local warnings for absent MongoDB/Trello configuration; no errors; ngrok disabled locally |
-| Full regression | Pass: 132 suites, 949 tests, including lazy ledger boundaries, authoritative connector lifecycle, exact webhook approval payloads, low-level provider-write denial, worker-response ownership, revision-safe review decisions, ngrok safety, HAI, and ledger compatibility |
+| Full regression | Pass: 133 suites, 961 tests, including the 180-route authorization gate, exact viewed-revision authority, lazy ledger boundaries, low-level provider-write denial, ngrok safety, HAI, and ledger compatibility |
 | Recommendation evaluation | Pass: 5/5 scenarios, score 100% |
 | Production and full dependency audit | Pass: 0 vulnerabilities after lockfile remediation |
 | Release security positive check | Pass: five purpose-separated production secrets, no values exposed |
@@ -34,10 +34,10 @@ This report is updated from executed commands at release time. A passing local s
 | Integrity API performance sample | Pass: 30 live requests measured 14.01 ms p50 and 23.71 ms p95; server working set 119.5 MB after browser QA |
 | Authentication activity profile | Pass: 100 real-Mongo session resolutions retained 100 credential reads and reduced token/user activity writes from 200 to two; the five-minute boundary produced the next exact pair of active-only atomic touches |
 | MongoDB pool profile | Pass: 100 concurrent reads completed in 115.5 ms; active driver options reported 20 maximum sockets, zero idle minimum, two simultaneous connection establishments, 60-second idle retirement, and five-second wait queue; peak checkout 17, listeners stable through reconnect, disposable database dropped |
-| Review-concurrency profile | Pass: disposable real MongoDB raced approve/reject and approve/payload-edit; one winner per revision, exact active approval, zero orphan approvals, stale open and terminal queue actions blocked, zero Trello attempts, zero provider writes, database dropped |
+| Review-concurrency profile | Pass: repeated disposable real MongoDB runs raced approve/reject and approve/payload-edit from one exact viewed revision; one winner per revision, exact active approval, zero orphan approvals, stale review/execution and terminal queue actions blocked, zero Trello attempts, zero provider writes, each database dropped |
 | Follow-up integrity profile | Pass: simultaneous provider responses produced one owner and one WorkerResponse, exact intervention binding, only the matching follow-up resolved, adjacent same-card work remained due, simultaneous manual resolutions produced one winner, both audits used the authenticated workspace, zero Trello attempts, zero provider writes, database dropped |
 | Trello webhook integrity profile | Pass: three boards and four observed webhooks produced exact create/update/delete recommendations, four decisions, four audits, zero attempts, zero provider writes, and zero new decisions on repeated reconciliation; low-level emergency stop denied mutation; database dropped |
-| Portfolio-scale profile | Pass: real mission control read 60 boards/300 lists/15,000 cards/100 members plus 180 health snapshots; 832.7 ms cold, 561.1 ms p50, 561.5 ms p95, 368 MB peak verifier RSS, both compound indexes selected, 60 unique current boards, critical-first 20-row cap, 10/12/12 outputs bounded, approval required, provider writes false |
+| Portfolio-scale profile | Pass: real mission control read 60 boards/300 lists/15,000 cards/100 members plus 180 health snapshots; 791.1 ms cold, 607.9 ms p50, 683.4 ms p95, 352.5 MB peak verifier RSS, both compound indexes selected, 60 unique current boards, critical-first 20-row cap, 10/12/12 outputs bounded, approval required, provider writes false |
 | Bounded-ranking resource sample | Pass: worst-case 15,000-card focus improved 42.8 to 16.2 ms, risks 50.5 to 19.9 ms, commands 90.3 to 43.2 ms, and command peak RSS about 165 to 106 MB while preserving stable rank/evidence behavior |
 | Startup profile | Pass: import loaded 254 modules without Mongoose in 196.4 ms at 65.2 MB RSS; Overview remained Mongo-free, completed in 52.9 ms, and sampled 69 MB RSS |
 | Optional AI resource profile | Pass: loading offline chat did not load OpenAI; loading the deferred SDK afterward added 122 modules, 6.0 MB RSS, and 4.65 seconds in this cold local sample |
@@ -54,6 +54,20 @@ This report is updated from executed commands at release time. A passing local s
 ## External gates
 
 Live Trello critical-path acceptance, live ngrok/HAI credential acceptance, production database restore, hosted multi-instance lease observation, hosted canary/rollback, OAuth consent reviews, Windows publisher signing, and assistive-technology certification require owner-controlled accounts or infrastructure and are not reported as complete.
+
+## 2.3.41 continuation evidence
+
+| Check | Result |
+| --- | --- |
+| Route authorization | Pass: 180 routes inventoried, 174 known literal permission guards, six exact public contracts, and adversarial multiline/chained/computed/alias/dynamic/HEAD regressions |
+| Exact-view authority | Pass: review, payload edit, and approved execution require the rendered revision; stale or missing evidence fails before approval/policy/provider authority and refreshes the ledger |
+| Local quality | Pass: lint, 133 suites/961 tests, 5/5 evaluation, two zero-vulnerability audits, and five-secret production validation |
+| Browser | Pass: approval and enhancement views, ENH-041, explicit demo read-only state, no mutation controls, no console warnings/errors, and no desktop/responsive horizontal overflow |
+| Packaged Windows QA | Pass locally: version 2.3.41, nine diagnostics, no exposed secrets, HAI `never_direct`, four processes, normal close, port released, seven runtime files byte-identical and manifest semantics preserved |
+| Windows installer | Pass locally: 109,502,020 bytes, version 2.3.41, unsigned, SHA-256 `8C98235A0AFF195FCE544A30838E14B4AE3A02BA5441B73E771B27308849060D` |
+| Fresh-clone GitHub CI | Pass: source `6e6e090665908230de2cac4873a31fa7d629d253`, run `31776949353`, both jobs successful |
+| GitHub installer artifact | Pass: artifact `9210268095`, 109,508,298-byte archive digest matched GitHub; exactly one 109,502,377-byte unsigned 2.3.41 installer, SHA-256 `6AEE8B751B3765F1F9E9C32A6F3ED60F7D2C7AC6B1E432B0A1385F98F1F87A9E` |
+| External gates | Live provider/ngrok/HAI acceptance, deployment/restore, publisher signing, clean VM, and assistive technology remain owner-controlled |
 
 ## 2.3.40 continuation evidence
 

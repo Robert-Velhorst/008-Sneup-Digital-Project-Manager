@@ -2,6 +2,8 @@
 
 Status meanings: **Implemented** is present and locally verified; **Partial** has useful implementation but an identified gap; **External** requires owner-controlled accounts or infrastructure; **N/A** is outside the product's current surface. No phase is marked complete from documentation alone.
 
+2.3.41 closes two authorization blind spots. A parser-backed release gate accounts for every Express route independent of formatting or alternate route syntax, and every recommendation review, payload edit, or approved execution is bound to the exact revision the operator saw. Stale requests cannot authorize a newer payload, and the real-Mongo proof records no orphan approval, Trello attempt, or provider write.
+
 2.3.40 removes avoidable read-only ledger startup cost without changing authority. Demo access no longer loads MongoDB workspace scope or live ledger models, while Trello, policy, payload, graph, and provider-write modules load only for operations that need them. Live workspace resolution, human approval, execution claims, emergency-stop checks, and audit evidence remain intact.
 
 2.3.27 also keeps the complete workspace invitation interface demand-loaded. Its renderer has no API, credential, cookie, session, storage, or provider authority; exact authenticated calls, session persistence, and workspace reload verification remain in the controller. One-time links render before refresh, failed pre-commit actions remain retryable, and committed server outcomes are not relabelled as failed when only later local work fails.

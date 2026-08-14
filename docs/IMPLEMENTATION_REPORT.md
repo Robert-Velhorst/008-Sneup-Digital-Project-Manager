@@ -1,5 +1,15 @@
 # Sneup Implementation Report
 
+## 2.3.41 continuation
+
+Sneup now inventories Express authorization from syntax rather than physical lines. All 180 routes are accounted for: 174 use known literal permissions and six retain narrowly reviewed public OAuth, signed-webhook, invitation-token, or side-effect-free provider-verification contracts. Alternate Express syntax, aliases, dynamic paths/permissions, and unsupported public behavior fail the release gate.
+
+Every Yes, No, Change, exact-payload edit, and Execute approved command is bound to the recommendation revision rendered to the operator. A stale or missing revision fails before approval or provider authority is created, the ledger refreshes after a conflict, and the atomic database transition remains the final concurrency guard. Repeated real-Mongo races produced one winner, no orphan approvals, no Trello attempts, and no provider writes.
+
+The exact 133-suite/961-test gate, security audits, Browser QA, resource profiles, and Windows packaged runtime passed. Local installer `release/Sneup-Setup-2.3.41.exe` is 109,502,020 bytes, unsigned, SHA-256 `8C98235A0AFF195FCE544A30838E14B4AE3A02BA5441B73E771B27308849060D`; seven runtime-critical ASAR files match source exactly.
+
+Exact source `6e6e090665908230de2cac4873a31fa7d629d253` passed GitHub run `31776949353`. Independently downloaded artifact `9210268095` contained one unsigned version 2.3.41 installer, 109,502,377 bytes, SHA-256 `6AEE8B751B3765F1F9E9C32A6F3ED60F7D2C7AC6B1E432B0A1385F98F1F87A9E`.
+
 ## 2.3.40 continuation
 
 Sneup's operations ledger now keeps read-only startup separate from live database and mutation authority. Demo requests return before workspace-scoped models load, and the service loads Trello mutation, provider-write safety, policy, payload-validation, and work-graph modules only when the exact operation needs them. Live requests still resolve authenticated workspace scope before querying the ledger, and approved execution still rechecks policy and the deployment emergency stop before its atomic claim.
