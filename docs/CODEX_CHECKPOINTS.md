@@ -17,10 +17,10 @@
 | Data integrity and repair | Bounded dry-run/apply, review-only unsafe findings, all-workspace Trello index migration, audit evidence, and disposable MongoDB verification | Complete locally |
 | Data retention | Owner-only opt-in policy, bounded preview/apply, protected evidence, distributed lease, indexed queries, pre/post audits, real MongoDB proof, and live browser flow | Complete locally |
 | Windows package | 2.3.38 NSIS build, nine demo diagnostics, HAI smoke, metadata, SHA-256, seven source-identical changed runtime/config modules, repeatable resource sample, and clean close | Complete locally; publisher signing external |
-| Fresh clone | Exact 2.3.37 source `68f23c58f96d2e1ae086809e4240a15a25309930` passed clean GitHub Node 24 and Windows jobs | Complete for 2.3.37 |
-| Browser and Windows UI | ENH-036 filtering, approval-ledger rendering, desktop/minimum-responsive containment, and zero console errors passed in the in-app Browser; DOM regressions pass | Complete for these flows; exact 390 px, screen-reader, and clean-VM evidence pending |
+| Fresh clone | Exact 2.3.38 source `8d510d20a7617dab5c82e88a758518b24f1661af` passed clean GitHub Node 24 and Windows jobs | Complete for 2.3.38 |
+| Browser and Windows UI | Connector readiness filtering, Dutch connector rendering, ENH-037 evidence, desktop/minimum-responsive containment, and zero console errors passed in the in-app Browser; DOM regressions cover the exact recovery states | Complete for these flows; exact 390 px, screen-reader, and clean-VM evidence pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter, strict listener validation, exact runtime origin admission, and restart-safe URL cleanup | Complete locally; live credentials external |
-| GitHub CI | 2.3.37 run `31768820241` passed both jobs; artifact `9207376171` was independently downloaded and verified | Complete for 2.3.37 |
+| GitHub CI | 2.3.38 run `31770300777` passed both jobs; artifact `9207912643` was independently downloaded and verified | Complete for 2.3.38 |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |
@@ -32,7 +32,7 @@
 - Safety boundary: connector reads remain read-only, recovery metadata is redacted to a bounded operator posture, HAI stays proposal-only, and verification issues no provider write.
 - Verification: lint; 130 suites/939 tests; 5/5 safety evaluation; two zero-vulnerability audits; positive five-secret validation; disposable real-Mongo defer/recovery proof; 15,000-card profile; Browser/HAI acceptance; and packaged Windows behavior/source parity.
 - Installer: `release/Sneup-Setup-2.3.38.exe`, 109,498,183 bytes, unsigned, SHA-256 `1A23AEC8A1FF83EE2FE0157D0CD7526F2FED018C96134430B816D3044EC099DC`.
-- GitHub: source publication, clean CI, and independent artifact verification pending.
+- GitHub: source `8d510d20a7617dab5c82e88a758518b24f1661af`; run `31770300777`; quality 1 minute 5 seconds; Windows build/runtime 3 minutes 11 seconds; independently verified artifact `9207912643`, 109,498,445-byte installer, unsigned, SHA-256 `CB13929F88B6E99E3C436F139D1A65FD528BF19B181273DA35751B67226C5699`.
 - External gates remain: owner-authorized live provider/ngrok/HAI acceptance, production deployment and restore, publisher signing, clean-VM scaling, and assistive-technology certification.
 
 ## 2026-08-14 - Trello webhook governance release checkpoint

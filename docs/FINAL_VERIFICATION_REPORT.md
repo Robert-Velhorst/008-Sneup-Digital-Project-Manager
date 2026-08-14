@@ -47,9 +47,9 @@ This report is updated from executed commands at release time. A passing local s
 | Packaged Windows QA | Pass: the exact CI verifier confirmed 2.3.38 product metadata, healthy demo state, nine redacted diagnostics, HAI `never_direct`, normal main-window close, loopback port release, and seven byte-identical changed runtime/config modules |
 | Packaged resource sample | Pass: four processes used 371.2 MB working set, 335.9 MB private memory, and 2.031 cumulative CPU seconds in the five-second CI-equivalent probe. |
 | Windows installer | Pass: local build 109,498,183 bytes, unsigned, SHA-256 `1A23AEC8A1FF83EE2FE0157D0CD7526F2FED018C96134430B816D3044EC099DC`; executable metadata reports 2.3.38 |
-| Fresh clone | Pass: exact 2.3.37 source `68f23c58f96d2e1ae086809e4240a15a25309930` passed clean Node 24 quality and Windows jobs |
-| GitHub CI | Pass: run `31768820241`; quality 50 seconds; Windows build, packaged launch, verification, and upload 2 minutes 27 seconds |
-| GitHub installer artifact | Pass: artifact `9207376171`, 109,502,976 bytes, archive digest `sha256:cc1c9d735ff10795211e85db4d7c5deae62df3d05e2c6f4865264acf0cd4046f`; independent download contained exactly one 109,496,991-byte unsigned 2.3.37 installer with SHA-256 `80C699B0D90063E6063D9E6605852BF34650F77F639EE56DAF001CF731149483` |
+| Fresh clone | Pass: exact 2.3.38 source `8d510d20a7617dab5c82e88a758518b24f1661af` passed clean Node 24 quality and Windows jobs |
+| GitHub CI | Pass: run `31770300777`; quality 1 minute 5 seconds; Windows build, packaged launch, verification, and upload 3 minutes 11 seconds |
+| GitHub installer artifact | Pass: artifact `9207912643`, 109,504,496 bytes, archive digest `sha256:c6277cff26ef4d701b7ced79983d3e455b45d99f3ada52c0cd3b2d19aa83939a`; independent download contained exactly one 109,498,445-byte unsigned 2.3.38 installer with SHA-256 `CB13929F88B6E99E3C436F139D1A65FD528BF19B181273DA35751B67226C5699` |
 
 ## External gates
 
@@ -70,8 +70,8 @@ Live Trello critical-path acceptance, live ngrok/HAI credential acceptance, prod
 | Packaged Windows QA | Pass: version 2.3.38, nine diagnostics, no exposed secrets, HAI `never_direct`, four processes, normal close, port released, seven runtime/config modules byte-identical |
 | Packaged resource sample | Pass: 371.2 MB working set, 335.9 MB private bytes, and 2.031 cumulative CPU seconds after five seconds |
 | Windows installer | Pass: 109,498,183 bytes, version 2.3.38, unsigned, SHA-256 `1A23AEC8A1FF83EE2FE0157D0CD7526F2FED018C96134430B816D3044EC099DC` |
-| Fresh-clone GitHub CI | Pending source publication |
-| GitHub installer artifact | Pending source publication |
+| Fresh-clone GitHub CI | Pass: source `8d510d20a7617dab5c82e88a758518b24f1661af`, run `31770300777`, both jobs green |
+| GitHub installer artifact | Pass: artifact `9207912643`; exactly one unsigned version 2.3.38 EXE; 109,498,445 bytes; SHA-256 `CB13929F88B6E99E3C436F139D1A65FD528BF19B181273DA35751B67226C5699` |
 | External gates | Owner-authorized live provider/ngrok/HAI acceptance, production-like restore/deployment rollback, code signing, clean-VM scaling, and assistive-technology certification remain external |
 
 ## 2.3.37 continuation evidence
