@@ -1,5 +1,8 @@
 # Technical Audit
 
+- Closed a stale-screen authority gap in the review workflow. Yes, No, Change, payload edit, and Execute approved now carry the exact rendered recommendation revision through the browser and authenticated API. Missing or stale revisions fail before approval creation, policy resolution, or provider execution; the existing atomic database transition remains the final race guard. Eleven disposable real-Mongo runs produced one winner per race, no orphan approvals, no Trello attempts, and no provider writes.
+- Replaced the line-oriented route permission search with a parser-backed CI gate. The exact release inventory contains 180 routes: 174 use known literal permissions and six intentionally public OAuth, signed webhook, invitation-token, or provider-verification routes retain explicit behavior contracts. Alternate Express syntax, router aliases, dynamic permissions, and unreviewed public routes fail closed.
+
 ## 2.3.37 Trello webhook governance audit
 
 - Webhook setup previously ran before ngrok supplied its callback, matched existing configuration only by board, and wrote directly through the Trello client during startup. A changed ephemeral callback could remain stale indefinitely, and direct low-level mutation bypassed the deployment emergency stop.

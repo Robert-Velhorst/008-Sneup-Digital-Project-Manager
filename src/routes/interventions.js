@@ -44,6 +44,7 @@ router.post('/:interventionId/execute-approved', requirePermission('trello-actio
     logger.error('Failed to execute approved intervention:', error);
     return res.status(error.statusCode || 500).json({
       success: false,
+      code: error.code,
       error: error.statusCode ? error.message : 'Failed to execute approved intervention'
     });
   }

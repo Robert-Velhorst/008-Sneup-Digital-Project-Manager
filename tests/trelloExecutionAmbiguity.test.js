@@ -83,6 +83,7 @@ describe('approved Trello execution ambiguity', () => {
 
     await expect(operationsLedgerService.executeApprovedRecommendation(recommendation._id, {
       workspaceId: recommendation.workspaceId,
+      expectedRevision: Number.isInteger(recommendation.__v) ? recommendation.__v : 0,
       actor: 'owner-1'
     })).rejects.toMatchObject({
       code: 'SNEUP_TRELLO_WRITE_RECONCILIATION_REQUIRED',

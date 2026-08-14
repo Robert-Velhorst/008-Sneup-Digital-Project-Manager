@@ -73,6 +73,7 @@ describe('approval expiry safeguards', () => {
 
     await expect(operationsLedgerService.executeApprovedRecommendation(recommendationId, {
       workspaceId,
+      expectedRevision: 0,
       actor: 'operator'
     })).rejects.toMatchObject({
       statusCode: 409,

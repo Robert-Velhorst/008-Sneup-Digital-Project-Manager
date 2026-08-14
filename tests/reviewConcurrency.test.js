@@ -52,6 +52,7 @@ describe('approval and decision queue concurrency safeguards', () => {
 
     await expect(service.approveRecommendation('recommendation-1', {
       workspaceId: 'workspace-1',
+      expectedRevision: 4,
       decidedBy: 'owner-1'
     })).rejects.toMatchObject({
       code: 'SNEUP_RECOMMENDATION_REVIEW_CONFLICT',
@@ -121,6 +122,7 @@ describe('approval and decision queue concurrency safeguards', () => {
 
     const result = await service.approveRecommendation('recommendation-1', {
       workspaceId: 'workspace-1',
+      expectedRevision: 2,
       decidedBy: 'owner-1'
     });
 
@@ -130,6 +132,94 @@ describe('approval and decision queue concurrency safeguards', () => {
       workspaceId: 'workspace-1',
       recommendationId: 'recommendation-1'
     }), expect.objectContaining({ status: 'approved' }));
+  });
+
+  test('rejects a stale viewed revision before creating an approval record', async () => {
+    const createApproval = jest.fn();
+    const transition = jest.fn();
+    const service = loadService({
+      recommendationModel: {
+        findOne: jest.fn().mockResolvedValue({
+          _id: 'recommendation-1',
+          workspaceId: 'workspace-1',
+          __v: 5,
+          status: 'pending',
+          recommendedAction: 'Post the reviewed follow-up',
+          actionPayload: { cardTrelloId: 'card-1', commentText: 'Revised payload' },
+          riskLevel: 'medium'
+        }),
+        findOneAndUpdate: transition
+      },
+      approvalModel: { create: createApproval }
+    });
+
+    await expect(service.approveRecommendation('recommendation-1', {
+      workspaceId: 'workspace-1',
+      expectedRevision: 4,
+      decidedBy: 'owner-1'
+    })).rejects.toMatchObject({
+      code: 'SNEUP_RECOMMENDATION_REVIEW_CONFLICT',
+      statusCode: 409
+    });
+
+    expect(createApproval).not.toHaveBeenCalled();
+    expect(transition).not.toHaveBeenCalled();
+  });
+
+  test('requires an exact non-negative integer revision for review writes', async () => {
+    const createApproval = jest.fn();
+    const service = loadService({
+      recommendationModel: {
+        findOne: jest.fn().mockResolvedValue({
+          _id: 'recommendation-1',
+          workspaceId: 'workspace-1',
+          __v: 0,
+          status: 'pending',
+          recommendedAction: 'Post the reviewed follow-up',
+          actionPayload: {},
+          riskLevel: 'low'
+        })
+      },
+      approvalModel: { create: createApproval }
+    });
+
+    await expect(service.approveRecommendation('recommendation-1', {
+      workspaceId: 'workspace-1',
+      decidedBy: 'owner-1'
+    })).rejects.toMatchObject({
+      code: 'SNEUP_RECOMMENDATION_REVISION_REQUIRED',
+      statusCode: 400
+    });
+    expect(createApproval).not.toHaveBeenCalled();
+  });
+
+  test('blocks stale execution controls before any provider policy or approval lookup', async () => {
+    const resolveEffectivePolicy = jest.fn();
+    const approvalLookup = jest.fn();
+    const service = loadService({
+      recommendationModel: {
+        findOne: jest.fn().mockResolvedValue({
+          _id: 'recommendation-approved',
+          workspaceId: 'workspace-1',
+          __v: 8,
+          status: 'approved'
+        })
+      },
+      approvalModel: { findOne: approvalLookup },
+      policyRuleService: { resolveEffectivePolicy }
+    });
+
+    await expect(service.executeApprovedRecommendation('recommendation-approved', {
+      workspaceId: 'workspace-1',
+      expectedRevision: 7,
+      actor: 'owner-1'
+    })).rejects.toMatchObject({
+      code: 'SNEUP_RECOMMENDATION_REVIEW_CONFLICT',
+      statusCode: 409
+    });
+
+    expect(resolveEffectivePolicy).not.toHaveBeenCalled();
+    expect(approvalLookup).not.toHaveBeenCalled();
   });
 
   test('never lets a stale open queue item rewrite a terminal recommendation', async () => {

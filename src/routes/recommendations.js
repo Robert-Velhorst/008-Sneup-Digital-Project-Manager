@@ -23,6 +23,7 @@ const actorBody = (req, actorField = 'decidedBy') => ({
 
 const sendError = (res, error, fallback) => res.status(error.statusCode || 500).json({
   success: false,
+  code: error.code,
   error: error.statusCode ? error.message : fallback
 });
 

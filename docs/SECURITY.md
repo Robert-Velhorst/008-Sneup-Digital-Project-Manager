@@ -1,5 +1,9 @@
 # Security
 
+## Route authorization release gate
+
+`npm run check:route-authorization` parses every Express route declaration, validates permission names, and allows public access only through the reviewed OAuth callback, signed webhook, one-time invitation, and side-effect-free Trello verification contracts. The audit covers direct, multiline, chained, computed, HEAD, and other Node HTTP method forms; aliases and dynamic route/permission declarations fail closed. It is part of `npm run check:ci`.
+
 ## Trust boundaries
 
 Sneup separates browser/API identity, workspace-scoped persistence, encrypted connector credentials, read-only provider ingestion, notification delivery, and the approval-gated Trello write executor. Demo mode is a separate read-only boundary.
@@ -13,7 +17,7 @@ Sneup separates browser/API identity, workspace-scoped persistence, encrypted co
 - Independent 32+ character production peppers; separate connector encryption and OAuth-state secrets; placeholder and secret-reuse rejection.
 - OAuth state signing, redirect validation, fixed provider hosts, atomic expiring token-refresh leases, encrypted refresh-token rotation, secret-free refresh audits, SSRF/DNS protections where custom hosts are supported, redirect denial, timeouts, bounded pages, and redacted retained fields.
 - Exact approval payload snapshot, expiry, action policy, atomic claim, idempotency evidence, timeout/reset/HTTP 408/5xx ambiguity classification, multi-step partial-write evidence, and no automatic retry after ambiguous writes.
-- Recommendation review transitions use revision-aware atomic compare-and-set updates. The winning decision is bound by ID to the approved payload, losing decision records are removed, and stale or terminal queue entries cannot reopen or mutate completed work.
+- Recommendation review transitions use revision-aware atomic compare-and-set updates. Every review, exact-payload edit, and approved-execution request must carry the exact revision rendered to the operator; missing or stale revisions fail before approval or provider authority is created. The winning decision is bound by ID to the approved payload, losing decision records are removed, and stale or terminal queue entries cannot reopen or mutate completed work.
 - Worker responses atomically claim one eligible executed communication intervention and bind its exact response ID. Losing simultaneous responses are removed, follow-ups resolve by their strongest available identity, terminal rows use revision-aware compare-and-set transitions, and audit evidence is normalized into the authenticated workspace.
 - Graceful restart stops request admission and future schedules, drains active work before database teardown, bounds overlong connections, and reports component codes without request or credential content.
 - Board-health evidence is matched to the authenticated workspace before newest-per-board aggregation; bounded caps occur after deduplication and cannot mix another workspace current state.

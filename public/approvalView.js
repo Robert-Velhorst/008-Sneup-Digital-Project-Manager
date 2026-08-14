@@ -812,11 +812,18 @@
     }
 
     function bindActions() {
-      document.querySelectorAll('[data-recommendation-action]').forEach(button => button.addEventListener('click', () => callbacks.runRecommendationAction(button.dataset.recommendationId, button.dataset.recommendationAction)));
+      document.querySelectorAll('[data-recommendation-action]').forEach(button => button.addEventListener('click', () => callbacks.runRecommendationAction(
+        button.dataset.recommendationId,
+        button.dataset.recommendationAction,
+        Number(button.dataset.recommendationRevision)
+      )));
       document.querySelectorAll('[data-decision-action]').forEach(button => button.addEventListener('click', () => callbacks.runDecisionAction(button.dataset.decisionId, button.dataset.decisionAction)));
       document.querySelectorAll('[data-followup-action]').forEach(button => button.addEventListener('click', () => callbacks.runFollowUpAction(button.dataset.followupId, button.dataset.followupAction)));
       document.querySelectorAll('[data-followup-response]').forEach(button => button.addEventListener('click', () => callbacks.openWorkerResponseRecorder(button.dataset.followupResponse)));
-      document.querySelectorAll('[data-payload-edit]').forEach(button => button.addEventListener('click', () => callbacks.editRecommendationPayload(button.dataset.payloadEdit)));
+      document.querySelectorAll('[data-payload-edit]').forEach(button => button.addEventListener('click', () => callbacks.editRecommendationPayload(
+        button.dataset.payloadEdit,
+        Number(button.dataset.recommendationRevision)
+      )));
       document.querySelectorAll('[data-recommendation-evidence]').forEach(button => button.addEventListener('click', () => callbacks.openRecommendationEvidence(button.dataset.recommendationEvidence)));
       document.querySelectorAll('[data-trello-action-reconcile]').forEach(button => button.addEventListener('click', () => callbacks.openTrelloActionReconciliation(button.dataset.trelloActionReconcile)));
       document.querySelectorAll('[data-outcome-evaluate]').forEach(button => button.addEventListener('click', () => callbacks.runOutcomeEvaluation(button.dataset.outcomeEvaluate)));
@@ -844,13 +851,18 @@
     function renderDecisionItem(item) {
       const itemId = getId(item._id);
       const recommendationId = getId(item.recommendationId);
+      const recommendation = (item.recommendationId && typeof item.recommendationId === 'object')
+        ? item.recommendationId
+        : (state.ledger.recommendations || []).find(candidate => getId(candidate._id) === recommendationId);
       const canManageDecision = (item.status || 'open') === 'open';
       return `
         <div class="item">
           <div class="item-title"><strong>${escapeHtml(item.question || item.title)}</strong><span class="pill ${severityClass(item.riskLevel)}">${es(item.ownerType)}</span></div>
           <div class="meta"><span>${escapeHtml(item.reason || t('Approval required'))}</span><span>${es(item.riskLevel, 'medium')} ${et('risk')}</span><span>${et('Answer: {answer}', { answer: semantic(item.recommendedAnswer, 'yes') })}</span></div>
           ${renderSourceEvidence(item.sourceEvidence)}
-          ${recommendationId && canManageDecision && !state.ledger.demoMode ? renderReviewActions(recommendationId) : ''}
+          ${recommendationId && recommendation && canManageDecision && !state.ledger.demoMode
+            ? renderReviewActions(recommendationId, recommendation.status, recommendation)
+            : ''}
           ${state.ledger.demoMode || !canManageDecision ? '' : `<div class="item-actions">
             <button class="button" data-decision-id="${escapeHtml(itemId)}" data-decision-action="snooze" type="button">${et('Snooze 24h')}</button>
             <button class="button warn" data-decision-id="${escapeHtml(itemId)}" data-decision-action="delegate-team" type="button">${et('Delegate team')}</button>
@@ -877,18 +889,21 @@
 
     function renderReviewActions(recommendationId, status = 'pending', recommendation = {}) {
       const payload = recommendation.actionPayload || {};
+      const revision = recommendation.__v;
+      if (!Number.isSafeInteger(revision) || revision < 0) return '';
+      const revisionAttribute = `data-recommendation-revision="${revision}"`;
       const canApprove = ['pending', 'change_requested', 'snoozed', 'delegated'].includes(status);
       const canReject = ['pending', 'approved', 'change_requested', 'snoozed', 'delegated'].includes(status);
       const canChange = ['pending', 'approved', 'snoozed', 'delegated'].includes(status);
       const executable = payload.executable !== false && payload.draftOnly !== true && recommendation.actionType !== 'manual_review';
       const executeButton = status === 'approved' && executable
-        ? `<button class="button primary" data-recommendation-id="${escapeHtml(recommendationId)}" data-recommendation-action="execute-approved" type="button">${et('Execute approved')}</button>`
+        ? `<button class="button primary" data-recommendation-id="${escapeHtml(recommendationId)}" data-recommendation-action="execute-approved" ${revisionAttribute} type="button">${et('Execute approved')}</button>`
         : '';
       if (!canApprove && !canReject && !canChange && !executeButton) return '';
       return `<div class="item-actions">
-        ${canApprove ? `<button class="button primary" data-recommendation-id="${escapeHtml(recommendationId)}" data-recommendation-action="approve" type="button">${et('Yes')}</button>` : ''}
-        ${canReject ? `<button class="button danger" data-recommendation-id="${escapeHtml(recommendationId)}" data-recommendation-action="reject" type="button">${et('No')}</button>` : ''}
-        ${canChange ? `<button class="button warn" data-recommendation-id="${escapeHtml(recommendationId)}" data-recommendation-action="change" type="button">${et('Change')}</button>` : ''}
+        ${canApprove ? `<button class="button primary" data-recommendation-id="${escapeHtml(recommendationId)}" data-recommendation-action="approve" ${revisionAttribute} type="button">${et('Yes')}</button>` : ''}
+        ${canReject ? `<button class="button danger" data-recommendation-id="${escapeHtml(recommendationId)}" data-recommendation-action="reject" ${revisionAttribute} type="button">${et('No')}</button>` : ''}
+        ${canChange ? `<button class="button warn" data-recommendation-id="${escapeHtml(recommendationId)}" data-recommendation-action="change" ${revisionAttribute} type="button">${et('Change')}</button>` : ''}
         ${executeButton}
       </div>`;
     }
@@ -896,7 +911,8 @@
     function renderPayloadEditAction(recommendationId, recommendation = {}) {
       if (!['pending', 'change_requested', 'snoozed', 'delegated'].includes(recommendation.status || 'pending')) return '';
       if (!canEditPayload?.(recommendation)) return '';
-      return `<div class="item-actions"><button class="button warn" data-payload-edit="${escapeHtml(recommendationId)}" type="button">${et('Review payload')}</button></div>`;
+      if (!Number.isSafeInteger(recommendation.__v) || recommendation.__v < 0) return '';
+      return `<div class="item-actions"><button class="button warn" data-payload-edit="${escapeHtml(recommendationId)}" data-recommendation-revision="${recommendation.__v}" type="button">${et('Review payload')}</button></div>`;
     }
 
     function renderFinding(finding) {

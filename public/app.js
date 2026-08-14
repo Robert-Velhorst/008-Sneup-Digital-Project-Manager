@@ -1884,17 +1884,17 @@ function safeExternalUrl(value) {
   }
 }
 
-async function runRecommendationAction(recommendationId, action) {
-  if (!recommendationId) return;
+async function runRecommendationAction(recommendationId, action, expectedRevision) {
+  if (!recommendationId || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0) return;
 
   const endpoint = `/api/recommendations/${recommendationId}/${action}`;
   const body = action === 'approve'
-    ? { decidedBy: 'robert', decisionReason: 'Approved from Sneup command center' }
+    ? { decidedBy: 'robert', decisionReason: 'Approved from Sneup command center', expectedRevision }
     : action === 'reject'
-      ? { decidedBy: 'robert', decisionReason: 'Rejected from Sneup command center' }
+      ? { decidedBy: 'robert', decisionReason: 'Rejected from Sneup command center', expectedRevision }
       : action === 'change'
-        ? { decidedBy: 'robert', decisionReason: 'Change requested from Sneup command center' }
-        : { actor: 'robert' };
+        ? { decidedBy: 'robert', decisionReason: 'Change requested from Sneup command center', expectedRevision }
+        : { actor: 'robert', expectedRevision };
 
   try {
     const data = await fetchApi(endpoint, {
@@ -1905,6 +1905,7 @@ async function runRecommendationAction(recommendationId, action) {
     openNotice(t('Recommendation updated'), data.message || t('Action completed: {action}', { action: t(String(action).replaceAll('-', ' ')) }));
     await loadOperationsLedger();
   } catch (error) {
+    if (error.code === 'SNEUP_RECOMMENDATION_REVIEW_CONFLICT') await loadOperationsLedger();
     openNotice(t('Recommendation action failed'), error.message);
   }
 }
@@ -2073,7 +2074,8 @@ async function runJobAction(jobName, action) {
   }
 }
 
-async function editRecommendationPayload(recommendationId) {
+async function editRecommendationPayload(recommendationId, expectedRevision) {
+  if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) return;
   const recommendation = (state.ledger.recommendations || []).find(item => getId(item._id) === recommendationId);
   if (!recommendation) return;
   const fields = getPayloadReviewFields(recommendation);
@@ -2128,13 +2130,18 @@ async function editRecommendationPayload(recommendationId) {
       await fetchApi(`/api/recommendations/${recommendationId}/payload`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ updatedBy: 'robert', actionPayload })
+        body: JSON.stringify({ updatedBy: 'robert', expectedRevision, actionPayload })
       });
       closeModal();
       openNotice(t('Payload saved'), t('The revised action is pending a fresh Yes/No approval.'));
       await loadOperationsLedger();
     } catch (error) {
-      submitButton.disabled = false;
+      if (error.code === 'SNEUP_RECOMMENDATION_REVIEW_CONFLICT') {
+        closeModal();
+        await loadOperationsLedger();
+      } else {
+        submitButton.disabled = false;
+      }
       openNotice(t('Payload update failed'), error.message);
     }
   });
@@ -2387,14 +2394,18 @@ function renderOperatingLedgerModal(type, ledger = {}) {
   document.querySelectorAll('[data-recommendation-action]').forEach((button) => {
     button.addEventListener('click', () => runRecommendationAction(
       button.dataset.recommendationId,
-      button.dataset.recommendationAction
+      button.dataset.recommendationAction,
+      Number(button.dataset.recommendationRevision)
     ));
   });
   document.querySelectorAll('[data-recommendation-evidence]').forEach((button) => {
     button.addEventListener('click', () => openRecommendationEvidence(button.dataset.recommendationEvidence));
   });
   document.querySelectorAll('[data-payload-edit]').forEach((button) => {
-    button.addEventListener('click', () => editRecommendationPayload(button.dataset.payloadEdit));
+    button.addEventListener('click', () => editRecommendationPayload(
+      button.dataset.payloadEdit,
+      Number(button.dataset.recommendationRevision)
+    ));
   });
   document.querySelectorAll('[data-outcome-evaluate]').forEach((button) => {
     button.addEventListener('click', () => runOutcomeEvaluation(button.dataset.outcomeEvaluate));

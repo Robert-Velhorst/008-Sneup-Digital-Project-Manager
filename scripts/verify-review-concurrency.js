@@ -67,10 +67,12 @@ const run = async () => {
     const decisionResults = await Promise.allSettled([
       operationsLedgerService.approveRecommendation(decisionRace._id, {
         workspaceId,
+        expectedRevision: decisionRace.__v,
         decidedBy: 'reviewer-approve'
       }),
       operationsLedgerService.rejectRecommendation(decisionRace._id, {
         workspaceId,
+        expectedRevision: decisionRace.__v,
         decidedBy: 'reviewer-reject',
         decisionReason: 'Concurrent rejection verification'
       })
@@ -91,10 +93,12 @@ const run = async () => {
     const payloadResults = await Promise.allSettled([
       operationsLedgerService.approveRecommendation(payloadRace._id, {
         workspaceId,
+        expectedRevision: payloadRace.__v,
         decidedBy: 'reviewer-approve'
       }),
       operationsLedgerService.updateRecommendationPayload(payloadRace._id, {
         workspaceId,
+        expectedRevision: payloadRace.__v,
         updatedBy: 'reviewer-edit',
         actionPayload: { commentText: 'Please share the revised exact next action.' }
       })
@@ -138,6 +142,7 @@ const run = async () => {
     await assert.rejects(
       operationsLedgerService.approveRecommendation(executedRecommendation._id, {
         workspaceId,
+        expectedRevision: executedRecommendation.__v,
         decidedBy: 'stale-reviewer'
       }),
       error => error.statusCode === 409

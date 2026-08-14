@@ -623,6 +623,42 @@ const enhancements = [
       'Approved Trello execution, reconciliation, and webhook behavior retain regression coverage.',
       'Measured startup and memory evidence is recorded from multiple fresh processes.'
     ]
+  },
+  {
+    id: 'ENH-040',
+    priority: 'P0',
+    area: 'security',
+    title: 'Make route authorization a parser-backed release gate',
+    evidence: 'The release gate parses every Express route declaration instead of searching one physical source line. It currently inventories 180 routes across direct, multiline, chained, and computed syntax; validates 174 permission-gated routes against the known permission catalog; and requires exact OAuth-state, Trello-HMAC, signed generic-webhook, one-time invitation-token, or side-effect-free HEAD behavior for the six intentionally public routes. Router aliases, dynamic paths, dynamic or unknown permissions, missing public verifiers, and side-effecting public HEAD probes fail closed.',
+    impact: 'Prevents a formatting change, alternate Express syntax, or newly added HTTP method from silently publishing an unauthenticated operational endpoint.',
+    effort: 'S',
+    status: 'done',
+    nextStep: 'Keep every new public endpoint behind a narrowly reviewed contract and add provider-specific acceptance evidence before expanding the exception list.',
+    acceptanceCriteria: [
+      'All direct, multiline, chained, and computed Express route declarations are parsed.',
+      'Every guarded route uses a known literal permission.',
+      'Every intentionally public route has a checked authentication or side-effect-free provider-verification contract.',
+      'Router aliases, dynamic paths, and unsupported public exceptions fail the release gate.',
+      'The route-authorization audit runs in local and GitHub CI quality gates.'
+    ]
+  },
+  {
+    id: 'ENH-041',
+    priority: 'P0',
+    area: 'autonomy',
+    title: 'Bind review and execution commands to the exact viewed revision',
+    evidence: 'Every Yes, No, Change, payload-edit, and Execute approved control now carries the recommendation revision rendered to the operator. The authenticated request must supply that exact non-negative revision, the service rejects stale or missing revisions before creating approval authority or consulting execution policy, and the database transition still compares and increments the revision atomically. Controls fail closed when revision evidence is unavailable. Eleven disposable real-Mongo races across fresh databases produced one decision winner, one payload/edit winner, zero orphan approvals, zero Trello attempts, and zero provider writes.',
+    impact: 'Prevents a delayed click on an older screen from approving, rejecting, editing, or executing a newer payload the operator did not review.',
+    effort: 'S',
+    status: 'done',
+    nextStep: 'Observe authenticated hosted conflict rates before changing refresh guidance or adding an explicit side-by-side revision comparison.',
+    acceptanceCriteria: [
+      'Every consequential recommendation control carries the exact rendered revision.',
+      'Missing, malformed, and stale revisions fail before approval or provider authority is created.',
+      'Review transitions retain atomic status-and-revision compare-and-set behavior.',
+      'A stale Execute approved control cannot execute a newer recommendation revision.',
+      'Concurrent approve, reject, and payload-edit races create no orphan approvals or provider writes.'
+    ]
   }
 ];
 

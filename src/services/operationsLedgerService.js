@@ -305,20 +305,42 @@ class OperationsLedgerService {
     recommendation.approvalExpiryReason = undefined;
   }
 
-  recommendationRevisionQuery(recommendation) {
+  recommendationReviewConflict() {
+    const error = new Error('Recommendation changed while this review was being saved. Refresh the current decision before trying again.');
+    error.code = 'SNEUP_RECOMMENDATION_REVIEW_CONFLICT';
+    error.statusCode = 409;
+    return error;
+  }
+
+  requireExpectedRecommendationRevision(recommendation, options = {}) {
+    const expectedRevision = options.expectedRevision;
+    if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) {
+      const error = new Error('expectedRevision must identify the exact recommendation revision being reviewed');
+      error.code = 'SNEUP_RECOMMENDATION_REVISION_REQUIRED';
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const currentRevision = Number.isInteger(recommendation.__v) ? recommendation.__v : 0;
+    if (currentRevision !== expectedRevision) throw this.recommendationReviewConflict();
+    return expectedRevision;
+  }
+
+  recommendationRevisionQuery(recommendation, expectedRevision) {
     const query = {
       _id: recommendation._id,
       status: recommendation.status
     };
     query.__v = Number.isInteger(recommendation.__v)
-      ? recommendation.__v
+      ? expectedRevision
       : { $exists: false };
     return query;
   }
 
   async transitionRecommendationReview(recommendation, options, update) {
+    const expectedRevision = this.requireExpectedRecommendationRevision(recommendation, options);
     const transitioned = await Recommendation.findOneAndUpdate(
-      this.workspaceQuery(options, this.recommendationRevisionQuery(recommendation)),
+      this.workspaceQuery(options, this.recommendationRevisionQuery(recommendation, expectedRevision)),
       {
         ...update,
         $inc: {
@@ -330,10 +352,7 @@ class OperationsLedgerService {
     );
     if (transitioned) return transitioned;
 
-    const error = new Error('Recommendation changed while this review was being saved. Refresh the current decision before trying again.');
-    error.code = 'SNEUP_RECOMMENDATION_REVIEW_CONFLICT';
-    error.statusCode = 409;
-    throw error;
+    throw this.recommendationReviewConflict();
   }
 
   async discardUncommittedApproval(approval) {
@@ -1022,6 +1041,7 @@ class OperationsLedgerService {
       error.statusCode = 400;
       throw error;
     }
+    this.requireExpectedRecommendationRevision(recommendation, body);
 
     const expiresAt = this.approvalExpiresAt(recommendation.riskLevel);
     const approval = await Approval.create({
@@ -1103,6 +1123,7 @@ class OperationsLedgerService {
     }
 
     this.requireRecommendationStatus(recommendation, REJECTABLE_RECOMMENDATION_STATUSES, 'rejected');
+    this.requireExpectedRecommendationRevision(recommendation, body);
 
     const approval = await Approval.create({
       workspaceId: recommendation.workspaceId,
@@ -1187,6 +1208,7 @@ class OperationsLedgerService {
     }
 
     this.requireRecommendationStatus(recommendation, CHANGEABLE_RECOMMENDATION_STATUSES, 'changed');
+    this.requireExpectedRecommendationRevision(recommendation, body);
 
     const approval = await Approval.create({
       workspaceId: recommendation.workspaceId,
@@ -1260,6 +1282,7 @@ class OperationsLedgerService {
     }
 
     this.requireRecommendationStatus(recommendation, PAYLOAD_EDITABLE_RECOMMENDATION_STATUSES, 'edited');
+    this.requireExpectedRecommendationRevision(recommendation, body);
     if (body.replace === true || body.actionType !== undefined || body.recommendedAction !== undefined) {
       const error = new Error('Action type, recommendation text, and protected payload fields cannot be changed during review');
       error.statusCode = 400;
@@ -1346,6 +1369,7 @@ class OperationsLedgerService {
       error.statusCode = 404;
       throw error;
     }
+    this.requireExpectedRecommendationRevision(recommendation, options);
 
     const providerWriteSafety = getProviderWriteSafetyService().getProviderWriteSafetyStatus();
     if (!providerWriteSafety.enabled) {

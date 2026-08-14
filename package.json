@@ -1,6 +1,6 @@
 {
   "name": "sneup",
-  "version": "2.3.40",
+  "version": "2.3.41",
   "description": "Autonomous AI-powered digital project manager for Trello v2.0 - proactive management, performance tracking, conversational AI, and accountability enforcement",
   "main": "desktop/main.js",
   "scripts": {
@@ -12,6 +12,7 @@
     "migrate:workspace": "node scripts/migrate-workspace-scope.js",
     "repair:data": "node scripts/repair-data-integrity.js",
     "evaluate:recommendations": "node scripts/evaluate-recommendations.js",
+    "check:route-authorization": "node scripts/verify-route-authorization.js",
     "check:release-security": "node scripts/verify-release-security.js",
     "verify:workspace-deletion": "node scripts/verify-workspace-deletion.js",
     "verify:workspace-migration": "node scripts/verify-workspace-migration.js",
@@ -28,7 +29,7 @@
     "support:bundle": "node scripts/support-bundle.js",
     "profile:startup": "node scripts/profile-startup.js",
     "profile:portfolio-scale": "node scripts/profile-portfolio-scale.js",
-    "check:ci": "npm run lint && npm test -- --runInBand && npm run evaluate:recommendations",
+    "check:ci": "npm run lint && npm run check:route-authorization && npm test -- --runInBand && npm run evaluate:recommendations",
     "test": "jest",
     "lint": "eslint src/**/*.js scripts/*.js desktop/*.js"
   },
@@ -64,6 +65,7 @@
     "electron": "^42.2.0",
     "electron-builder": "^26.8.1",
     "eslint": "^8.54.0",
+    "espree": "^9.6.1",
     "jest": "^29.7.0",
     "jsdom": "26.1.0",
     "nodemon": "^3.0.1"

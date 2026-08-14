@@ -64,7 +64,7 @@ function createHarness(locale = 'nl') {
         recommendedAnswer: 'yes', sourceEvidence: [{ type: 'card', label: 'Decision Evidence', url: 'https://trello.com/c/abc123/evidence' }]
       }],
       recommendations: [{
-        _id: 'recommendation-1', title: 'Recommendation Evidence Title', status: 'pending',
+        _id: 'recommendation-1', __v: 7, title: 'Recommendation Evidence Title', status: 'pending',
         actionType: 'comment', ownerType: 'robert', riskLevel: 'high', confidence: 0.91,
         approvalReason: 'Approval evidence remains verbatim.', actionPayload: { cardTrelloId: 'abc123', commentText: 'Exact payload evidence.' },
         sourceEvidence: [{ type: 'card', label: 'Recommendation Evidence', url: 'https://trello.com/c/abc123/evidence' }]
@@ -180,9 +180,9 @@ describe('demand-loaded approval view', () => {
     document.querySelector('[data-notification-policy-test]').click();
     document.querySelector('[data-notification-delivery-evidence]').click();
 
-    expect(harness.callbacks.runRecommendationAction).toHaveBeenCalledWith('recommendation-1', 'approve');
+    expect(harness.callbacks.runRecommendationAction).toHaveBeenCalledWith('recommendation-1', 'approve', 7);
     expect(harness.callbacks.runDecisionAction).toHaveBeenCalledWith('decision-1', 'snooze');
-    expect(harness.callbacks.editRecommendationPayload).toHaveBeenCalledWith('recommendation-1');
+    expect(harness.callbacks.editRecommendationPayload).toHaveBeenCalledWith('recommendation-1', 7);
     expect(harness.callbacks.openRecommendationEvidence).toHaveBeenCalledWith('recommendation-1');
     expect(harness.callbacks.openTrelloActionReconciliation).toHaveBeenCalledWith('attempt-1');
     expect(harness.callbacks.openWorkerResponseRecorder).toHaveBeenCalledWith('intervention-1');
@@ -205,6 +205,17 @@ describe('demand-loaded approval view', () => {
     expect(harness.elements.decisionQueue.querySelector('[data-decision-action]')).toBeNull();
     expect(harness.elements.decisionQueue.querySelector('[data-recommendation-action]')).toBeNull();
     expect(harness.elements.decisionQueue.textContent).toContain('Evidence question remains verbatim?');
+    harness.dom.window.close();
+  });
+
+  test('fails closed when recommendation revision evidence is unavailable', () => {
+    const harness = createHarness('en');
+    delete harness.state.ledger.recommendations[0].__v;
+    harness.controller.render();
+
+    expect(harness.dom.window.document.querySelector('[data-recommendation-action]')).toBeNull();
+    expect(harness.dom.window.document.querySelector('[data-payload-edit]')).toBeNull();
+    expect(harness.elements.recommendationList.textContent).toContain('Recommendation Evidence Title');
     harness.dom.window.close();
   });
 
@@ -390,6 +401,7 @@ describe('demand-loaded approval view', () => {
     }
     expect([...messages].filter(message => !runtime.hasTranslation(message))).toEqual([]);
     expect(appSource).toContain("openNotice(t('Recommendation updated')");
+    expect(appSource).toContain("error.code === 'SNEUP_RECOMMENDATION_REVIEW_CONFLICT'");
     expect(appSource).toContain("els.modalTitle.textContent = t('Reconcile {action}'");
     expect(moduleSource).toContain("elements.modalTitle.textContent = t(isEdit ? 'Edit delivery policy' : 'Add delivery policy')");
   });
