@@ -46,9 +46,9 @@ This report is updated from executed commands at release time. A passing local s
 | Packaged Windows QA | Pass: the exact CI verifier confirmed 2.3.36 product metadata, healthy demo state, nine redacted diagnostics, HAI `never_direct`, normal main-window close, loopback port release, and four byte-identical changed runtime modules |
 | Packaged resource sample | Pass: four processes used 375.4 MB working set, 369.9 MB private memory, and 1.453 cumulative CPU seconds in the five-second CI-equivalent probe. |
 | Windows installer | Pass: local build 109,494,173 bytes, unsigned, SHA-256 `E496C4BA3E0FD53BAF0B95801C2DC3500A0182956431118151D14355C62F88EB`; executable metadata reports 2.3.36 |
-| Fresh clone | Pending: exact 2.3.36 source has not yet completed GitHub CI |
-| GitHub CI | Pending publication |
-| GitHub installer artifact | Pending publication and independent download verification |
+| Fresh clone | Pass: exact 2.3.36 source `ad7311b5cc036c83432c0994aff2590970b783ca` passed clean Node 24 quality and Windows jobs |
+| GitHub CI | Pass: run `31767164629`; quality 1 minute 12 seconds; Windows build, packaged launch, verification, and upload 2 minutes 32 seconds |
+| GitHub installer artifact | Pass: artifact `9206772471`, 109,500,400 bytes, archive digest `sha256:321057b378f732e6be61116a7d1da3268a6fb968b269a3af092389dd2d15b868`; independent download contained one 109,494,377-byte unsigned 2.3.36 installer with SHA-256 `8D6E57890FCB080687F670B9E7BA157CDF97B81E688F8533FFA5EF541D43ECD1` |
 
 ## External gates
 
@@ -70,8 +70,8 @@ Live Trello critical-path acceptance, live ngrok/HAI credential acceptance, prod
 | Packaged Windows QA | Pass: version 2.3.36, nine diagnostics, no exposed secrets, HAI `never_direct`, four processes, normal close, port released, four runtime modules byte-identical |
 | Packaged resource sample | Directional pass: 375.4 MB working set, 369.9 MB private bytes, 1.453 cumulative CPU seconds after five seconds |
 | Windows installer | Pass: 109,494,173 bytes, version 2.3.36, unsigned, SHA-256 `E496C4BA3E0FD53BAF0B95801C2DC3500A0182956431118151D14355C62F88EB` |
-| Fresh-clone GitHub CI | Pending publication |
-| GitHub installer artifact | Pending publication and independent verification |
+| Fresh-clone GitHub CI | Pass: source `ad7311b5cc036c83432c0994aff2590970b783ca`, run `31767164629`, both jobs green |
+| GitHub installer artifact | Pass: artifact `9206772471`; exactly one unsigned version 2.3.36 EXE; 109,494,377 bytes; SHA-256 `8D6E57890FCB080687F670B9E7BA157CDF97B81E688F8533FFA5EF541D43ECD1` |
 | External gates | Live provider/ngrok/HAI acceptance, hosted multi-channel observation, production-like restore/deployment rollback, code signing, clean-VM scaling, and assistive-technology certification remain external |
 
 ## 2.3.35 continuation evidence

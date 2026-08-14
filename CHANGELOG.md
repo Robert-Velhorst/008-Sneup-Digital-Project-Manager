@@ -16,7 +16,7 @@
 - A dedicated MongoDB verifier completed simultaneous provider-response and manual-resolution races in 2.44 seconds with one response owner, one retained WorkerResponse, exact primary-follow-up resolution, the adjacent same-card follow-up unchanged, one manual terminal winner, zero Trello attempts, and zero provider writes.
 - The 60-board/15,000-card/180-health-snapshot profile measured 739.7 ms p50, 741.7 ms p95, and 352.2 MB peak RSS within existing budgets. In-app Browser acceptance rendered ENH-035 and the approval ledger without console errors or horizontal overflow at desktop and 390 x 844.
 - HAI retained only snapshot/proposal paths, human approval, `never_direct`, and no approval or execution endpoint. The locally built unsigned `Sneup-Setup-2.3.36.exe` is 109,494,173 bytes, version 2.3.36, SHA-256 `E496C4BA3E0FD53BAF0B95801C2DC3500A0182956431118151D14355C62F88EB`; packaged metadata, nine diagnostics, secret redaction, HAI policy, normal close, port release, and four source-identical runtime modules passed.
-- GitHub source, CI, and independently downloaded artifact evidence are pending publication.
+- Published source `ad7311b5cc036c83432c0994aff2590970b783ca`. GitHub run `31767164629` passed quality in 1 minute 12 seconds and Windows build, packaged launch, verification, and upload in 2 minutes 32 seconds. Artifact `9206772471` is 109,500,400 bytes with archive digest `sha256:321057b378f732e6be61116a7d1da3268a6fb968b269a3af092389dd2d15b868`; its independently downloaded installer is 109,494,377 bytes, unsigned, version 2.3.36, SHA-256 `8D6E57890FCB080687F670B9E7BA157CDF97B81E688F8533FFA5EF541D43ECD1`.
 
 ## 2.3.35 - 2026-08-14
 

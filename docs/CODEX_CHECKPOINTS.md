@@ -17,10 +17,10 @@
 | Data integrity and repair | Bounded dry-run/apply, review-only unsafe findings, all-workspace Trello index migration, audit evidence, and disposable MongoDB verification | Complete locally |
 | Data retention | Owner-only opt-in policy, bounded preview/apply, protected evidence, distributed lease, indexed queries, pre/post audits, real MongoDB proof, and live browser flow | Complete locally |
 | Windows package | 2.3.36 NSIS build, nine demo diagnostics, HAI smoke, metadata, SHA-256, four source-identical changed runtime modules, repeatable resource sample, and clean close | Complete locally; publisher signing external |
-| Fresh clone | Exact 2.3.36 GitHub evidence is pending publication | Pending for 2.3.36 |
+| Fresh clone | Exact 2.3.36 source `ad7311b5cc036c83432c0994aff2590970b783ca` passed clean GitHub Node 24 and Windows jobs | Complete for 2.3.36 |
 | Browser and Windows UI | ENH-035 filtering, terminal follow-up-control suppression, approval-ledger rendering, and desktop/390 px containment passed in the in-app Browser and DOM regressions | Complete for these flows; screen-reader/clean-VM evidence pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter, strict listener validation, exact runtime origin admission, and restart-safe URL cleanup | Complete locally; live credentials external |
-| GitHub CI | 2.3.36 source, run, and independently downloaded artifact evidence are pending publication | Pending for 2.3.36 |
+| GitHub CI | 2.3.36 run `31767164629` passed both jobs; artifact `9206772471` was independently downloaded and verified | Complete for 2.3.36 |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |
@@ -32,7 +32,7 @@
 - Safety boundary: losing response rows are removed, terminal transitions compare status and revision, provider audit sources normalize into a supported taxonomy, authenticated workspace ownership is explicit, and no response path issues a provider write.
 - Verification: lint; 126 suites/915 tests; 5/5 safety evaluation; two zero-vulnerability audits; positive five-secret validation; disposable real-Mongo response/resolution races; 60-board/15,000-card profile; in-app Browser desktop/390 px acceptance; HAI contract; and packaged Windows behavior/source parity.
 - Installer: `release/Sneup-Setup-2.3.36.exe`, 109,494,173 bytes, unsigned, SHA-256 `E496C4BA3E0FD53BAF0B95801C2DC3500A0182956431118151D14355C62F88EB`.
-- GitHub: source, CI, and independently downloaded artifact evidence pending publication.
+- GitHub: source `ad7311b5cc036c83432c0994aff2590970b783ca`; run `31767164629`; quality 1 minute 12 seconds; Windows build/runtime 2 minutes 32 seconds; independently verified artifact `9206772471`, 109,494,377-byte installer, unsigned, SHA-256 `8D6E57890FCB080687F670B9E7BA157CDF97B81E688F8533FFA5EF541D43ECD1`.
 - External gates remain: live provider/ngrok/HAI acceptance, hosted multi-channel observation, production deployment and restore, publisher signing, clean-VM scaling, and assistive-technology certification.
 
 ## 2026-08-14 - Concurrent review integrity release checkpoint
