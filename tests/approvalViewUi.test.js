@@ -208,6 +208,17 @@ describe('demand-loaded approval view', () => {
     harness.dom.window.close();
   });
 
+  test('does not render response or resolution controls for a terminal follow-up', () => {
+    const harness = createHarness('en');
+    harness.state.ledger.followUps[0].status = 'resolved';
+    harness.controller.render();
+
+    expect(harness.elements.followUps.querySelector('[data-followup-response]')).toBeNull();
+    expect(harness.elements.followUps.querySelector('[data-followup-action]')).toBeNull();
+    expect(harness.elements.followUps.textContent).toContain('Follow-up evidence remains verbatim.');
+    harness.dom.window.close();
+  });
+
   test('renders and saves a bounded Dutch daily-brief policy once with guarded values', async () => {
     const harness = createHarness('nl');
     const policy = {

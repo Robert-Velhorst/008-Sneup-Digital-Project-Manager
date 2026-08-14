@@ -39,6 +39,9 @@ const DEFAULT_APPROVAL_TTL_HOURS = Object.freeze({
 });
 const CHAT_RESPONSE_TYPES = new Set(['acknowledged', 'completed', 'blocked', 'needs_help']);
 const WORKER_RESPONSE_SOURCES = new Set(['trello_comment', 'slack', 'teams', 'google_chat', 'discord', 'mattermost', 'webex', 'email', 'web_chat', 'api', 'manual', 'system']);
+const INTERVENTION_RESPONSE_TYPES = new Set([...CHAT_RESPONSE_TYPES, 'ignored']);
+const RESPONSE_ELIGIBLE_INTERVENTION_TYPES = ['comment', 'follow_up', 'escalate'];
+const ACTIVE_FOLLOW_UP_STATUSES = new Set(['scheduled', 'due']);
 const MAX_LEDGER_TIMELINE_ENTRIES = 100;
 const APPROVABLE_RECOMMENDATION_STATUSES = new Set(['pending', 'change_requested', 'snoozed', 'delegated']);
 const REJECTABLE_RECOMMENDATION_STATUSES = new Set(['pending', 'approved', 'change_requested', 'snoozed', 'delegated']);
@@ -3049,32 +3052,101 @@ class OperationsLedgerService {
       error.statusCode = 400;
       throw error;
     }
+    if (!ACTIVE_FOLLOW_UP_STATUSES.has(followUp.status)) {
+      const error = new Error(`A follow-up in ${followUp.status || 'unknown'} status cannot be changed`);
+      error.code = 'SNEUP_FOLLOW_UP_TERMINAL';
+      error.statusCode = 409;
+      throw error;
+    }
 
-    followUp.status = nextStatus;
-    followUp.resolvedAt = new Date();
-    followUp.resolvedBy = body.resolvedBy || 'sneup';
-    followUp.resolutionNote = body.resolutionNote || '';
-    followUp.outcome = body.outcome || (nextStatus === 'escalated' ? 'needs_attention' : 'manual');
-    await followUp.save();
+    const followUpQuery = this.workspaceQuery(body, {
+      _id: followUp._id,
+      status: followUp.status
+    });
+    followUpQuery.__v = Number.isInteger(followUp.__v) ? followUp.__v : { $exists: false };
+    const resolvedFollowUp = await FollowUpPlan.findOneAndUpdate(followUpQuery, {
+      $set: {
+        status: nextStatus,
+        resolvedAt: new Date(),
+        resolvedBy: body.resolvedBy || 'sneup',
+        resolutionNote: body.resolutionNote || '',
+        outcome: body.outcome || (nextStatus === 'escalated' ? 'needs_attention' : 'manual')
+      },
+      $inc: { __v: 1 }
+    }, { new: true, runValidators: true });
+    if (!resolvedFollowUp) {
+      const error = new Error('Follow-up changed while this resolution was being saved. Refresh its current state.');
+      error.code = 'SNEUP_FOLLOW_UP_CONFLICT';
+      error.statusCode = 409;
+      throw error;
+    }
 
     await this.recordAudit({
       entityType: 'follow_up_plan',
-      entityId: followUp._id,
+      entityId: resolvedFollowUp._id,
       action: nextStatus === 'escalated' ? 'follow_up_escalated' : 'follow_up_resolved',
-      actor: followUp.resolvedBy,
+      actor: resolvedFollowUp.resolvedBy,
       source: 'api',
       riskLevel: nextStatus === 'escalated' ? 'medium' : 'low',
-      recommendationId: followUp.recommendationId,
-      afterState: followUp.toObject()
+      recommendationId: resolvedFollowUp.recommendationId,
+      afterState: resolvedFollowUp.toObject()
     });
 
-    return followUp;
+    return resolvedFollowUp;
+  }
+
+  async discardUncommittedWorkerResponse(response) {
+    if (!response?._id) return;
+    try {
+      await WorkerResponse.deleteOne({
+        _id: response._id,
+        workspaceId: response.workspaceId,
+        interventionId: response.interventionId
+      });
+    } catch (error) {
+      logger.error('Failed to remove an uncommitted worker response after a response conflict.', error);
+    }
+  }
+
+  interventionOutcomeForResponse(responseType) {
+    if (['completed', 'acknowledged'].includes(responseType)) return 'successful';
+    if (['blocked', 'needs_help'].includes(responseType)) return 'unsuccessful';
+    return null;
+  }
+
+  workerResponseAuditSource(source) {
+    if (source === 'manual') return 'manual';
+    if (source === 'api') return 'api';
+    if (source === 'system') return 'system';
+    if (source === 'trello_comment') return 'trello';
+    return 'worker';
+  }
+
+  followUpMatcherForWorkerResponse(response, body = {}) {
+    const workspaceId = this.resolveWorkspaceId(body.workspaceId || response.workspaceId);
+    const matcher = {
+      workspaceId,
+      status: { $in: [...ACTIVE_FOLLOW_UP_STATUSES] }
+    };
+    if (response.recommendationId) return { ...matcher, recommendationId: response.recommendationId };
+    if (response.interventionId) return { ...matcher, interventionId: response.interventionId };
+    if (response.cardId && response.memberId) {
+      return { ...matcher, cardId: response.cardId, memberId: response.memberId };
+    }
+    if (response.cardId) return { ...matcher, cardId: response.cardId };
+    return null;
   }
 
   async recordWorkerResponse(body = {}) {
     this.requireDatabase();
     const workspaceId = this.resolveWorkspaceId(body.workspaceId);
     const responseText = normalizeWorkerResponseText(body.responseText);
+    const responseType = body.responseType || 'other';
+    if (body.interventionId && !INTERVENTION_RESPONSE_TYPES.has(responseType)) {
+      const error = new Error('An intervention response type must be acknowledged, completed, blocked, needs help, or ignored');
+      error.statusCode = 400;
+      throw error;
+    }
     const response = await WorkerResponse.create({
       workspaceId,
       recommendationId: body.recommendationId,
@@ -3083,25 +3155,52 @@ class OperationsLedgerService {
       cardId: body.cardId,
       memberId: body.memberId,
       responseText,
-      responseType: body.responseType || 'other',
+      responseType,
       source: normalizeWorkerResponseSource(body.source)
     });
 
     if (body.interventionId) {
-      const intervention = await Intervention.findOne({ _id: body.interventionId, workspaceId });
-      if (intervention && body.memberId) {
-        await intervention.recordResponse(body.memberId, body.responseType || 'other');
+      const responseState = {
+        workerResponseId: response._id,
+        memberId: body.memberId,
+        respondedAt: response.receivedAt || new Date(),
+        responseType
+      };
+      const interventionUpdate = { $set: { response: responseState }, $inc: { __v: 1 } };
+      const outcome = this.interventionOutcomeForResponse(responseType);
+      if (outcome) interventionUpdate.$set.outcome = outcome;
+      let intervention;
+      try {
+        intervention = await Intervention.findOneAndUpdate({
+          _id: body.interventionId,
+          workspaceId,
+          status: 'executed',
+          type: { $in: RESPONSE_ELIGIBLE_INTERVENTION_TYPES },
+          memberId: body.memberId,
+          'response.respondedAt': { $exists: false }
+        }, interventionUpdate, { new: true, runValidators: true });
+      } catch (error) {
+        await this.discardUncommittedWorkerResponse(response);
+        throw error;
+      }
+      if (!intervention) {
+        await this.discardUncommittedWorkerResponse(response);
+        const error = new Error('A response is already recorded or the intervention is no longer eligible. Refresh its current state.');
+        error.code = 'SNEUP_WORKER_RESPONSE_CONFLICT';
+        error.statusCode = 409;
+        throw error;
       }
     }
 
     const followUpResolution = await this.resolveFollowUpsForWorkerResponse(response, body);
 
     await this.recordAudit({
+      workspaceId,
       entityType: 'worker_response',
       entityId: response._id,
       action: 'worker_response_recorded',
       actor: body.actor || 'worker',
-      source: response.source,
+      source: this.workerResponseAuditSource(response.source),
       riskLevel: 'low',
       recommendationId: response.recommendationId,
       afterState: this.workerResponseAuditState(response, followUpResolution)
@@ -3109,11 +3208,12 @@ class OperationsLedgerService {
 
     if (followUpResolution.modifiedCount > 0) {
       await this.recordAudit({
+        workspaceId,
         entityType: 'worker_response',
         entityId: response._id,
         action: 'follow_ups_resolved_from_worker_response',
         actor: body.actor || 'worker',
-        source: response.source,
+        source: this.workerResponseAuditSource(response.source),
         riskLevel: followUpResolution.status === 'escalated' ? 'medium' : 'low',
         recommendationId: response.recommendationId,
         afterState: followUpResolution
@@ -3185,29 +3285,10 @@ class OperationsLedgerService {
       return { matchedCount: 0, modifiedCount: 0, status: 'open' };
     }
 
-    const workspaceId = this.resolveWorkspaceId(body.workspaceId || response.workspaceId);
-    const matcher = {
-      workspaceId,
-      status: { $in: ['scheduled', 'due'] }
-    };
-
-    const or = [];
-    if (response.recommendationId) or.push({ recommendationId: response.recommendationId });
-    if (response.interventionId) or.push({ interventionId: response.interventionId });
-    if (response.cardId && response.memberId) {
-      or.push({
-        cardId: response.cardId,
-        memberId: response.memberId
-      });
-    } else if (response.cardId) {
-      or.push({ cardId: response.cardId });
-    }
-
-    if (or.length === 0) {
+    const matcher = this.followUpMatcherForWorkerResponse(response, body);
+    if (!matcher) {
       return { matchedCount: 0, modifiedCount: 0, status: 'unmatched' };
     }
-
-    matcher.$or = or;
 
     const needsAttention = ['blocked', 'needs_help'].includes(responseType);
     const nextStatus = needsAttention ? 'escalated' : 'resolved';

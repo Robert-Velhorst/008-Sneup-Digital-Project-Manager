@@ -12,6 +12,16 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-14 worker follow-up integrity continuation
+
+- Re-audited worker-response ownership and follow-up correlation. One response could close unrelated same-card follow-ups, simultaneous sources could retain duplicate response rows and overwrite intervention evidence, stale manual requests could overwrite terminal status, and provider-specific audit sources could fail after the response committed.
+- Added strongest-identity follow-up matching, atomic intervention response ownership, losing-response cleanup, exact response binding, revision-aware terminal guards, authenticated-workspace audit persistence, supported source normalization, and terminal follow-up control suppression.
+- A disposable real-Mongo verifier retained one winner and WorkerResponse from simultaneous provider inputs, bound that exact ID, resolved only the primary follow-up, left the adjacent same-card follow-up due, retained one winner from simultaneous manual resolutions, created zero Trello attempts, issued zero provider writes, and dropped its guarded database.
+- The final local gate passed 126 suites/915 tests, lint, 5/5 safety evaluation, two zero-vulnerability audits, positive five-secret production validation, and a 60-board/15,000-card/180-health profile at 739.7 ms p50, 741.7 ms p95, and 352.2 MB peak RSS.
+- In-app Browser rendered ENH-035 and the approval ledger at desktop and 390 x 844 with no horizontal overflow or console errors. HAI retained snapshot/proposal-only routes, human approval, `never_direct`, and no approval or execution endpoint.
+- Built and verified unsigned `release/Sneup-Setup-2.3.36.exe`, 109,494,173 bytes, version 2.3.36, SHA-256 `E496C4BA3E0FD53BAF0B95801C2DC3500A0182956431118151D14355C62F88EB`. The packaged app passed at 375.4 MB working set, 369.9 MB private memory, and 1.453 CPU seconds; all four changed runtime modules are byte-identical inside the ASAR.
+- GitHub source, CI, and independently downloaded artifact evidence are pending publication.
+
 ## 2026-08-14 concurrent-review continuation
 
 - Re-audited exact-payload approval and found that simultaneous approve/reject/change/edit requests used read-then-save transitions. A stale queue snooze or delegate request could also rewrite an approved or executed recommendation into a reviewable state, permitting a second approval and duplicate provider action.

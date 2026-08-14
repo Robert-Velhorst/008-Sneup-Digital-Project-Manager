@@ -80,6 +80,10 @@ const interventionSchema = new mongoose.Schema({
     type: Date
   },
   response: {
+    workerResponseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'WorkerResponse'
+    },
     memberId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Member'

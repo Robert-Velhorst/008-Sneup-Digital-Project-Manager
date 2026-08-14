@@ -1030,10 +1030,11 @@
     function renderFollowUp(followUp) {
       const followUpId = getId(followUp._id || followUp.id);
       const interventionId = getId(followUp.interventionId);
+      const canManageFollowUp = ['scheduled', 'due'].includes(followUp.status || 'due');
       return `<div class="item">
         <div class="item-title"><strong>${escapeHtml(followUp.reason || t('Follow-up needed'))}</strong><span class="pill review">${es(followUp.status, 'due')}</span></div>
         <div class="meta"><span>${et('Due {date}', { date: fd(followUp.dueAt) })}</span><span>${escapeHtml(followUp.nextAction || t('Review worker response'))}</span></div>
-        ${state.ledger.demoMode ? '' : `<div class="item-actions">${interventionId ? `<button class="button" data-followup-response="${escapeHtml(interventionId)}" type="button">${et('Record response')}</button>` : ''}<button class="button primary" data-followup-id="${escapeHtml(followUpId)}" data-followup-action="resolved" type="button">${et('Resolved')}</button><button class="button" data-followup-id="${escapeHtml(followUpId)}" data-followup-action="escalated" type="button">${et('Escalate')}</button></div>`}
+        ${state.ledger.demoMode || !canManageFollowUp ? '' : `<div class="item-actions">${interventionId ? `<button class="button" data-followup-response="${escapeHtml(interventionId)}" type="button">${et('Record response')}</button>` : ''}<button class="button primary" data-followup-id="${escapeHtml(followUpId)}" data-followup-action="resolved" type="button">${et('Resolved')}</button><button class="button" data-followup-id="${escapeHtml(followUpId)}" data-followup-action="escalated" type="button">${et('Escalate')}</button></div>`}
       </div>`;
     }
 

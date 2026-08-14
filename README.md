@@ -586,6 +586,8 @@ Release operators can verify the unpacked Windows app with `npm.cmd run verify:p
 
 Before changing the review or decision-queue lifecycle, set `SNEUP_REVIEW_CONCURRENCY_VERIFICATION_MONGO_URI` to a dedicated disposable MongoDB database named `sneup_review_concurrency_verification_*` and run `npm.cmd run verify:review-concurrency`. The verifier races authenticated decisions, checks exact approval ownership and stale queue rejection, proves no orphan decision records remain, and drops only that guarded database without contacting Trello.
 
+Before changing worker-response or follow-up correlation, set `SNEUP_FOLLOW_UP_VERIFICATION_MONGO_URI` to a dedicated disposable MongoDB database named `sneup_follow_up_verification_*` and run `npm.cmd run verify:follow-up-integrity`. The verifier races provider responses and manual resolutions, checks exact response ownership and follow-up identity, proves adjacent same-card work remains open, and drops only that guarded database without contacting Trello.
+
 ### MongoDB connection issues
 
 - Start MongoDB and verify `MONGODB_URI` points to the intended database.

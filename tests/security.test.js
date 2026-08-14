@@ -10367,20 +10367,22 @@ describe('follow-up accountability', () => {
 
     const updateMany = jest.fn().mockResolvedValue({ matchedCount: 1, modifiedCount: 1 });
     const auditCreate = jest.fn().mockResolvedValue({ _id: new mongoose.Types.ObjectId() });
-    const intervention = { recordResponse: jest.fn().mockResolvedValue({}) };
+    const intervention = { _id: interventionId, response: { workerResponseId: responseId } };
+    const findOneAndUpdate = jest.fn().mockResolvedValue(intervention);
 
     jest.doMock('mongoose', () => ({
       ...mongoose,
       connection: { readyState: 1 }
     }));
     jest.doMock('../src/models/WorkerResponse', () => ({
-      create: jest.fn().mockResolvedValue(response)
+      create: jest.fn().mockResolvedValue(response),
+      deleteOne: jest.fn()
     }));
     jest.doMock('../src/models/FollowUpPlan', () => ({
       updateMany
     }));
     jest.doMock('../src/models/Intervention', () => ({
-      findOne: jest.fn().mockResolvedValue(intervention)
+      findOneAndUpdate
     }));
     jest.doMock('../src/models/AuditEvent', () => ({
       create: auditCreate
@@ -10420,17 +10422,25 @@ describe('follow-up accountability', () => {
       responseType: 'completed'
     });
     expect(recordedResponse).not.toHaveProperty('responseText');
-    expect(intervention.recordResponse).toHaveBeenCalledWith(memberId, 'completed');
+    expect(findOneAndUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      _id: interventionId,
+      workspaceId,
+      status: 'executed',
+      memberId,
+      'response.respondedAt': { $exists: false }
+    }), expect.objectContaining({
+      $set: expect.objectContaining({
+        response: expect.objectContaining({ workerResponseId: responseId, responseType: 'completed' }),
+        outcome: 'successful'
+      }),
+      $inc: { __v: 1 }
+    }), { new: true, runValidators: true });
 
     expect(updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         workspaceId,
         status: { $in: ['scheduled', 'due'] },
-        $or: expect.arrayContaining([
-          { recommendationId },
-          { interventionId },
-          { cardId, memberId }
-        ])
+        recommendationId
       }),
       expect.objectContaining({
         $set: expect.objectContaining({
@@ -10441,6 +10451,7 @@ describe('follow-up accountability', () => {
         })
       })
     );
+    expect(updateMany.mock.calls[0][0]).not.toHaveProperty('$or');
     expect(auditCreate).toHaveBeenCalledWith(expect.objectContaining({
       action: 'worker_response_recorded'
     }));

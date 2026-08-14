@@ -1,5 +1,12 @@
 # Technical Audit
 
+## 2.3.36 worker follow-up integrity audit
+
+- Worker-response follow-up resolution previously used recommendation, intervention, card, and member predicates as alternatives. Two unanswered follow-ups on the same card could therefore be closed by one response even when they represented different recommendations and interventions.
+- Response creation and intervention updates were separate writes, so simultaneous sources could retain duplicate WorkerResponse rows and overwrite response evidence. Manual follow-up resolution also used read-then-save and provider-specific audit source names could fail the broad audit schema after the response had committed.
+- Added exact identity precedence, one atomic intervention response owner, losing-response cleanup, status-and-revision terminal guards, supported audit-source normalization, authenticated-workspace audits, and terminal-control suppression.
+- A disposable real-Mongo verifier raced two provider responses and two manual resolutions. It retained one exact response, changed only the matching follow-up, preserved an adjacent same-card follow-up, produced one manual winner, and created zero Trello attempts or provider writes. The full 126-suite/915-test gate, two zero-vulnerability audits, browser QA, portfolio profile, HAI contract, and packaged Windows verification passed.
+
 ## 2.3.35 concurrent-review audit
 
 - Approval, rejection, requested-change, and payload-edit paths previously read and saved a recommendation in separate operations. Two authenticated reviewers could therefore race, retain contradictory decision records, and overwrite one another's result.

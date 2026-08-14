@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.3.36 - 2026-08-14
+
+### Exact and race-safe worker follow-up evidence
+
+- Correlate worker responses by the strongest available identity in order: recommendation, intervention, card plus member, then card. A response can no longer close unrelated unanswered follow-ups that happen to share a card.
+- Atomically bind one worker response to an eligible executed communication intervention, remove a losing response from a simultaneous race, and preserve the winning response ID on the intervention.
+- Resolve manual follow-ups through status-and-revision compare-and-set transitions so stale requests cannot overwrite resolved, escalated, cancelled, or expired evidence.
+- Normalize provider-origin response audit sources into the supported audit taxonomy and persist both response and follow-up-resolution evidence in the authenticated workspace.
+- Hide response and resolution controls for terminal follow-ups and add focused service, security, and DOM regressions plus a guarded disposable real-Mongo verifier.
+
+### Verification
+
+- The full local gate passes 126 suites/915 tests, lint, and the 5/5 recommendation safety evaluation. Full and production dependency audits report zero vulnerabilities, and five purpose-separated production secrets pass without exposing values.
+- A dedicated MongoDB verifier completed simultaneous provider-response and manual-resolution races in 2.44 seconds with one response owner, one retained WorkerResponse, exact primary-follow-up resolution, the adjacent same-card follow-up unchanged, one manual terminal winner, zero Trello attempts, and zero provider writes.
+- The 60-board/15,000-card/180-health-snapshot profile measured 739.7 ms p50, 741.7 ms p95, and 352.2 MB peak RSS within existing budgets. In-app Browser acceptance rendered ENH-035 and the approval ledger without console errors or horizontal overflow at desktop and 390 x 844.
+- HAI retained only snapshot/proposal paths, human approval, `never_direct`, and no approval or execution endpoint. The locally built unsigned `Sneup-Setup-2.3.36.exe` is 109,494,173 bytes, version 2.3.36, SHA-256 `E496C4BA3E0FD53BAF0B95801C2DC3500A0182956431118151D14355C62F88EB`; packaged metadata, nine diagnostics, secret redaction, HAI policy, normal close, port release, and four source-identical runtime modules passed.
+- GitHub source, CI, and independently downloaded artifact evidence are pending publication.
+
 ## 2.3.35 - 2026-08-14
 
 ### Race-safe review authority

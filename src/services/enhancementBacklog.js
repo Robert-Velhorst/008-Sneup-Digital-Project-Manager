@@ -533,6 +533,24 @@ const enhancements = [
       'A stale queue item cannot change an approved, executing, executed, failed, rejected, or cancelled recommendation.',
       'Losing review races create no provider write and leave no orphan approval authority.'
     ]
+  },
+  {
+    id: 'ENH-035',
+    priority: 'P0',
+    area: 'operations',
+    title: 'Keep worker responses and follow-up outcomes exact and irreversible',
+    evidence: 'Worker responses now claim one executed communication intervention atomically and bind the winning response ID to it; a losing concurrent response is removed. Follow-up resolution uses recommendation identity first, then intervention identity, then card/member fallback, so one answer cannot close unrelated work on the same card. Manual follow-up resolution accepts only scheduled or due records and compares the exact revision. Terminal follow-ups render without stale response, resolve, or escalate controls. A disposable real-Mongo verifier races duplicate responses and conflicting manual outcomes while proving an adjacent same-card follow-up remains open and no Trello action occurs.',
+    impact: 'Prevents duplicate accountability evidence and avoids silently marking a different worker obligation complete.',
+    effort: 'M',
+    status: 'done',
+    nextStep: 'Observe hosted duplicate-response and conflict rates before changing operator retry guidance.',
+    acceptanceCriteria: [
+      'Only one concurrent response can bind to an executed intervention.',
+      'A losing response race leaves no duplicate WorkerResponse record.',
+      'Recommendation-linked responses resolve only that recommendation follow-up.',
+      'Terminal follow-ups cannot be overwritten by stale manual actions.',
+      'Response and follow-up integrity checks perform no provider write.'
+    ]
   }
 ];
 
