@@ -15,6 +15,9 @@
     'external', 'worker', 'overloaded', 'heavy', 'balanced', 'normal', 'light',
     'comment', 'follow up', 'performance notification', 'move card', 'reassign',
     'escalate', 'add label', 'set due date', 'add checklist', 'manual review',
+    'comment posted', 'card moved', 'source member removed', 'target member added',
+    'reassignment comment posted', 'local card membership synced',
+    'escalation comment posted', 'label added', 'due date set', 'checklist created',
     'blocking others', 'card stuck', 'member overloaded', 'no activity',
     'no response to followup', 'overdue', 'external waiting', 'missing next action',
     'robert required', 'stale', 'stuck', 'unassigned', 'va ready',
@@ -195,6 +198,17 @@
     'set due date': 'vervaldatum instellen',
     'add checklist': 'checklist toevoegen',
     'manual review': 'handmatige beoordeling',
+    'comment posted': 'reactie geplaatst',
+    'card moved': 'kaart verplaatst',
+    'source member removed': 'vorige eigenaar verwijderd',
+    'target member added': 'nieuwe eigenaar toegevoegd',
+    'reassignment comment posted': 'reactie over hertoewijzing geplaatst',
+    'local card membership synced': 'lokale kaarteigenaren gesynchroniseerd',
+    'escalation comment posted': 'escalatiereactie geplaatst',
+    'label added': 'label toegevoegd',
+    'due date set': 'vervaldatum ingesteld',
+    'checklist created': 'checklist aangemaakt',
+    'Checklist item {count} created': 'Checklistitem {count} aangemaakt',
     'blocking others': 'blokkeert anderen',
     'card stuck': 'kaart zit vast',
     'member overloaded': 'medewerker overbelast',
@@ -906,12 +920,19 @@
         || (attempt.status === 'succeeded' && attempt.recommendationId?.status === 'executing')
         || attempt.reconciliation?.status === 'required';
       const reconciliation = attempt.reconciliation || {};
-      const steps = values => (values || []).map(value => semantic(value)).join(', ');
+      const stepLabel = (value) => {
+        const checklistItem = String(value || '').match(/^checklist_item_(\d+)_created$/);
+        return checklistItem
+          ? t('Checklist item {count} created', { count: checklistItem[1] })
+          : semantic(value);
+      };
+      const steps = values => (values || []).map(stepLabel).join(', ');
       return `<div class="item">
         <div class="item-title"><strong>${es(attempt.actionType)}</strong><span class="pill ${attempt.status === 'failed' ? 'critical' : attempt.status === 'succeeded' ? 'healthy' : 'review'}">${es(attempt.status)}</span></div>
         <div class="meta"><span>${fd(attempt.startedAt || attempt.createdAt)}</span><span>${escapeHtml(attempt.errorMessage || t('No error recorded'))}</span></div>
         <details class="payload"><summary>${et('Attempt payload')}</summary><pre>${escapeHtml(JSON.stringify(attempt.payload || {}, null, 2))}</pre></details>
         ${reconciliation.status && reconciliation.status !== 'not_needed' ? `<div class="meta"><span>${es(reconciliation.status)}</span><span>${escapeHtml(reconciliation.reconciledBy || t('operator'))}</span><span>${fd(reconciliation.reconciledAt)}</span></div>` : ''}
+        ${reconciliation.reason ? `<div class="meta"><span>${escapeHtml(reconciliation.reason)}</span></div>` : ''}
         ${reconciliation.confirmedSteps?.length || reconciliation.pendingSteps?.length ? `<div class="meta">${reconciliation.confirmedSteps?.length ? `<span>${et('Confirmed: {steps}', { steps: steps(reconciliation.confirmedSteps) })}</span>` : ''}${reconciliation.pendingSteps?.length ? `<span>${et('Check: {steps}', { steps: steps(reconciliation.pendingSteps) })}</span>` : ''}</div>` : ''}
         ${needsReconciliation && attemptId && !state.ledger.demoMode ? `<div class="item-actions"><button class="button warn" data-trello-action-reconcile="${escapeHtml(attemptId)}" type="button">${et('Reconcile result')}</button></div>` : ''}
       </div>`;

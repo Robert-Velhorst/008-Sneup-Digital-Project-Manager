@@ -10,7 +10,7 @@ Sneup separates browser/API identity, workspace-scoped persistence, encrypted co
 - Role permissions and workspace ownership on API tokens, sessions, invitations, connectors, jobs, policies, recommendations, actions, and audit reads.
 - Independent 32+ character production peppers; separate connector encryption and OAuth-state secrets; placeholder and secret-reuse rejection.
 - OAuth state signing, redirect validation, fixed provider hosts, atomic expiring token-refresh leases, encrypted refresh-token rotation, secret-free refresh audits, SSRF/DNS protections where custom hosts are supported, redirect denial, timeouts, bounded pages, and redacted retained fields.
-- Exact approval payload snapshot, expiry, action policy, atomic claim, idempotency evidence, partial-write reconciliation, and no automatic retry after ambiguous writes.
+- Exact approval payload snapshot, expiry, action policy, atomic claim, idempotency evidence, timeout/reset/HTTP 408/5xx ambiguity classification, multi-step partial-write evidence, and no automatic retry after ambiguous writes.
 - Deployment emergency stop: set `SNEUP_PROVIDER_WRITES_DISABLED=true` and restart. Denials are audited before policy resolution or execution claim.
 - Logs and support bundles exclude secret values. The support bundle also excludes logs and user data entirely.
 

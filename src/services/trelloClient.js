@@ -1,5 +1,6 @@
 const { TrelloClient } = require('trello.js');
 const logger = require('../utils/logger');
+const { buildTrelloClientOptions } = require('../utils/trelloConfiguration');
 
 let trelloClient = null;
 
@@ -13,10 +14,7 @@ const initTrelloClient = () => {
       throw new Error('Trello API credentials not found in environment variables');
     }
     
-    trelloClient = new TrelloClient({
-      key: apiKey,
-      token: apiToken
-    });
+    trelloClient = new TrelloClient(buildTrelloClientOptions(process.env));
     
     logger.info('Trello client initialized successfully');
     return trelloClient;
@@ -273,12 +271,28 @@ const cardApi = {
         name
       });
       const createdItems = [];
-      for (const item of checkItems) {
-        const created = await client.checklists.createChecklistCheckItems({
-          id: checklist.id,
-          name: item
-        });
-        createdItems.push(created);
+      for (const [index, item] of checkItems.entries()) {
+        try {
+          const created = await client.checklists.createChecklistCheckItems({
+            id: checklist.id,
+            name: item
+          });
+          createdItems.push(created);
+        } catch {
+          const error = new Error('Trello checklist creation may be partially applied. Reconcile the observed checklist before taking another action.');
+          error.code = 'SNEUP_TRELLO_WRITE_RECONCILIATION_REQUIRED';
+          error.statusCode = 502;
+          error.requiresReconciliation = true;
+          error.reconciliationReason = 'The checklist was created before one or more checklist items could be confirmed.';
+          error.confirmedSteps = [
+            'checklist_created',
+            ...createdItems.map((_, createdIndex) => `checklist_item_${createdIndex + 1}_created`)
+          ];
+          error.pendingSteps = checkItems.slice(index).map((_, pendingIndex) => (
+            `checklist_item_${index + pendingIndex + 1}_created`
+          ));
+          throw error;
+        }
       }
       logger.info(`Added checklist ${name} to card ${cardId}`);
       return { checklist, checkItems: createdItems };

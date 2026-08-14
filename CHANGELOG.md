@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.3.30 - 2026-08-14
+
+### Fail-safe ambiguous Trello writes
+
+- Wired the existing `SNEUP_TRELLO_TIMEOUT_MS` setting into every Trello SDK request with strict 1-60 second validation, a 16 MB response ceiling, a 256 KB request ceiling, and redirect denial.
+- Kept timeout, connection-reset, HTTP 408/5xx, and local post-write snapshot outcomes claimed for manual reconciliation instead of labeling them as retryable failures. Definitive provider validation responses remain ordinary failures.
+- Added exact confirmed/uncertain step evidence for partially created checklists and retained existing reassignment evidence. The Approvals view now explains the reconciliation reason and localized steps.
+- Added first-run diagnostics for invalid timeout configuration without loading the Trello SDK.
+
+### Verification
+
+- The full local gate passes 116 suites/878 tests, lint, the 5/5 recommendation safety evaluation, two zero-vulnerability dependency audits, and positive five-secret production validation.
+- Cold startup imported 252 modules in 237.6 ms at 68.0 MB RSS; seven demo routes remained Mongo-free. A disposable real-Mongo 15,000-card profile measured 750.6 ms p50, 828.5 ms p95, and 428.5 MB peak RSS with bounded output, the intended compound index, approval required, and no provider writes.
+- In-app Browser acceptance passed the demand-loaded Approvals view, Dutch rendering, desktop and effective 749 px narrow containment, and zero current console warnings/errors. HAI exposed only bounded snapshot/proposal paths, advertised `never_direct`, and failed closed when durable proposal storage was unavailable.
+- Built and verified unsigned `Sneup-Setup-2.3.30.exe`: 109,487,238 bytes, SHA-256 `502DCF6BD59543A9148C3451DAC6FC8CD9E610B156220BBEE41DC6DEBBF5AA27`. Packaged verification passed product metadata, eight diagnostics, secret redaction, HAI policy, normal close, port release, and source-identical changed runtime files.
+
 ## 2.3.29 - 2026-08-14
 
 ### Bounded production database connections

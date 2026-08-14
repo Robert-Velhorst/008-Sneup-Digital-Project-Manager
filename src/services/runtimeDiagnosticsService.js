@@ -5,6 +5,7 @@ const {
   isProduction
 } = require('../utils/securityConfiguration');
 const { getProviderWriteSafetyStatus } = require('./providerWriteSafetyService');
+const { resolveTrelloTimeoutMs } = require('../utils/trelloConfiguration');
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1', 'localhost']);
 
@@ -22,6 +23,12 @@ const getRuntimeDiagnostics = ({ environment = process.env, nodeVersion = proces
   const hasTrelloKey = Boolean(String(environment.TRELLO_API_KEY || '').trim());
   const hasTrelloToken = Boolean(String(environment.TRELLO_API_TOKEN || '').trim());
   const trelloPlaceholder = isPlaceholder(environment.TRELLO_API_KEY) || isPlaceholder(environment.TRELLO_API_TOKEN);
+  let trelloConfigurationValid = true;
+  try {
+    resolveTrelloTimeoutMs(environment.SNEUP_TRELLO_TIMEOUT_MS);
+  } catch {
+    trelloConfigurationValid = false;
+  }
 
   checks.push(nodeMajor(nodeVersion) >= 22
     ? diagnostic('node_runtime', 'ok', `Node.js ${nodeVersion} satisfies the supported runtime`)
@@ -40,7 +47,9 @@ const getRuntimeDiagnostics = ({ environment = process.env, nodeVersion = proces
       production ? 'Live production mode requires an explicit MongoDB URI' : 'MongoDB URI is not explicit; the local default will be used'));
   }
 
-  if (hasTrelloKey !== hasTrelloToken) {
+  if (!trelloConfigurationValid) {
+    checks.push(diagnostic('trello_credentials', 'error', 'Trello request timeout must be a whole number from 1000 to 60000 milliseconds'));
+  } else if (hasTrelloKey !== hasTrelloToken) {
     checks.push(diagnostic('trello_credentials', 'error', 'Trello API key and token must be configured together'));
   } else if (!hasTrelloKey) {
     checks.push(diagnostic('trello_credentials', liveMode ? 'warning' : 'ok',

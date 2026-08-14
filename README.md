@@ -218,6 +218,8 @@ Permanent deletion is available only to the authenticated owner of an archived w
 
 Trello writes remain approval-gated regardless of a workspace rule. A rule can pause a write action, raise its risk, or route its decision to a stricter owner. An optional future pause review time makes an overdue pause visible, but it never re-enables an action automatically. Re-enabling a paused action or relaxing a prior workspace rule requires explicit confirmation and creates an audit event. The Workspace command center shows the latest bounded policy history. The executor resolves this policy immediately before its atomic execution claim, so a pause also blocks recommendations approved before the policy changed. Approved payloads also expire before execution (critical: 4 hours, high: 24 hours, medium: 72 hours, low: 168 hours by default); Sneup returns an expired item to the internal decision queue, records the expiry, and requires review of the unchanged protected payload before any provider write. Operators can shorten or extend each risk window only within 1 to 168 hours through `SNEUP_APPROVAL_TTL_CRITICAL_HOURS`, `SNEUP_APPROVAL_TTL_HIGH_HOURS`, `SNEUP_APPROVAL_TTL_MEDIUM_HOURS`, and `SNEUP_APPROVAL_TTL_LOW_HOURS`. A separate bounded outcome worker rechecks completed actions only against existing Sneup evidence after a 24-hour settling window by default; it never sends another provider request, skips already-confirmed outcomes, and avoids writing duplicate unchanged audit events.
 
+Every Trello request uses the validated `SNEUP_TRELLO_TIMEOUT_MS` boundary plus bounded request and response sizes. A timeout, connection reset, HTTP 408/5xx result, or known multi-step partial result is not treated as proof that a write failed. Sneup leaves the exact recommendation claimed, records confirmed and uncertain steps, and requires operator reconciliation against Trello evidence before another action can be taken. Definitive validation responses such as HTTP 400 remain ordinary failures.
+
 Sneup also retains a workspace-scoped, read-only recommendation-feedback signal for approval, rejection, change-request, execution, and outcome status. This supports operator reporting through `GET /api/analytics/recommendation-feedback`, but it is never read by policy resolution or execution authorization, so prior acceptance patterns cannot weaken approval requirements.
 
 ### Feature Rollouts
@@ -549,6 +551,7 @@ pm2 startup
 |----------|-------------|---------|
 | `TRELLO_API_KEY` | Trello API key | Required |
 | `TRELLO_API_TOKEN` | Trello API token | Required |
+| `SNEUP_TRELLO_TIMEOUT_MS` | Whole-number Trello request timeout in milliseconds (1000-60000); ambiguous write timeouts require reconciliation and are never retried | `15000` |
 | `MONGODB_URI` | MongoDB connection string | `mongodb://localhost:27017/sneup` |
 | `SNEUP_MONGODB_MAX_POOL_SIZE` | Maximum application sockets per MongoDB server and Sneup process (1-200) | `20` |
 | `SNEUP_MONGODB_MIN_POOL_SIZE` | Minimum retained application sockets; zero releases idle capacity | `0` |

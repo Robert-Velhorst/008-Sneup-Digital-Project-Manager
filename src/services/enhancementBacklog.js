@@ -264,11 +264,11 @@ const enhancements = [
     priority: 'P0',
     area: 'autonomy',
     title: 'Make approved Trello action execution single-claim and fail-safe',
-    evidence: 'Approved Trello writes atomically claim the recommendation from approved to executing, reject forged no-approval write records, remain claimed if post-write ledger finalization fails, and expose an operator-only reconciliation path that records observed provider evidence without issuing another Trello request.',
+    evidence: 'Approved Trello writes atomically claim the recommendation from approved to executing, reject forged no-approval write records, remain claimed if post-write ledger finalization fails, and expose an operator-only reconciliation path that records observed provider evidence without issuing another Trello request. The Trello SDK now uses a validated 1-60 second timeout, bounded request/response sizes, and no redirects. Timeouts, resets, HTTP 408/5xx responses, local post-write snapshot faults, and partially created checklists retain the claim with exact confirmed/uncertain step evidence instead of becoming retryable failures.',
     impact: 'Prevents duplicate comments, moves, assignments, labels, and other consequential provider writes under concurrent requests or partial internal failures.',
     effort: 'M',
     status: 'done',
-    nextStep: 'Add digest and quiet-hour controls to the delivered reconciliation alert policies.',
+    nextStep: 'Collect live provider acceptance evidence for timeout and reset handling before tuning the 15-second default.',
     acceptanceCriteria: [
       'Only one executor can claim an approved provider write.',
       'Provider writes cannot be executed from a record that disables required approval.',

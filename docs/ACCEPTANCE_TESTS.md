@@ -10,7 +10,7 @@
 | A06 | Approval snapshot and expiry | `approvalExpiry.test.js`, `security.test.js` | Review current payload in command center | Pass |
 | A07 | Single provider write | atomic claim and ledger tests | Execute one reversible Trello action | Automated pass, provider pending |
 | A08 | Emergency stop | `runtimeDiagnostics.test.js`, `security.test.js` | Set flag, restart, confirm `/ready` degraded and write denied | Pass locally |
-| A09 | Ambiguous write reconciliation | reassignment and reconciliation tests | Simulate partial provider failure | Automated pass |
+| A09 | Ambiguous write reconciliation | `trelloClientSafety.test.js`, `trelloWriteReconciliation.test.js`, `trelloExecutionAmbiguity.test.js`, reassignment, and reconciliation tests | Simulate an accepted write with a lost provider response | Automated pass; provider simulation pending |
 | A10 | Follow-up and outcome learning | follow-up/outcome/learning tests | Observe delayed synced evidence | Automated pass, elapsed live run pending |
 | A11 | Connector read-only guarantee | adapter, OAuth renewal, contention, malformed-response, and safety-profile tests | Provider consent review | Pass for code; consent external |
 | A12 | Notifications require explicit policy | notification tests | Verified sender and destination | Automated pass, delivery pending |

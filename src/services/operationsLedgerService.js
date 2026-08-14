@@ -45,7 +45,36 @@ const REJECTABLE_RECOMMENDATION_STATUSES = new Set(['pending', 'approved', 'chan
 const CHANGEABLE_RECOMMENDATION_STATUSES = new Set(['pending', 'approved', 'snoozed', 'delegated']);
 const PAYLOAD_EDITABLE_RECOMMENDATION_STATUSES = new Set(['pending', 'change_requested', 'snoozed', 'delegated']);
 const ACTIVE_DECISION_QUEUE_STATUSES = ['open', 'approved', 'change_requested', 'snoozed', 'delegated'];
+const AMBIGUOUS_TRELLO_WRITE_CODES = new Set([
+  'ECONNABORTED',
+  'ECONNRESET',
+  'EPIPE',
+  'ERR_CANCELED',
+  'ERR_NETWORK',
+  'ETIMEDOUT',
+  'UND_ERR_BODY_TIMEOUT',
+  'UND_ERR_HEADERS_TIMEOUT',
+  'UND_ERR_SOCKET'
+]);
 const getWorkspaceModel = () => require('../models/Workspace');
+
+const isAmbiguousTrelloWriteError = (error) => {
+  if (error?.requiresReconciliation === true) return true;
+
+  const status = Number(error?.response?.status || error?.status || 0);
+  if (status === 408 || status >= 500) return true;
+
+  const code = String(error?.code || '').toUpperCase();
+  if (AMBIGUOUS_TRELLO_WRITE_CODES.has(code)) return true;
+
+  const name = String(error?.name || '').toLowerCase();
+  const message = String(error?.message || '').toLowerCase();
+  return name === 'aborterror'
+    || message.includes('socket hang up')
+    || message.includes('network error')
+    || message.includes('timed out')
+    || message.includes('timeout');
+};
 
 const resolveSnoozedUntil = ({ snoozedUntil, defaultSnoozeHours, now = new Date() } = {}) => {
   const currentTime = now instanceof Date ? now : new Date(now);
@@ -1207,7 +1236,7 @@ class OperationsLedgerService {
         if (error.requiresReconciliation === true) {
           attempt.reconciliation = {
             status: 'required',
-            reason: error.reconciliationReason || 'A multi-step Trello action may be partially applied.',
+            reason: error.reconciliationReason || 'The Trello action result is not definitive and requires provider evidence.',
             confirmedSteps: error.confirmedSteps || [],
             pendingSteps: error.pendingSteps || [],
             detectedAt: attempt.finishedAt
@@ -1375,13 +1404,25 @@ class OperationsLedgerService {
       case 'follow_up':
       case 'performance_notification':
         this.requirePayload(payload, ['cardTrelloId', 'commentText']);
-        return trelloClient.cardApi.addComment(payload.cardTrelloId, payload.commentText);
+        return this.performTrelloWriteStep(
+          recommendation.actionType,
+          'comment_posted',
+          () => trelloClient.cardApi.addComment(payload.cardTrelloId, payload.commentText)
+        );
       case 'move_card':
         this.requirePayload(payload, ['cardTrelloId', 'targetListId']);
-        return trelloClient.cardApi.moveCard(payload.cardTrelloId, payload.targetListId);
+        return this.performTrelloWriteStep(
+          recommendation.actionType,
+          'card_moved',
+          () => trelloClient.cardApi.moveCard(payload.cardTrelloId, payload.targetListId)
+        );
       case 'reassign':
         this.requirePayload(payload, ['cardTrelloId', 'fromMemberTrelloId', 'toMemberTrelloId']);
-        await trelloClient.cardApi.removeMember(payload.cardTrelloId, payload.fromMemberTrelloId);
+        await this.performTrelloWriteStep(
+          recommendation.actionType,
+          'source_member_removed',
+          () => trelloClient.cardApi.removeMember(payload.cardTrelloId, payload.fromMemberTrelloId)
+        );
         try {
           await trelloClient.cardApi.addMember(payload.cardTrelloId, payload.toMemberTrelloId);
         } catch (error) {
@@ -1403,34 +1444,88 @@ class OperationsLedgerService {
           }
         }
         if (payload.cardId && payload.fromMemberId && payload.toMemberId) {
-          await Card.findOneAndUpdate(
-            { _id: payload.cardId, workspaceId: recommendation.workspaceId },
-            { $pull: { members: payload.fromMemberId } }
-          );
-          await Card.findOneAndUpdate(
-            { _id: payload.cardId, workspaceId: recommendation.workspaceId },
-            { $addToSet: { members: payload.toMemberId } }
-          );
+          try {
+            await Card.findOneAndUpdate(
+              { _id: payload.cardId, workspaceId: recommendation.workspaceId },
+              { $pull: { members: payload.fromMemberId } }
+            );
+            await Card.findOneAndUpdate(
+              { _id: payload.cardId, workspaceId: recommendation.workspaceId },
+              { $addToSet: { members: payload.toMemberId } }
+            );
+          } catch {
+            throw this.trelloWriteReconciliationError({
+              actionType: recommendation.actionType,
+              confirmedSteps: [
+                'source_member_removed',
+                'target_member_added',
+                ...(payload.commentText ? ['reassignment_comment_posted'] : [])
+              ],
+              pendingSteps: ['local_card_membership_synced'],
+              reason: 'The Trello reassignment completed before Sneup could update its local card snapshot.'
+            });
+          }
         }
         return { reassigned: true };
       case 'escalate':
         this.requirePayload(payload, ['cardTrelloId', 'commentText']);
-        await trelloClient.cardApi.addComment(payload.cardTrelloId, payload.commentText);
+        await this.performTrelloWriteStep(
+          recommendation.actionType,
+          'escalation_comment_posted',
+          () => trelloClient.cardApi.addComment(payload.cardTrelloId, payload.commentText)
+        );
         return { escalated: true };
       case 'add_label':
         this.requirePayload(payload, ['cardTrelloId', 'labelName']);
-        return trelloClient.cardApi.addLabel(payload.cardTrelloId, payload.labelName, payload.labelColor || 'red');
+        return this.performTrelloWriteStep(
+          recommendation.actionType,
+          'label_added',
+          () => trelloClient.cardApi.addLabel(payload.cardTrelloId, payload.labelName, payload.labelColor || 'red')
+        );
       case 'set_due_date':
         this.requirePayload(payload, ['cardTrelloId', 'due']);
-        return trelloClient.cardApi.updateCard(payload.cardTrelloId, {
-          due: payload.due
-        });
+        return this.performTrelloWriteStep(
+          recommendation.actionType,
+          'due_date_set',
+          () => trelloClient.cardApi.updateCard(payload.cardTrelloId, { due: payload.due })
+        );
       case 'add_checklist':
         this.requirePayload(payload, ['cardTrelloId', 'checklistName', 'checkItems']);
-        return trelloClient.cardApi.addChecklist(payload.cardTrelloId, payload.checklistName, payload.checkItems);
+        return this.performTrelloWriteStep(
+          recommendation.actionType,
+          'checklist_created',
+          () => trelloClient.cardApi.addChecklist(payload.cardTrelloId, payload.checklistName, payload.checkItems)
+        );
       default:
         throw new Error(`Unsupported approved Trello action: ${recommendation.actionType}`);
     }
+  }
+
+  async performTrelloWriteStep(actionType, pendingStep, operation) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (!isAmbiguousTrelloWriteError(error)) throw error;
+      if (error.requiresReconciliation === true) throw error;
+      throw this.trelloWriteReconciliationError({
+        actionType,
+        pendingSteps: [pendingStep],
+        reason: `Trello did not provide a definitive result for the approved ${actionType.replaceAll('_', ' ')} action.`
+      });
+    }
+  }
+
+  trelloWriteReconciliationError({ actionType, confirmedSteps = [], pendingSteps = [], reason }) {
+    const error = new Error(
+      `The approved Trello ${actionType.replaceAll('_', ' ')} action may have been applied. Reconcile provider evidence before taking another action.`
+    );
+    error.code = 'SNEUP_TRELLO_WRITE_RECONCILIATION_REQUIRED';
+    error.statusCode = 502;
+    error.requiresReconciliation = true;
+    error.reconciliationReason = reason;
+    error.confirmedSteps = confirmedSteps;
+    error.pendingSteps = pendingSteps;
+    return error;
   }
 
   requirePayload(payload, fields) {
@@ -1800,7 +1895,7 @@ class OperationsLedgerService {
         recommendationId: recommendation?._id ? String(recommendation._id) : attempt.recommendationId ? String(attempt.recommendationId) : null,
         sourceUrl: safeExternalSourceUrl(attempt.cardId?.url),
         message: partialResult
-          ? 'A multi-step action may be partially applied. Confirm the observed Trello result before any new action.'
+          ? 'The provider result is not definitive. Confirm the observed Trello result before any new action.'
           : severity === 'critical'
           ? `Unresolved for ${ageHours}h. Confirm the observed Trello result before any new action.`
           : severity === 'warning'
@@ -3380,3 +3475,4 @@ module.exports = operationsLedgerService;
 module.exports.OperationsLedgerService = OperationsLedgerService;
 module.exports.resolveSnoozedUntil = resolveSnoozedUntil;
 module.exports.buildLedgerTimeline = buildLedgerTimeline;
+module.exports.isAmbiguousTrelloWriteError = isAmbiguousTrelloWriteError;

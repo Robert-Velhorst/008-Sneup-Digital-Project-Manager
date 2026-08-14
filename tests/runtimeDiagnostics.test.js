@@ -80,6 +80,23 @@ describe('redacted runtime diagnostics', () => {
     ]));
   });
 
+  test('explains an invalid Trello timeout before provider startup', () => {
+    const report = getRuntimeDiagnostics({ environment: {
+      NODE_ENV: 'development',
+      SNEUP_DEMO_MODE: 'false',
+      TRELLO_API_KEY: 'configured-key',
+      TRELLO_API_TOKEN: 'configured-token',
+      SNEUP_TRELLO_TIMEOUT_MS: 'unbounded'
+    } });
+
+    expect(report.ready).toBe(false);
+    expect(report.checks).toContainEqual({
+      id: 'trello_credentials',
+      status: 'error',
+      summary: 'Trello request timeout must be a whole number from 1000 to 60000 milliseconds'
+    });
+  });
+
   test('fails closed when ngrok is enabled without enforced strong API authentication', () => {
     const report = getRuntimeDiagnostics({ environment: {
       NODE_ENV: 'development',

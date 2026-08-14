@@ -12,6 +12,18 @@
 
 This worklog records local engineering evidence. Live Trello, production MongoDB, code signing, hosting, and provider consent are not claimed.
 
+## 2026-08-14 ambiguous-Trello-write continuation
+
+- Reconciled the governing operations-ledger contract and audited provider execution under timeouts, resets, multi-step writes, and local finalization faults.
+- Found that `SNEUP_TRELLO_TIMEOUT_MS` was documented but not passed into `trello.js`, single-step ambiguous responses became ordinary failures, and checklist item faults lost evidence that the checklist already existed.
+- Added a dependency-free validated Trello transport configuration, startup diagnostics, no-redirect and request/response bounds, ambiguity classification, exact partial-step evidence, and operator-visible reconciliation reasons.
+- A service-level regression proves one timeout produces one provider call, leaves the recommendation claimed, saves `reconciliation.required`, and records the audit event. Definitive HTTP 400 responses remain ordinary failures.
+- The full local gate passed 116 suites/878 tests, lint, the 5/5 recommendation safety evaluation, two zero-vulnerability audits, positive five-secret production validation, and a production-source dynamic-execution scan with no shipped-app finding.
+- Cold startup imported 252 modules in 237.6 ms at 68.0 MB RSS and kept Mongoose unloaded through seven demo routes. The disposable real-Mongo 15,000-card profile measured 750.6 ms p50, 828.5 ms p95, 428.5 MB peak RSS, bounded 10/12/12 output, the intended compound index, approval required, and no provider writes; its database was dropped.
+- In-app Browser acceptance rendered one demand-loaded Approvals module in Dutch with no desktop or effective 749 px narrow overflow and zero current console warnings/errors.
+- HAI returned its 3.1.0 OpenAPI contract and bounded demo snapshot, advertised `never_direct`, exposed no approval or execution endpoint, and returned a fail-closed service-unavailable response when proposal durability required an unavailable database.
+- Built and verified unsigned `release/Sneup-Setup-2.3.30.exe`, 109,487,238 bytes, SHA-256 `502DCF6BD59543A9148C3451DAC6FC8CD9E610B156220BBEE41DC6DEBBF5AA27`. The four-process packaged demo used 359.2 MB working set and 293.2 MB private memory, retained eight healthy redacted diagnostics and HAI `never_direct`, closed normally, released its port, and contained source-identical changed runtime files.
+
 ## 2026-08-14 bounded-database-pool continuation
 
 - Reconciled the complete governing operations-ledger specification against current source and confirmed that recommendation, approval, exact-payload execution, Trello-attempt evidence, Robert/VA/team queues, follow-up, audit, HAI, ngrok, and Windows boundaries remain wired.

@@ -71,7 +71,8 @@ function createHarness(locale = 'nl') {
       }],
       actions: [{
         _id: 'attempt-1', actionType: 'comment', status: 'in_progress', createdAt: '2026-08-09T10:00:00.000Z',
-        errorMessage: 'Provider error evidence remains verbatim.', payload: { commentText: 'Attempt evidence.' }, reconciliation: { status: 'required' }
+        errorMessage: 'Provider error evidence remains verbatim.', payload: { commentText: 'Attempt evidence.' },
+        reconciliation: { status: 'required', reason: 'Provider result evidence remains verbatim.', confirmedSteps: [], pendingSteps: ['comment_posted'] }
       }],
       auditEvents: [{
         action: 'audit_action_evidence', source: 'approval_source_evidence', actor: 'Audit Actor Evidence',
@@ -150,6 +151,8 @@ describe('demand-loaded approval view', () => {
     expect(text).toContain('Recommendation Evidence Title');
     expect(text).toContain('Approval evidence remains verbatim.');
     expect(text).toContain('Provider error evidence remains verbatim.');
+    expect(text).toContain('Provider result evidence remains verbatim.');
+    expect(text).toContain('reactie geplaatst');
     expect(text).toContain('Worker Identity Evidence');
     expect(text).toContain('Audit Actor Evidence');
     expect(text).toContain('audit_action_evidence');
