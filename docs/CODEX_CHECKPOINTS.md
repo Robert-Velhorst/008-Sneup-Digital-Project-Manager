@@ -17,10 +17,10 @@
 | Data integrity and repair | Bounded dry-run/apply, review-only unsafe findings, all-workspace Trello index migration, audit evidence, and disposable MongoDB verification | Complete locally |
 | Data retention | Owner-only opt-in policy, bounded preview/apply, protected evidence, distributed lease, indexed queries, pre/post audits, real MongoDB proof, and live browser flow | Complete locally |
 | Windows package | 2.3.34 NSIS build, nine demo diagnostics, HAI smoke, metadata, SHA-256, four source-identical changed runtime modules, repeatable resource sample, and clean close | Complete locally; publisher signing external |
-| Fresh clone | 2.3.33 exact source `ee83ea53bcf2a019a213cc5b71bd6b2631b5c264`; 2.3.34 publication verification pending | Complete for 2.3.33; pending for 2.3.34 |
+| Fresh clone | 2.3.34 exact source `05839483c1df250ea6acb0d265ce0e9b55510e03` passed quality and Windows package/runtime jobs | Complete |
 | Browser and Windows UI | Critical Board Health evidence plus ENH-033 filtering and desktop/390 px containment passed in the in-app Browser | Complete for these flows; screen-reader/clean-VM evidence pending |
 | HAI and ngrok | Least-privilege HAI contract, HTTP smoke, fail-closed ngrok adapter, strict listener validation, exact runtime origin admission, and restart-safe URL cleanup | Complete locally; live credentials external |
-| GitHub CI | 2.3.33 run `31761836528` passed both jobs, including packaged-app launch; 2.3.34 publication verification pending | Complete for 2.3.33; pending for 2.3.34 |
+| GitHub CI | 2.3.34 run `31763249069` passed both jobs, including packaged-app launch; artifact `9205413905` independently verified | Complete |
 | Live providers | Organization-owned Trello/provider acceptance | External blocker |
 | Production deployment | Hosting, secrets, backup restore, canary, rollback | External blocker |
 | Signed installer | Publisher certificate | External blocker |
@@ -32,7 +32,7 @@
 - Resource boundary: one five-second aggregation uses the existing workspace/board/generated-at index and populates only bounded board identity fields.
 - Verification: lint; 124 suites/904 tests; 5/5 safety evaluation; two zero-vulnerability audits; positive five-secret validation; disposable 60-board/15,000-card/180-health-snapshot profile; in-app Browser desktop/390 px acceptance; HAI contract; and packaged Windows behavior/source parity.
 - Installer: `release/Sneup-Setup-2.3.34.exe`, 109,492,015 bytes, unsigned, SHA-256 `626687D4366379FA97700A8E0ADDA265C328C3619A870F317C9634ACC8EEEA67`.
-- GitHub: source, run, and independent artifact evidence pending publication.
+- GitHub: source `05839483c1df250ea6acb0d265ce0e9b55510e03`; run `31763249069`; quality 1 minute 19 seconds; Windows package/runtime 3 minutes 6 seconds; independently verified artifact `9205413905`.
 - External gates remain: live provider/ngrok/HAI acceptance, production deployment and restore, publisher signing, clean-VM scaling, and assistive-technology certification.
 
 ## 2026-08-14 - Active-work drain release checkpoint

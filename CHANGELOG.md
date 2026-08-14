@@ -15,6 +15,7 @@
 - Cold startup imported 254 modules in 264.4 ms at 70.6 MB RSS and kept Mongoose unloaded through Overview. The expanded 60-board/15,000-card/180-health-snapshot profile measured 615.2 ms p50, 653.7 ms p95, and 357.2 MB peak RSS; the latest-health query returned 60 unique boards in 17.3 ms through its exact compound index.
 - In-app Browser acceptance rendered the critical Board Health card and ENH-033 at desktop and 390 x 844 with equal client/scroll width. HAI exposed only bounded snapshot/proposal paths, required human approval for proposals, retained `never_direct`, and exposed no approval or execution operation.
 - Built and verified unsigned `Sneup-Setup-2.3.34.exe`: 109,492,015 bytes, SHA-256 `626687D4366379FA97700A8E0ADDA265C328C3619A870F317C9634ACC8EEEA67`. The exact CI packaged-app command passed product metadata, nine diagnostics, secret redaction, HAI policy, normal close, port release, and four byte-identical changed runtime modules; its five-second sample used 371.5 MB working set, 392.4 MB private memory, and 1.484 CPU seconds.
+- Published source `05839483c1df250ea6acb0d265ce0e9b55510e03`. GitHub run `31763249069` passed quality in 1 minute 19 seconds and Windows packaging plus packaged-app launch in 3 minutes 6 seconds. Artifact `9205413905` has archive digest `sha256:6ba5de40098a64796ffd7b386245827794ab0a156e81454fe0cca285abc72a2e`; its independently downloaded installer is 109,492,086 bytes, unsigned, version 2.3.34, SHA-256 `9107BA108E3F5FD4699717C42C133E984CF16DA69E4B7BCAA62CD78124ECA326`.
 
 ## 2.3.33 - 2026-08-14
 
