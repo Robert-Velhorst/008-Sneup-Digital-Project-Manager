@@ -1,670 +1,466 @@
-# Sneup - Autonomous AI-Powered Digital Project Manager for Trello
+# Sneup Digital Project Manager
 
-**Sneup** is an intelligent, autonomous project management system that manages 50+ Trello boards simultaneously with deep context understanding, bottleneck identification, task completion tracking, and autonomous team management.
+Sneup is a local-first, safety-first digital project manager. It reads work signals from the tools teams already use, turns them into a normalized project graph, detects risk and bottlenecks, prepares recommendations, and keeps consequential external actions behind explicit human approval.
 
-## Features
+The repository contains the complete Sneup application: an Express/MongoDB backend, a browser command center, an Electron desktop shell, read-only connector adapters, approval and audit systems, HAI integration endpoints, ngrok-aware remote access support, and a Windows 11 installer build.
 
-### Autonomous Management
-- **Automatic Synchronization**: Syncs all Trello boards with configurable intervals
-- **Real-time Updates**: Webhook integration for instant change detection
-- **Self-Learning System**: Learns from patterns and feedback to improve recommendations
+## Table of contents
 
-### Deep Context Understanding
-- **Cross-Board Intelligence**: Identifies relationships between cards across different boards
-- **Workflow Pattern Recognition**: Analyzes and learns workflow patterns
-- **Team Pattern Analysis**: Understands team member specialties and work styles
+- [Who Sneup is for](#who-sneup-is-for)
+- [Plain-English overview](#plain-english-overview)
+- [What Sneup does](#what-sneup-does)
+- [What Sneup deliberately does not do](#what-sneup-deliberately-does-not-do)
+- [Main application areas](#main-application-areas)
+- [Connector coverage](#connector-coverage)
+- [Safety model](#safety-model)
+- [Technology stack](#technology-stack)
+- [Run Sneup locally](#run-sneup-locally)
+- [Install on Windows 11](#install-on-windows-11)
+- [Configuration](#configuration)
+- [Developer workflow](#developer-workflow)
+- [API overview](#api-overview)
+- [Architecture](#architecture)
+- [Verification and release evidence](#verification-and-release-evidence)
+- [Operational docs](#operational-docs)
+- [Known external gates](#known-external-gates)
 
-### Advanced Analytics
-- **Bottleneck Detection**: Automatically identifies workflow bottlenecks with severity levels
-- **Project Health Monitoring**: Continuous assessment of project health and risk factors
-- **Velocity Tracking**: Measures team velocity and cycle time
-- **Predictive Analytics**: Estimates completion dates and identifies risk areas
+## Who Sneup is for
 
-### Intelligent Team Management
-- **Workload Balancing**: Analyzes team workload and suggests rebalancing
-- **Smart Task Assignment**: Automatically assigns tasks based on member availability and specialties
-- **At-Risk Card Detection**: Identifies cards at risk and suggests interventions
-- **Team Performance Tracking**: Monitors individual and team performance metrics
+Sneup is built for:
 
-### Natural Language Processing
-- **Sentiment Analysis**: Analyzes sentiment in comments and communications
-- **Keyword Extraction**: Identifies key topics and themes
-- **Action Item Detection**: Automatically detects action items in comments
-- **Communication Pattern Analysis**: Understands team communication styles
+- Non-technical operators who want one command center for projects, decisions, follow-ups, workload, and risk.
+- Project managers who need cross-tool visibility without manually checking every board, issue tracker, chat channel, document space, and reporting tool.
+- Delivery leads who want recommendations with evidence instead of untraceable automation.
+- Developers who need a real, inspectable Node.js application with tests, route authorization, MongoDB persistence, connector boundaries, and Windows packaging.
+- Security-conscious teams that want provider writes, notifications, retention, account linking, and remote access to be explicit, reviewable, and auditable.
 
-## Technology Stack
+## Plain-English overview
 
-All components are battle-tested, production-ready open source libraries:
+Most teams do project management across many places: Trello, Jira, Asana, Slack, GitHub, Google Workspace, Microsoft 365, Notion, spreadsheets, support tools, time tools, and incident tools. A human project manager has to keep checking all of them, connect the dots, ask people for updates, identify blockers, and decide what needs action.
 
-| Component | Library | Stars | Purpose |
-|-----------|---------|-------|---------|
-| Trello API | [trello.js](https://github.com/mrrefactoring/trello.js) | 20 | Modern TypeScript Trello client |
-| NLP | [natural](https://github.com/NaturalNode/natural) | 10.9k | Text analysis, sentiment, keywords |
-| Scheduling | [node-schedule](https://github.com/node-schedule/node-schedule) | 9.2k | Cron jobs for sync and analysis |
-| Database | [mongoose](https://github.com/Automattic/mongoose) | 26k+ | MongoDB ODM for data persistence |
-| Web Framework | [express](https://github.com/expressjs/express) | 65k+ | API and webhook endpoints |
-| Logging | [winston](https://github.com/winstonjs/winston) | 23k+ | Production logging |
+Sneup is designed to be that always-on project operations layer. It connects accounts, imports bounded read-only metadata, builds a shared picture of the work, highlights issues, drafts next actions, and asks for human approval before anything consequential happens outside Sneup.
 
-## Installation
+In short: Sneup can observe broadly, reason locally, and recommend clearly. It does not silently mutate external tools.
+
+## What Sneup does
+
+- Builds a normalized work graph from cards, issues, tasks, projects, people, comments, dependencies, schedules, incidents, reports, and tool metadata.
+- Tracks board and project health, stale work, capacity pressure, follow-up status, delivery risk, bottlenecks, and workflow quality.
+- Provides a command center with Overview, Connectors, Work Signals, Forecasts, Reports, Enhancements, Approvals, Jobs, Security, Set up, and Workspace Administration.
+- Supports English and Dutch operator UI in key command-center flows.
+- Runs scheduled sync, analytics, intervention, notification, retention, performance, and health jobs with workspace-scoped leases.
+- Keeps external provider writes approval-gated and blocks them entirely in demo mode or when the emergency stop is enabled.
+- Stores connector credentials encrypted at rest and excludes secrets from ordinary API responses, support bundles, exports, and logs.
+- Provides local browser usage, Electron desktop usage, Windows installer packaging, and optional authenticated ngrok ingress.
+- Exposes HAI integration endpoints for bounded snapshots and approval-gated proposals.
+- Generates operator-facing diagnostics and support bundles that do not print secrets.
+
+## What Sneup deliberately does not do
+
+- It does not claim live provider acceptance without owner-authorized credentials and tests.
+- It does not bypass the Sneup approval ledger for consequential provider actions.
+- It does not automatically re-enable paused actions or expired approval payloads.
+- It does not silently switch a production live runtime into demo mode when MongoDB is unavailable.
+- It does not expose a remote ngrok tunnel without API-key enforcement and a strong API key.
+- It does not store arbitrary webhook payloads, chat bodies, provider descriptions, document contents, or credential values as project evidence.
+- It does not treat unsigned Windows builds as production-trusted installers.
+
+## Main application areas
+
+### Command center
+
+The browser command center is the main human interface. It surfaces project status, linked accounts, work signals, approvals, forecasts, reports, enhancement findings, diagnostics, and workspace administration from one place.
+
+### Account connections
+
+Sneup includes a connector catalog and account-linking flow for OAuth, API key, personal access token, basic, manual, generic webhook, and generic REST connections. Credential-backed sync is available only where the repository has an implemented bounded read-only adapter.
+
+### Work Signals and graph
+
+Provider-specific records are normalized into common work items, actors, containers, dependencies, evidence references, freshness data, and review outcomes. This lets Sneup compare work across tools without pretending every provider has the same model.
+
+### Analytics and recommendations
+
+Sneup analyzes health, workload, velocity, cycle time, bottlenecks, stale dependencies, response quality, and risk. Recommendations enter a reviewable queue rather than executing directly.
+
+### Approvals and provider-write safety
+
+High-impact actions require human review of the exact payload. Workspace policy can pause action types, raise risk posture, route review to stricter owners, and expire approvals. A global emergency stop rejects provider writes before execution is claimed.
+
+### Notifications and reports
+
+Sneup can prepare reconciliation alerts, daily operations briefs, and reports through configured delivery policies. Destinations are encrypted and sends are claimed atomically to avoid duplicate delivery.
+
+### Workspace administration
+
+Workspace owners can manage users, sessions, invitations, exports, deletion, data integrity repair, and retention policies. Destructive or sensitive workflows require exact confirmations and audit evidence.
+
+### Desktop and remote access
+
+The Electron shell runs the local command center as a desktop app. Optional ngrok support can expose the loopback server through an authenticated HTTPS origin when the environment is configured safely.
+
+## Connector coverage
+
+The catalog currently contains 117 connectors across the tools project managers commonly used from 2015 through 2026. Of those, 113 have credential-backed read-only sync adapters in this repository, and 4 are catalog-only because a bounded read-only contract has not been verified.
+
+Catalog-only means Sneup knows about the tool, but will not accept credentials or pretend a safe sync path exists.
+
+### Project and work management
+
+Trello, Redmine, Backlog, Taiga, Podio, Asana, monday.com, ClickUp, Procore, Wrike, Smartsheet, Kantata OX (Mavenlink), LiquidPlanner New, Productive, Ravetree, Basecamp, Microsoft Project, Microsoft Planner, Teamwork, Zoho Projects, Todoist, MeisterTask, ProofHub, Paymo, Freedcamp, Adobe Workfront, Aha!, Productboard, GanttPRO, TeamGantt, Businessmap (formerly Kanbanize), Scoro, OpenProject, Hive, Taskworld, Taskade, Motion.
+
+Catalog-only in this group: Height, Projectplace.
+
+### Software delivery
+
+Jira Software, Jira Service Management, Rally, YouTrack, Linear, GitHub, GitLab, Azure DevOps, Bitbucket, Shortcut, Jira Align, Planview AdaptiveWork (Clarizen), Plane.
+
+Catalog-only in this group: Pivotal Tracker.
+
+### Docs and knowledge
+
+Notion, Confluence, Coda, Quip.
+
+Catalog-only in this group: Evernote.
+
+### Calendar and email
+
+Microsoft 365, Google Workspace, Calendly, Gmail, Outlook.
+
+### Communication
+
+Slack, Zoom, Microsoft Teams, Discord, Mattermost, Webex, Google Chat.
+
+### Whiteboard and design
+
+Figma, Miro, Lucidchart / Lucidspark, Mural, Canva.
+
+### Files and assets
+
+Dropbox, Box, Adobe Creative Cloud, SharePoint, OneDrive, Google Drive.
+
+### CRM, support, and stakeholders
+
+HubSpot, Salesforce, Intercom, Zendesk, Freshdesk, ServiceNow, Pipedrive.
+
+### Automation, forms, and data
+
+Airtable, Typeform, Google Forms, SurveyMonkey, Zapier, Make, n8n, Power BI, Tableau, Data Studio (formerly Looker Studio), Generic Webhook, Generic REST API.
+
+### Time, finance, and resourcing
+
+Harvest, Lucen Track (Timeneye), Toggl Track, Clockify, Everhour, Float, Resource Guru, QuickBooks Online, Xero.
+
+### Incident, quality, and monitoring
+
+Sentry, Datadog, New Relic, PagerDuty, Opsgenie, TestRail, BrowserStack, Atlassian Statuspage.
+
+## Safety model
+
+Sneup is intentionally conservative around external systems.
+
+- Connector sync is read-only by default and bounded by provider-specific page, item, response-size, timeout, and cursor limits.
+- Every adapter must fail visibly when it reaches a configured cap instead of silently skipping data.
+- Provider writes go through policy, approval, exact-payload review, execution claim, attempt logging, and outcome follow-up.
+- `SNEUP_PROVIDER_WRITES_DISABLED=true` is the emergency stop for all provider writes.
+- Demo mode is read-only and cannot perform provider writes.
+- Production live mode requires MongoDB and strong purpose-separated secrets.
+- OAuth state and connector credentials use separate secrets.
+- Runtime logs sanitize authorization headers, cookies, credential-bearing query strings, provider request config, and retained work content.
+- Workspace exports stream collection by collection and exclude credentials, hashes, passwords, signing secrets, encrypted destinations, and token material.
+- Data repair only updates safe derived state after confirmation and fingerprint recheck.
+- Data retention is owner-controlled, bounded, audited, and excludes current project graph data, approvals, audit events, active credentials, pending deliveries, and Trello action attempts.
+
+## Technology stack
+
+- Runtime: Node.js 22+ with Node.js 24 LTS recommended.
+- Backend: Express, Mongoose, MongoDB, scheduled workers, structured logging, security middleware.
+- Desktop: Electron and electron-builder.
+- Data and analysis: normalized work graph models, analytics services, NLP helpers, recommendation evaluation, reporting, PDF generation.
+- Integrations: OAuth2, API key, personal access token, generic REST, generic HMAC webhook, Trello API, ngrok.
+- Testing: Jest, ESLint, focused verifier scripts, packaged Windows runtime verification, GitHub Actions.
+
+## Run Sneup locally
 
 ### Prerequisites
 
-- **Node.js** 22.0.0 or higher; Node.js 24 LTS is recommended
-- **MongoDB** 7.0 or higher
-- **Trello Account** with API access
-
-### Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/Noodzakelijk-Online/sneup.git
-   cd sneup
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Configure environment variables**
-   ```bash
-   cp .env.example .env
-   ```
-
-   Edit `.env` and add your configuration:
-   ```env
-   # Trello API Credentials
-   TRELLO_API_KEY=your_trello_api_key_here
-   TRELLO_API_TOKEN=your_trello_api_token_here
-   
-   # MongoDB Configuration
-   MONGODB_URI=mongodb://localhost:27017/sneup
-   
-   # Server Configuration
-   PORT=3000
-   NODE_ENV=development
-   
-   # Webhook Configuration (optional)
-   WEBHOOK_CALLBACK_URL=https://your-domain.com/api/webhooks/trello
-   ```
-
-4. **Get Trello API credentials**
-   - Visit [https://trello.com/app-key](https://trello.com/app-key)
-   - Copy your API Key
-   - Generate a Token by clicking the "Token" link
-   - Add both to your `.env` file
-
-5. **Start MongoDB**
-   ```bash
-   # Using Docker
-   docker run -d -p 27017:27017 --name mongodb mongo:latest
-   
-   # Or use your local MongoDB installation
-   mongod
-   ```
-
-6. **Start Sneup**
-   ```bash
-   npm start
-   ```
-
-   For development with auto-reload:
-   ```bash
-   npm run dev
-   ```
-
-### Production token-secret boundary
-
-For a live production workspace, set independent random values of at least 32 characters for `SNEUP_API_TOKEN_PEPPER`, `SNEUP_SESSION_TOKEN_PEPPER`, and `SNEUP_INVITE_TOKEN_PEPPER`. Sneup refuses to start a non-demo production runtime when any of these is absent, weak, or still a placeholder. This prevents database API tokens, desktop sessions, and invitation tokens from being hashed with predictable development defaults. Before an invitation can be issued in production, configure `SNEUP_PUBLIC_URL` as a non-local HTTPS origin with no credentials, query parameters, or fragment; this keeps the one-time invite token out of a preconfigured URL component.
-
-Before a live release, run `npm run check:release-security` with the deployment environment loaded. It confirms, without printing their values, that the three token peppers plus `CONNECTOR_ENCRYPTION_KEY` and `CONNECTOR_STATE_SECRET` are present, non-placeholder, at least 32 characters, and distinct by purpose. The command fails for demo or non-production environments so a release pipeline cannot accidentally treat a local configuration as deployment evidence.
-
-Run `npm run doctor` before startup to inspect the runtime, live/demo mode, database and Trello prerequisites, remote API protection, production secret posture, and provider-write emergency stop without printing secret values. `GET /ready` is the machine-readable startup probe; a live critical path requires `criticalPathReady: true`. Set `SNEUP_PROVIDER_WRITES_DISABLED=true` and restart to stop every external provider write before execution is claimed while retaining read-only sync and analysis for incident investigation.
-
-Workspace Administration includes a bounded Data Integrity scan. It can repair only cached list card counts and member assignment/workload state, requires an explicit confirmation, re-checks each fingerprint immediately before an atomic update, and records audit evidence. Provider outcomes, delivery claims, approvals, and job leases remain human-review items. Support operators can run the same read-only scan with `npm run repair:data`; applying all current safe findings requires `npm run repair:data -- --apply --confirm repair-derived-state`. Neither path contacts Trello or retries an external delivery.
-
-Production live mode fails closed when MongoDB is unavailable; it does not silently change into demo mode or open the HTTP listener. The Windows app presents a non-secret startup message with an explicit `Start demo mode` choice that persists the read-only preference and relaunches. Explicit demo mode continues to skip MongoDB and cannot perform provider writes. Development startup retains the labelled catalog/demo fallback for local convenience.
-
-Runtime logs redact credentials, authorization headers, cookies, credential-bearing query parameters, provider request configuration, and retained work content before Winston serializes an event. Chat processing logs opaque IDs and routing metadata only, never a worker message excerpt or username.
-
-Terminal workspace invitations are retained as lifecycle evidence only. The daily `identity.invitation_retention` job redacts the invite email, display name, token prefix, token hash, and delivery failure code after `SNEUP_INVITE_RETENTION_DAYS` (default `90`, bounded from `7` to `3650`) while preserving status, role, dates, and aggregate workspace audit evidence. Tune the bounded batch with `SNEUP_INVITE_RETENTION_BATCH_SIZE` (default `100`, maximum `250`) and the scheduled run with `SNEUP_INVITE_RETENTION_CRON`.
-
-Workspace owners can preview and opt into bounded Data Retention from Workspace Administration. The policy covers only terminal job history, old board-health snapshots, performance history, finalized notification receipts, and revoked or expired credentials. It is off by default, records a high-risk audit before and after each category batch, uses a distributed workspace lease, and never prunes audit events, approvals, recommendations, Trello action attempts, active credentials, pending deliveries, or current project/work-graph data. Manual pruning requires the exact workspace slug; `npm run verify:data-retention` proves the deletion and exclusion boundaries against a dedicated disposable MongoDB database.
-
-Reviewed operational forms preserve bounded drafts inside the current browser session and workspace. Capacity, forecast, project-mapping, retention, rollout, and internal policy forms can also expose capped named presets where reusable defaults are safe. Sneup never includes credentials, tokens, email or notification destinations, external-action payloads, evidence, responses, invitations, destructive confirmations, or safety-relaxation confirmations in this storage. Canceling or a failed request keeps the draft; a confirmed API success clears it.
-
-The command center includes searchable, context-sensitive help for Overview, Approvals, Connectors, Signals, Forecasts, Reports, Enhancements, and Workspace Administration, plus setup, decision safety, and privacy guidance. Select the compact **Help** control or press `F1` to open the topic for the active view. Help search is local to the bundled catalog, stores nothing, and does not contact the API or a provider. Each topic can return directly to its existing Sneup workflow; help content cannot approve or execute an action.
-
-The Work Signals and normalized work-graph interface is loaded only when Signals or graph ledger context is opened. It supports English and Dutch operator chrome, performs status/provider/type/direction filtering locally, preserves provider evidence verbatim, and renders only public HTTPS evidence links without embedded credentials. API reads and every recommendation or dependency-review mutation remain in the authenticated controller and retain their existing approval and permission boundaries.
-
-The Windows installer uses the bundled Sneup icon. Release signing and automatic updates remain release-infrastructure tasks: configure a publisher certificate and update feed in the release environment before distributing a trusted production build.
-
-### Authenticated ngrok cloud access
-
-Sneup can open an ngrok ingress while keeping the HTTP server on loopback. Set `SNEUP_NGROK_ENABLED=true`, `NGROK_AUTHTOKEN`, `SNEUP_REQUIRE_API_KEY=true`, and a unique `SNEUP_API_KEY` of at least 32 characters, then start Sneup normally. An optional `SNEUP_NGROK_DOMAIN` selects a reserved domain. Startup fails closed if any authentication prerequisite is missing or ngrok returns anything other than one root HTTPS origin. The discovered origin is admitted automatically for command-center browser requests, and Sneup-owned public/callback URLs are refreshed after an ephemeral restart and restored on close. `npm run doctor` validates the prerequisite posture without exposing secret values. Remote browser users join through a one-time workspace invitation and then use the short-lived session token stored only in that browser session.
-
-After the final ngrok callback exists, Sneup compares it with Trello's current webhooks. Missing, rotated, or duplicate configuration becomes an exact high-risk item in Robert's approval queue. Startup never changes provider configuration itself, repeat observations reuse the pending decision, and approved changes retain the normal attempt and audit evidence. `npm run verify:trello-webhooks` proves this boundary against a dedicated disposable MongoDB database without contacting Trello.
-
-Connector accounts can be disconnected from Account connections with an exact account-name confirmation and current-record check. Sneup removes its stored credentials and OAuth refresh lease, blocks sync and signed webhook intake, retains read-only history and audit evidence, and reconnects the existing record when new authorization is supplied. This is local cleanup only: provider authorization is unchanged and must be revoked separately at the provider when access must end there. `npm run verify:connector-lifecycle` proves the boundary against a dedicated disposable MongoDB database with zero provider reads or writes after disconnect.
-
-See `docs/CLOUD_AND_HAI.md` for the Windows, ngrok, HAI, and shutdown flow.
-
-## API Endpoints
-
-- `GET /api` - Read machine-readable Sneup version and capability metadata
-
-The command center and new integrations use `/api/v1`. JSON responses have one stable `{ ok, data, error, meta }` envelope; `meta` contains the API version, a server-generated request ID, and timestamp. The same request ID is returned in `X-Sneup-Request-Id` and sanitized server diagnostics. Existing `/api` routes remain available for compatibility, while provider webhooks, OAuth callbacks, report downloads, workspace exports, and the raw OpenAPI document retain their protocol-specific response formats.
-
-### Boards
-
-- `GET /api/boards` - Get all boards
-- `GET /api/boards/:boardId` - Get specific board with lists and cards
-- `POST /api/boards/:boardId/sync` - Manually sync a board
-- `GET /api/boards/:boardId/context` - Get board context and relationships
-- `GET /api/boards/:boardId/cards/:cardId` - Get card details with context and NLP analysis
-- `GET /api/boards/:boardId/relationships` - Get card relationships
-- `GET /api/boards/:boardId/workflow` - Get workflow patterns
-
-### Analytics
-
-- `GET /api/analytics/board/:boardId/latest` - Get latest analytics
-- `GET /api/analytics/board/:boardId/history?days=30` - Get analytics history
-- `POST /api/analytics/board/:boardId/generate` - Generate analytics
-- `GET /api/analytics/critical` - Get critical boards
-- `GET /api/analytics/board/:boardId/bottlenecks` - Get bottlenecks
-- `GET /api/analytics/board/:boardId/health` - Get project health
-- `GET /api/analytics/board/:boardId/velocity` - Get velocity metrics
-
-### Team Management
-
-- `GET /api/team/board/:boardId/workload` - Get workload analysis
-- `GET /api/team/board/:boardId/auto-assign` - Get auto-assignment suggestions
-- `GET /api/team/board/:boardId/at-risk` - Get at-risk cards
-- `GET /api/team/board/:boardId/report` - Generate team report
-- `GET /api/team/accountability` - Summarize workspace follow-ups, responses, overdue work, and escalations by member without returning response text
-- `GET /api/outcomes` - List minimum-evidence intervention outcome records without exposing worker response text
-- `POST /api/outcomes/recommendations/:recommendationId/evaluate` - Verify a successful Trello action against synced card state or a recorded worker response; this never sends a Trello write
-- `POST /api/team/recommendation/execute` - Queue a workload recommendation for approval
-- `GET /api/team/patterns` - Get team patterns
-
-### Security and Workspace Context
-
-- `GET /api/security/context` - Show the resolved actor, workspace, role, and permission context for the current request
-- `GET /api/workspaces/current` - Show the current workspace and resolved workspace override capability
-- `GET /api/workspaces` - List workspaces for identity administrators
-- `POST /api/workspaces` - Create a workspace
-- `POST /api/workspaces/:workspaceId/update` - Update workspace metadata, plan, status, or settings
-- `GET /api/workspaces/:workspaceId/export` - Stream an owner-only NDJSON workspace export with credentials and token material removed
-- `POST /api/workspaces/:workspaceId/delete` - Permanently delete an archived workspace after owner-only exact-slug confirmation
-- `GET /api/workspaces/:workspaceId/users` - List workspace users
-- `POST /api/workspaces/:workspaceId/users` - Create a workspace user
-- `POST /api/workspaces/:workspaceId/users/:userId/update` - Update a workspace user
-- `GET /api/workspaces/:workspaceId/users/:userId/sessions` - List hashed user session records
-- `POST /api/workspaces/:workspaceId/users/:userId/session` - Issue a one-time-visible user session token
-- `POST /api/workspaces/:workspaceId/users/:userId/sessions/:sessionId/revoke` - Revoke a user session token
-- `GET /api/workspaces/:workspaceId/invitations` - List time-bound workspace invitations
-- `POST /api/workspaces/:workspaceId/invitations` - Create an invitation and return its one-time-visible secure link; email delivery is explicit and optional
-- `POST /api/workspaces/:workspaceId/invitations/:inviteId/retry-delivery` - Replace a failed email invitation with a fresh one-time link, retry delivery, and ledger the replacement
-- `POST /api/workspaces/:workspaceId/invitations/:inviteId/revoke` - Revoke a pending invitation
-- `POST /api/workspaces/invitations/accept` - Accept a secure invitation token and issue a short-lived onboarding session
-
-See `docs/MULTI_WORKSPACE_IDENTITY.md` for workspace selection, session token, and production migration notes.
-
-Workspace exports are generated collection by collection with bounded MongoDB cursors, so Sneup does not buffer a full workspace in server memory. The command center uses a streaming file save when the browser supports it. Every export requires the workspace owner role, records start and completion evidence, and recursively excludes connector credentials, authentication hashes and prefixes, passwords, signing secrets, and encrypted notification destinations. The final `complete` line contains per-collection counts; treat an export without that line as incomplete.
-
-Permanent deletion is available only to the authenticated owner of an archived workspace. It requires the exact workspace slug plus an explicit irreversible-deletion acknowledgement. Sneup locks the workspace in a non-operational `deleting` state, removes all 40 registered workspace collections sequentially, removes identity tokens and the workspace record last, and retains only a non-identifying receipt. Interrupted work is lease-protected and resumable. Five bounded follow-up sweeps catch late in-flight writes before the receipt removes its temporary technical workspace reference. Provider accounts are not changed at the provider; their local encrypted credentials are deleted, and provider-side grant revocation remains an owner action.
-
-### Workspace Action Safety
-
-- `GET /api/policy-rules` - List the effective workspace safety posture for each supported Trello write action
-- `GET /api/policy-rules/history` - List recent workspace action-safety changes from the audit ledger
-- `PUT /api/policy-rules/:actionType` - Pause an action type, optionally set a future `pauseExpiresAt` review time, or raise its risk/decision-owner posture (`policy-rules:manage`)
-
-Trello writes remain approval-gated regardless of a workspace rule. A rule can pause a write action, raise its risk, or route its decision to a stricter owner. An optional future pause review time makes an overdue pause visible, but it never re-enables an action automatically. Re-enabling a paused action or relaxing a prior workspace rule requires explicit confirmation and creates an audit event. The Workspace command center shows the latest bounded policy history. The executor resolves this policy immediately before its atomic execution claim, so a pause also blocks recommendations approved before the policy changed. Approved payloads also expire before execution (critical: 4 hours, high: 24 hours, medium: 72 hours, low: 168 hours by default); Sneup returns an expired item to the internal decision queue, records the expiry, and requires review of the unchanged protected payload before any provider write. Operators can shorten or extend each risk window only within 1 to 168 hours through `SNEUP_APPROVAL_TTL_CRITICAL_HOURS`, `SNEUP_APPROVAL_TTL_HIGH_HOURS`, `SNEUP_APPROVAL_TTL_MEDIUM_HOURS`, and `SNEUP_APPROVAL_TTL_LOW_HOURS`. A separate bounded outcome worker rechecks completed actions only against existing Sneup evidence after a 24-hour settling window by default; it never sends another provider request, skips already-confirmed outcomes, and avoids writing duplicate unchanged audit events.
-
-Every Trello request uses the validated `SNEUP_TRELLO_TIMEOUT_MS` boundary plus bounded request and response sizes. A timeout, connection reset, HTTP 408/5xx result, or known multi-step partial result is not treated as proof that a write failed. Sneup leaves the exact recommendation claimed, records confirmed and uncertain steps, and requires operator reconciliation against Trello evidence before another action can be taken. Definitive validation responses such as HTTP 400 remain ordinary failures.
-
-Sneup also retains a workspace-scoped, read-only recommendation-feedback signal for approval, rejection, change-request, execution, and outcome status. This supports operator reporting through `GET /api/analytics/recommendation-feedback`, but it is never read by policy resolution or execution authorization, so prior acceptance patterns cannot weaken approval requirements.
-
-### Feature Rollouts
-
-- `GET /api/v1/feature-flags` - List configured and effective optional capability controls for the current workspace
-- `GET /api/v1/feature-flags/:key/history` - Review up to 50 newest-first rollout revisions (`audit:read`)
-- `PUT /api/v1/feature-flags/:key` - Update enablement and whole-number rollout percentage with an expected revision (`feature-flags:manage`)
-
-Workspace managers can pause or gradually expose `connector_sync`, `forecast_scenarios`, `work_graph_decisions`, and `hai_proposals`. Connector sync rolls out per workspace; interactive capabilities use a deterministic actor subject. A 30-second cache shares one database read across concurrent requests and retains at most 250 workspaces. Live lookup failures pause the optional capability; labelled read-only demo mode uses the safe defaults. Rollout controls do not grant permissions, approve recommendations, execute provider writes, disable audit history, change emergency-stop behavior, or bypass workspace isolation.
-
-### HAI Connector
-
-- `GET /api/v1/integrations/hai/manifest` - Discover the least-privilege HAI connector contract
-- `GET /api/v1/integrations/hai/openapi.json` - Read the machine-readable HAI API contract
-- `GET /api/v1/integrations/hai/snapshot` - Read a bounded and redacted operating snapshot
-- `POST /api/v1/integrations/hai/proposals` - Queue an HAI suggestion as an approval-gated recommendation
-
-Issue HAI a workspace API token scoped only to `integrations:hai:read` and, when proposals are needed, `integrations:hai:propose`. The connector intentionally exposes no approval or execution operation. HAI suggestions enter Sneup's recommendation and Yes/No decision ledger; consequential provider actions still need exact-payload human approval inside Sneup.
-
-### Connectors and Work Signals
-
-- `GET /api/connectors` - List connector catalog entries and linked accounts; optionally filter by `category`, `search`, or `readiness=ready|catalog_only`
-- `GET /api/connectors/accounts` - List linked connector accounts
-- `POST /api/connectors/:connectorId/connect` - Begin an OAuth connector flow
-- `POST /api/connectors/:connectorId/accounts` - Save an API-key, token, manual, basic, or webhook connector account
-- `POST /api/connectors/accounts/:accountId/validate` - Mark a connector account as validated
-- `GET /api/connectors/accounts/:accountId/inbound-worker-response-bindings` - Inspect administrator-configured source worker/card bindings for a Generic Webhook account
-- `GET /api/connectors/accounts/:accountId/inbound-worker-response-options` - Return bounded workspace member names and selected-member card names for the reviewed mapping editor, excluding emails, descriptions, and provider data
-- `POST /api/connectors/accounts/:accountId/inbound-worker-response-bindings` - Replace Generic Webhook inbound worker-response bindings after Sneup verifies each workspace member is assigned to its mapped card and records audit evidence
-- `GET /api/connectors/accounts/:accountId/jira-sites` - List Jira Cloud sites authorized by a linked Jira account
-- `POST /api/connectors/accounts/:accountId/jira-site` - Select the Jira Cloud site Sneup may read from
-- `GET /api/connectors/accounts/:accountId/asana-workspaces` - List Asana workspaces authorized by a linked Asana account
-- `POST /api/connectors/accounts/:accountId/asana-workspace` - Select the Asana workspace Sneup may read from
-- `GET /api/connectors/accounts/:accountId/sharepoint-sites` - List followed SharePoint sites authorized by a linked SharePoint account
-- `POST /api/connectors/accounts/:accountId/sharepoint-site` - Select the one SharePoint site Sneup may read from
-- `GET /api/connectors/accounts/:accountId/xero-tenants` - List Xero organisations authorized by a linked Xero account
-- `POST /api/connectors/accounts/:accountId/xero-tenant` - Select the one Xero organisation Sneup may read from
-- `GET /api/connectors/accounts/:accountId/mural-workspaces` - List Mural workspaces authorized by a linked Mural account
-- `POST /api/connectors/accounts/:accountId/mural-workspace` - Select the one Mural workspace Sneup may read from
-- `DELETE /api/connectors/accounts/:accountId` - Remove a linked connector account
-- `GET /api/work-signals/contracts` - List normalized sync adapter contracts for all connectors
-- `GET /api/work-signals/adapters` - List implemented first-wave read-only provider adapters
-- `GET /api/work-signals` - List normalized cross-tool work signals for the current workspace
-- `GET /api/work-signals/graph` - Summarize normalized WorkItem/WorkActor/WorkContainer graph records, dependency types, freshness, review outcomes, and connector stale-edge quality
-- `GET /api/work-signals/graph/decisions` - List graph-derived Robert/VA/team decision candidates
-- `GET /api/work-signals/graph/items/:itemId` - Inspect a graph item with dependency edges, recent graph events, and queued recommendation history
-- `POST /api/work-signals/graph/items/:itemId/queue` - Queue a graph item as an approval-gated recommendation
-- `POST /api/forecasts/scenarios` - Run a bounded, capacity-manager-only what-if forecast without changing a live capacity profile, provider account, work item, or decision
-- `POST /api/work-signals/graph/dependencies/:dependencyId/review` - Confirm, refresh, or dismiss a stale dependency edge inside Sneup without provider writes
-- `POST /api/work-signals/accounts/:accountId/upsert` - Upsert one normalized work signal from a linked connector account
-- `POST /api/work-signals/accounts/:accountId/sync` - Run a read-only adapter sync for one connected account with bounded provider pacing and transient-failure retries
-
-Trello linked-card dependencies use canonical eight-character card short links. Sneup requests attachment link metadata only, resolves graph targets across full and short Trello identifiers, and raises critical blocking interventions only from exact linked-card evidence on a blocked card; a coincidental card-title mention is never treated as a dependency.
-
-Live credential-backed ingestion is available for Trello, Jira, Asana, Slack, GitHub, Google Workspace, Microsoft 365, Linear, Notion, monday.com, ClickUp, Azure DevOps, Wrike, Smartsheet, Airtable, Todoist, Shortcut, Bitbucket, Harvest, Everhour, Lucen Track (Timeneye), Motion, Coda, Teamwork, TeamGantt, Businessmap, Basecamp, Redmine, Scoro, Make, and n8n. The monday.com reader uses the `boards:read` scope only, reads board and item metadata through the GraphQL API, excludes item descriptions and updates, and fails visibly at configured board or item limits rather than silently skipping work. The ClickUp reader syncs authorized-workspace task metadata with bounded pages and update-time lookback, discarding task descriptions before graph storage. The Azure DevOps reader uses a PAT restricted to Work Items Read, requires a public `https://dev.azure.com/organization` URL, runs bounded WIQL reads, and retrieves selected work-item fields plus relation metadata only. The Wrike reader uses only GET requests for bounded project and task metadata, requests the minimal owner/parent/dependency identifiers needed for graph context, and intentionally excludes descriptions, comments, custom fields, and attachments. The Smartsheet reader makes bounded GET requests for sheet, column, and selected-row metadata, filters deltas by row modification time, and never requests attachments, discussions, row links, or arbitrary cell columns. The Airtable reader needs an explicit base, table, and allowlisted task fields; it uses only paginated record GET requests and never discovers or stores unrelated fields. The Todoist reader fetches only bounded project and task metadata using GET requests, omits task descriptions before graph storage, and fails visibly at configured project or task limits. The Shortcut reader uses only GET requests for a bounded number of projects and stories, retains story links as dependency metadata, and excludes descriptions, comments, files, labels, and custom fields before graph storage. The Bitbucket reader requires one workspace slug and an API token with repository, issue, and pull-request read access; it uses only bounded GET pages and strips descriptions, comments, diffs, deployment data, and arbitrary repository fields before graph storage. The Harvest reader requires a numeric account ID and personal access token, reads only bounded paginated time-entry metadata with `GET`, and deliberately excludes notes, rates, invoice status, and budget data. The Everhour reader uses a GET-only bounded recent time-entry request with its API key header and deliberately excludes descriptions, notes, budgets, expenses, invoices, rates, and person/profile discovery. The Lucen Track reader requires an explicitly selected member ID and personal access token, uses bounded GET-only paginated time-entry reads, retains only opaque IDs, entry dates, and minutes for confirmed capacity mappings, and excludes notes, clients, costs, revenue, profit, billing, lock state, sources, URLs, project names, team profiles, and provider writes. The Coda reader requires an explicit comma-separated document allowlist and reads only bounded table metadata with `GET`; it never requests table rows, column values, pages, packs, or button actions. The Teamwork reader requires one HTTPS `*.teamwork.com` tenant URL and API key, reads bounded project and task metadata with GET and update-time lookback, and excludes private tasks, descriptions, comments, files, time, company, and billing data. The TeamGantt reader requires an explicit company ID and personal access token, uses bounded GET-only project and paginated task requests, limits each response to 2 MB by default, redacts email addresses and URLs in retained titles, and excludes descriptions, comments, checklists, resources, time blocks, custom fields, provider URLs, and provider writes. The Basecamp reader selects one authorized account and ingests bounded project and to-do metadata with GET only. The Scoro reader requires one exact `https://company.scoro.com` tenant, account ID, and API token; it performs bounded metadata-only list requests for projects and tasks, excludes descriptions, comments, people, customer, CRM, finance, utilization, custom fields, URLs, and provider writes, and fails visibly at configured collection limits. The Redmine reader requires a public HTTPS base URL and API key, disables redirects and proxy use, reads bounded project and issue metadata with update-time lookback, retains issue-relation identifiers for the work graph, and excludes descriptions, journals, custom fields, attachments, time entries, wiki, and forum content. The Make reader accepts only `scenarios:read`, one explicit numeric team ID, and an allowlisted Make region; it uses one bounded GET request for scenario metadata and excludes blueprints, modules, connections, webhooks, execution data, and provider writes. The n8n reader accepts one public HTTPS instance URL and API key, uses GET-only bounded reads for active workflow and execution metadata, pins DNS lookups to public addresses, and excludes workflow definitions, node configuration, credentials, execution data, and error payloads before graph storage.
-
-Plane is available for one explicit Plane Cloud workspace slug and an API key restricted to `projects:read` and `projects.work_items:read`. Sneup uses bounded GET-only cursor pagination for project and work-item metadata, excludes descriptions, assignees, labels, comments, attachments, custom fields, URLs, and provider writes, and fails visibly at configured collection limits.
-
-Kantata OX (formerly Mavenlink) connects through an administrator-registered OAuth application. Sneup reads only bounded workspace (project) metadata from its fixed HTTPS API endpoint, redacts emails and URLs from retained titles, and excludes stories, people, schedules, resource allocations, budgets, financials, attachments, comments, custom fields, provider URLs, and provider writes.
-
-LiquidPlanner New connects with an administrator-created API token and one explicit numeric workspace ID. Sneup uses only the documented, bounded GET-only active-project listing with continuation-token pagination, retaining redacted project names, opaque IDs, lifecycle state, and dates. It excludes tasks, assignments, descriptions, dependencies, time entries, estimates, resources, files, custom fields, URLs, and provider writes.
-
-Productive connects with a personal API token and one explicit numeric organization ID. Sneup uses only the documented, bounded JSON:API project listing, retaining redacted names, opaque IDs, archive state, and timestamps. It excludes tasks, budgets, resource plans, time, people, invoices, files, custom fields, URLs, and provider writes.
-
-Ravetree connects with a user-created API token that has only the documented work-items view permission. Sneup uses Ravetree's fixed Open API host and bounded offset pagination, retaining redacted work-item titles, opaque IDs, completion state, and dates. It excludes details, people, accounts, contacts, teams, dependencies, time, tags, custom fields, URLs, and provider writes.
-
-Todoist uses its fixed HTTPS API host with bounded project and task collections, a 1 MB response ceiling by default, no redirects, and no proxy use. Sneup redacts email addresses and URLs from retained titles and excludes task descriptions, comments, attachments, provider URLs, and provider writes.
-
-Airtable requires an explicit base, table, and allowlisted task fields. Sneup rejects malformed or repeated page cursors, caps each fixed-host response at 1 MB by default, disables redirects and proxy use, redacts emails and URLs from retained field values, and excludes unselected fields, provider URLs, and provider writes.
-
-Motion is available for one explicit workspace and API key. Sneup uses fixed-host GET-only cursor pagination for project and task metadata, keeps only redacted titles, opaque IDs, schedule state, dates, durations, scheduling-issue flags, and opaque task-assignee IDs only for explicit capacity mappings. It excludes descriptions, creators, assignee names and emails, labels, custom fields, embedded project or workspace data, and provider writes.
-
-OpenProject is available for one public HTTPS instance and a bearer API token. Sneup pins each sync to public DNS results, uses bounded GET-only project and work-package metadata requests with server-side field selection, excludes descriptions, comments, attachments, people, custom fields, URLs, and provider writes, and fails visibly at configured collection limits.
-
-Microsoft Project connects through Microsoft OAuth with `Tasks.Read` only. Project for the web retired in 2025, so Sneup reads bounded basic Planner plan and task metadata through Microsoft Graph; premium plans, legacy Project Online data, task details, checklists, comments, attachments, people, custom fields, URLs, and provider writes remain outside the connector.
-
-TestRail is available for one explicit public HTTPS tenant, username, API key, and numeric project ID. Sneup uses one bounded GET request for active test-run metadata, rejects paginated overflow, pins DNS to public addresses, and excludes cases, results, descriptions, references, custom fields, attachments, and provider writes.
-
-BrowserStack is available with a username and access key. Sneup performs one fixed-host, bounded Automate build-list GET, fails closed when its page cap is reached, and retains only build ID, redacted name, status, priority, completion state, and bounded duration. It excludes public URLs, tags, sessions, logs, browser and device data, and provider writes.
-
-OneDrive is available as a separate Microsoft OAuth connection with `Files.Read` only. Sneup makes one bounded GET to the signed-in user's drive root, fails visibly if Graph signals a further page, and retains only redacted item names, type, and created/updated metadata. It excludes file content, web URLs, permissions, versions, shared links, and provider writes.
-
-SharePoint is available as a separate Microsoft OAuth connection. It explicitly presents the delegated `Sites.Read.All` grant for review, lists only sites the signed-in user follows, requires one site to be selected, and then makes one capped root-metadata GET with `Files.Read`. It retains only redacted file or folder names, opaque identifiers, and timestamps; file contents, web URLs, permissions, pages, lists, people, versions, and sharing details are excluded.
-
-Xero is available as a separate OAuth connection with `accounting.invoices.read`. Sneup lists authorized organisations, requires one selection, and makes one capped GET for sales-invoice status and date metadata. It retains only opaque invoice and organisation identifiers, status, and dates; contacts, invoice numbers, amounts, payment data, descriptions, line items, URLs, and provider writes are excluded.
-
-Google Forms is available as a separate Google OAuth connection with `drive.metadata.readonly`. Sneup makes one capped Drive metadata request for Google Forms owned by or shared to the signed-in user and retains only redacted form names, opaque identifiers, and timestamps. It excludes form bodies, questions, responses, owners, URLs, collaborators, sharing details, shared drives, and provider writes.
-
-Mural is available as a separate OAuth connection with `workspaces:read` and `murals:read`. Sneup requires the user to select one currently authorized workspace, then makes one capped request for active mural metadata. It retains only redacted mural names, opaque identifiers, and timestamps; mural content, widgets, comments, templates, rooms, people, URLs, sharing details, and provider writes are excluded.
-
-Canva is available as a separate PKCE OAuth connection with `design:meta:read`. Sneup stores each one-time PKCE verifier encrypted inside its signed server state, then makes one capped design-metadata request. It retains only redacted design names, opaque identifiers, and timestamps; design content, pages, thumbnails, temporary links, owners, folders, assets, comments, approvals, and provider writes are excluded.
-
-Adobe Creative Cloud is available as a reviewed OAuth connection to the Creative Cloud Libraries API. Sneup requests Adobe's documented Libraries scopes plus `offline_access`, reads at most 100 paged library metadata records from the fixed Adobe endpoint, and retains only redacted library names, opaque identifiers, and timestamps. Library elements, assets, files, renditions, collaboration, people, links, storage details, comments, and provider writes are excluded.
-
-OAuth connector access tokens with a provider expiry are renewed five minutes before expiry by default. Renewal uses an atomic, expiring database lease, bounded fixed-host token requests, encrypted token replacement, and secret-free start/completion/failure audit events; an authorization without a refresh token fails visibly and asks the operator to reconnect. `SNEUP_OAUTH_REFRESH_SKEW_SECONDS` and `SNEUP_OAUTH_REFRESH_LEASE_SECONDS` are bounded operational controls.
-
-QuickBooks Online is available as a reviewed OAuth connection with the Accounting API scope. Sneup validates and binds to the opaque company `realmId` returned in its signed OAuth callback, then makes one capped sales-invoice metadata request. It retains only opaque invoice and company IDs, status, and dates; customers, invoice numbers, amounts, balances, payments, estimates, expenses, projects, line items, descriptions, addresses, links, attachments, taxes, and provider writes are excluded.
-
-Power BI is available as a reviewed Microsoft OAuth connection with `Report.Read.All`. Sneup makes one capped GET request to the report catalog and retains only opaque report IDs, redacted report names, and report type; report contents, dashboards, datasets, workspace membership, descriptions, URLs, embeds, owners, subscriptions, users, and provider writes are excluded.
-
-Data Studio (formerly Looker Studio) is available for Google Workspace or Cloud Identity organizations after an administrator has authorized Sneup for domain-wide delegation with the restrictive `datastudio.readonly` scope. Sneup makes two capped GET requests for report and data-source asset metadata, retaining only opaque asset IDs, redacted titles, asset type, and timestamps. It excludes descriptions, owners, creators, URLs, filters, sections, dimensions, permissions, data-source configuration, and provider writes.
-
-Zapier is available after Sneup is published as a public Zapier integration and receives an OAuth client ID and secret. It requests `zap:all`, makes one capped GET request for Zap inventory, and retains only opaque IDs, redacted titles, enabled state, and timestamps. Zap steps, inputs, linked app authentications, editor URLs, run payloads, user profiles, webhooks, and provider writes are excluded.
-
-Jira Align is available with a tenant API token created by a user authorized for the selected tenant. Sneup accepts only an HTTPS `*.jiraalign.com` tenant URL, makes two capped GET requests to API v2 for portfolio and program metadata without resource expansion, and retains only opaque IDs, redacted titles, type, and timestamps. Descriptions, people, custom fields, dependencies, work items, planning details, URLs, and provider writes are excluded.
-
-SurveyMonkey is available with a View Surveys access token. Sneup makes one bounded survey-list GET and retains only redacted survey title and ID. It excludes questions, responses, collectors, contacts, links, and provider writes.
-
-Google Drive is available as a separate metadata-only Google OAuth connection. Sneup reads one bounded user-Drive page, rejects incomplete pagination, and retains only redacted file or folder names plus timestamps. It excludes file content, web URLs, permissions, owners, shared drives, and provider writes.
-
-Tableau Cloud is available with a pod URL, site content URL, and personal access token. Sneup signs in only to establish a short-lived API session, reads one bounded project page and one bounded workbook page with GET, then invalidates the session. It retains only redacted names, opaque identifiers, project linkage, and timestamps; descriptions, views, dashboards, data sources, owners, permissions, URLs, tags, content, and provider content writes are excluded.
-
-Businessmap (formerly Kanbanize) is additionally available with its API-v2 account endpoint and API key. Sneup accepts one public `https://account.kanbanize.com` URL, uses GET-only bounded active-board and paginated active-card reads, and excludes descriptions, comments, custom fields, files, dependencies, users, time data, workflow configuration, and provider writes.
-
-Microsoft Planner uses a dedicated Microsoft OAuth account with `Tasks.Read` only. It reads bounded assigned-task metadata from `/me/planner/tasks`, excludes descriptions, checklists, attachments, labels, comments, and provider writes, and retains only plan/bucket identifiers for work-graph context.
-
-YouTrack uses a permanent token and a public HTTPS base URL. It makes only paginated `GET /api/issues` metadata reads, requests an allowlisted response shape, strips descriptions, comments, attachments, and custom-field values before storage, and fails visibly at its configured issue cap.
-
-Taiga uses a bearer access token and a public HTTPS base URL. It reads only the signed-in member's bounded project, user-story, and task metadata with `GET`, filters deltas locally with a short lookback, excludes descriptions, comments, attachments, custom attributes, and provider writes, and fails visibly at configured collection caps.
-
-Backlog uses a project-member API key and a public `*.backlog.com` or `*.backlogtool.com` space URL. It reads bounded active-project and issue metadata with `GET`, checks provider counts before paging, excludes descriptions, comments, attachments, and custom fields, and never makes provider writes.
-
-Freedcamp uses an account API key in the `X-API-KEY` header and reads bounded project, task, and milestone metadata with `GET`. It validates the provider's pagination signal, excludes descriptions, comments, files, custom fields, and tags, and never makes provider writes.
-
-ProofHub accepts one public HTTPS `*.proofhub.com` tenant plus an API key, uses 500 ms pacing below the documented account limit, and reads bounded public project, task-list, and task metadata with `GET`. It excludes descriptions, comments, files, custom fields, people, provider URLs, discussions, timesheets, approvals, and provider writes.
-
-Zendesk uses an OAuth access token rather than a retiring static API token. It reads the bounded, cursor-based incremental ticket export with `GET`, excludes deleted tickets and all ticket body, comment, requester, assignee, collaborator, tag, custom-field, organization, SLA, and macro content, retains only small ticket metadata plus problem-ticket dependency identifiers, and never makes provider writes.
-
-MeisterTask uses a personal access token with bearer authorization and reads bounded active project and section metadata plus task metadata with `GET`. It pins pagination to ascending IDs, excludes notes, comments, checklists, attachments, labels, tokens, and tracked-time detail, and never makes provider writes.
-
-Aha! uses a user-scoped API token against one public `*.aha.io` account domain. It makes bounded `GET` requests for product and feature metadata using server-side field allowlists, excludes descriptions, notes, comments, attachments, custom fields, and provider writes, and fails visibly at configured collection caps.
-
-Productboard uses a personal API token with bearer authorization. It reads bounded component, feature, and objective metadata through the v2 entities endpoint with a server-side field allowlist, validates opaque provider cursors before use, excludes descriptions, owners, tags, notes, custom fields, relationships, and never makes provider writes.
-
-Toggl Track uses an API token with HTTP Basic authentication and requires one numeric workspace ID. It reads bounded project metadata plus a short, bounded personal time-entry window with `GET`, keeps only workspace-scoped utilization metadata and an opaque user ID for an explicit human-confirmed capacity mapping, honors the provider's 1,000-entry ceiling, and excludes descriptions, tags, clients, people, rates, sharing data, notes, and provider writes.
-
-Clockify uses an API key and requires one workspace ID. It reads only the authenticated user's bounded, paginated project and time-entry metadata with `GET`, retains the opaque authenticated user ID only for an explicit human-confirmed capacity mapping, validates the provider pagination signal, excludes descriptions, tags, clients, people profiles, rates, custom fields, and provider writes, and fails visibly at configured collection caps.
-
-Float uses a bearer API token. It reads bounded paginated project and date-filtered allocation metadata with server-side field allowlists, excludes people profiles and names, notes, clients, tags, rates, budgets, time off, logged time, and provider writes, and fails visibly at configured collection caps.
-
-Resource Guru uses authorization-code OAuth and requires selection of one authorized Resource Guru account before syncing. It reads bounded project and date-filtered booking metadata with GET only, excludes resource profiles and names, notes, clients, rates, availability, timesheets, and provider writes, and fails visibly at configured collection caps.
-
-Sentry uses an auth token scoped to `org:read` and `event:read` plus one explicit organization slug. It reads bounded project and unresolved issue metadata with GET only, validates Sentry's pagination signal, excludes event payloads, stack traces, culprits, owners, tags, users, releases, alerts, and provider writes, and fails visibly at configured collection caps.
-
-PagerDuty uses a read-only REST API token. It reads bounded active incident and service metadata with GET only, validates native offset pagination, excludes responders, escalation policies, schedules, notes, integrations, and provider writes, and fails visibly at configured collection caps.
-
-Opsgenie uses a read-only API key and an explicit `us` or `eu` region. It first verifies the bounded current open-alert count, then reads one matching metadata collection with GET only. Sneup excludes alert descriptions, aliases, responders, owners, teams, schedules, escalation policies, incidents, integrations, URLs, and provider writes, and refuses incomplete collections or configured cap overruns.
-
-Atlassian Statuspage uses a page-scoped API key and explicit page ID. It reads bounded component and incident metadata with GET only, validates fixed-page pagination, excludes subscribers, incident update bodies, postmortems, component descriptions, and provider writes, and fails visibly at configured collection caps.
-
-Generic REST API connects one configured public HTTPS JSON collection with a bearer token. It resolves the configured host before each sync, rejects private-network targets and redirects, pins the request to vetted public addresses, enforces response and record caps, stores only normalized ID/title/status/priority/timestamp metadata, and never makes provider writes or guesses pagination.
-
-Datadog uses an API key plus an application key limited to `monitors_read` and `incident_read`, and an explicit documented Datadog site. It reads bounded monitor and active/stable incident metadata with GET only, excludes monitor queries/messages/tags, downtimes, dashboards, services, SLOs, incident timelines/responders, and provider writes.
-
-### Operations Ledger and Approvals
-
-- `GET /api/recommendations` - List approval-gated recommendations
-- `GET /api/recommendations/:recommendationId` - Get a recommendation
-- `GET /api/recommendations/:recommendationId/evidence` - Get source, decision, Trello action, follow-up, response, and audit evidence for a recommendation
-- `POST /api/recommendations/:recommendationId/approve` - Approve a recommendation payload
-- `POST /api/recommendations/:recommendationId/reject` - Reject a recommendation
-- `POST /api/recommendations/:recommendationId/change` - Request changes to a recommendation
-- `POST /api/recommendations/:recommendationId/execute-approved` - Execute an approved Trello action and record the attempt
-- `GET /api/decision-queue/robert` - Robert-only high-risk decision queue
-- `GET /api/decision-queue/team` - Team approval queue
-- `GET /api/decision-queue/va` - VA queue scaffold
-- `GET /api/autopilot/operations-brief` - Read-only daily operations brief across decisions, findings, follow-ups, failures, board health, and distinct external waits; it never treats a client/vendor wait as internal team accountability
-- `GET /api/operations-ledger?timelineLimit=25` - Bounded workspace ledger with a redacted cross-record operational timeline; response text is never returned
-- `GET /api/trello-actions` - List Trello write attempts and failures
-- `GET /api/audit` - List audit events
-- `GET /api/follow-ups` - List follow-up plans
-- `GET /api/follow-ups/due` - List due follow-up plans
-- `GET /api/boards/:boardId/operations-ledger` - Board-level recommendation/action/audit ledger with redacted worker-response timeline evidence, Trello-linked and unresolved cross-provider graph context, source links, dependency freshness, and dependency filters
-- `GET /api/boards/:boardId/operating-ledger` - Alias for board-level operating ledger
-- `GET /api/boards/:boardId/decision-queue` - Board-specific decision queue
-- `POST /api/boards/:boardId/analyze` - Safely analyze synced cards and persist findings/health snapshots
-- `GET /api/boards/:boardId/findings` - Board-specific card findings
-- `GET /api/boards/:boardId/health-snapshots` - Board health snapshot history
-- `GET /api/cards/:cardId/operations-ledger` - Card-level recommendation/action/follow-up ledger with redacted worker-response evidence, Trello-linked and unresolved cross-provider graph context, source links, dependency freshness, and dependency filters
-- `GET /api/cards/:cardId/operating-ledger` - Alias for card-level operating ledger
-- `GET /api/cards/:cardId/audit` - Card audit events
-- `GET /api/cards/:cardId/findings` - Card findings and missing next-action/stale/blocked signals
-- `GET /api/findings` - Global card finding list
-- `GET /api/findings/board-health` - Global board health snapshot list
-- `GET /api/jobs` - Job observability dashboard for sync, analytics, intervention, performance, and webhook jobs
-- `GET /api/jobs/health` - Compact job health and stale-data summary
-- `GET /api/jobs/runs` - Recent job run history with duration, counts, and failures
-- `POST /api/jobs/:jobName/pause` - Pause a registered background job so scheduled runs are recorded as skipped
-- `POST /api/jobs/:jobName/resume` - Resume a paused background job
-- `POST /api/jobs/:jobName/trigger` - Manually trigger an allowlisted safe job
-- `POST /api/interventions/:interventionId/record-response` - Record worker response to an intervention
-- `POST /api/chat/message` - Record card-specific completed, blocked, or needs-help chat updates against an already executed matching communication intervention; generic chat never closes a follow-up
-
-Startup, scheduled, worker, API, and manual jobs use an expiring MongoDB lease scoped to the exact workspace and job name. This prevents two Sneup cloud processes from duplicating connector sync, analytics, intervention, notification, retention, or performance work. Active jobs heartbeat the lease; a stopped process releases it through expiry. Job Health shows protected and skipped runs, while lease tokens and process identity are never returned by the API. Webhook event processing remains concurrent and continues to use its event-level idempotency controls.
-
-### Webhooks
-
-- `POST /api/webhooks/trello` - Trello webhook endpoint
-- `HEAD /api/webhooks/trello` - Webhook verification
-- `POST /api/webhooks/generic/:accountId` - Generic inbound work-signal endpoint. Create a Generic Webhook account first, then send a JSON envelope with `id`, `title`, and optional `type`, `status`, `priority`, `occurredAt`, and `updatedAt`. Sign the exact raw JSON body with `x-sneup-signature: sha256=<hex HMAC-SHA256>`, using the account's signing secret. Send a stable provider delivery identifier in `x-sneup-delivery-id` to make retries idempotent; Sneup retains only the identifier, status, and signal reference for up to 14 days. Sneup rejects unsigned, invalid, oversized, or malformed payloads; strips all fields outside this allowlist; stores no description, URL, owner, or arbitrary payload content; and never writes to the source system.
-- `POST /api/webhooks/generic/:accountId/worker-response` - Signed inbound worker-response endpoint. A workspace administrator must first configure an exact `{ source, sourceMemberId, sourceCardId, memberId, cardId }` binding on the Generic Webhook account. Send only `id`, `source`, `sourceMemberId`, `sourceCardId`, `responseType` (`acknowledged`, `completed`, `blocked`, or `needs_help`), and `responseText`, signed with the same exact-body HMAC. Sneup uses the event `id` as the replay key when no delivery header is supplied, accepts only a configured binding whose source, member, and card match, and records the update only against an unanswered executed communication intervention. Response text never enters webhook audit evidence, unmatched updates remain visible without resolving work, and the bridge never sends a provider write.
-
-## Architecture
-
-```
-sneup/
-|-- src/
-|   |-- models/          # Mongoose data models
-|   |   |-- Board.js
-|   |   |-- List.js
-|   |   |-- Card.js
-|   |   |-- Member.js
-|   |   |-- Comment.js
-|   |   |-- Analytics.js
-|   |   `-- Learning.js
-|   |-- services/        # Business logic services
-|   |   |-- trelloClient.js      # Trello API wrapper
-|   |   |-- trelloSync.js        # Synchronization service
-|   |   |-- nlpService.js        # NLP analysis
-|   |   |-- contextAnalyzer.js   # Context intelligence
-|   |   |-- analyticsService.js  # Analytics generation
-|   |   `-- teamManager.js       # Team management
-|   |-- routes/          # Express API routes
-|   |   |-- boards.js
-|   |   |-- analytics.js
-|   |   |-- team.js
-|   |   `-- webhooks.js
-|   |-- utils/           # Utility functions
-|   |   |-- logger.js
-|   |   `-- database.js
-|   `-- index.js         # Application entry point
-|-- config/              # Configuration files
-|-- logs/                # Application logs
-|-- .env.example         # Environment template
-|-- package.json
-`-- README.md
+- Windows 11, macOS, or Linux for development.
+- Node.js 22.0.0 or newer. Node.js 24 LTS is recommended.
+- npm.
+- MongoDB 7.0 or newer for live mode.
+- Trello credentials if you want Trello sync.
+- Optional provider OAuth apps or API tokens for additional connectors.
+
+### Clone
+
+```powershell
+git clone https://github.com/Robert-Velhorst/008-Sneup-Digital-Project-Manager.git
+cd 008-Sneup-Digital-Project-Manager
 ```
 
-## Scheduled Jobs
+### Install dependencies
 
-Sneup runs several automated jobs:
-
-- **Full Sync**: Daily at 1 AM (configurable via `FULL_SYNC_CRON`)
-- **Incremental Sync**: Every 15 minutes (configurable via `INCREMENTAL_SYNC_CRON`)
-- **Analytics Generation**: Every hour (configurable via `ANALYTICS_CRON`)
-- **Bottleneck Detection**: Every 30 minutes (configurable via `BOTTLENECK_DETECTION_CRON`)
-
-## Data Models
-
-### Board
-Represents a Trello board with members, lists, and sync status.
-
-### List
-Represents a list within a board with position and card count.
-
-### Card
-Represents a card with full history, risk assessment, and relationships.
-
-### Member
-Represents a team member with workload level, specialties, and performance metrics.
-
-### Comment
-Represents a comment with sentiment analysis and action item detection.
-
-### Analytics
-Stores analytics snapshots including bottlenecks, velocity, and project health.
-
-### Learning
-Stores patterns, feedback, and recommendations for continuous improvement.
-
-## Development
-
-### Running Tests
-```bash
-npm test
-npm run evaluate:recommendations
+```powershell
+npm.cmd ci
 ```
 
-### Linting
-```bash
-npm run lint
+Use `npm install` when intentionally updating dependencies.
+
+### Configure environment
+
+```powershell
+Copy-Item .env.example .env
 ```
 
-### Project Structure Guidelines
-- **Models**: Define data schemas and business logic methods
-- **Services**: Implement core business logic and external integrations
-- **Routes**: Handle HTTP requests and responses
-- **Utils**: Provide reusable utility functions
+For local demo exploration, keep provider writes disabled and use explicit demo mode from the app when MongoDB is not available.
 
-## Deployment
+For live development, set at minimum:
 
-### Using Docker
-
-```dockerfile
-FROM node:22-alpine
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm install --production
-
-COPY . .
-
-EXPOSE 3000
-
-CMD ["npm", "start"]
+```env
+MONGODB_URI=mongodb://127.0.0.1:27017/sneup
+PORT=3000
+HOST=127.0.0.1
+TRELLO_API_KEY=your_trello_api_key
+TRELLO_API_TOKEN=your_trello_api_token
+CONNECTOR_ENCRYPTION_KEY=use_a_unique_32_plus_character_secret
+CONNECTOR_STATE_SECRET=use_a_different_32_plus_character_secret
+SNEUP_API_TOKEN_PEPPER=use_a_third_32_plus_character_secret
+SNEUP_SESSION_TOKEN_PEPPER=use_a_fourth_32_plus_character_secret
+SNEUP_INVITE_TOKEN_PEPPER=use_a_fifth_32_plus_character_secret
+SNEUP_PROVIDER_WRITES_DISABLED=true
 ```
 
-Build and run:
-```bash
-docker build -t sneup .
-docker run -d -p 3000:3000 --env-file .env sneup
+For production, all five secret values above must be strong, unique, non-placeholder values. `npm.cmd run check:release-security` validates that posture without printing the values.
+
+### Start the server
+
+```powershell
+npm.cmd start
 ```
 
-### Using PM2
+Development autoreload:
 
-```bash
-npm install -g pm2
-pm2 start src/index.js --name sneup
-pm2 save
-pm2 startup
+```powershell
+npm.cmd run dev
 ```
+
+Open:
+
+```text
+http://127.0.0.1:3000
+```
+
+### Start the desktop app
+
+```powershell
+npm.cmd run desktop
+```
+
+## Install on Windows 11
+
+Sneup builds an NSIS Windows installer through Electron Builder.
+
+```powershell
+npm.cmd ci
+npm.cmd run build:installer
+```
+
+The installer is written to:
+
+```text
+release\Sneup-Setup-<version>.exe
+```
+
+The local release line currently builds `Sneup-Setup-2.3.43.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
+
+Verify the unpacked Windows app before distributing an installer:
+
+```powershell
+npm.cmd run verify:packaged
+```
+
+The packaged verifier starts the app, checks loopback health, diagnostics, HAI write posture, process resources, normal window close, and port release.
 
 ## Configuration
 
-### Environment Variables
+The complete configuration template is `.env.example`. Important groups are:
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `TRELLO_API_KEY` | Trello API key | Required |
-| `TRELLO_API_TOKEN` | Trello API token | Required |
-| `SNEUP_TRELLO_TIMEOUT_MS` | Whole-number Trello request timeout in milliseconds (1000-60000); ambiguous write timeouts require reconciliation and are never retried | `15000` |
-| `MONGODB_URI` | MongoDB connection string | `mongodb://localhost:27017/sneup` |
-| `SNEUP_MONGODB_MAX_POOL_SIZE` | Maximum application sockets per MongoDB server and Sneup process (1-200) | `20` |
-| `SNEUP_MONGODB_MIN_POOL_SIZE` | Minimum retained application sockets; zero releases idle capacity | `0` |
-| `SNEUP_MONGODB_MAX_IDLE_TIME_MS` | Close an unused pooled socket after this bounded idle period | `60000` |
-| `SNEUP_MONGODB_WAIT_QUEUE_TIMEOUT_MS` | Fail a database operation instead of waiting indefinitely for a pooled socket | `5000` |
-| `PORT` | Server port | `3000` |
-| `NODE_ENV` | Environment | `development` |
-| `WEBHOOK_CALLBACK_URL` | Webhook URL | Optional |
-| `FULL_SYNC_CRON` | Full sync schedule | `0 1 * * *` |
-| `INCREMENTAL_SYNC_CRON` | Incremental sync schedule | `*/15 * * * *` |
-| `SNEUP_TRELLO_BOARD_SYNC_CONCURRENCY` | Bounded boards processed in parallel during Trello full and incremental syncs | `2` |
-| `SNEUP_NGROK_ENABLED` | Open an authenticated ngrok ingress after local startup | `false` |
-| `NGROK_AUTHTOKEN` | ngrok account auth token; required only when ingress is enabled | Empty |
-| `SNEUP_NGROK_DOMAIN` | Optional reserved ngrok domain | Empty |
-| `SNEUP_CONNECTOR_CREDENTIAL_ROTATION_DAYS` | Review interval for secret-based connector credentials; it never rotates a provider credential automatically | `90` |
-| `SNEUP_CONNECTOR_CREDENTIAL_ROTATION_WARNING_DAYS` | Days before the review deadline when Sneup shows a connector rotation warning | `14` |
-| `SNEUP_CONNECTOR_SYNC_FRESHNESS_HOURS` | Hours before a completed read-only connector sync is flagged for operator review; it never triggers a provider call | `24` |
-| `DECISION_QUEUE_SNOOZE_CRON` | Reopens elapsed internal decision-queue snoozes; it never creates a provider write | `*/15 * * * *` |
-| `ANALYTICS_CRON` | Analytics schedule | `0 * * * *` |
-| `LOG_LEVEL` | Logging level | `info` |
-| `SNEUP_HTTP_REQUEST_LOGS` | Log every successful HTTP request instead of only errors and slow requests | `false` |
-| `SNEUP_SLOW_REQUEST_MS` | Slow-request warning threshold, bounded from 100 to 60000 ms | `1000` |
-| `SNEUP_SHUTDOWN_GRACE_MS` | Graceful active-request/job drain window before forced teardown, bounded from 100 to 120000 ms | `15000` |
+- Server: `PORT`, `HOST`, `SNEUP_REQUIRE_API_KEY`, `SNEUP_API_KEY`, `SNEUP_ALLOWED_ORIGINS`.
+- MongoDB: `MONGODB_URI`, pool sizing, connection timeout, socket timeout, wait queue timeout.
+- Production secrets: `SNEUP_API_TOKEN_PEPPER`, `SNEUP_SESSION_TOKEN_PEPPER`, `SNEUP_INVITE_TOKEN_PEPPER`, `CONNECTOR_ENCRYPTION_KEY`, `CONNECTOR_STATE_SECRET`.
+- Provider safety: `SNEUP_PROVIDER_WRITES_DISABLED`, policy rules, approval TTLs, provider-specific caps.
+- Trello: `TRELLO_API_KEY`, `TRELLO_API_TOKEN`, webhook secret, board/card limits, sync concurrency.
+- Connector OAuth apps: provider-specific `*_CLIENT_ID` and `*_CLIENT_SECRET` variables.
+- Connector sync: per-provider timeouts, page sizes, total limits, cursor lookback windows, retry limits, and response-size limits.
+- ngrok: `SNEUP_NGROK_ENABLED`, `NGROK_AUTHTOKEN`, `SNEUP_NGROK_DOMAIN`, with API-key enforcement required.
+- Notifications and invitations: Resend sender/API key, notification schedules, invite retention.
+- AI: optional `OPENAI_API_KEY` and bounded model/context/output settings.
+- Retention and repair: workspace retention schedules, invitation retention, repair commands, verification database names.
 
-## Troubleshooting
+Run diagnostics after changing configuration:
 
-Open **Set up** in the command center first. Sneup checks the application runtime, selected workspace mode, graceful restart window, MongoDB, Trello connection, production secrets, remote API protection, ngrok posture, and provider-write safety. Each non-ready check includes the next operator action without exposing a secret.
+```powershell
+npm.cmd run doctor
+npm.cmd run doctor:json
+```
 
-In the Windows app, **Support file** writes a redacted JSON file to Sneup's local user-data support folder and opens it in File Explorer. It contains configuration status only: no environment values, credentials, tokens, connection strings, logs, or user data. Browser/server operators can create the same bounded file with `npm.cmd run support:bundle`.
+## Developer workflow
 
-Release operators can verify the unpacked Windows app with `npm.cmd run verify:packaged`. The verifier refuses an existing Sneup session or occupied port, checks health, diagnostics, and the HAI write policy, records a 30-second process-group resource sample, requests a normal window close, and confirms the loopback port is released. The Windows CI job runs the same packaged-app check before uploading an installer artifact.
+Useful commands:
 
-Before changing the review or decision-queue lifecycle, set `SNEUP_REVIEW_CONCURRENCY_VERIFICATION_MONGO_URI` to a dedicated disposable MongoDB database named `sneup_review_concurrency_verification_*` and run `npm.cmd run verify:review-concurrency`. The verifier races authenticated decisions, checks exact approval ownership and stale queue rejection, proves no orphan decision records remain, and drops only that guarded database without contacting Trello.
+```powershell
+npm.cmd run lint
+npm.cmd test -- --runInBand
+npm.cmd run evaluate:recommendations
+npm.cmd run check:route-authorization
+npm.cmd audit --omit=dev --audit-level=high
+npm.cmd audit --audit-level=high
+npm.cmd run check:release-security
+npm.cmd run check:ci
+```
 
-Before changing worker-response or follow-up correlation, set `SNEUP_FOLLOW_UP_VERIFICATION_MONGO_URI` to a dedicated disposable MongoDB database named `sneup_follow_up_verification_*` and run `npm.cmd run verify:follow-up-integrity`. The verifier races provider responses and manual resolutions, checks exact response ownership and follow-up identity, proves adjacent same-card work remains open, and drops only that guarded database without contacting Trello.
+Focused verifier scripts:
 
-### MongoDB connection issues
+```powershell
+npm.cmd run verify:workspace-migration
+npm.cmd run verify:workspace-deletion
+npm.cmd run verify:data-repair
+npm.cmd run verify:data-retention
+npm.cmd run verify:review-concurrency
+npm.cmd run verify:follow-up-integrity
+npm.cmd run verify:trello-webhooks
+npm.cmd run verify:trello-list-index
+npm.cmd run verify:connector-recovery
+npm.cmd run verify:connector-lifecycle
+npm.cmd run verify:packaged
+```
 
-- Start MongoDB and verify `MONGODB_URI` points to the intended database.
-- Run `npm.cmd run doctor` and require `/ready` to return HTTP 200 before enabling live work.
-- Use demo mode only for an explicitly read-only recovery path.
+Some verifier scripts require a dedicated disposable MongoDB URI with an exact guarded database prefix. They refuse broad database names and drop only the guarded verification database.
 
-### Trello connection issues
+## API overview
 
-- Reconnect Trello through **Connect tools** and review the requested read scope.
-- Confirm the authorized account can see the intended boards.
-- Inspect rate-limit and connector health before retrying a read. Sneup never blindly retries an ambiguous provider write.
+Sneup exposes both legacy `/api` routes and versioned `/api/v1` routes. Versioned JSON responses use a stable envelope:
 
-### Remote access issues
+```json
+{
+  "ok": true,
+  "data": {},
+  "error": null,
+  "meta": {
+    "apiVersion": "v1",
+    "requestId": "server-generated-id",
+    "timestamp": "ISO-8601"
+  }
+}
+```
 
-- Keep the HTTP server loopback-only unless authenticated ngrok ingress is deliberately enabled.
-- Verify `SNEUP_API_KEY`, `NGROK_AUTHTOKEN`, and the allowed remote origin with `npm.cmd run check:release-security`; that command reports posture, never secret values.
-- Require `/ready` to show the expected API protection, tunnel, and provider-write modes.
+Important API groups:
 
-## Contributing
+- Runtime: `/health`, `/ready`, `/api`, diagnostics, setup, support bundle.
+- Boards and cards: board sync, board context, card detail, card relationships, workflow analysis.
+- Analytics: latest health, history, critical boards, bottlenecks, velocity, recommendation feedback.
+- Team and accountability: workload, assignments, at-risk cards, follow-ups, outcomes.
+- Connectors: catalog, accounts, OAuth callbacks, provider-specific account selection, disconnect lifecycle.
+- Work Signals: adapter contracts, read-only account sync, normalized graph, dependency review.
+- Approvals and policy: recommendation review, approval ledger, policy rules, paused action types.
+- Notifications: reconciliation policies, test sends, daily briefs, delivery health.
+- Forecasts and reports: scenario inputs, capacity, generated reports, downloads.
+- Jobs: job health, runs, pause/resume, manual triggers.
+- Workspaces: users, sessions, invitations, exports, deletion, data repair, retention.
+- HAI: manifest, OpenAPI, snapshot, approval-gated proposals.
+- Webhooks: Trello, generic work-signal ingestion, generic worker-response ingestion.
 
-Contributions are welcome! Please follow these guidelines:
+See the route files under `src/routes` and `docs/API_USAGE_AUDIT.md` for implementation-level details.
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+## Architecture
+
+```text
+.
+|-- desktop/                  Electron main process and desktop runtime helpers
+|-- public/                   Browser command center assets and deferred view modules
+|-- src/
+|   |-- index.js              Express startup and runtime wiring
+|   |-- models/               MongoDB/Mongoose domain models
+|   |-- routes/               HTTP API and webhook routes
+|   |-- services/             Business logic, connectors, analytics, safety, reporting
+|   |-- utils/                Security, database, logging, shutdown, workspace helpers
+|   `-- workers/              Scheduled and background worker entry points
+|-- scripts/                  Migration, verification, profiling, release, and support scripts
+|-- tests/                    Jest regression, security, resource, and integration tests
+|-- docs/                     Operator, security, release, audit, and acceptance evidence
+|-- assets/                   Desktop/installer assets
+|-- .github/workflows/        CI quality and Windows packaging workflows
+|-- package.json              Runtime scripts, dependencies, Electron Builder config
+`-- README.md
+```
+
+Core runtime concepts:
+
+- `connectorRegistry` defines catalog metadata, auth requirements, scopes, descriptions, and sync targets.
+- `accountConnectorService` owns account storage, OAuth state, encrypted credentials, catalog filtering, and account lifecycle.
+- `workSignalAdapterService` maps supported providers to bounded read-only adapters.
+- `workSignalService` stores normalized signals and projects them into the work graph.
+- `trelloSync` manages Trello board/list/card/member/comment sync, webhook observation, and reconciliation.
+- `providerWriteSafetyService`, policy services, approval models, and Trello action attempts enforce mutation safety.
+- Worker services use leases and audits so multiple processes do not duplicate scheduled work.
+- Desktop runtime settings and startup policy decide whether the app runs live, demo, or fails closed.
+
+## Verification and release evidence
+
+The repository is maintained with explicit evidence rather than assumption. Current verification coverage includes:
+
+- ESLint.
+- Full Jest regression suite.
+- Route authorization inventory.
+- Recommendation evaluation.
+- Production and full dependency audits.
+- Release secret validation.
+- Doctor/readiness checks.
+- Real MongoDB safety profiles for review concurrency, follow-up integrity, data retention, repair, Trello webhook reconciliation, connector lifecycle, connector recovery, and portfolio scale.
+- Browser command-center checks.
+- HAI contract checks.
+- ngrok safety checks.
+- Windows installer build and packaged app runtime checks.
+- GitHub Actions quality and Windows packaging/runtime jobs.
+- Independent installer artifact download and hash verification for released builds.
+
+Detailed evidence is intentionally kept in docs rather than repeated in the README:
+
+- `docs/FINAL_VERIFICATION_REPORT.md`
+- `docs/GOAL_COMPLETION_MATRIX.md`
+- `docs/TECHNICAL_AUDIT.md`
+- `docs/UI_ACTION_AUDIT.md`
+- `docs/CLOUD_AND_HAI.md`
+- `docs/ENHANCEMENT_FINDINGS.md`
+- `docs/ACCEPTANCE_TESTS.md`
+
+## Operational docs
+
+- `docs/OPERATOR_RUNBOOK.md`: startup, release checks, emergency stop, diagnostics, repair, retention, backup, restore, rollback, Windows build.
+- `docs/SECURITY.md`: security model, supported reporting scope, secret handling, provider-write posture.
+- `docs/MULTI_WORKSPACE_IDENTITY.md`: workspace selection, sessions, invitations, and identity migration.
+- `docs/CLOUD_AND_HAI.md`: Windows, ngrok, HAI, and shutdown flow.
+- `docs/IMPLEMENTATION_REPORT.md`: release implementation notes.
+- `docs/FEATURE_IMPROVEMENT_PLAN.md`: feature improvement backlog and rationale.
+- `docs/TASK_GRAPH.md`: normalized task graph context.
+
+## Known external gates
+
+These items require owner-controlled accounts or infrastructure and are not claimed as complete by local tests:
+
+- Live Trello acceptance with the owner's real boards and webhook configuration.
+- Live OAuth acceptance for every third-party connector the owner wants to activate.
+- Live ngrok ingress with the owner's token and optional reserved domain.
+- Live HAI integration acceptance from the consuming HAI system.
+- Production MongoDB restore rehearsal and hosted deployment/canary/rollback.
+- Windows publisher signing and trusted update-channel configuration.
+- Clean Windows VM installation acceptance.
+- Keyboard-only and assistive-technology certification.
 
 ## License
 
-MIT License - see LICENSE file for details
-
-## Credits
-
-Built with these amazing open source projects:
-
-- **trello.js** by MrRefactoring
-- **natural** by NaturalNode
-- **node-schedule** by node-schedule team
-- **mongoose** by Automattic
-- **express** by Express team
-- **winston** by Winston team
+MIT. See `LICENSE` when present in the repository.
 
 ## Support
 
-For issues, questions, or feature requests, please open an issue on GitHub.
-
-## Roadmap
-
-- [ ] Dashboard UI with React
-- [x] Email notifications
-- [x] Policy-controlled daily reconciliation digests
-- [x] Slack, Teams, and generic reconciliation-alert webhooks
-- [ ] Advanced machine learning for predictions
-- [x] English/Dutch shell, help, setup, primary workflow, connector marketplace, Work Signals and graph review, workspace administration, approval ledger, Forecasts, Reports, and consequential workspace form/modal localization
-- [ ] Complete a keyboard-only and screen-reader certification pass
-- [ ] Mobile app
-
----
-
-**Sneup** - Making project management autonomous and intelligent.
-
-Forecasts and Reports are demand-loaded with their view-specific Dutch copy. Opening either view starts its bounded API read and renderer fetch together; a failed renderer load can be retried by reopening the view. API, session, persistence, capacity/project-mapping mutation, report-download, and provider-write authority remain in the authenticated application controller.
-
-## Connector Sync Safety
-
-Connector work-signal ingestion is read-only. Trello-linked accounts fetch accessible boards and cards through the Trello API; Jira-linked accounts discover their authorized site and query issues through the Atlassian Cloud API; Asana-linked accounts select an authorized workspace and query its project tasks; Slack-linked accounts query accessible channel history; GitHub-linked accounts fetch accessible repositories plus issues and pull requests through the GitHub API; Google Workspace-linked accounts request only bounded Calendar scheduling metadata, Drive metadata, and Google Tasks list/task metadata from fixed Google API hosts. Calendar retains redacted summaries, timestamps, and an organizer identifier only when an explicit local capacity mapping uses it; it excludes descriptions, attendees, locations, conferencing, creator profiles, and links. Drive retains redacted names, types, timestamps, and trash state only, excluding content, owners, sharing, and URLs. Google Tasks retains redacted titles, completion state, due/completion/update timestamps, and an opaque task-list reference, while excluding notes, links, assignments, hidden provider fields, and all writes. Microsoft 365-linked accounts read Calendar summaries, To Do task metadata, and signed-in-user OneDrive root-item metadata through Graph; Linear-linked accounts query bounded issue pages with team, project, cycle, workflow, assignee, and label context; Notion-linked accounts query only pages and data sources explicitly shared with the connection, without fetching page blocks or comments. Sneup never writes to these providers from this sync path. Linked credentials stay encrypted at rest, are excluded from ordinary account queries, and are selected and decrypted only in-process for credential-consuming provider paths.
-
-## Reconciliation Alert Delivery
-
-Workspace managers can configure Slack, Teams, generic HTTPS webhook, or Resend email policies from the Approvals ledger. Destinations are encrypted with `CONNECTOR_ENCRYPTION_KEY`, excluded from API responses and audit payloads, and only send after the policy is explicitly activated. Email requires `RESEND_API_KEY` and `SNEUP_NOTIFICATION_EMAIL_FROM`, accepts exactly one plain recipient address, and sends only through Resend's fixed API endpoint. Sneup accepts webhook destinations only at public HTTPS URLs without credentials or custom ports, atomically claims each queued or deferred delivery before any external request, rejects redirects, and deduplicates each reconciliation evidence gap for a policy per UTC day. A concurrent worker observes the existing sending claim instead of issuing a duplicate notification; unresolved sending claims remain in the ledger for operator evidence rather than automatic retry.
-
-An active policy may instead group warning reconciliation gaps into one bounded daily digest at a chosen UTC hour. Critical evidence is never put into a digest. Each digest retains the included delivery IDs, preserves credential-free HTTPS source evidence, and marks those source deliveries as digested only after the external destination accepts the bundle. An independently enabled daily operations brief can also deliver a capped, read-only current-state summary at a selected UTC hour; it is idempotent per policy/day, uses the same encrypted destination boundary and delivery ledger, and never sends a provider write. Webhook and email payloads contain only validated source links. The scheduled `notifications.reconciliation_alerts` and `notifications.daily_operations_briefs` jobs surface delivery health in Job Health.
-
-Provider syncs are deliberately bounded so one account cannot monopolize memory or provider quota. Configure `SNEUP_TRELLO_MAX_BOARDS`, `SNEUP_TRELLO_MAX_CARDS_PER_BOARD`, and `SNEUP_TRELLO_MAX_TOTAL_CARDS` for Trello workspaces, `SNEUP_JIRA_MAX_ISSUES` and `SNEUP_JIRA_PAGE_SIZE` for Jira workspaces, `SNEUP_ASANA_MAX_PROJECTS`, `SNEUP_ASANA_MAX_TASKS_PER_PROJECT`, and `SNEUP_ASANA_MAX_TOTAL_TASKS` for Asana workspaces, `SNEUP_SLACK_MAX_CHANNELS`, `SNEUP_SLACK_MAX_MESSAGES_PER_CHANNEL`, and `SNEUP_SLACK_MAX_TOTAL_MESSAGES` for Slack workspaces, `SNEUP_GITHUB_MAX_REPOSITORIES`, `SNEUP_GITHUB_MAX_ITEMS_PER_REPOSITORY`, and `SNEUP_GITHUB_MAX_TOTAL_ITEMS` for GitHub workspaces, `SNEUP_GOOGLE_MAX_TASK_LISTS`, `SNEUP_GOOGLE_MAX_TASKS_PER_LIST`, `SNEUP_GOOGLE_MAX_TOTAL_TASKS`, and `SNEUP_GOOGLE_MAX_RESPONSE_BYTES` for Google Workspace task ingestion, `SNEUP_MICROSOFT_MAX_EVENTS`, `SNEUP_MICROSOFT_MAX_TASK_LISTS`, `SNEUP_MICROSOFT_MAX_TASKS_PER_LIST`, `SNEUP_MICROSOFT_MAX_TOTAL_TASKS`, and `SNEUP_MICROSOFT_MAX_FILES` for Microsoft 365 workspaces, `SNEUP_LINEAR_MAX_ISSUES` plus `SNEUP_LINEAR_PAGE_SIZE` for Linear workspaces, and `SNEUP_NOTION_MAX_RESULTS` plus `SNEUP_NOTION_PAGE_SIZE` for Notion connections. If a run reaches a configured cap, Sneup fails the sync visibly rather than silently advancing the cursor and dropping work. Jira multi-site accounts and Asana multi-workspace accounts must explicitly select a source before syncing, so work from an unintended workspace cannot enter Sneup.
-Quip now connects through its OAuth Automation API using the least-privileged `USER_READ` scope. Sneup syncs only the bounded current-user thread index (redacted title, type, and lifecycle timestamps); it does not request document or spreadsheet bodies, messages, members, folders, permissions, URLs, attachments, or perform provider writes. Hive now connects through its documented workspace project endpoint using an API key plus the explicitly selected user and workspace IDs. It reads only bounded, redacted project metadata; tasks, conversations, checklists, files, people, custom fields, URLs, and provider writes remain out of the sync path. Planview AdaptiveWork (Clarizen) now performs a bounded `EntityQuery` with an integration API key against an allowlisted US or EU API region, retaining only redacted project names and start dates. Its query request never targets provider mutation endpoints or reads tasks, initiatives, assignments, risks, milestones, people, financials, custom fields, URLs, or other project content. Lucid now uses a `DocumentReadonly` API key to search bounded document metadata through its current REST API. It excludes document content, pages, shapes, comments, owners, folders, sharing, exports, URLs, and provider writes, and rejects untrusted pagination links. Taskworld now makes a single bounded `project.get-all` request to an allowlisted regional API and retains only redacted project metadata. Sneup does not call Taskworld task, milestone, conversation, comment, checklist, file, or mutation endpoints, and fails visibly instead of guessing an undocumented continuation parameter.
+Use GitHub issues for questions, bugs, and feature requests. Include the redacted support bundle from `npm.cmd run support:bundle` when reporting runtime configuration issues.
