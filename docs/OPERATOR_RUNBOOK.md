@@ -33,7 +33,7 @@ Set `SNEUP_PROVIDER_WRITES_DISABLED=true`, restart every Sneup process, and veri
 
 ## Diagnostics
 
-Open **Set up** for the fastest non-technical check. It reports eight bounded runtime and write-safety checks with one prioritized next action. In the Windows app, **Support file** writes the redacted configuration report under the Electron user-data `support` folder and opens its location.
+Open **Set up** for the fastest non-technical check. It reports nine bounded runtime and write-safety checks with one prioritized next action. In the Windows app, **Support file** writes the redacted configuration report under the Electron user-data `support` folder and opens its location.
 
 ```powershell
 npm.cmd run doctor:json
@@ -84,3 +84,7 @@ Use MongoDB-native, encrypted, access-controlled backups. Before a release, rest
 ## Windows
 
 Build with `npm.cmd run build:installer`. The output is `release/Sneup-Setup-<version>.exe`. Treat unsigned builds as test artifacts; production distribution requires publisher signing and a verified update channel.
+
+Normal desktop close, settings restart, and recovery-to-demo restart share the backend cleanup path. Sneup stops scheduling work, drains active jobs and HTTP requests, closes ngrok, and disconnects MongoDB before allowing a successful quit or queuing a relaunch. Repeated close/restart requests share one operation; a second launch cannot reopen a closing window.
+
+The wait for pending runtime initialization uses `SNEUP_SHUTDOWN_GRACE_MS` (15 seconds by default); backend components retain their existing individual shutdown bounds. A pending page load does not delay backend cleanup. If initialization cannot settle or cleanup fails, Sneup logs a fixed, non-sensitive error and exits with status 1 without scheduling a relaunch. Inspect diagnostics and reopen manually after addressing the failure. Forced process termination, power loss, and Windows session termination are not proof of graceful cleanup; use the reconciliation and recovery procedures above when work may have been interrupted.

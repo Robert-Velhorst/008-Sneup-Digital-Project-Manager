@@ -5,6 +5,7 @@ const { acquireSingleInstanceLock } = require('./singleInstance');
 const { createNavigationPolicy } = require('./navigationPolicy');
 const { configureDesktopEnvironment } = require('./runtimeEnvironment');
 const { describeStartupFailure } = require('./startupFailure');
+const { createDesktopLifecycle } = require('./runtimeLifecycle');
 const {
   getDesktopSettingsPath,
   readDesktopSettings,
@@ -23,6 +24,15 @@ process.env.PORT = DESKTOP_PORT;
 process.env.SNEUP_PUBLIC_URL = process.env.SNEUP_PUBLIC_URL || DESKTOP_URL;
 
 let mainWindow;
+let sneupRuntime;
+let runtimeStartupPromise;
+let runtimeStartupMode;
+const desktopLifecycle = createDesktopLifecycle({
+  app,
+  getRuntime: () => sneupRuntime,
+  getStartup: () => runtimeStartupPromise,
+  onError: () => require('../src/utils/logger').error('Desktop runtime cleanup failed; exiting without relaunch')
+});
 
 const getSettingsPath = () => getDesktopSettingsPath(app.getPath('userData'));
 
@@ -38,11 +48,7 @@ ipcMain.handle('sneup:save-startup-mode', async (_event, startupMode) => {
   return { startupMode: settings.startupMode };
 });
 
-ipcMain.handle('sneup:restart', () => {
-  app.relaunch();
-  setImmediate(() => app.exit(0));
-  return { restarting: true };
-});
+ipcMain.handle('sneup:restart', () => desktopLifecycle.requestRestart());
 
 ipcMain.handle('sneup:create-support-bundle', async () => {
   const { fileName, filePath } = await createSupportBundle({
@@ -102,7 +108,7 @@ const createWindow = async () => {
   });
 
   mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
+    if (!desktopLifecycle.isQuitting()) mainWindow.show();
   });
 
   const navigationPolicy = createNavigationPolicy({ shell, internalUrl: DESKTOP_URL });
@@ -113,26 +119,34 @@ const createWindow = async () => {
   await mainWindow.loadURL(DESKTOP_URL);
 };
 
+const initializeRuntime = async () => {
+  // Packaged applications are read-only inside app.asar, so logs live with user data.
+  process.env.SNEUP_LOG_DIR = process.env.SNEUP_LOG_DIR || path.join(app.getPath('userData'), 'logs');
+  runtimeStartupMode = await configureRuntime();
+  if (!desktopLifecycle.isQuitting()) {
+    sneupRuntime = require('../src/index');
+    await sneupRuntime.initApp();
+  }
+};
+
 const start = async () => {
-  let startupMode;
   try {
-    // Packaged applications are read-only inside app.asar, so logs live with user data.
-    process.env.SNEUP_LOG_DIR = process.env.SNEUP_LOG_DIR || path.join(app.getPath('userData'), 'logs');
-    startupMode = await configureRuntime();
-    const sneup = require('../src/index');
-    await sneup.initApp();
+    runtimeStartupPromise = initializeRuntime();
+    await runtimeStartupPromise;
+    if (desktopLifecycle.isQuitting()) return;
     await waitForSneup();
+    if (desktopLifecycle.isQuitting()) return;
     await createWindow();
   } catch (error) {
-    const failure = describeStartupFailure({ error, startupMode });
+    if (desktopLifecycle.isQuitting()) return;
+    const failure = describeStartupFailure({ error, startupMode: runtimeStartupMode });
     if (failure.recoverable) {
       try {
         const result = await dialog.showMessageBox(failure.dialogOptions);
         if (result.response === 0) {
           await saveDesktopStartupMode(getSettingsPath(), 'demo');
           process.env.SNEUP_DEMO_MODE = 'true';
-          app.relaunch();
-          app.exit(0);
+          desktopLifecycle.requestRestart();
           return;
         }
       } catch {
@@ -148,11 +162,12 @@ const start = async () => {
   }
 };
 
-if (acquireSingleInstanceLock({ app, getMainWindow: () => mainWindow })) {
+if (acquireSingleInstanceLock({ app, getMainWindow: () => desktopLifecycle.isQuitting() ? undefined : mainWindow })) {
+  app.on('before-quit', desktopLifecycle.beforeQuit);
   app.whenReady().then(start);
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
+    if (!desktopLifecycle.isQuitting() && BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
   });

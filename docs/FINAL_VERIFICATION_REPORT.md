@@ -2,9 +2,20 @@
 
 This report is updated from executed commands at release time. A passing local suite proves repository behavior under tests; it does not prove live provider authorization or production deployment.
 
-## 2.3.44 dependency security verification (2026-09-05)
+## 2.3.45 desktop lifecycle verification (2026-09-05)
 
 This is the current local verification record. The sections below retain historical release evidence; dependency audit results are dated observations.
+
+- Electron normal quit, settings restart, and recovery-to-demo restart now invoke the existing runtime shutdown before permitting successful exit or scheduling a relaunch. Concurrent quit requests share one cleanup operation. Cleanup failure exits with status 1 and does not relaunch; logs do not include the private error payload.
+- Runtime initialization is tracked separately from health polling and renderer loading, so a pending page cannot block cleanup of an initialized backend. Initialization itself has a bounded wait using the existing configured shutdown grace. Normal activation and second-instance focus cannot show a closing window.
+- Six initial lifecycle regressions failed before implementation. Independent review identified two additional races; both were reproduced with failing tests before correction. All ten desktop lifecycle cases now pass, including normal/repeated close, IPC restart, failure handling, pending initialization, timeout, live startup recovery, pending renderer load, and second-instance behavior.
+- The final default-timeout `npm run check:ci` passed lint, all 180 route contracts, 136 suites/998 tests, and 5/5 recommendation scenarios. Earlier local cold-load attempts hit an existing five-second backend test timeout; an isolated longer-allowance run and the final full run with default timeouts passed. No production timeout was relaxed.
+- The full dependency audit reports zero vulnerabilities. Backend domain models, provider permissions, approval rules, and database schemas are unchanged.
+- This verification covers graceful application close/restart, not forced termination, power loss, or Windows session termination. Live provider, hosted ingress/HAI, and production recovery acceptance remain separate gates.
+
+## 2.3.44 dependency security verification (2026-09-05)
+
+Historical release evidence:
 
 - An explicit `qs: 6.16.0` override fixes the installed dependency affected by [GHSA-x5fp-wj9c-mxmx](https://github.com/advisories/GHSA-x5fp-wj9c-mxmx) and [GHSA-4mjr-xmp4-gh2g](https://github.com/advisories/GHSA-4mjr-xmp4-gh2g). Both Express and body-parser resolve the fixed version; Express remains 4.22.2 and body-parser remains 1.20.6. Their upstream `~6.15.1` ranges require the override until they admit a fixed version.
 - The dependency defects were reproduced with eight failing regression cases before the fix. All 16 focused checks pass afterward, including encoded bracket arrays, both hostile-object parsing modes, real buffers, nested forms, OAuth encoding, repeated values, literal commas, and existing parameter/depth error responses.
