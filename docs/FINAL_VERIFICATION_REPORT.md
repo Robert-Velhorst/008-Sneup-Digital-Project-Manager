@@ -2,9 +2,20 @@
 
 This report is updated from executed commands at release time. A passing local suite proves repository behavior under tests; it does not prove live provider authorization or production deployment.
 
+## 2.3.44 dependency security verification (2026-09-05)
+
+This is the current local verification record. The sections below retain historical release evidence; dependency audit results are dated observations.
+
+- An explicit `qs: 6.16.0` override fixes the installed dependency affected by [GHSA-x5fp-wj9c-mxmx](https://github.com/advisories/GHSA-x5fp-wj9c-mxmx) and [GHSA-4mjr-xmp4-gh2g](https://github.com/advisories/GHSA-4mjr-xmp4-gh2g). Both Express and body-parser resolve the fixed version; Express remains 4.22.2 and body-parser remains 1.20.6. Their upstream `~6.15.1` ranges require the override until they admit a fixed version.
+- The dependency defects were reproduced with eight failing regression cases before the fix. All 16 focused checks pass afterward, including encoded bracket arrays, both hostile-object parsing modes, real buffers, nested forms, OAuth encoding, repeated values, literal commas, and existing parameter/depth error responses.
+- Exposure classification: installed dependency vulnerabilities confirmed; a complete remote Sneup exploit was not established. The application does not enable comma splitting and no application `qs.stringify` sink was found. The patch does not change request parser options or provider authorization.
+- Compatible lockfile updates also remediate development/build findings in `browserslist`, `fast-uri`, and `@xmldom/xmldom`. Production and full `npm audit` checks both report zero vulnerabilities at verification time.
+- `npm run check:ci -- --silent` passed lint, all 180 route contracts, 135 suites/988 tests, and 5/5 recommendation scenarios. This includes ngrok, HAI, OAuth, webhook, approval, and desktop regression coverage.
+- Startup verification returned HTTP 200 for all seven Overview probes. Import retained 254 modules without Mongoose at 70.5 MB RSS; Overview retained 266 modules without Mongoose at 75 MB RSS. The concurrent-build sample took 1,446 ms to import and 163.8 ms for Overview; it is not an isolated performance comparison.
+
 ## 2.3.43 publication verification (2026-09-04)
 
-This is the current local verification record. The sections below retain historical release evidence; their dependency audit results are dated observations.
+Historical local evidence; the dependency warnings below were remediated in 2.3.44 above.
 
 - Trello sync rebuilds list card references from active canonical cards, removes stale board memberships, and advances board freshness only after all detailed stages succeed.
 - `npm run check:ci` passed lint, the 180-route authorization inventory, the full regression suite, and recommendation evaluation. Lint passed again after the verifier cleanup fix.
