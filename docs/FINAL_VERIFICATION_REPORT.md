@@ -2,6 +2,19 @@
 
 This report is updated from executed commands at release time. A passing local suite proves repository behavior under tests; it does not prove live provider authorization or production deployment.
 
+## 2.3.43 publication verification (2026-09-04)
+
+This is the current local verification record. The sections below retain historical release evidence; their dependency audit results are dated observations.
+
+- Trello sync rebuilds list card references from active canonical cards, removes stale board memberships, and advances board freshness only after all detailed stages succeed.
+- `npm run check:ci` passed lint, the 180-route authorization inventory, the full regression suite, and recommendation evaluation. Lint passed again after the verifier cleanup fix.
+- The disposable MongoDB verifier passed with 300 lists, 15,000 target cards and 15,000 unrelated cards across 60 board identifiers. Exact list and board membership checks passed; one aggregation and one unordered bulk write reconciled lists using the intended compound index. This run measured 150.1 ms and 114.5 MB RSS, with no provider writes.
+- Oversized verification database names are rejected before connection. Database cleanup now disconnects even when dropping the disposable database fails.
+- The unsigned Windows 2.3.43 installer built successfully. Packaged demo health, nine redacted diagnostics, HAI `never_direct`, normal shutdown, and port release passed. All three changed runtime modules match the packaged archive byte for byte.
+- The five-second packaged sample reported four processes, 376.6 MB working set, 356.1 MB private memory, and 3.219 cumulative CPU seconds. These are local observations, not clean-machine performance guarantees.
+- `npm audit --omit=dev --audit-level=high` passed its threshold but reported three moderate dependency vulnerabilities involving `qs`, `body-parser`, and `express`. No fixed `qs` version was available within the existing `~6.15.1` dependency range. These warnings remain unresolved; this release does not claim a zero-vulnerability audit.
+- GitHub's paginated open-pull-request inventory was empty before publication. GitHub CI for this publication must be checked separately after pushing.
+
 ## Baseline
 
 - Branch: `main`

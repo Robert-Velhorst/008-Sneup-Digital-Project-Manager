@@ -135,6 +135,7 @@ const cardSchema = new mongoose.Schema({
 
 // Indexes for efficient queries
 cardSchema.index({ workspaceId: 1, boardId: 1, listId: 1 });
+cardSchema.index({ workspaceId: 1, boardId: 1, closed: 1, listId: 1 });
 cardSchema.index({ workspaceId: 1, trelloId: 1 }, { unique: true });
 cardSchema.index({ workspaceId: 1, shortLink: 1 }, { sparse: true });
 cardSchema.index({ workspaceId: 1, closed: 1, due: 1, riskLevel: -1 });

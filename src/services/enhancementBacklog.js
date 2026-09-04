@@ -677,6 +677,24 @@ const enhancements = [
       'Rapid filter changes use latest-request-wins behavior and preserve usable area choices.',
       'English and Dutch operator chrome render while enhancement evidence remains escaped and verbatim.'
     ]
+  },
+  {
+    id: 'ENH-043',
+    priority: 'P1',
+    area: 'resource',
+    title: 'Reconcile Trello relationships exactly at portfolio scale',
+    evidence: 'Board sync now rebuilds every list card index from canonical active cards with one indexed aggregation and one unordered bulk write, removes members who no longer belong to the Trello board, and advances board freshness only after lists, members, cards, and comments succeed. A disposable real-Mongo profile covered 60 boards, 30,000 workspace cards, 300 lists, 6,000 seeded stale list references, and stale member membership in 114.9 ms at 145.2 MB RSS; it selected the exact workspace-board-active-list index and performed no provider write.',
+    impact: 'Prevents moved, closed, and deleted Trello records from corrupting workload and list views while removing per-list count queries and unbounded document growth from each board sync.',
+    effort: 'M',
+    status: 'done',
+    nextStep: 'Measure live owner-authorized Trello board sync latency and database write volume before tuning the bounded board concurrency above its conservative default.',
+    acceptanceCriteria: [
+      'Moved, closed, and deleted cards disappear from stale list indexes.',
+      'Members removed from a Trello board disappear from its local membership index.',
+      'Board freshness advances only after every detailed sync stage succeeds.',
+      'List reconciliation uses one board-scoped aggregation and one bounded bulk write.',
+      'Real-database scale evidence selects the intended compound index and performs no provider write.'
+    ]
   }
 ];
 

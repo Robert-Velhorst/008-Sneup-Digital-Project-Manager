@@ -100,6 +100,73 @@ const reconcileCardMemberAssignments = async ({ cardId, workspaceId, previousMem
   return { addedMemberIds, removedMemberIds };
 };
 
+const reconcileBoardMemberAssignments = async ({ boardId, workspaceId, activeTrelloMemberIds, MemberModel = Member }) => {
+  const activeIds = [...new Set((activeTrelloMemberIds || [])
+    .map(value => String(value || ''))
+    .filter(Boolean))];
+  const result = await MemberModel.updateMany({
+    workspaceId,
+    boards: boardId,
+    trelloId: { $nin: activeIds }
+  }, {
+    $pull: { boards: boardId }
+  });
+  return {
+    activeMemberCount: activeIds.length,
+    removedBoardMemberships: Number(result?.modifiedCount || 0)
+  };
+};
+
+const reconcileListCardIndexes = async (board, lists, options = {}) => {
+  const CardModel = options.CardModel || Card;
+  const ListModel = options.ListModel || List;
+  const updatedAt = options.updatedAt || new Date();
+  const grouped = await CardModel.aggregate([
+    {
+      $match: {
+        workspaceId: board.workspaceId,
+        boardId: board._id,
+        closed: false
+      }
+    },
+    {
+      $group: {
+        _id: '$listId',
+        cardIds: { $push: '$_id' },
+        cardCount: { $sum: 1 }
+      }
+    }
+  ]);
+  const cardsByList = new Map(grouped.map(row => [String(row._id), row]));
+  const operations = lists.map((list) => {
+    const summary = cardsByList.get(String(list._id));
+    return {
+      updateOne: {
+        filter: { _id: list._id, workspaceId: board.workspaceId },
+        update: {
+          $set: {
+            cards: summary?.cardIds || [],
+            cardCount: Number(summary?.cardCount || 0),
+            updatedAt
+          }
+        }
+      }
+    };
+  });
+
+  if (operations.length === 0) {
+    return { listCount: 0, activeCardCount: 0, matchedCount: 0, modifiedCount: 0 };
+  }
+
+  const result = await ListModel.bulkWrite(operations, { ordered: false });
+  return {
+    listCount: operations.length,
+    activeCardCount: grouped.reduce((total, row) => total + Number(row.cardCount || 0), 0),
+    matchedCount: Number(result?.matchedCount || 0),
+    modifiedCount: Number(result?.modifiedCount || 0)
+  };
+};
+
 /**
  * Trello Synchronization Service
  * Handles syncing data from Trello to local database
@@ -250,6 +317,7 @@ const syncBoardNow = async (boardId, options = {}) => {
         url: trelloBoard.url,
         description: trelloBoard.desc || '',
         closed: trelloBoard.closed,
+        lastSync: null,
         workspaceId
       });
     } else {
@@ -261,17 +329,23 @@ const syncBoardNow = async (boardId, options = {}) => {
       board.workspaceId = board.workspaceId || workspaceId;
     }
     
-    board.lastSync = new Date();
     await board.save();
-    
+
+    const syncBoardLists = options.syncLists || syncLists;
+    const syncBoardMembers = options.syncMembers || syncMembers;
+    const syncBoardCards = options.syncCards || syncCards;
+
     // Sync lists
-    await syncLists(board);
+    await syncBoardLists(board);
     
     // Sync members
-    await syncMembers(board);
+    await syncBoardMembers(board);
     
     // Sync cards (which also syncs comments)
-    await syncCards(board);
+    await syncBoardCards(board);
+
+    board.lastSync = new Date();
+    await board.save();
     
     logger.info(`Board sync completed: ${board.name}`);
     return board;
@@ -296,7 +370,7 @@ const syncLists = async (board) => {
     // Get lists from Trello
     const trelloLists = await trelloClient.boardApi.getLists(board.trelloId);
     
-    const processedListIds = [];
+    const processedListIds = new Set();
     
     // Process each list
     for (const trelloList of trelloLists) {
@@ -322,18 +396,21 @@ const syncLists = async (board) => {
       list.lastSync = new Date();
       await list.save();
       
-      processedListIds.push(list.trelloId);
+      processedListIds.add(list.trelloId);
     }
     
     // Mark deleted lists as closed
     const dbLists = await List.find({ boardId: board._id, workspaceId: board.workspaceId });
     for (const dbList of dbLists) {
-      if (!processedListIds.includes(dbList.trelloId)) {
+      if (!processedListIds.has(dbList.trelloId)) {
         dbList.closed = true;
         dbList.lastSync = new Date();
         await dbList.save();
       }
     }
+    board.lists = dbLists
+      .filter(dbList => processedListIds.has(dbList.trelloId))
+      .map(dbList => dbList._id);
     
     logger.info(`Lists sync completed for board: ${board.name}`);
   } catch (error) {
@@ -387,6 +464,12 @@ const syncMembers = async (board) => {
       processedMemberIds.push(member.trelloId);
     }
     
+    await reconcileBoardMemberAssignments({
+      boardId: board._id,
+      workspaceId: board.workspaceId,
+      activeTrelloMemberIds: processedMemberIds
+    });
+
     // Update board's members
     const boardMembers = await Member.find({ trelloId: { $in: processedMemberIds }, workspaceId: board.workspaceId });
     board.members = boardMembers.map(member => member._id);
@@ -421,7 +504,7 @@ const syncCards = async (board) => {
       membersByTrelloId[member.trelloId] = member;
     });
     
-    const processedCardIds = [];
+    const processedCardIds = new Set();
     
     // Process each card
     for (const trelloCard of trelloCards) {
@@ -558,20 +641,13 @@ const syncCards = async (board) => {
       // Sync comments for this card
       await syncComments(card);
       
-      processedCardIds.push(card.trelloId);
-      
-      // Update list's cards
-      if (!list.cards.some(existingCard => existingCard.toString() === card._id.toString())) {
-        list.cards.push(card._id);
-        list.cardCount = list.cards.length;
-        await list.save();
-      }
+      processedCardIds.add(card.trelloId);
     }
     
     // Mark deleted cards as closed
     const dbCards = await Card.find({ boardId: board._id, workspaceId: board.workspaceId });
     for (const dbCard of dbCards) {
-      if (!processedCardIds.includes(dbCard.trelloId)) {
+      if (!processedCardIds.has(dbCard.trelloId)) {
         await reconcileCardMemberAssignments({
           cardId: dbCard._id,
           workspaceId: board.workspaceId,
@@ -585,12 +661,9 @@ const syncCards = async (board) => {
       }
     }
     
-    // Update card counts for lists
-    for (const list of lists) {
-      const cardCount = await Card.countDocuments({ listId: list._id, workspaceId: board.workspaceId, closed: false });
-      list.cardCount = cardCount;
-      await list.save();
-    }
+    // Rebuild the denormalized list index in two database operations. This also
+    // removes moved and closed cards from old lists instead of retaining them forever.
+    await reconcileListCardIndexes(board, lists);
     
     logger.info(`Cards sync completed for board: ${board.name}`);
   } catch (error) {
@@ -842,6 +915,7 @@ module.exports = {
   scheduleSync,
   stopSync,
   syncAllBoards,
+  syncBoardNow,
   syncBoard,
   syncRecentActivity,
   reconcileTrelloWebhooks,
@@ -851,5 +925,7 @@ module.exports = {
   runSerialized,
   parseTrelloActivityAt,
   mapTrelloAttachments,
-  reconcileCardMemberAssignments
+  reconcileCardMemberAssignments,
+  reconcileBoardMemberAssignments,
+  reconcileListCardIndexes
 };
