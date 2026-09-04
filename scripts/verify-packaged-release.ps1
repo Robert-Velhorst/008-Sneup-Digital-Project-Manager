@@ -15,9 +15,45 @@ if (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyCon
   throw "Port $Port is already in use."
 }
 
+# MainWindowHandle excludes hidden windows. Target only our app's named window
+# and send the same close message as its title-bar button, without terminating it.
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+
+public static class SneupPackagedWindow {
+  private delegate bool WindowCallback(IntPtr window, IntPtr state);
+  [DllImport("user32.dll")]
+  private static extern bool EnumWindows(WindowCallback callback, IntPtr state);
+  [DllImport("user32.dll")]
+  private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+  private static extern int GetWindowText(IntPtr window, StringBuilder text, int capacity);
+  [DllImport("user32.dll")]
+  private static extern bool PostMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
+
+  public static bool RequestClose(int processId) {
+    bool requested = false;
+    EnumWindows(delegate(IntPtr window, IntPtr state) {
+      uint owner;
+      GetWindowThreadProcessId(window, out owner);
+      if (owner != (uint)processId) return true;
+      var title = new StringBuilder(256);
+      GetWindowText(window, title, title.Capacity);
+      if (title.ToString() == "Sneup Command Center" || title.ToString() == "Sneup Digital Project Manager") {
+        requested = PostMessage(window, 0x0010, IntPtr.Zero, IntPtr.Zero) || requested;
+      }
+      return true;
+    }, IntPtr.Zero);
+    return requested;
+  }
+}
+'@
+
 $env:SNEUP_DEMO_MODE = 'true'
 $env:PORT = [string]$Port
-$started = Start-Process -FilePath $resolvedExecutable -WorkingDirectory $workingDirectory -PassThru
+$started = Start-Process -FilePath $resolvedExecutable -WorkingDirectory $workingDirectory -WindowStyle Hidden -PassThru
 $normalClose = $false
 
 function Get-StartedProcessIds {
@@ -59,7 +95,7 @@ try {
   if ($health.status -ne 'ok') { throw "Unexpected packaged health status: $($health.status)" }
   if ($product.version -ne $expectedVersion) { throw "Packaged version $($product.version) does not match $expectedVersion." }
   if ($diagnostics.mode -ne 'demo' -or @($diagnostics.checks).Count -ne 9 -or $diagnostics.secretsExposed -ne $false) {
-    throw 'Packaged diagnostics did not retain the expected redacted eight-check demo contract.'
+    throw 'Packaged diagnostics did not retain the expected redacted nine-check demo contract.'
   }
   if ($haiManifest.safety.providerWrites -ne 'never_direct') {
     throw 'The packaged HAI manifest did not retain the never-direct provider-write policy.'
@@ -72,11 +108,7 @@ try {
   $privateBytes = ($processes | Measure-Object PrivateMemorySize64 -Sum).Sum
   $cpu = ($processes | Measure-Object CPU -Sum).Sum
 
-  $windowProcesses = @($processes | Where-Object MainWindowHandle -NE 0)
-  $closeRequested = $false
-  foreach ($process in $windowProcesses) {
-    $closeRequested = $process.CloseMainWindow() -or $closeRequested
-  }
+  $closeRequested = [SneupPackagedWindow]::RequestClose($started.Id)
 
   $closeDeadline = (Get-Date).AddSeconds(12)
   do {
@@ -101,6 +133,8 @@ try {
     workingSetMb = [Math]::Round($workingSet / 1MB, 1)
     privateMb = [Math]::Round($privateBytes / 1MB, 1)
     cpuSeconds = [Math]::Round($cpu, 3)
+    closeRequested = $closeRequested
+    remainingProcesses = @($remaining | Select-Object Id, ProcessName)
     normalClose = $normalClose
     portReleased = $portReleased
   } | ConvertTo-Json

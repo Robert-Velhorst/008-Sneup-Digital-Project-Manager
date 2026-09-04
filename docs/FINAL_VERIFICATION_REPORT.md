@@ -12,6 +12,10 @@ This is the current local verification record. The sections below retain histori
 - Compatible lockfile updates also remediate development/build findings in `browserslist`, `fast-uri`, and `@xmldom/xmldom`. Production and full `npm audit` checks both report zero vulnerabilities at verification time.
 - `npm run check:ci -- --silent` passed lint, all 180 route contracts, 135 suites/988 tests, and 5/5 recommendation scenarios. This includes ngrok, HAI, OAuth, webhook, approval, and desktop regression coverage.
 - Startup verification returned HTTP 200 for all seven Overview probes. Import retained 254 modules without Mongoose at 70.5 MB RSS; Overview retained 266 modules without Mongoose at 75 MB RSS. The concurrent-build sample took 1,446 ms to import and 163.8 ms for Overview; it is not an isolated performance comparison.
+- The unsigned Windows installer built locally and in [GitHub run 33926849424](https://github.com/Robert-Velhorst/008-Sneup-Digital-Project-Manager/actions/runs/33926849424) for source `a2438fa968ad05881d5a96646b7b323828f4e871`. Both CI jobs passed; the installer artifact is `9957147799` (109,511,429-byte archive).
+- Local archive inspection found exactly one bundled `qs` copy at 6.16.0. Its parser, serializer, and utility files match the installed patched dependency byte for byte.
+- The original local probe did not prove normal close. A diagnostic rerun exposed the hidden-window discovery limitation of `.NET Process.MainWindowHandle`. The verifier now launches hidden and posts the normal Windows close message only to a known Sneup window title owned by the exact launched process. It reports whether a close was requested and which processes remain, without weakening the 12-second exit or port-release checks.
+- The corrected five-second packaged probe passed healthy 2.3.44 metadata, nine redacted diagnostics, HAI `never_direct`, accepted close request, zero remaining processes, and port release. Four processes sampled 368.1 MB working set, 338.2 MB private memory, and 2.484 cumulative CPU seconds.
 
 ## 2.3.43 publication verification (2026-09-04)
 
