@@ -2,9 +2,21 @@
 
 This report is updated from executed commands at release time. A passing local suite proves repository behavior under tests; it does not prove live provider authorization or production deployment.
 
-## 2.3.45 desktop lifecycle verification (2026-09-05)
+## 2.3.46 desktop readiness verification (2026-09-05)
 
 This is the current local verification record. The sections below retain historical release evidence; dependency audit results are dated observations.
+
+- Desktop readiness now schedules one retry per failed health request, including when a timeout is followed by a socket error. Normal quit cancels the active request and pending retry. Only HTTP 200 opens the command center; the existing 80-attempt limit, one-second inactivity timeout, and 250 ms retry interval remain unchanged.
+- Four regressions failed against 2.3.45 before the fix: duplicate retries, an uncancelled active request, a queued retry after quit, and HTTP 401 accepted as ready. All 21 desktop lifecycle checks now pass, including retry exhaustion, HTTP 301/401/404/503 rejection, late errors, and the existing shutdown/restart cases. Two checks use actual local HTTP sockets: recovery from 503 to 200, and cancellation before response headers arrive.
+- Independent review found no actionable issues. The full dependency audit reports zero vulnerabilities. The change adds no dependencies, database/schema changes, routes, or provider permissions; exact-payload approvals and HAI write restrictions are unchanged.
+- The final full `npm run check:ci` passed lint, all 180 route contracts, 136 suites/1,009 tests, and recommendation evaluation, including both real-socket cases. An earlier focused backend test hit its existing five-second timeout and subsequently passed in both full runs without relaxing the timeout.
+- The unsigned Windows 2.3.46 installer built successfully. Archive inspection confirmed the packaged desktop entry point matches the edited source. Three consecutive five-second packaged probes passed version/health checks, nine redacted diagnostics, HAI `never_direct`, normal close, zero remaining processes, and port release. These four-process samples ranged from 334.8 to 381.1 MB working set, 347.0 to 389.7 MB private memory, and 2.125 to 2.406 cumulative CPU seconds; they are observations, not an isolated performance comparison.
+- The intermittent 12-second local shutdown deadline miss reproduced once on 2.3.46 before the successful reruns: health and safety checks passed and the port closed, but one process remained. The verifier now includes the main PID/exit state and remaining process roles, without exposing raw command lines or changing the success conditions or deadline. The cause remains unexplained; this readiness correction is not claimed to resolve it.
+- Process termination, power loss, Windows session shutdown, live provider authorization, hosted ngrok/HAI, signing, clean-machine installation, and production recovery remain separate acceptance gates. The full production-readiness goal is not complete.
+
+## 2.3.45 desktop lifecycle verification (2026-09-05)
+
+Historical release evidence:
 
 - Electron normal quit, settings restart, and recovery-to-demo restart now invoke the existing runtime shutdown before permitting successful exit or scheduling a relaunch. Concurrent quit requests share one cleanup operation. Cleanup failure exits with status 1 and does not relaunch; logs do not include the private error payload.
 - Runtime initialization is tracked separately from health polling and renderer loading, so a pending page cannot block cleanup of an initialized backend. Initialization itself has a bounded wait using the existing configured shutdown grace. Normal activation and second-instance focus cannot show a closing window.

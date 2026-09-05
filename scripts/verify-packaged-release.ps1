@@ -55,6 +55,7 @@ $env:SNEUP_DEMO_MODE = 'true'
 $env:PORT = [string]$Port
 $started = Start-Process -FilePath $resolvedExecutable -WorkingDirectory $workingDirectory -WindowStyle Hidden -PassThru
 $normalClose = $false
+$startedProcessRoles = @{}
 
 function Get-StartedProcessIds {
   $records = @(Get-CimInstance Win32_Process)
@@ -68,6 +69,13 @@ function Get-StartedProcessIds {
       }
     }
   } while ($added)
+  foreach ($record in $records) {
+    if (-not $ids.Contains([int]$record.ProcessId)) { continue }
+    $role = 'auxiliary'
+    if ($record.ProcessId -eq $started.Id) { $role = 'main' }
+    elseif ($record.CommandLine -match '--type=([a-z-]+)') { $role = $Matches[1] }
+    $startedProcessRoles[[int]$record.ProcessId] = $role
+  }
   return @($ids)
 }
 
@@ -134,7 +142,9 @@ try {
     privateMb = [Math]::Round($privateBytes / 1MB, 1)
     cpuSeconds = [Math]::Round($cpu, 3)
     closeRequested = $closeRequested
-    remainingProcesses = @($remaining | Select-Object Id, ProcessName)
+    mainProcessId = $started.Id
+    mainExited = $started.HasExited
+    remainingProcesses = @($remaining | Select-Object Id, ProcessName, HasExited, @{Name='Role';Expression={$startedProcessRoles[$_.Id]}})
     normalClose = $normalClose
     portReleased = $portReleased
   } | ConvertTo-Json

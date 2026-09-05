@@ -27,6 +27,7 @@ let mainWindow;
 let sneupRuntime;
 let runtimeStartupPromise;
 let runtimeStartupMode;
+const readinessAbort = new AbortController();
 const desktopLifecycle = createDesktopLifecycle({
   app,
   getRuntime: () => sneupRuntime,
@@ -60,33 +61,51 @@ ipcMain.handle('sneup:create-support-bundle', async () => {
 
 const waitForSneup = (attempts = 80) => new Promise((resolve, reject) => {
   let remaining = attempts;
+  let timer;
+  let activeRequest;
+  let settled = false;
+
+  const finish = (error) => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timer);
+    readinessAbort.signal.removeEventListener('abort', cancel);
+    activeRequest?.destroy();
+    activeRequest = undefined;
+    if (error) reject(error);
+    else resolve();
+  };
+
+  const cancel = () => finish(new Error('Sneup readiness check cancelled during shutdown.'));
 
   const check = () => {
-    const request = http.get(`${DESKTOP_URL}/health`, response => {
-      response.resume();
-      if (response.statusCode && response.statusCode < 500) {
-        resolve();
-      } else {
-        retry();
-      }
-    });
-
-    request.on('error', retry);
-    request.setTimeout(1000, () => {
-      request.destroy();
-      retry();
-    });
-  };
-
-  const retry = () => {
-    remaining -= 1;
-    if (remaining <= 0) {
-      reject(new Error('Sneup did not become ready in time.'));
-      return;
+    if (settled) return;
+    let attemptDone = false;
+    const completeAttempt = (ready) => {
+      // A timeout destroys the socket, which can also emit an error.
+      if (attemptDone || settled) return;
+      attemptDone = true;
+      activeRequest?.destroy();
+      activeRequest = undefined;
+      if (ready) return finish();
+      remaining -= 1;
+      if (remaining <= 0) return finish(new Error('Sneup did not become ready in time.'));
+      timer = setTimeout(check, 250);
+    };
+    try {
+      activeRequest = http.get(`${DESKTOP_URL}/health`, response => {
+        response.resume();
+        completeAttempt(response.statusCode === 200);
+      });
+      activeRequest.on('error', () => completeAttempt(false));
+      activeRequest.setTimeout(1000, () => completeAttempt(false));
+    } catch {
+      completeAttempt(false);
     }
-    setTimeout(check, 250);
   };
 
+  if (readinessAbort.signal.aborted) return cancel();
+  readinessAbort.signal.addEventListener('abort', cancel, { once: true });
   check();
 });
 
@@ -163,7 +182,10 @@ const start = async () => {
 };
 
 if (acquireSingleInstanceLock({ app, getMainWindow: () => desktopLifecycle.isQuitting() ? undefined : mainWindow })) {
-  app.on('before-quit', desktopLifecycle.beforeQuit);
+  app.on('before-quit', event => {
+    desktopLifecycle.beforeQuit(event);
+    readinessAbort.abort();
+  });
   app.whenReady().then(start);
 
   app.on('activate', () => {

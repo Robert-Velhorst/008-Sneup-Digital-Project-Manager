@@ -42,14 +42,18 @@ describe('desktop runtime cleanup', () => {
     BrowserWindow.getAllWindows = jest.fn(() => []);
     const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
     const dialog = { showErrorBox: jest.fn(), showMessageBox: jest.fn(async () => ({ response: 0 })) };
+    const healthRequests = [];
     jest.doMock('electron', () => ({
       app, BrowserWindow, dialog, shell: {},
       ipcMain: { handle: (name, handler) => ipc.set(name, handler) }
     }));
-    jest.doMock('http', () => ({
+    if (options.realHttp) jest.dontMock('http');
+    else jest.doMock('http', () => ({
       get: (url, callback) => {
-        callback({ statusCode: 200, resume: jest.fn() });
-        return Object.assign(new EventEmitter(), { setTimeout: jest.fn(), destroy: jest.fn() });
+        const request = Object.assign(new EventEmitter(), { setTimeout: jest.fn(), destroy: jest.fn() });
+        healthRequests.push({ request, respond: callback });
+        if (!options.healthPending) queueMicrotask(() => callback({ statusCode: options.healthStatus || 200, resume: jest.fn() }));
+        return request;
       }
     }));
     jest.doMock('../src/index', () => runtime);
@@ -63,13 +67,15 @@ describe('desktop runtime cleanup', () => {
     jest.doMock('../src/services/supportBundleService', () => ({ createSupportBundle: jest.fn() }));
     require('../desktop/main');
     await flush();
-    return { app, quitEvents, ipc, runtime, BrowserWindow, window, logger, dialog };
+    return { app, quitEvents, ipc, runtime, BrowserWindow, window, logger, dialog, healthRequests };
   };
 
   beforeEach(() => { jest.resetModules(); });
   afterEach(async () => {
     pending.splice(0).forEach(item => item.resolve());
     await flush();
+    jest.clearAllTimers();
+    jest.useRealTimers();
     process.env = { ...originalEnvironment };
     modules.forEach(name => jest.dontMock(name));
     jest.resetModules();
@@ -213,5 +219,130 @@ describe('desktop runtime cleanup', () => {
     app.quit();
     app.emit('second-instance');
     expect(window.show).toHaveBeenCalledTimes(1);
+  });
+
+  test('a readiness timeout followed by a socket error schedules only one retry', async () => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate', 'queueMicrotask'] });
+    const { app, healthRequests } = await boot({ healthPending: true });
+    const { request } = healthRequests[0];
+    request.setTimeout.mock.calls[0][1]();
+    request.emit('error', new Error('socket closed after timeout'));
+    jest.advanceTimersByTime(250);
+    expect(healthRequests).toHaveLength(2);
+    app.quit();
+  });
+
+  test('quit cancels an active readiness request without opening a late window', async () => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate', 'queueMicrotask'] });
+    const { app, healthRequests, BrowserWindow, runtime, dialog } = await boot({ healthPending: true });
+    app.quit();
+    await flush();
+    expect(healthRequests[0].request.destroy).toHaveBeenCalledTimes(1);
+    healthRequests[0].request.emit('error', new Error('socket closed after quit'));
+    jest.advanceTimersByTime(1000);
+    expect(healthRequests).toHaveLength(1);
+    expect(runtime.shutdown).toHaveBeenCalledTimes(1);
+    expect(BrowserWindow).not.toHaveBeenCalled();
+    expect(dialog.showErrorBox).not.toHaveBeenCalled();
+  });
+
+  test('quit clears a scheduled readiness retry', async () => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate', 'queueMicrotask'] });
+    const { app, healthRequests } = await boot({ healthPending: true });
+    healthRequests[0].request.emit('error', new Error('not ready'));
+    app.quit();
+    await flush();
+    jest.advanceTimersByTime(250);
+    expect(healthRequests).toHaveLength(1);
+  });
+
+  test.each([301, 401, 404, 503])('HTTP %i from readiness cannot open the command center', async (healthStatus) => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate', 'queueMicrotask'] });
+    const { app, BrowserWindow } = await boot({ healthStatus });
+    expect(BrowserWindow).not.toHaveBeenCalled();
+    app.quit();
+  });
+
+  test('readiness exhausts exactly 80 failed attempts and exits without opening a window', async () => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate', 'queueMicrotask'] });
+    const { app, healthRequests, BrowserWindow, dialog, runtime } = await boot({ healthPending: true });
+    for (let attempt = 0; attempt < 80; attempt += 1) {
+      expect(healthRequests).toHaveLength(attempt + 1);
+      healthRequests[attempt].request.emit('error', new Error('not ready'));
+      if (attempt < 79) jest.advanceTimersByTime(250);
+    }
+    await flush();
+    jest.advanceTimersByTime(1000);
+    expect(healthRequests).toHaveLength(80);
+    expect(BrowserWindow).not.toHaveBeenCalled();
+    expect(dialog.showErrorBox).toHaveBeenCalledTimes(1);
+    expect(runtime.shutdown).toHaveBeenCalledTimes(1);
+    expect(app.quit).toHaveBeenCalledTimes(2);
+  });
+
+  test('a late socket error after healthy startup does not restart readiness polling', async () => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate', 'queueMicrotask'] });
+    const { app, healthRequests, BrowserWindow } = await boot();
+    expect(BrowserWindow).toHaveBeenCalledTimes(1);
+    healthRequests[0].request.emit('error', new Error('late socket error'));
+    jest.advanceTimersByTime(1000);
+    expect(healthRequests).toHaveLength(1);
+    app.quit();
+  });
+
+  test('real HTTP readiness retries a 503 and opens the window after a 200', async () => {
+    const http = jest.requireActual('http');
+    let requests = 0;
+    const server = http.createServer((_request, response) => {
+      requests += 1;
+      response.writeHead(requests === 1 ? 503 : 200);
+      response.end('health');
+    });
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    process.env.PORT = String(server.address().port);
+    let desktop;
+    try {
+      desktop = await boot({ realHttp: true });
+      for (let attempt = 0; attempt < 100 && !desktop.BrowserWindow.mock.calls.length; attempt += 1) {
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+      expect(requests).toBe(2);
+      expect(desktop.BrowserWindow).toHaveBeenCalledTimes(1);
+      expect(desktop.dialog.showErrorBox).not.toHaveBeenCalled();
+    } finally {
+      desktop?.app.quit();
+      await flush();
+      await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); });
+    }
+  });
+
+  test('quit releases a real readiness socket that has not returned headers', async () => {
+    const http = jest.requireActual('http');
+    const received = deferred();
+    const server = http.createServer(() => received.resolve());
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    process.env.PORT = String(server.address().port);
+    let desktop;
+    let deadline;
+    try {
+      desktop = await boot({ realHttp: true });
+      await received.promise;
+      desktop.app.quit();
+      await Promise.race([
+        new Promise(resolve => server.close(resolve)),
+        new Promise((_resolve, reject) => {
+          deadline = setTimeout(() => reject(new Error('Readiness socket remained open after quit')), 1000);
+        })
+      ]);
+      expect(desktop.BrowserWindow).not.toHaveBeenCalled();
+      expect(desktop.runtime.shutdown).toHaveBeenCalledTimes(1);
+      expect(desktop.dialog.showErrorBox).not.toHaveBeenCalled();
+    } finally {
+      clearTimeout(deadline);
+      desktop?.app.quit();
+      server.closeAllConnections();
+      await new Promise(resolve => server.close(resolve));
+      await flush();
+    }
   });
 });
