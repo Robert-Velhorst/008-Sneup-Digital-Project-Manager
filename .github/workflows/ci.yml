@@ -34,6 +34,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --ignore-scripts
+      - run: npm test -- --runInBand tests/packagedReleaseVerification.test.js
       - run: npm run build:installer
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"

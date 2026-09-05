@@ -80,6 +80,8 @@ function Get-StartedProcessIds {
 }
 
 try {
+  # Keep the original process handle alive so its exit status remains available.
+  $null = $started.Handle
   $deadline = (Get-Date).AddSeconds(40)
   $health = $null
   do {
@@ -123,7 +125,9 @@ try {
     Start-Sleep -Milliseconds 500
     $remaining = @(Get-Process -Id $startedProcessIds -ErrorAction SilentlyContinue)
   } while ($remaining.Count -gt 0 -and (Get-Date) -lt $closeDeadline)
-  $normalClose = $closeRequested -and $remaining.Count -eq 0
+  $mainExited = $started.WaitForExit(0)
+  $mainExitCode = if ($mainExited) { $started.ExitCode } else { $null }
+  $normalClose = $closeRequested -and $remaining.Count -eq 0 -and $mainExited -and $null -ne $mainExitCode -and $mainExitCode -eq 0
 
   Start-Sleep -Seconds 1
   $portReleased = -not [bool](Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
@@ -143,7 +147,8 @@ try {
     cpuSeconds = [Math]::Round($cpu, 3)
     closeRequested = $closeRequested
     mainProcessId = $started.Id
-    mainExited = $started.HasExited
+    mainExited = $mainExited
+    mainExitCode = $mainExitCode
     remainingProcesses = @($remaining | Select-Object Id, ProcessName, HasExited, @{Name='Role';Expression={$startedProcessRoles[$_.Id]}})
     normalClose = $normalClose
     portReleased = $portReleased
@@ -152,7 +157,11 @@ try {
   if (-not $normalClose) { throw 'The packaged app did not close normally.' }
   if (-not $portReleased) { throw "The packaged app did not release port $Port." }
 } finally {
-  if (-not $normalClose) {
-    Get-Process -Id (Get-StartedProcessIds) -ErrorAction SilentlyContinue | Stop-Process -Force
+  try {
+    if (-not $normalClose) {
+      Get-Process -Id (Get-StartedProcessIds) -ErrorAction SilentlyContinue | Stop-Process -Force
+    }
+  } finally {
+    $started.Dispose()
   }
 }

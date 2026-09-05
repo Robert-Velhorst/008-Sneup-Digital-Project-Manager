@@ -2,9 +2,20 @@
 
 This report is updated from executed commands at release time. A passing local suite proves repository behavior under tests; it does not prove live provider authorization or production deployment.
 
-## 2.3.46 desktop readiness verification (2026-09-05)
+## 2.3.46 release exit-status verification (2026-09-05)
 
 This is the current local verification record. The sections below retain historical release evidence; dependency audit results are dated observations.
+
+- The packaged verifier previously accepted process disappearance even when the main process exited with status 1 or its exit code was unavailable. Both cases were reproduced as failing regression tests against the unchanged verifier before correction.
+- Acceptance now requires a requested close, no remaining descendants, a confirmed main-process exit code of zero, and a released port. The original main-process handle is retained until validation/cleanup finishes and is disposed on every exit path. The existing 12-second shutdown deadline is unchanged.
+- Six Windows-only tests execute the real verifier with controlled OS boundaries: clean exit, failed exit, unknown exit status, lingering descendant, rejected close request, and occupied port. All six pass. Windows CI explicitly runs these tests before packaging; non-Windows quality runs skip this Windows-specific suite.
+- The full local `npm run check:ci` passed lint, all 180 route contracts, 137 suites/1,015 tests, and recommendation evaluation. Independent review found no actionable issues and reran all six focused tests successfully. These fixture tests exercise acceptance logic, not real operating-system failure injection; actual cleanup-exception and crash behavior remains outside this proof.
+- The existing unsigned 2.3.46 package passed the stricter local probe with exit code 0, healthy metadata, nine redacted diagnostics, HAI `never_direct`, no remaining processes, and port release. Four processes sampled 373.0 MB working set, 373.3 MB private memory, and 2.234 cumulative CPU seconds. This is a single observation, not a performance comparison or production acceptance claim.
+- Application source, dependencies, database models, API routes, and provider/approval policies are unchanged. The previously recorded intermittent shutdown deadline miss remains unexplained; improved exit verification is not evidence that its cause was fixed. Live provider, hosted ngrok/HAI, signing, clean-machine installation, and production recovery acceptance remain outstanding.
+
+## 2.3.46 desktop readiness verification (2026-09-05)
+
+Historical release evidence:
 
 - Desktop readiness now schedules one retry per failed health request, including when a timeout is followed by a socket error. Normal quit cancels the active request and pending retry. Only HTTP 200 opens the command center; the existing 80-attempt limit, one-second inactivity timeout, and 250 ms retry interval remain unchanged.
 - Four regressions failed against 2.3.45 before the fix: duplicate retries, an uncancelled active request, a queued retry after quit, and HTTP 401 accepted as ready. All 21 desktop lifecycle checks now pass, including retry exhaustion, HTTP 301/401/404/503 rejection, late errors, and the existing shutdown/restart cases. Two checks use actual local HTTP sockets: recovery from 503 to 200, and cancellation before response headers arrive.
