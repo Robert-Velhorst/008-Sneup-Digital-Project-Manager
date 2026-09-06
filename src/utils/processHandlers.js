@@ -8,13 +8,15 @@ const registerProcessHandlers = (logger, options = {}) => {
   runtime[PROCESS_HANDLERS_REGISTERED] = true;
 
   let shuttingDown = false;
+  let exitStatus = 0;
   const gracefulExit = async (status, message) => {
+    exitStatus = Math.max(exitStatus, status);
     if (shuttingDown) return;
     shuttingDown = true;
     logger.info(message);
     try {
       await shutdown();
-      exit(status);
+      exit(exitStatus);
     } catch (error) {
       logger.error('Graceful shutdown failed:', error);
       exit(1);

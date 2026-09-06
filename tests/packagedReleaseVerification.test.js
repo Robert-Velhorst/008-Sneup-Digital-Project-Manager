@@ -26,4 +26,33 @@ windowsDescribe('packaged release shutdown acceptance', () => {
     expect(result.accepted).toBe(false);
     expect(result.report.success).toBe(false);
   });
+
+  test('does not mistake a recycled child PID for a lingering Sneup process or terminate it', () => {
+    const result = runScenario('reused-child');
+    expect(result.killed).not.toContain('Unrelated:102');
+    expect(result.accepted).toBe(true);
+    expect(result.disposed).toEqual(expect.arrayContaining(['Sneup:101', 'Sneup:102']));
+  });
+
+  test('refuses a process identity change between enumeration and opening its handle', () => {
+    const result = runScenario('identity-race');
+    expect(result.accepted).toBe(false);
+    expect(result.killed).not.toContain('Unrelated:102');
+    expect(result.disposed).toContain('Unrelated:102');
+  });
+
+  test('detects and cleans up a descendant first observed after the close request', () => {
+    const result = runScenario('late-child');
+    expect(result.accepted).toBe(false);
+    expect(result.report.remainingProcesses).toEqual(expect.arrayContaining([expect.objectContaining({ Id: 103 })]));
+    expect(result.killed).toContain('Sneup:103');
+    expect(result.disposed).toEqual(expect.arrayContaining(['Sneup:101', 'Sneup:102', 'Sneup:103']));
+  });
+
+  test('reconciles the inventory after observing parent exit before claiming a clean shutdown', () => {
+    const result = runScenario('final-inventory-race');
+    expect(result.accepted).toBe(false);
+    expect(result.report.remainingProcesses).toEqual(expect.arrayContaining([expect.objectContaining({ Id: 103 })]));
+    expect(result.killed).toContain('Sneup:103');
+  });
 });

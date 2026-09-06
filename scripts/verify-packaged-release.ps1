@@ -56,27 +56,46 @@ $env:PORT = [string]$Port
 $started = Start-Process -FilePath $resolvedExecutable -WorkingDirectory $workingDirectory -WindowStyle Hidden -PassThru
 $normalClose = $false
 $startedProcessRoles = @{}
+$startedProcessRoles[[int]$started.Id] = 'main'
+$startedProcesses = @{}
+$startedProcesses[[int]$started.Id] = $started
 
-function Get-StartedProcessIds {
+function Update-StartedProcesses {
   $records = @(Get-CimInstance Win32_Process)
-  $ids = [System.Collections.Generic.HashSet[int]]::new()
-  [void]$ids.Add($started.Id)
   do {
     $added = $false
     foreach ($record in $records) {
-      if ($ids.Contains([int]$record.ParentProcessId) -and $ids.Add([int]$record.ProcessId)) {
+      $processId = [int]$record.ProcessId
+      $parentId = [int]$record.ParentProcessId
+      if ($startedProcesses.ContainsKey($processId) -or -not $startedProcesses.ContainsKey($parentId)) { continue }
+      $candidate = Get-Process -Id $processId -ErrorAction SilentlyContinue
+      if (-not $candidate) { continue }
+      try {
+        # Pin the process object, then verify that the enumeration still identifies it.
+        # Holding this handle prevents PID reuse until verification/cleanup is finished.
+        $null = $candidate.Handle
+        $observedStart = ([datetime]$record.CreationDate).ToUniversalTime().ToString('yyyyMMddHHmmssffffff')
+        $actualStart = $candidate.StartTime.ToUniversalTime().ToString('yyyyMMddHHmmssffffff')
+        if ($observedStart -ne $actualStart -or $candidate.StartTime -lt $startedProcesses[$parentId].StartTime) {
+          throw 'A candidate process identity changed during packaged verification.'
+        }
+        $startedProcesses[$processId] = $candidate
+        $candidate = $null
+        $role = 'auxiliary'
+        if ($record.CommandLine -match '--type=([a-z-]+)') { $role = $Matches[1] }
+        $startedProcessRoles[$processId] = $role
         $added = $true
+      } finally {
+        if ($candidate) { $candidate.Dispose() }
       }
     }
   } while ($added)
-  foreach ($record in $records) {
-    if (-not $ids.Contains([int]$record.ProcessId)) { continue }
-    $role = 'auxiliary'
-    if ($record.ProcessId -eq $started.Id) { $role = 'main' }
-    elseif ($record.CommandLine -match '--type=([a-z-]+)') { $role = $Matches[1] }
-    $startedProcessRoles[[int]$record.ProcessId] = $role
+}
+
+function Get-RunningStartedProcesses {
+  foreach ($process in $startedProcesses.Values) {
+    if (-not $process.HasExited) { $process }
   }
-  return @($ids)
 }
 
 try {
@@ -86,6 +105,7 @@ try {
   $health = $null
   do {
     Start-Sleep -Milliseconds 500
+    Update-StartedProcesses
     try {
       $health = Invoke-RestMethod "http://127.0.0.1:$Port/health" -TimeoutSec 2
     } catch {
@@ -112,8 +132,9 @@ try {
   }
   Start-Sleep -Seconds ([Math]::Max(0, $SampleSeconds))
 
-  $startedProcessIds = Get-StartedProcessIds
-  $processes = @(Get-Process -Id $startedProcessIds -ErrorAction SilentlyContinue)
+  Update-StartedProcesses
+  $processes = @(Get-RunningStartedProcesses)
+  foreach ($process in $processes) { $process.Refresh() }
   $workingSet = ($processes | Measure-Object WorkingSet64 -Sum).Sum
   $privateBytes = ($processes | Measure-Object PrivateMemorySize64 -Sum).Sum
   $cpu = ($processes | Measure-Object CPU -Sum).Sum
@@ -121,13 +142,19 @@ try {
   $closeRequested = [SneupPackagedWindow]::RequestClose($started.Id)
 
   $closeDeadline = (Get-Date).AddSeconds(12)
+  $processInventorySettled = $false
   do {
     Start-Sleep -Milliseconds 500
-    $remaining = @(Get-Process -Id $startedProcessIds -ErrorAction SilentlyContinue)
-  } while ($remaining.Count -gt 0 -and (Get-Date) -lt $closeDeadline)
+    $allKnownExited = @(Get-RunningStartedProcesses).Count -eq 0
+    $knownCount = $startedProcesses.Count
+    Update-StartedProcesses
+    $remaining = @(Get-RunningStartedProcesses)
+    # A parent can spawn a final child between an inventory and its exit.
+    $processInventorySettled = $allKnownExited -and $knownCount -eq $startedProcesses.Count
+  } while (($remaining.Count -gt 0 -or -not $processInventorySettled) -and (Get-Date) -lt $closeDeadline)
   $mainExited = $started.WaitForExit(0)
   $mainExitCode = if ($mainExited) { $started.ExitCode } else { $null }
-  $normalClose = $closeRequested -and $remaining.Count -eq 0 -and $mainExited -and $null -ne $mainExitCode -and $mainExitCode -eq 0
+  $normalClose = $closeRequested -and $processInventorySettled -and $remaining.Count -eq 0 -and $mainExited -and $null -ne $mainExitCode -and $mainExitCode -eq 0
 
   Start-Sleep -Seconds 1
   $portReleased = -not [bool](Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
@@ -150,6 +177,7 @@ try {
     mainExited = $mainExited
     mainExitCode = $mainExitCode
     remainingProcesses = @($remaining | Select-Object Id, ProcessName, HasExited, @{Name='Role';Expression={$startedProcessRoles[$_.Id]}})
+    processInventorySettled = $processInventorySettled
     normalClose = $normalClose
     portReleased = $portReleased
   } | ConvertTo-Json
@@ -159,9 +187,19 @@ try {
 } finally {
   try {
     if (-not $normalClose) {
-      Get-Process -Id (Get-StartedProcessIds) -ErrorAction SilentlyContinue | Stop-Process -Force
+      try { Update-StartedProcesses } catch { Write-Warning 'Could not complete the final process inventory; cleanup is limited to verified process handles.' }
+      foreach ($process in $startedProcesses.Values) {
+        try {
+          if (-not $process.HasExited) {
+            $process | Stop-Process -Force
+            if (-not $process.WaitForExit(2000)) { Write-Warning 'A verified Sneup process did not exit after failed-verification cleanup.' }
+          }
+        } catch { Write-Warning 'Could not terminate a verified Sneup process after failed verification.' }
+      }
     }
   } finally {
-    $started.Dispose()
+    foreach ($process in $startedProcesses.Values) {
+      try { $process.Dispose() } catch { Write-Warning 'Could not release a verified process handle.' }
+    }
   }
 }
