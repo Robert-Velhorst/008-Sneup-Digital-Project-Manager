@@ -1,4 +1,5 @@
 const BoardHealthSnapshot = require('../models/BoardHealthSnapshot');
+const { withTimeout } = require('../utils/runtimeShutdown');
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 250;
@@ -57,6 +58,12 @@ class BoardHealthSnapshotService {
     const queryTimeoutMs = boundedInteger(options.queryTimeoutMs, this.defaultQueryTimeoutMs, 100, 30000);
     const pipeline = buildLatestByBoardPipeline({ workspaceId: options.workspaceId, limit });
 
+    // The hinted index may still be building on a fresh, demand-loaded database.
+    await withTimeout(this.BoardHealthSnapshot.init(), {
+      timeoutMs: queryTimeoutMs,
+      code: 'SNEUP_BOARD_HEALTH_INITIALIZATION_TIMEOUT',
+      message: 'Board health initialization did not finish before the read deadline'
+    });
     const snapshots = await this.BoardHealthSnapshot.aggregate(pipeline)
       .option({
         hint: LATEST_BY_BOARD_INDEX,

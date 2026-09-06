@@ -28,7 +28,11 @@ const selectProposalPayload = (payload = {}) => {
 
 const publicIdentifier = (value) => {
   if (!value) return null;
-  const identifier = typeof value === 'object' ? value._id || value.id : value;
+  const identifier = typeof value === 'object' && value._bsontype !== 'ObjectId' ? value._id || value.id : value;
+  if (identifier?._bsontype === 'ObjectId' && typeof identifier.toHexString === 'function') {
+    const hex = identifier.toHexString();
+    return typeof hex === 'string' && /^[a-f0-9]{24}$/i.test(hex) ? hex : null;
+  }
   if (!identifier || typeof identifier === 'object') return null;
   return boundedText(identifier, 160) || null;
 };

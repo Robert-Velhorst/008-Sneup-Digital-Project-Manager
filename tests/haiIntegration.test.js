@@ -105,4 +105,49 @@ describe('HAI integration boundary', () => {
     }));
     expect(JSON.stringify(snapshot)).not.toContain('[object Object]');
   });
+
+  test.each(['raw', 'populated', 'hydrated'])('preserves BSON identifiers in %s live snapshot records', async (shape) => {
+    process.env.SNEUP_DEMO_MODE = 'false';
+    const { Types } = require('mongoose');
+    const id = new Types.ObjectId();
+    const boardId = new Types.ObjectId();
+    const cardId = new Types.ObjectId();
+    const record = {
+      _id: id,
+      boardId: shape === 'populated' ? { _id: boardId, name: 'Private board metadata' } : boardId,
+      cardId: shape === 'populated' ? { _id: cardId, description: 'Private card metadata' } : cardId,
+      status: 'failed',
+      title: 'Review work'
+    };
+    if (shape === 'hydrated') {
+      const Board = require('../src/models/Board');
+      const Card = require('../src/models/Card');
+      record.boardId = new Board({ _id: boardId, name: 'Private board metadata' });
+      record.cardId = new Card({ _id: cardId, description: 'Private card metadata' });
+    }
+    jest.spyOn(operationsLedgerService, 'getWorkspaceLedger').mockResolvedValue({
+      decisions: [record], recommendations: [record], actions: [record],
+      followUps: [record], findings: [record], healthSnapshots: [record]
+    });
+
+    const snapshot = await new HaiIntegrationService().getSnapshot();
+    for (const section of ['decisions', 'recommendations', 'failedActions', 'dueFollowUps', 'findings', 'boardHealth']) {
+      expect(snapshot[section][0]).toMatchObject({
+        id: id.toHexString(), boardId: boardId.toHexString(), cardId: cardId.toHexString()
+      });
+    }
+    expect(JSON.stringify(snapshot)).not.toMatch(/Private board metadata|Private card metadata|\[object Object\]/);
+  });
+
+  test('does not stringify arbitrary populated objects into public identifiers', async () => {
+    process.env.SNEUP_DEMO_MODE = 'false';
+    const toString = jest.fn(() => 'private nested metadata');
+    jest.spyOn(operationsLedgerService, 'getWorkspaceLedger').mockResolvedValue({
+      decisions: [{ _id: { toString }, boardId: { _id: { toString } }, cardId: { id: { toString } } }]
+    });
+    const snapshot = await new HaiIntegrationService().getSnapshot();
+    expect(snapshot.decisions[0]).toMatchObject({ id: '', boardId: null, cardId: null });
+    expect(toString).not.toHaveBeenCalled();
+    expect(JSON.stringify(snapshot)).not.toContain('private nested metadata');
+  });
 });

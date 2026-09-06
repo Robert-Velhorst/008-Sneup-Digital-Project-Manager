@@ -2,6 +2,8 @@
 
 Status meanings: **Implemented** is present and locally verified; **Partial** has useful implementation but an identified gap; **External** requires owner-controlled accounts or infrastructure; **N/A** is outside the product's current surface. No phase is marked complete from documentation alone.
 
+2.3.47 fixes the database-backed HAI snapshot path: native MongoDB record IDs and populated references retain their hexadecimal identifiers, and first-use board-health reads wait for index initialization within a bounded deadline. Disposable real-Mongo verification covers snapshot-to-proposal round trips, workspace isolation, deduplication, zero approvals or provider attempts, and confirmed cleanup after background model initialization settles. This does not close the live authenticated HAI/ngrok or provider acceptance gates.
+
 2.3.42 removes another eager command-center cost without moving authority into the renderer. Enhancements loads its filters, metrics, cards, and Dutch catalog only when opened; authenticated reads remain in the controller, superseded requests abort, stale results cannot render, and deterministic evaluation is reused for the page session. Initial app-plus-localization transfer is 3,790 raw, 1,100 gzip, and 802 Brotli bytes smaller.
 
 2.3.41 closes two authorization blind spots. A parser-backed release gate accounts for every Express route independent of formatting or alternate route syntax, and every recommendation review, payload edit, or approved execution is bound to the exact revision the operator saw. Stale requests cannot authorize a newer payload, and the real-Mongo proof records no orphan approval, Trello attempt, or provider write.

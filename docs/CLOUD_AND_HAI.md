@@ -4,7 +4,7 @@
 
 Sneup supports the same application core in three forms:
 
-1. Windows 11 desktop through the current `Sneup-Setup-2.3.42.exe` release target.
+1. Windows 11 desktop through the current `Sneup-Setup-2.3.47.exe` release target.
 2. Local or server Node runtime through `npm start`.
 3. Authenticated ngrok ingress layered over either runtime.
 
@@ -52,6 +52,8 @@ GET /api/v1/integrations/hai/openapi.json
 
 HAI can read a bounded operating snapshot with stable public record, board, and card identifiers and submit an idempotent proposal keyed by `externalId`. Versioned JSON responses include one bounded envelope and request ID for support correlation. Sneup hashes the external ID, strips unapproved action fields, and converts the request into its existing recommendation and decision-queue flow.
 
+Live MongoDB identifiers are serialized as hexadecimal strings, including populated board/card references; arbitrary nested object content is not converted into identifiers. First-use board-health reads wait for the existing model initialization before using their index hint. The initialization wait is bounded by the configured query timeout; if it expires, the ledger reports that section unavailable while initialization can finish for later requests. Result caps and the separate aggregate query timeout are unchanged; these are per-phase bounds, not a total HTTP request deadline.
+
 The manifest advertises `hai_proposals` as the optional proposal rollout control. A workspace manager can pause or percentage-roll out HAI proposal intake without changing the HAI token. A paused control returns a bounded 503 response; a live rollout-storage failure also fails closed. Snapshot access remains separately permissioned and is not disabled by the proposal control.
 
 The HAI API does not expose approval or execution endpoints. HAI cannot mark its own proposal approved, and it cannot directly write to Trello or another provider through this connector. Human approval remains tied to the exact protected action payload inside Sneup.
@@ -67,3 +69,13 @@ npm.cmd audit --audit-level=high
 ```
 
 Provider acceptance still requires a real MongoDB workspace, Trello credentials, an ngrok account token, and a separately issued HAI API token. Keep those credentials outside Git and release artifacts.
+
+To test the database-backed HAI snapshot/proposal path without provider accounts, use a new disposable database:
+
+```powershell
+$suffix = [guid]::NewGuid().ToString('N').Substring(0,16)
+$env:SNEUP_HAI_SNAPSHOT_VERIFICATION_MONGO_URI = "mongodb://127.0.0.1:27017/sneup_hai_snapshot_verification_$suffix"
+npm.cmd run verify:hai-snapshot
+```
+
+The verifier requires that exact prefix plus 16 lowercase hexadecimal characters and refuses a nonempty database. It creates synthetic records, checks identifier round trips and workspace isolation, verifies proposal deduplication without approvals or Trello attempts, and removes only its verification database. Cleanup waits for all registered model initialization to settle before dropping the database, checks that no collections remain, and always disconnects. If initialization does not settle within 30 seconds, it fails without dropping the database or claiming removal; inspect the named disposable database before a later retry. A dedicated MongoDB 7.0 CI job runs the same check. This is service/database verification, not proof of a live authenticated HAI client or hosted ngrok deployment.

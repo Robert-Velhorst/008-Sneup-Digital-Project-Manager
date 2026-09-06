@@ -24,6 +24,30 @@ jobs:
       - run: npm run evaluate:recommendations
       - run: npm audit --omit=dev --audit-level=high
 
+  mongo-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ping:1}).ok'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run verify:hai-snapshot
+        env:
+          SNEUP_HAI_SNAPSHOT_VERIFICATION_MONGO_URI: mongodb://127.0.0.1:27017/sneup_hai_snapshot_verification_0000000000000001
+
   windows-installer:
     runs-on: windows-latest
     timeout-minutes: 30

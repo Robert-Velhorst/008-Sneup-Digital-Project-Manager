@@ -2,9 +2,21 @@
 
 This report is updated from executed commands at release time. A passing local suite proves repository behavior under tests; it does not prove live provider authorization or production deployment.
 
-## 2.3.46 release exit-status verification (2026-09-05)
+## 2.3.47 database-backed HAI verification (2026-09-06)
 
 This is the current local verification record. The sections below retain historical release evidence; dependency audit results are dated observations.
+
+- HAI snapshots now preserve native MongoDB ObjectIds and populated board/card references as validated hexadecimal identifiers. Arbitrary nested objects are not stringified. No new provider or approval authority is introduced.
+- First-use board-health reads wait for model/index initialization before issuing the existing hinted aggregate. The wait has its own query-timeout bound and does not cancel the cached initialization; subsequent reads can recover. Aggregate limits and its separate timeout remain unchanged.
+- Review identified an unbounded initialization wait and a verifier cleanup race. Four regression cases failed before correction. Cleanup now settles every registered model initialization, refuses to race a timed-out initialization with a database drop, confirms no collections remain, and disconnects on success or failure. The five cleanup tests include ownership refusal and failed-drop handling.
+- Focused verification passed four suites/21 tests. Full `npm run check:ci` passed lint, all 180 route contracts, 138 suites/1,027 tests, and all five recommendation evaluation scenarios. The full dependency audit reports zero vulnerabilities. Independent read-only review found no remaining actionable issues.
+- `npm run verify:hai-snapshot` passed against a fresh disposable local MongoDB database. It checked real identifiers, cross-workspace exclusion, a snapshot-to-proposal round trip, idempotent repeated proposal intake, zero approvals, and zero Trello attempts. The database was dropped after initialization settled; an independent read confirmed zero remaining collections. No live provider calls were needed. The same verifier is wired into a dedicated MongoDB 7.0 CI job; its remote result must be checked after publication.
+- The unsigned Windows 2.3.47 installer built successfully. Both changed runtime services match the packaged archive byte for byte. The five-second packaged demo probe passed healthy metadata, nine redacted diagnostics, HAI `never_direct`, requested normal close, main-process exit code zero, no remaining processes, and port release. Four processes sampled 372.0 MB working set, 362.3 MB private memory, and 2.609 cumulative CPU seconds; this is an observation, not an isolated performance comparison.
+- GitHub's paginated open-pull-request inventory was empty before publication. Live authenticated HAI/ngrok deployment, authorized provider execution, signing, clean-machine installation, and production recovery remain separate acceptance gates. The previously observed intermittent desktop shutdown deadline miss remains unexplained; this passing probe does not prove it resolved. The full production-readiness goal remains incomplete.
+
+## 2.3.46 release exit-status verification (2026-09-05)
+
+Historical release evidence:
 
 - The packaged verifier previously accepted process disappearance even when the main process exited with status 1 or its exit code was unavailable. Both cases were reproduced as failing regression tests against the unchanged verifier before correction.
 - Acceptance now requires a requested close, no remaining descendants, a confirmed main-process exit code of zero, and a released port. The original main-process handle is retained until validation/cleanup finishes and is disposed on every exit path. The existing 12-second shutdown deadline is unchanged.
