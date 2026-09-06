@@ -138,6 +138,16 @@ This is a small, synthetic, quiescent-data rehearsal, not a backup of your works
 4. Restore data only when the migration is not backward compatible and a tested restore point exists.
 5. Run doctor, readiness, read-only sync, and reconciliation before reopening writes.
 
+## Report downloads
+
+Use Reports to save a Markdown or PDF snapshot of the current workspace's saved evidence. Browser requests use the same versioned API, bearer session, and workspace header as other command-center reads. The report routes require `api:read`; HAI-only read/propose scopes do not grant report access. Generation is read-only and never synchronizes or sends a provider message.
+
+An in-flight report/format disables only that download button and shows a generating state. Duplicate clicks share that operation. Switching workspace, accepting another workspace invitation, or deleting the active workspace cancels pending report downloads. Completion also checks the current workspace and session before saving. Files use a sanitized local name and browser-owned blob URL, with deferred URL cleanup.
+
+Successful bodies are streamed into a buffer capped at 5 MiB, require the expected Markdown/PDF MIME type, and must not be empty. A 30-second abort timer covers the request and body. Failure bodies are capped at 32 KiB before JSON parsing, and displayed server messages at 500 characters. Malformed or oversized proxy errors use a fixed fallback. No partial file is saved on failure; retry after checking session validity, connectivity, and server diagnostics. These limits do not establish production-volume report-generation performance.
+
+`npm run verify:hai-http` now also exercises all eight real report responses in its disposable MongoDB workspace, verifies attachment/MIME and PDF signatures, checks live Markdown workspace content, and verifies unauthenticated and HAI-only credentials are denied. It performs no provider writes and removes the verification database after closing its loopback listener.
+
 ## Windows
 
 Build with `npm.cmd run build:installer`. The output is `release/Sneup-Setup-<version>.exe`. Treat unsigned builds as test artifacts; production distribution requires publisher signing and a verified update channel.

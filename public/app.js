@@ -342,7 +342,13 @@ function loadReportView() {
           elements: els,
           t,
           escapeHtml,
-          callbacks: { downloadReport }
+          callbacks: {
+            downloadReport,
+            isReportDownloading: (type, format) => {
+              const entry = state.reportDownloads?.get(`${type}:${format}`);
+              return Boolean(entry && entry.workspaceId === state.activeWorkspaceId && entry.sessionToken === state.sessionToken);
+            }
+          }
         });
       })
       .then((controller) => {
@@ -663,6 +669,7 @@ els.workspaceDeleteButton.addEventListener('click', openWorkspaceDeletion);
 els.integrityScanButton.addEventListener('click', () => loadIntegrityReport({ announce: true }));
 els.retentionScanButton.addEventListener('click', () => loadRetentionReport({ announce: true }));
 els.workspaceSelect.addEventListener('change', async (event) => {
+  cancelReportDownloads();
   state.activeWorkspaceId = event.target.value;
   if (state.activeWorkspaceId) {
     localStorage.setItem('sneup.workspaceId', state.activeWorkspaceId);
@@ -1077,13 +1084,94 @@ function openCapacityEditor(memberId) {
 function downloadReport(reportType, format) {
   const report = state.reports.find(item => item.id === reportType);
   if (!report || !['markdown', 'pdf'].includes(format)) return;
-  const url = `/api/reports/${encodeURIComponent(reportType)}?format=${encodeURIComponent(format)}`;
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = `${report.filename || reportType}.${format === 'markdown' ? 'md' : 'pdf'}`;
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
+  state.reportDownloads ||= new Map();
+  const key = `${reportType}:${format}`;
+  const existing = state.reportDownloads.get(key);
+  if (existing && existing.workspaceId === state.activeWorkspaceId && existing.sessionToken === state.sessionToken) return existing.promise;
+  existing?.controller.abort();
+  const entry = { controller: new AbortController(), workspaceId: state.activeWorkspaceId, sessionToken: state.sessionToken };
+  state.reportDownloads.set(key, entry);
+  const isCurrent = () => state.reportDownloads.get(key) === entry
+    && state.activeWorkspaceId === entry.workspaceId && state.sessionToken === entry.sessionToken;
+  reportViewController?.renderDownloadState?.();
+  entry.promise = (async () => {
+    const timer = setTimeout(() => entry.controller.abort(), 30000);
+    try {
+      const response = await apiFetch(`/api/reports/${encodeURIComponent(reportType)}?format=${encodeURIComponent(format)}`, { signal: entry.controller.signal });
+      if (!isCurrent()) return;
+      if (!response.ok) {
+        let message = t('Report download failed');
+        try {
+          const body = await readReportBlob(response, 'application/json', isCurrent, 32768);
+          const data = JSON.parse(await body.text());
+          message = String(apiErrorMessage(data, message)).slice(0, 500);
+        } catch {
+          // Proxy HTML, oversized errors, and malformed JSON use the fixed fallback.
+        }
+        throw new Error(message);
+      }
+      const expectedType = format === 'pdf' ? 'application/pdf' : 'text/markdown';
+      if (response.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== expectedType) {
+        throw new Error(t('Sneup returned an unexpected report format. Try again.'));
+      }
+      const blob = await readReportBlob(response, expectedType, isCurrent);
+      if (!isCurrent() || entry.controller.signal.aborted || !blob) return;
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      try {
+        anchor.href = url;
+        const filename = String(report.filename || reportType).replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 100) || 'sneup-report';
+        anchor.download = `${filename}.${format === 'markdown' ? 'md' : 'pdf'}`;
+        document.body.append(anchor);
+        anchor.click();
+      } finally {
+        anchor.remove();
+        // Let the browser consume the download URL before releasing its buffer.
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+    } catch (error) {
+      if (isCurrent()) openNotice(t('Report download failed'), entry.controller.signal.aborted
+        ? t('Report generation timed out. Try again.') : error.message);
+    } finally {
+      clearTimeout(timer);
+      entry.controller.abort();
+      if (state.reportDownloads.get(key) === entry) state.reportDownloads.delete(key);
+      reportViewController?.renderDownloadState?.();
+    }
+  })();
+  return entry.promise;
+}
+
+function cancelReportDownloads() {
+  for (const entry of state.reportDownloads?.values() || []) entry.controller.abort();
+  state.reportDownloads?.clear();
+  reportViewController?.renderDownloadState?.();
+}
+
+async function readReportBlob(response, type, isCurrent, limit = 5 * 1024 * 1024) {
+  if (Number(response.headers.get('content-length')) > limit) throw new Error(t('The report exceeds the 5 MB download limit.'));
+  if (!response.body) throw new Error(t('Sneup returned an empty report. Try again.'));
+  const reader = response.body.getReader();
+  const chunks = [];
+  let size = 0;
+  let complete = false;
+  try {
+    while (isCurrent()) {
+      const { done, value } = await reader.read();
+      if (done) {
+        complete = true;
+        if (!size) throw new Error(t('Sneup returned an empty report. Try again.'));
+        return new Blob(chunks, { type });
+      }
+      size += value.byteLength;
+      if (size > limit) throw new Error(t('The report exceeds the 5 MB download limit.'));
+      chunks.push(value);
+    }
+    return null;
+  } finally {
+    if (!complete) reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
 }
 
 async function loadEnhancements() {
@@ -3070,6 +3158,7 @@ function openWorkspaceDeletion() {
         })
       });
       state.sessionToken = '';
+      cancelReportDownloads();
       state.activeWorkspaceId = '';
       state.currentWorkspace = null;
       state.workspaces = [];
@@ -3761,6 +3850,7 @@ async function acceptWorkspaceInvitation(rawToken, displayName) {
     body: JSON.stringify({ token: rawToken, displayName })
   });
   state.sessionToken = data.sessionToken;
+  cancelReportDownloads();
   state.activeWorkspaceId = data.workspace.id;
   let sessionPersisted = true;
   try {

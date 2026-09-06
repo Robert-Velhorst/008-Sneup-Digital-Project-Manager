@@ -113,6 +113,34 @@ const run = async () => {
     }
     checks += 3;
 
+    const reportReader = await issue(ApiToken, { scopes: ['api:read'] });
+    assert.equal((await request('/reports/weekly_status?format=markdown')).status, 401);
+    assert.equal((await request('/reports/weekly_status?format=markdown', serviceToken.raw)).status, 403);
+    checks += 2;
+    for (const type of ['weekly_status', 'standup', 'risk_register', 'client_update']) {
+      for (const format of ['markdown', 'pdf']) {
+        const response = await fetch(`${base}/api/v1/reports/${type}?format=${format}`, {
+          headers: { Authorization: `Bearer ${reportReader.raw}`, 'X-Sneup-Workspace-Id': String(other._id) },
+          signal: AbortSignal.timeout(15000)
+        });
+        assert.equal(response.status, 200);
+        assert.ok(response.headers.get('content-disposition').startsWith('attachment;'));
+        const bytes = Buffer.from(await response.arrayBuffer());
+        assert.ok(bytes.length > 100 && bytes.length < 5 * 1024 * 1024);
+        if (format === 'pdf') {
+          assert.ok(response.headers.get('content-type').startsWith('application/pdf'));
+          assert.equal(bytes.subarray(0, 5).toString(), '%PDF-');
+        } else {
+          assert.ok(response.headers.get('content-type').startsWith('text/markdown'));
+          const text = bytes.toString('utf8');
+          assert.ok(text.includes('HTTP card'), 'Report must contain the token workspace card');
+          assert.ok(!text.includes(foreign.title), 'Workspace header must not expose another workspace');
+          assert.ok(text.includes('(live mode)'), 'Database-backed reports must not silently use demo data');
+        }
+        checks++;
+      }
+    }
+
     // These references model lifecycle/data-integrity failures, not user records.
     const invalidCases = [
       [ApiToken, { workspaceId: new mongoose.Types.ObjectId() }, 'missing API-token workspace'],

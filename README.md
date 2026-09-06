@@ -91,6 +91,8 @@ High-impact actions require human review of the exact payload. Workspace policy 
 
 Sneup can prepare reconciliation alerts, daily operations briefs, and reports through configured delivery policies. Destinations are encrypted and sends are claimed atomically to avoid duplicate delivery.
 
+The Reports screen also downloads weekly status, standup, risk-register, and client-update reports as Markdown or PDF. Downloads use the current authenticated session and selected workspace. The active format is disabled while generating; errors remain retryable, and changing workspace cancels pending downloads. Reports are generated from saved Sneup evidence, not a fresh provider synchronization. Downloads have a 30-second timeout and a 5 MB safety limit; oversized or invalid responses produce an error rather than a partial report. Saving a report does not send it to anyone.
+
 ### Workspace administration
 
 Workspace owners can manage users, sessions, invitations, exports, deletion, data integrity repair, and retention policies. Destructive or sensitive workflows require exact confirmations and audit evidence.
@@ -275,7 +277,7 @@ The installer is written to:
 release\Sneup-Setup-<version>.exe
 ```
 
-The local release line currently builds `Sneup-Setup-2.3.54.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
+The local release line currently builds `Sneup-Setup-2.3.55.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
 
 Verify the unpacked Windows app before distributing an installer:
 

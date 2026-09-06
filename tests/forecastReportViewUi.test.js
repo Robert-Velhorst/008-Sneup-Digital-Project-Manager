@@ -46,7 +46,8 @@ function createHarness(locale = 'nl') {
     openNotice: jest.fn(),
     closeModal: jest.fn(),
     enhanceForm: jest.fn(),
-    downloadReport: jest.fn()
+    downloadReport: jest.fn(),
+    isReportDownloading: jest.fn((type, format) => state.reportDownloads?.has(`${type}:${format}`))
   };
   const state = {
     securityContext: { permissions: ['capacity:manage'] },
@@ -179,6 +180,28 @@ describe('demand-loaded forecast and report views', () => {
       ['weekly_status', 'markdown'],
       ['weekly_status', 'pdf']
     ]);
+    harness.dom.window.close();
+  });
+
+  test('updates download progress without replacing focused controls or blocking other formats', () => {
+    const harness = createHarness('nl');
+    harness.state.activeWorkspaceId = 'workspace-a';
+    harness.state.sessionToken = 'synthetic-session';
+    harness.state.reportDownloads = new Map();
+    harness.report.render();
+    const pdf = harness.elements.reportList.querySelector('[data-report-format="pdf"]');
+    const markdown = harness.elements.reportList.querySelector('[data-report-format="markdown"]');
+    harness.state.reportDownloads.set('weekly_status:pdf', { workspaceId: 'workspace-a', sessionToken: 'synthetic-session' });
+    harness.report.renderDownloadState();
+    expect(pdf.disabled).toBe(true);
+    expect(pdf.getAttribute('aria-busy')).toBe('true');
+    expect(markdown.disabled).toBe(false);
+    expect(harness.elements.reportMode.textContent).toBe('wordt gegenereerd');
+    expect(harness.elements.reportList.querySelector('[data-report-format="pdf"]')).toBe(pdf);
+    harness.state.reportDownloads.clear();
+    harness.report.renderDownloadState();
+    expect(pdf.disabled).toBe(false);
+    expect(harness.elements.reportMode.textContent).toBe('alleen-lezen');
     harness.dom.window.close();
   });
 
