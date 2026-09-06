@@ -2,6 +2,8 @@
 
 Status meanings: **Implemented** is present and locally verified; **Partial** has useful implementation but an identified gap; **External** requires owner-controlled accounts or infrastructure; **N/A** is outside the product's current surface. No phase is marked complete from documentation alone.
 
+2.3.48 closes credential-reference authentication failures shared by the browser/API and HAI: orphaned workspaces cannot fall back to the default workspace, orphaned users cannot become service identities, and user-bound credentials require membership in the token's workspace. Intentionally userless scoped service tokens and separately authorized archived-workspace management remain supported. Real HTTP/Mongo verification covers the authenticated HAI read/propose path while denying approval/execution; actual hosted ingress and HAI-client acceptance remain external.
+
 2.3.47 fixes the database-backed HAI snapshot path: native MongoDB record IDs and populated references retain their hexadecimal identifiers, and first-use board-health reads wait for index initialization within a bounded deadline. Disposable real-Mongo verification covers snapshot-to-proposal round trips, workspace isolation, deduplication, zero approvals or provider attempts, and confirmed cleanup after background model initialization settles. This does not close the live authenticated HAI/ngrok or provider acceptance gates.
 
 2.3.42 removes another eager command-center cost without moving authority into the renderer. Enhancements loads its filters, metrics, cards, and Dutch catalog only when opened; authenticated reads remain in the controller, superseded requests abort, stale results cannot render, and deterministic evaluation is reused for the page session. Initial app-plus-localization transfer is 3,790 raw, 1,100 gzip, and 802 Brotli bytes smaller.
@@ -104,7 +106,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 065 Privacy impact | Partial | Data-minimization boundaries documented; formal DPO review external. |
 | 066 Supply chain | Implemented | Lockfile, `npm ci`, production audit, CI gate. |
 | 067 Licenses/third parties | Partial | MIT project/dependencies tracked; service terms review external. |
-| 068 CI/CD gates | Implemented | Linux quality job and Windows installer artifact job. |
+| 068 CI/CD gates | Implemented | Linux quality, MongoDB service/HTTP integration, and Windows installer/runtime verification jobs. |
 | 069 Canary/rollback | Partial | Optional workloads now have immediate persisted canary/pause controls and revision-safe rollback; hosted rollout proof remains external. |
 | 070 Operator runbook | Implemented | `OPERATOR_RUNBOOK.md`. |
 | 071 User guide/help | Implemented | README plus searchable in-app guidance cover every command-center view, setup, decision safety, privacy, and direct workflow handoffs. |

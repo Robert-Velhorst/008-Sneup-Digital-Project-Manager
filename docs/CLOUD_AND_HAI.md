@@ -4,7 +4,7 @@
 
 Sneup supports the same application core in three forms:
 
-1. Windows 11 desktop through the current `Sneup-Setup-2.3.47.exe` release target.
+1. Windows 11 desktop through the current `Sneup-Setup-2.3.48.exe` release target.
 2. Local or server Node runtime through `npm start`.
 3. Authenticated ngrok ingress layered over either runtime.
 
@@ -58,6 +58,8 @@ The manifest advertises `hai_proposals` as the optional proposal rollout control
 
 The HAI API does not expose approval or execution endpoints. HAI cannot mark its own proposal approved, and it cannot directly write to Trello or another provider through this connector. Human approval remains tied to the exact protected action payload inside Sneup.
 
+Database credentials require a resolvable workspace. A user-bound API token or session also requires an active user in that same workspace; a deleted user reference cannot become a service identity. Intentionally userless service API tokens remain supported and their declared scopes still limit access. Archived/deleting workspaces remain available for separately authorized management and recovery operations. Legacy credentials without workspace scope must pass the existing workspace migration before use; missing or mismatched references require operator review, not automatic reassignment to the default workspace.
+
 ## Verification
 
 Run:
@@ -79,3 +81,13 @@ npm.cmd run verify:hai-snapshot
 ```
 
 The verifier requires that exact prefix plus 16 lowercase hexadecimal characters and refuses a nonempty database. It creates synthetic records, checks identifier round trips and workspace isolation, verifies proposal deduplication without approvals or Trello attempts, and removes only its verification database. Cleanup waits for all registered model initialization to settle before dropping the database, checks that no collections remain, and always disconnects. If initialization does not settle within 30 seconds, it fails without dropping the database or claiming removal; inspect the named disposable database before a later retry. A dedicated MongoDB 7.0 CI job runs the same check. This is service/database verification, not proof of a live authenticated HAI client or hosted ngrok deployment.
+
+The authenticated HTTP verifier uses the real Express application on an ephemeral loopback port, temporary random credentials, and a separate empty database:
+
+```powershell
+$suffix = [guid]::NewGuid().ToString('N').Substring(0,16)
+$env:SNEUP_HAI_HTTP_VERIFICATION_MONGO_URI = "mongodb://127.0.0.1:27017/sneup_hai_http_verification_$suffix"
+npm.cmd run verify:hai-http
+```
+
+It verifies valid service/user access, workspace-header isolation, missing credential rejection, read-only scope enforcement, pending proposal persistence/deduplication, denied approval/execution, and rejection of orphaned or cross-workspace credential references. It starts no scheduled workers or tunnel, performs no provider writes, closes its HTTP server, and uses the same initialization-aware database cleanup. CI runs both verifiers. This proves the local authenticated API/database path, not a real HAI consumer or public ngrok ingress.

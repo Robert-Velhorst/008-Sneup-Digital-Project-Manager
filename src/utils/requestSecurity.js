@@ -218,6 +218,18 @@ const isWebhook = (req) =>
 const isPublicInviteAcceptance = (req) =>
   req.method === 'POST' && /^\/api\/(?:v1\/)?workspaces\/invitations\/accept$/.test(req.path);
 
+const hasValidCredentialRelationships = (candidate, requiresUser = false) => {
+  const workspace = candidate.workspaceId;
+  const user = candidate.userId;
+  if (!workspace?._id || workspace._bsontype === 'ObjectId') return false;
+  if (!user) {
+    // A deleted populated user is null, but Mongoose retains its original reference.
+    return !requiresUser && !candidate.populated?.('userId');
+  }
+  return user.status === 'active'
+    && asIdString(user.workspaceId) === asIdString(workspace);
+};
+
 const resolveDatabaseApiToken = async (providedKey, now = new Date()) => {
   if (!providedKey || !isDatabaseConnected()) return null;
 
@@ -236,7 +248,7 @@ const resolveDatabaseApiToken = async (providedKey, now = new Date()) => {
   }
 
   const user = candidate.userId;
-  if (user && user.status !== 'active') {
+  if (!hasValidCredentialRelationships(candidate)) {
     return null;
   }
 
@@ -261,7 +273,7 @@ const resolveDatabaseApiToken = async (providedKey, now = new Date()) => {
       actorType: user ? 'user' : 'service',
       actorId: asIdString(user) || asIdString(candidate),
       displayName: user?.displayName || candidate.name || 'Sneup API token',
-      workspaceId: asIdString(workspace) || getDefaultWorkspaceId(),
+      workspaceId: asIdString(workspace),
       workspaceName: workspace?.name || getDefaultWorkspaceName(),
       roles: [role],
       permissions: permissionsScoped ? candidate.scopes : undefined,
@@ -292,7 +304,7 @@ const resolveDatabaseSessionToken = async (providedKey, now = new Date()) => {
 
   const user = candidate.userId;
   const workspace = candidate.workspaceId;
-  if (!user || user.status !== 'active' || !workspace) {
+  if (!hasValidCredentialRelationships(candidate, true)) {
     return null;
   }
 

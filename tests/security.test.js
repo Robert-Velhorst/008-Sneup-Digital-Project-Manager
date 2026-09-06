@@ -374,7 +374,7 @@ describe('request security boundaries', () => {
       role: 'operator',
       scopes: [],
       workspaceId: { _id: 'workspace-1', name: 'Ops Workspace' },
-      userId: { _id: 'user-1', displayName: 'Operations Lead', role: 'manager', status: 'active' },
+      userId: { _id: 'user-1', workspaceId: 'workspace-1', displayName: 'Operations Lead', role: 'manager', status: 'active' },
       isUsable: jest.fn(() => true),
       matches: jest.fn(() => true)
     };
@@ -541,6 +541,7 @@ describe('request security boundaries', () => {
         _id: 'user-1',
         displayName: 'Robert',
         email: 'robert@example.test',
+        workspaceId: 'workspace-1',
         role: 'admin',
         status: 'active'
       },
@@ -594,6 +595,7 @@ describe('request security boundaries', () => {
       workspaceId: { _id: 'workspace-1', name: 'Ops Workspace' },
       userId: {
         _id: 'user-1',
+        workspaceId: 'workspace-1',
         displayName: 'Robert',
         role: 'owner',
         status: 'active'

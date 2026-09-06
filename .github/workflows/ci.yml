@@ -47,6 +47,9 @@ jobs:
       - run: npm run verify:hai-snapshot
         env:
           SNEUP_HAI_SNAPSHOT_VERIFICATION_MONGO_URI: mongodb://127.0.0.1:27017/sneup_hai_snapshot_verification_0000000000000001
+      - run: npm run verify:hai-http
+        env:
+          SNEUP_HAI_HTTP_VERIFICATION_MONGO_URI: mongodb://127.0.0.1:27017/sneup_hai_http_verification_0000000000000001
 
   windows-installer:
     runs-on: windows-latest
