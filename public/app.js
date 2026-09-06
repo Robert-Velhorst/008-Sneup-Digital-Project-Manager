@@ -669,13 +669,7 @@ els.workspaceDeleteButton.addEventListener('click', openWorkspaceDeletion);
 els.integrityScanButton.addEventListener('click', () => loadIntegrityReport({ announce: true }));
 els.retentionScanButton.addEventListener('click', () => loadRetentionReport({ announce: true }));
 els.workspaceSelect.addEventListener('change', async (event) => {
-  cancelReportDownloads();
-  state.activeWorkspaceId = event.target.value;
-  if (state.activeWorkspaceId) {
-    localStorage.setItem('sneup.workspaceId', state.activeWorkspaceId);
-  } else {
-    localStorage.removeItem('sneup.workspaceId');
-  }
+  adoptWorkspaceId(event.target.value);
   await loadAll({ force: true });
 });
 els.languageSelect?.addEventListener('change', (event) => {
@@ -882,21 +876,34 @@ async function loadView(viewName, options = {}) {
   const loader = viewLoaders[viewName];
   if (!loader || (!options.force && state.loadedViews.has(viewName))) return;
 
-  // Repeated navigation and refresh clicks should share an in-progress view load.
+  // Share work only within the same workspace/session generation.
   const inFlight = state.viewLoads.get(viewName);
-  if (inFlight) return inFlight;
+  if (inFlight?.isCurrent()) return inFlight.promise;
 
+  const workspaceId = state.activeWorkspaceId;
+  const sessionToken = state.sessionToken;
+  const epoch = state.workspaceEpoch || 0;
+  const entry = {};
+  entry.isCurrent = () => state.viewLoads.get(viewName) === entry
+    && workspaceId === state.activeWorkspaceId && sessionToken === state.sessionToken
+    && epoch === (state.workspaceEpoch || 0);
   const load = Promise.resolve()
-    .then(loader)
-    .then(() => state.loadedViews.add(viewName))
-    .finally(() => state.viewLoads.delete(viewName));
-  state.viewLoads.set(viewName, load);
+    .then(() => entry.isCurrent() ? loader() : undefined)
+    .then(() => { if (entry.isCurrent()) state.loadedViews.add(viewName); })
+    .finally(() => { if (state.viewLoads.get(viewName) === entry) state.viewLoads.delete(viewName); });
+  entry.promise = load;
+  state.viewLoads.set(viewName, entry);
   return load;
 }
 
 async function loadAll(options = {}) {
-  await loadSecurityContext();
+  const requestId = state.refreshRequestId = (state.refreshRequestId || 0) + 1;
+  const sessionToken = state.sessionToken;
+  const securityCurrent = await loadSecurityContext();
+  if (securityCurrent === false || requestId !== state.refreshRequestId || sessionToken !== state.sessionToken) return;
+  const isCurrent = beginWorkspaceRead('refresh');
   await loadFeatureFlags();
+  if (!isCurrent() || requestId !== state.refreshRequestId) return;
   if (options.force) state.loadedViews.clear();
   if (options.force || state.loadedViews.size === 0) markDeferredViewCounts();
   const activeView = document.querySelector('[data-view-button].active')?.dataset.viewButton || 'overview';
@@ -904,11 +911,14 @@ async function loadAll(options = {}) {
 }
 
 async function loadFeatureFlags() {
+  const isCurrent = beginWorkspaceRead('featureFlags');
   try {
     const data = await fetchApi('/api/feature-flags');
+    if (!isCurrent()) return;
     state.featureFlags = data.flags || [];
     state.featureFlagError = '';
   } catch (error) {
+    if (!isCurrent()) return;
     state.featureFlags = [];
     state.featureFlagError = error.message;
   }
@@ -1281,18 +1291,65 @@ async function fetchApi(url, options) {
   return readApiResponse(response, url);
 }
 
+function beginWorkspaceRead(key) {
+  state.workspaceReads ||= new Map();
+  const request = {};
+  state.workspaceReads.set(key, request);
+  const workspaceId = state.activeWorkspaceId;
+  const sessionToken = state.sessionToken;
+  const epoch = state.workspaceEpoch || 0;
+  const isCurrent = () => state.workspaceReads.get(key) === request
+    && workspaceId === state.activeWorkspaceId && sessionToken === state.sessionToken
+    && epoch === (state.workspaceEpoch || 0);
+  isCurrent.ownsRequest = () => state.workspaceReads.get(key) === request;
+  return isCurrent;
+}
+
+function adoptWorkspaceId(workspaceId) {
+  if (!workspaceId || workspaceId === state.activeWorkspaceId) return false;
+  cancelReportDownloads();
+  state.workspaceEpoch = (state.workspaceEpoch || 0) + 1;
+  state.activeWorkspaceId = workspaceId;
+  state.securityContext = null;
+  state.runtimeMode = 'unknown';
+  state.featureFlags = [];
+  state.featureFlagError = '';
+  state.currentWorkspace = null;
+  state.workspaces = [];
+  state.workspaceUsers = [];
+  state.workspaceInvitations = [];
+  state.policyRules = [];
+  state.policyRuleError = '';
+  state.policyHistory = [];
+  state.policyHistoryError = '';
+  state.integrityReport = null;
+  state.integrityError = '';
+  state.retentionReport = null;
+  state.retentionError = '';
+  state.loadedViews.clear();
+  try {
+    localStorage.setItem('sneup.workspaceId', workspaceId);
+  } catch {
+    // The current page can switch even when browser storage is unavailable.
+  }
+  if (workspaceViewController) renderWorkspaces();
+  return true;
+}
+
 async function loadSecurityContext() {
+  const isCurrent = beginWorkspaceRead('securityContext');
   try {
     const data = await fetchApi('/api/security/context');
+    if (!isCurrent()) return false;
+    adoptWorkspaceId(data.context?.workspaceId);
     state.securityContext = data.context;
     state.runtimeMode = data.controls?.demoMode ? 'demo' : 'live';
-    if (!state.activeWorkspaceId && data.context?.workspaceId) {
-      state.activeWorkspaceId = data.context.workspaceId;
-    }
   } catch (error) {
+    if (!isCurrent()) return false;
     state.securityContext = null;
     state.runtimeMode = 'unknown';
   }
+  return true;
 }
 
 async function loadMissionControl() {
@@ -1420,11 +1477,16 @@ async function loadWorkSignals() {
 }
 
 async function loadWorkspaceAdmin(options = {}) {
+  let isCurrent = beginWorkspaceRead('workspaceAdmin');
   try {
     const [current] = await Promise.all([
       fetchApi('/api/workspaces/current'),
       loadWorkspaceView()
     ]);
+    if (!isCurrent()) return;
+    // Resolve the server-owned workspace before reading policy or membership data.
+    const selectionChanged = adoptWorkspaceId(current.workspace?.id);
+    if (selectionChanged) isCurrent = beginWorkspaceRead('workspaceAdmin');
     state.currentWorkspace = current.workspace;
     if (current.auth?.demoMode) {
       state.activeWorkspaceId = current.workspace.id;
@@ -1442,24 +1504,29 @@ async function loadWorkspaceAdmin(options = {}) {
       renderWorkspaces();
       return;
     }
+    if (selectionChanged) {
+      await loadSecurityContext();
+      if (!isCurrent()) return;
+      await loadFeatureFlags();
+      if (!isCurrent()) return;
+    }
     await Promise.all([
       loadIntegrityReport({ render: false }),
       loadRetentionReport({ render: false })
     ]);
+    if (!isCurrent()) return;
     try {
-      const [policyData, historyData] = await Promise.all([
+      const [policyData] = await Promise.all([
         fetchApi('/api/policy-rules'),
-        fetchApi(buildPolicyHistoryEndpoint())
+        loadPolicyHistory({ render: false })
       ]);
+      if (!isCurrent()) return;
       state.policyRules = policyData.policies || [];
       state.policyRuleError = '';
-      state.policyHistory = historyData.history || [];
-      state.policyHistoryError = '';
     } catch (error) {
+      if (!isCurrent()) return;
       state.policyRules = [];
       state.policyRuleError = error.message;
-      state.policyHistory = [];
-      state.policyHistoryError = error.message;
     }
 
     if (!current.auth?.workspaceOverrideAllowed) {
@@ -1471,16 +1538,11 @@ async function loadWorkspaceAdmin(options = {}) {
     }
 
     const workspaceData = await fetchApi('/api/workspaces?limit=100');
+    if (!isCurrent()) return;
     state.workspaces = workspaceData.workspaces || [];
-    const selectedWorkspace = state.workspaces.find(workspace => workspace.id === state.activeWorkspaceId)
-      || state.workspaces.find(workspace => workspace.id === current.workspace?.id)
-      || state.workspaces[0]
-      || current.workspace;
-    const workspaceSelectionChanged = selectedWorkspace?.id && state.activeWorkspaceId !== selectedWorkspace.id;
-    if (workspaceSelectionChanged) {
-      state.activeWorkspaceId = selectedWorkspace.id;
-      localStorage.setItem('sneup.workspaceId', state.activeWorkspaceId);
-      await loadFeatureFlags();
+    const selectedWorkspace = current.workspace;
+    if (selectedWorkspace?.id && !state.workspaces.some(workspace => workspace.id === selectedWorkspace.id)) {
+      state.workspaces = [selectedWorkspace, ...state.workspaces];
     }
 
     const [userData, invitationData] = selectedWorkspace?.id
@@ -1489,16 +1551,14 @@ async function loadWorkspaceAdmin(options = {}) {
         fetchApi(`/api/workspaces/${selectedWorkspace.id}/invitations?limit=100`)
       ])
       : [{ users: [] }, { invitations: [] }];
+    if (!isCurrent()) return;
     state.workspaceUsers = userData.users || [];
     state.workspaceInvitations = invitationData.invitations || [];
     renderWorkspaces();
   } catch (error) {
+    if (!isCurrent()) return;
     state.workspaceUsers = [];
     state.workspaceInvitations = [];
-    state.policyRules = [];
-    state.policyRuleError = error.message;
-    state.policyHistory = [];
-    state.policyHistoryError = error.message;
     state.workspaces = state.currentWorkspace ? [state.currentWorkspace] : [];
     if (workspaceViewController) {
       renderWorkspaces(error.message);
@@ -1512,7 +1572,10 @@ async function loadWorkspaceAdmin(options = {}) {
 async function loadIntegrityReport(options = {}) {
   const requestId = state.integrityRequestId = (state.integrityRequestId || 0) + 1;
   const workspaceId = state.activeWorkspaceId;
-  const isCurrent = () => requestId === state.integrityRequestId && workspaceId === state.activeWorkspaceId;
+  const sessionToken = state.sessionToken;
+  const epoch = state.workspaceEpoch || 0;
+  const isCurrent = () => requestId === state.integrityRequestId && workspaceId === state.activeWorkspaceId
+    && sessionToken === state.sessionToken && epoch === (state.workspaceEpoch || 0);
   els.integrityScanButton.disabled = true;
   try {
     const query = new URLSearchParams({ limit: '200' });
@@ -1535,19 +1598,22 @@ async function loadIntegrityReport(options = {}) {
 }
 
 async function loadRetentionReport(options = {}) {
+  const isCurrent = beginWorkspaceRead('retentionReport');
   els.retentionScanButton.disabled = true;
   try {
     const data = await fetchApi('/api/data-retention?limit=200');
+    if (!isCurrent()) return;
     state.retentionReport = data.report;
     state.retentionError = '';
     if (options.announce) openNotice('Retention scan complete', `${data.report.summary.due} old record(s) are currently due.`);
   } catch (error) {
+    if (!isCurrent()) return;
     state.retentionReport = null;
     state.retentionError = error.message;
     if (options.announce) openNotice('Retention scan failed', error.message);
   } finally {
-    els.retentionScanButton.disabled = false;
-    if (options.render !== false) renderRetentionReport();
+    if (isCurrent.ownsRequest()) els.retentionScanButton.disabled = false;
+    if (isCurrent() && options.render !== false) renderRetentionReport();
   }
 }
 
@@ -1564,17 +1630,20 @@ function buildPolicyHistoryEndpoint() {
   return `/api/policy-rules/history?${params.toString()}`;
 }
 
-async function loadPolicyHistory() {
+async function loadPolicyHistory(options = {}) {
   if (state.securityContext?.demoMode || state.currentWorkspace?.demoMode) return;
+  const isCurrent = beginWorkspaceRead('policyHistory');
   try {
     const data = await fetchApi(buildPolicyHistoryEndpoint());
+    if (!isCurrent()) return;
     state.policyHistory = data.history || [];
     state.policyHistoryError = '';
   } catch (error) {
+    if (!isCurrent()) return;
     state.policyHistory = [];
     state.policyHistoryError = error.message;
   }
-  renderWorkspaces();
+  if (options.render !== false) renderWorkspaces();
 }
 
 async function loadOperationsLedger(options = {}) {
@@ -3158,6 +3227,7 @@ function openWorkspaceDeletion() {
         })
       });
       state.sessionToken = '';
+      state.workspaceEpoch = (state.workspaceEpoch || 0) + 1;
       cancelReportDownloads();
       state.activeWorkspaceId = '';
       state.currentWorkspace = null;
@@ -3850,6 +3920,7 @@ async function acceptWorkspaceInvitation(rawToken, displayName) {
     body: JSON.stringify({ token: rawToken, displayName })
   });
   state.sessionToken = data.sessionToken;
+  state.workspaceEpoch = (state.workspaceEpoch || 0) + 1;
   cancelReportDownloads();
   state.activeWorkspaceId = data.workspace.id;
   let sessionPersisted = true;

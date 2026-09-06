@@ -2,6 +2,8 @@
 
 Status meanings: **Implemented** is present and locally verified; **Partial** has useful implementation but an identified gap; **External** requires owner-controlled accounts or infrastructure; **N/A** is outside the product's current surface. No phase is marked complete from documentation alone.
 
+2.3.56 adds workspace/session/generation ownership to administration, security, feature flags, policy history, integrity, and retention reads. Dependent administration requests stop after a context change; canonical workspace selection precedes those reads. View-load caching no longer shares another workspace's pending load or lets its completion remove a newer request. Switching clears old administration data and permission indicators immediately. Deferred-response regressions and a synthetic browser journey verify these paths, not every other view or open mutation form. Backend ownership tests remain valid, while the end-to-end cross-user isolation row below is partial pending the wider frontend audit.
+
 2.3.55 corrects report downloads that previously navigated directly to an endpoint without the session bearer token or workspace header. Downloads now use the shared authenticated request path, preserve workspace/session ownership through completion, bound successful/error response buffers, suppress duplicate clicks, and release object URLs. Real authenticated MongoDB/HTTP checks cover all four report types in both formats; actual demo-browser Markdown/PDF files were downloaded and inspected. This does not certify every workspace-switching loader or close live-provider/cloud/HAI acceptance.
 
 2.3.54 adds read-only recovery findings with expandable evidence, category filtering, and record continuation. Unconfirmed worker responses and quarantined worker webhooks are visible after 15 minutes; active-approval checks validate exact references, not expiry or payload freshness. These findings cannot be automatically repaired or replayed. Integrity requests now discard stale workspace/category responses; generalized application-wide request coordination remains a separate verification task.
@@ -98,7 +100,7 @@ Status meanings: **Implemented** is present and locally verified; **Partial** ha
 | 043 End-to-end tests | Partial | Local browser flows exist; live-provider E2E is external. |
 | 044 Acceptance matrix | Implemented | `ACCEPTANCE_TESTS.md`. |
 | 045 Adversarial tests | Implemented | Security, webhook, SSRF, duplicate, partial failure, scope tests. |
-| 046 Cross-user isolation | Implemented | Workspace identity and authorization regression coverage. |
+| 046 Cross-user isolation | Partial | Backend workspace identity and authorization regression coverage; administration/report request guards verified. Remaining dashboard loaders and open forms still need full context-transition verification. |
 | 047 Path traversal/file safety | Implemented | Controlled static/report paths and traversal/security tests. |
 | 048 Provider failure simulation | Implemented | Retry, timeout, partial write, truncation, and reconciliation tests. |
 | 049 Accessibility | Partial | Labels, modal semantics, contextual focus, focus containment/restoration, Escape/F1 behavior, and responsive help navigation are covered; assistive-technology certification remains external. |

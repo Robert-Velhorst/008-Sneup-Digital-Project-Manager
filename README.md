@@ -97,6 +97,8 @@ The Reports screen also downloads weekly status, standup, risk-register, and cli
 
 Workspace owners can manage users, sessions, invitations, exports, deletion, data integrity repair, and retention policies. Destructive or sensitive workflows require exact confirmations and audit evidence.
 
+Switching workspace clears the previous administration records and permission indicators while the new context loads. Administration, security, feature-flag, policy-history, integrity, and retention reads reject stale workspace/session results. The server-resolved workspace is selected before dependent administration reads, and a failed browser-storage write does not prevent switching for the current page. The wider audit of other dashboard views and open forms is still in progress; this is not a claim of complete application-wide request isolation.
+
 The Data Integrity screen also highlights unconfirmed worker responses and quarantined worker webhooks after 15 minutes, plus broken active approval references. Expand **Technical evidence** to inspect the relevant record identifiers and expected state. These findings are read-only: the repair action changes only list-count and member-assignment caches, not approvals, worker outcomes, or provider delivery state.
 
 The overview is capped. Select an individual category and use **Next records** to continue through its records, including pages with no findings. The active-approval check verifies that the referenced approval belongs to the exact recommendation and workspace and records an approved decision; it does not certify approval expiry, payload freshness, or permission to execute. Recovery still requires operator investigation, not an automatic replay.
@@ -277,7 +279,7 @@ The installer is written to:
 release\Sneup-Setup-<version>.exe
 ```
 
-The local release line currently builds `Sneup-Setup-2.3.55.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
+The local release line currently builds `Sneup-Setup-2.3.56.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
 
 Verify the unpacked Windows app before distributing an installer:
 
