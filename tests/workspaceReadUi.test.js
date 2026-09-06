@@ -21,7 +21,7 @@ const harness = () => {
     state, fetchApi, els, renderWorkspaces: render, renderIntegrityReport: render,
     renderRetentionReport: render, openNotice: notice, loadWorkspaceView: async () => ({}),
     workspaceViewController: {}, escapeHtml: String, localStorage: { setItem: jest.fn() },
-    cancelReportDownloads: jest.fn()
+    cancelReportDownloads: jest.fn(), resetDashboardViews: jest.fn()
   };
   const code = [
     source.includes('function beginWorkspaceRead(') ? section('function beginWorkspaceRead(', 'async function loadSecurityContext(') : '',

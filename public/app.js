@@ -21,7 +21,9 @@ const appAssetVersion = (() => {
   }
 })();
 let connectorViewPromise;
+let connectorViewController;
 let enhancementViewPromise;
+let enhancementViewController;
 let workspaceViewPromise;
 let workspaceViewController;
 let approvalViewPromise;
@@ -105,8 +107,13 @@ function loadConnectorView() {
           }
         });
       })
+      .then((controller) => {
+        connectorViewController = controller;
+        return controller;
+      })
       .catch((error) => {
         connectorViewPromise = null;
+        connectorViewController = null;
         throw error;
       });
   }
@@ -130,8 +137,13 @@ function loadEnhancementView() {
           callbacks: { loadEnhancements }
         });
       })
+      .then((controller) => {
+        enhancementViewController = controller;
+        return controller;
+      })
       .catch((error) => {
         enhancementViewPromise = null;
+        enhancementViewController = null;
         throw error;
       });
   }
@@ -704,6 +716,7 @@ document.querySelectorAll('[data-signal-filter]').forEach((button) => {
   });
 });
 async function showView(viewName, options = {}) {
+  const isCurrent = beginWorkspaceRead('navigation');
   if (viewName === 'approvals' && ['all', 'robert', 'team', 'va'].includes(options.queueFilter)) {
     state.queueFilter = options.queueFilter;
   }
@@ -725,6 +738,7 @@ async function showView(viewName, options = {}) {
   };
   document.getElementById('pageTitle').textContent = t(titles[viewName] || titles.overview);
   await loadView(viewName);
+  if (!isCurrent() || state.activeView !== viewName) return;
   if (viewName === 'approvals') {
     renderOperationsLedger();
     if (options.focusElementId) {
@@ -843,11 +857,15 @@ const viewLoaders = {
     loadOperationsBrief(),
     loadJobDashboard()
   ]),
-  approvals: () => Promise.all([
-    loadOperationsLedger(),
-    loadNotificationDeliveryHealth(),
-    loadApprovalView()
-  ]),
+  approvals: async () => {
+    const isCurrent = beginWorkspaceRead('approvalView');
+    await Promise.all([
+      loadOperationsLedger(),
+      loadNotificationDeliveryHealth(),
+      loadApprovalView()
+    ]);
+    if (isCurrent()) renderOperationsLedger();
+  },
   connectors: loadConnectors,
   enhancements: loadEnhancements,
   signals: loadWorkSignals,
@@ -931,20 +949,25 @@ function isFeatureEnabled(key) {
 }
 
 async function loadReports() {
+  const isCurrent = beginWorkspaceRead('reports');
   const renderer = loadReportView();
   try {
     const [data, controller] = await Promise.all([
       fetchApi('/api/reports'),
       renderer
     ]);
+    if (!isCurrent()) return;
     state.reports = data.reports || [];
     controller.render();
   } catch (error) {
+    if (!isCurrent()) return;
     state.reports = [];
     try {
       const controller = await renderer;
+      if (!isCurrent()) return;
       controller.render(error.message);
     } catch (moduleError) {
+      if (!isCurrent()) return;
       els.reportList.innerHTML = `<div class="empty">${escapeHtml(moduleError.message)}</div>`;
       throw moduleError;
     }
@@ -952,20 +975,25 @@ async function loadReports() {
 }
 
 async function loadForecast() {
+  const isCurrent = beginWorkspaceRead('forecast');
   const renderer = loadForecastView();
   try {
     const [data, controller] = await Promise.all([
       fetchApi('/api/forecasts'),
       renderer
     ]);
+    if (!isCurrent()) return;
     state.forecast = data.forecast || null;
     controller.render();
   } catch (error) {
+    if (!isCurrent()) return;
     state.forecast = null;
     try {
       const controller = await renderer;
+      if (!isCurrent()) return;
       controller.render(error.message);
     } catch (moduleError) {
+      if (!isCurrent()) return;
       els.portfolioForecast.innerHTML = `<div class="empty">${escapeHtml(moduleError.message)}</div>`;
       throw moduleError;
     }
@@ -1185,6 +1213,7 @@ async function readReportBlob(response, type, isCurrent, limit = 5 * 1024 * 1024
 }
 
 async function loadEnhancements() {
+  const isCurrent = beginWorkspaceRead('enhancements');
   if (enhancementRequest) enhancementRequest.abort();
   const request = new AbortController();
   enhancementRequest = request;
@@ -1202,21 +1231,23 @@ async function loadEnhancements() {
       evaluationRequest,
       renderer
     ]);
-    if (enhancementRequest !== request) return;
+    if (!isCurrent() || enhancementRequest !== request) return;
     state.enhancements = response.enhancements || [];
     state.enhancementSummary = response.summary || {};
     state.recommendationEvaluation = evaluationResponse.report || null;
     state.recommendationEvaluationLoaded = true;
     controller.render();
   } catch (error) {
-    if (request.signal.aborted || enhancementRequest !== request) return;
+    if (!isCurrent() || request.signal.aborted || enhancementRequest !== request) return;
     state.enhancements = [];
     state.enhancementSummary = {};
     if (!state.recommendationEvaluationLoaded) state.recommendationEvaluation = null;
     try {
       const controller = await renderer;
+      if (!isCurrent()) return;
       controller.render(error.message);
     } catch (moduleError) {
+      if (!isCurrent()) return;
       els.enhancementsList.innerHTML = `<div class="empty">${escapeHtml(moduleError.message)}</div>`;
       throw moduleError;
     }
@@ -1291,6 +1322,48 @@ async function fetchApi(url, options) {
   return readApiResponse(response, url);
 }
 
+function resetDashboardViews() {
+  clearTimeout(connectorSearchTimer);
+  connectorSearchTimer = undefined;
+  state.connectorRequest?.abort();
+  state.connectorRequest = null;
+  enhancementRequest?.abort();
+  enhancementRequest = null;
+  for (const key of ['snapshot', 'operationsBrief', 'jobDashboard', 'responseTiming', 'rateLimitMetrics',
+    'connectorSafety', 'connectorSyncReadiness', 'workGraph', 'forecast', 'recommendationEvaluation']) state[key] = null;
+  for (const key of ['notificationJobHealth', 'connectors', 'categories', 'accounts', 'workSignals',
+    'workGraphCandidates', 'workSignalContracts', 'enhancements', 'reports']) state[key] = [];
+  state.connectorTotal = 0;
+  state.connectorCatalogTotal = 0;
+  state.workSignalError = '';
+  state.enhancementSummary = {};
+  state.enhancementArea = 'all';
+  els.enhancementAreaFilter.replaceChildren();
+  delete els.enhancementAreaFilter.dataset.areaSignature;
+  state.recommendationEvaluationLoaded = false;
+  state.ledger = {
+    decisions: [], recommendations: [], actions: [], auditEvents: [], followUps: [], workerResponses: [],
+    accountability: null, outcomes: [], findings: [], healthSnapshots: [], reconciliationHealth: null,
+    notificationPolicies: [], notificationDeliveries: [], timeline: [], errors: [], demoMode: false
+  };
+  // Clear old content synchronously, including error-only views whose module never loaded.
+  for (const key of ['metrics', 'brief', 'operationsBriefItems', 'jobHealthList', 'commandQueue', 'dailyPlan',
+    'focusQueue', 'teamLoad', 'boards', 'connectorGrid', 'categoryList', 'connectorPagination', 'connectorSafety',
+    'enhancementMetrics', 'enhancementStatusSummary', 'enhancementsList', 'reportList', 'forecastMetrics',
+    'portfolioForecast', 'forecastCapacity', 'forecastBoards', 'workSignalMetrics', 'workSignalList', 'workSignalContracts']) {
+    els[key].replaceChildren();
+  }
+  for (const key of ['timestamp', 'riskCount', 'commandMode', 'automationCount', 'focusCount', 'teamCount',
+    'boardCount', 'operationsBriefCount', 'jobHealthCount', 'forecastCapacityCount', 'forecastBoardCount']) els[key].textContent = '';
+  connectorViewController?.render();
+  enhancementViewController?.render();
+  reportViewController?.render();
+  forecastViewController?.render();
+  workSignalsViewController?.render();
+  approvalViewController?.render();
+  updateApprovalCount();
+}
+
 function beginWorkspaceRead(key) {
   state.workspaceReads ||= new Map();
   const request = {};
@@ -1327,6 +1400,7 @@ function adoptWorkspaceId(workspaceId) {
   state.retentionReport = null;
   state.retentionError = '';
   state.loadedViews.clear();
+  resetDashboardViews();
   try {
     localStorage.setItem('sneup.workspaceId', workspaceId);
   } catch {
@@ -1353,21 +1427,27 @@ async function loadSecurityContext() {
 }
 
 async function loadMissionControl() {
+  const isCurrent = beginWorkspaceRead('missionControl');
   try {
     const data = await fetchApi('/api/autopilot/mission-control');
+    if (!isCurrent()) return;
     state.snapshot = data.snapshot;
     renderOverview();
   } catch (error) {
+    if (!isCurrent()) return;
     els.brief.innerHTML = `<h2>Mission control unavailable</h2><p>${escapeHtml(error.message)}</p>${renderConfidence(0)}`;
   }
 }
 
 async function loadOperationsBrief() {
+  const isCurrent = beginWorkspaceRead('operationsBrief');
   try {
     const data = await fetchApi('/api/autopilot/operations-brief');
+    if (!isCurrent()) return;
     state.operationsBrief = data.brief;
     renderOperationsBrief();
   } catch (error) {
+    if (!isCurrent()) return;
     state.operationsBrief = null;
     els.operationsBriefCount.textContent = '0 decisions';
     els.operationsBriefItems.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
@@ -1375,16 +1455,19 @@ async function loadOperationsBrief() {
 }
 
 async function loadJobDashboard() {
+  const isCurrent = beginWorkspaceRead('jobDashboard');
   try {
     const [data, timing] = await Promise.all([
       fetchApi('/api/jobs'),
       fetchApi('/api/security/response-timing').catch(() => ({ timing: null }))
     ]);
+    if (!isCurrent()) return;
     state.jobDashboard = data.dashboard;
     state.responseTiming = timing.timing || null;
     state.rateLimitMetrics = timing.rateLimit || null;
     renderJobDashboard();
   } catch (error) {
+    if (!isCurrent()) return;
     state.jobDashboard = null;
     state.responseTiming = null;
     state.rateLimitMetrics = null;
@@ -1394,10 +1477,13 @@ async function loadJobDashboard() {
 }
 
 async function loadNotificationDeliveryHealth() {
+  const isCurrent = beginWorkspaceRead('notificationHealth');
   try {
     const data = await fetchApi('/api/jobs/health');
+    if (!isCurrent()) return;
     state.notificationJobHealth = data.health || [];
   } catch (error) {
+    if (!isCurrent()) return;
     // Delivery configuration remains usable when observability is temporarily unavailable.
     state.notificationJobHealth = [];
   }
@@ -1405,6 +1491,7 @@ async function loadNotificationDeliveryHealth() {
 }
 
 async function loadConnectors({ append = false } = {}) {
+  const isCurrent = beginWorkspaceRead('connectors');
   if (state.connectorRequest) state.connectorRequest.abort();
   const request = new AbortController();
   state.connectorRequest = request;
@@ -1423,7 +1510,7 @@ async function loadConnectors({ append = false } = {}) {
       fetchApi(`/api/connectors?${query}`, { signal: request.signal }),
       loadConnectorView()
     ]);
-    if (state.connectorRequest !== request) return;
+    if (!isCurrent() || state.connectorRequest !== request) return;
     const connectors = data.connectors || [];
     state.connectors = append ? [...state.connectors, ...connectors] : connectors;
     state.categories = data.categories || [];
@@ -1434,7 +1521,7 @@ async function loadConnectors({ append = false } = {}) {
     state.connectorSyncReadiness = data.syncReadiness || null;
     connectorView.render();
   } catch (error) {
-    if (error.name === 'AbortError' || state.connectorRequest !== request) return;
+    if (!isCurrent() || error.name === 'AbortError' || state.connectorRequest !== request) return;
     els.connectorGrid.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
   } finally {
     if (state.connectorRequest === request) state.connectorRequest = null;
@@ -1442,6 +1529,7 @@ async function loadConnectors({ append = false } = {}) {
 }
 
 async function loadWorkSignals() {
+  const isCurrent = beginWorkspaceRead('workSignals');
   const renderer = loadWorkSignalsView();
   try {
     const graphDecisionsEnabled = isFeatureEnabled('work_graph_decisions');
@@ -1454,6 +1542,7 @@ async function loadWorkSignals() {
         : Promise.resolve({ candidates: [] }),
       renderer
     ]);
+    if (!isCurrent()) return;
     state.workSignals = signalsData.signals || [];
     state.workSignalContracts = contractsData.contracts || [];
     state.workGraph = graphData.graph || null;
@@ -1461,6 +1550,7 @@ async function loadWorkSignals() {
     state.workSignalError = '';
     controller.render();
   } catch (error) {
+    if (!isCurrent()) return;
     state.workSignals = [];
     state.workGraph = null;
     state.workGraphCandidates = [];
@@ -1468,8 +1558,10 @@ async function loadWorkSignals() {
     state.workSignalError = error.message;
     try {
       const controller = await renderer;
+      if (!isCurrent()) return;
       controller.render();
     } catch (moduleError) {
+      if (!isCurrent()) return;
       els.workSignalList.innerHTML = `<div class="empty">${escapeHtml(moduleError.message)}</div>`;
       throw moduleError;
     }
@@ -1647,9 +1739,11 @@ async function loadPolicyHistory(options = {}) {
 }
 
 async function loadOperationsLedger(options = {}) {
+  const isCurrent = beginWorkspaceRead('operationsLedger');
   let loadError = null;
   try {
     const data = await fetchApi('/api/operations-ledger');
+    if (!isCurrent()) return;
     const ledger = data.ledger || {};
     state.ledger = {
       decisions: ledger.decisions || [],
@@ -1670,6 +1764,7 @@ async function loadOperationsLedger(options = {}) {
       errors: (ledger.errors || []).map((error) => error.message || String(error))
     };
   } catch (error) {
+    if (!isCurrent()) return;
     loadError = error;
     state.ledger = {
       ...state.ledger,

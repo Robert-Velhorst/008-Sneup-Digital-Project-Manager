@@ -411,7 +411,7 @@ describe('demand-loaded approval view', () => {
     expect(appSource).toContain("loadBrowserModule('/approvalView.js', 'SneupApprovalView'");
     expect(appSource).toContain("i18n.registerMessages('nl', module.NL_MESSAGES)");
     expect(appSource).toContain('approvalViewPromise = null');
-    expect(appSource).toContain('loadNotificationDeliveryHealth(),\n    loadApprovalView()');
+    expect(/loadNotificationDeliveryHealth\(\),\s+loadApprovalView\(\)/.test(appSource)).toBe(true);
     expect(appSource).toContain('function runRecommendationAction(');
     expect(appSource).toContain('function openTrelloActionReconciliation(');
     expect(moduleSource).toContain('function openNotificationActivation(');

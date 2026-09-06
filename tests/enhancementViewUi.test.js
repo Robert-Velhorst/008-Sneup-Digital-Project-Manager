@@ -148,7 +148,7 @@ describe('demand-loaded enhancement view', () => {
     expect(appSource).toContain("fetchApi('/api/enhancements/evaluations/recommendations', { signal: request.signal })");
     expect(appSource).toContain('state.recommendationEvaluationLoaded');
     expect(appSource).toContain('if (enhancementRequest) enhancementRequest.abort();');
-    expect(appSource).toContain('if (enhancementRequest !== request) return;');
+    expect(appSource.includes('if (!isCurrent() || enhancementRequest !== request) return;')).toBe(true);
     expect(appSource).not.toContain('function renderEnhancements(');
     expect(appSource).not.toContain('function renderEnhancementFilters(');
     expect(moduleSource).not.toMatch(/fetchApi|fetch\(|Authorization|SESSION_TOKEN|localStorage|sessionStorage|document\.cookie/);
