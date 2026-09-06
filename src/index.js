@@ -84,6 +84,9 @@ const HOST = process.env.HOST || '127.0.0.1';
 let server;
 let shutdownPromise = null;
 let shutdownGraceMs = null;
+let initializationPromise = null;
+let startupPromise = null;
+let shutdownRequested = false;
 const startupState = {
   initialized: false,
   phase: 'starting'
@@ -232,8 +235,16 @@ app.use((req, res) => {
   });
 });
 
-// Initialize application
-const initApp = async () => {
+const startupCancelledError = () => Object.assign(new Error('Sneup startup was cancelled by shutdown.'), {
+  code: 'SNEUP_STARTUP_CANCELLED'
+});
+
+const assertStartupActive = () => {
+  if (shutdownRequested) throw startupCancelledError();
+};
+
+// Stop between resource acquisitions; cleanup waits for the current acquisition to settle.
+const initializeApp = async () => {
   try {
     startupState.initialized = false;
     startupState.phase = 'initializing';
@@ -249,14 +260,21 @@ const initApp = async () => {
       try {
         await getDatabase().connectDatabase();
         databaseConnected = true;
+        assertStartupActive();
         const workspaceScopeService = getWorkspaceScopeService();
         const workspaceMigrationPreflight = await workspaceScopeService.inspectDefaultWorkspaceMigration();
+        assertStartupActive();
         workspaceScopeService.assertWorkspaceMigrationReady(workspaceMigrationPreflight);
         const workspaceBackfill = await workspaceScopeService.backfillDefaultWorkspace();
+        assertStartupActive();
         const policyRuleIndexMigration = await workspaceScopeService.ensurePolicyRuleIndexes();
+        assertStartupActive();
         const jobControlIndexMigration = await workspaceScopeService.ensureJobControlIndexes();
+        assertStartupActive();
         await workspaceScopeService.ensureFeatureFlagIndexes();
+        assertStartupActive();
         const providerEntityIndexMigration = await workspaceScopeService.ensureProviderEntityIndexes();
+        assertStartupActive();
         if (workspaceBackfill.totalModified > 0) {
           logger.info('Default workspace migration applied', workspaceBackfill);
         }
@@ -279,6 +297,7 @@ const initApp = async () => {
           logger.info('Migrated legacy global Trello entity indexes', { collections: migratedProviderIndexes });
         }
       } catch (error) {
+        assertStartupActive();
         if (databaseConnected) {
           logger.error('Live workspace migration preflight failed. Refusing to start in demo mode.', {
             code: error.code,
@@ -301,12 +320,14 @@ const initApp = async () => {
 
     if (databaseConnected && hasTrelloCredentials) {
       await getTrelloSync().initSync();
+      assertStartupActive();
     } else if (!hasTrelloCredentials) {
       logger.warn('Trello credentials are not configured. Skipping Trello synchronization.');
     }
 
     if (databaseConnected) {
       await getWorkspaceDeletionWorker().run();
+      assertStartupActive();
       getAnalyticsService().initAnalytics();
       getConnectorSyncService().init();
 
@@ -332,32 +353,57 @@ const initApp = async () => {
       server.once('listening', resolve);
       server.once('error', reject);
     });
+    assertStartupActive();
     await ngrokTunnelService.start({ host: HOST, port: PORT });
+    assertStartupActive();
     if (databaseConnected && hasTrelloCredentials) {
       try {
         await getTrelloSync().reconcileTrelloWebhooks();
       } catch (error) {
+        assertStartupActive();
         logger.warn('Trello webhook reconciliation failed; read-only synchronization remains available', {
           code: error.code,
           message: error.message
         });
       }
     }
+    assertStartupActive();
     startupState.initialized = true;
     startupState.phase = 'serving';
 
     return server;
   } catch (error) {
+    if (error.code === 'SNEUP_STARTUP_CANCELLED') throw error;
     startupState.initialized = false;
     startupState.phase = 'failed';
     logger.error('Failed to initialize application:', error);
+    throw error;
+  }
+};
+
+const initApp = () => {
+  if (shutdownRequested) return Promise.reject(startupCancelledError());
+  if (startupPromise) return startupPromise;
+
+  initializationPromise = initializeApp();
+  // Keep acquisition separate from failure cleanup so shutdown cannot await itself.
+  startupPromise = initializationPromise.catch(async error => {
     try {
       await shutdown();
     } catch (shutdownError) {
       logger.error('Failed to clean up partial startup:', shutdownError);
+      if (shutdownError.components?.includes('startup acquisition')) {
+        // An acquisition can finish after the old drain's final resource check.
+        try {
+          await shutdown();
+        } catch (lateCleanupError) {
+          logger.error('Failed to clean up late startup acquisition:', lateCleanupError);
+        }
+      }
     }
     throw error;
-  }
+  });
+  return startupPromise;
 };
 
 const closeServer = async (options = {}) => {
@@ -371,6 +417,7 @@ const closeServer = async (options = {}) => {
 };
 
 const shutdown = async () => {
+  shutdownRequested = true;
   if (shutdownPromise) return shutdownPromise;
 
   shutdownPromise = (async () => {
@@ -400,6 +447,10 @@ const shutdown = async () => {
         });
       }
     };
+
+    if (initializationPromise) {
+      await stopComponent('startup acquisition', () => initializationPromise.catch(() => {}));
+    }
 
     const schedulerStops = [
       ['workspace deletion worker', () => getWorkspaceDeletionWorker.peek()?.stop()],
