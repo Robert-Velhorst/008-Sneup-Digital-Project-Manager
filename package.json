@@ -21,6 +21,7 @@
     "verify:review-concurrency": "node scripts/verify-review-concurrency.js",
     "verify:hai-snapshot": "node scripts/verify-hai-snapshot.js",
     "verify:hai-http": "node scripts/verify-hai-http.js",
+    "verify:backup-restore": "node scripts/verify-backup-restore.js",
     "verify:follow-up-integrity": "node scripts/verify-follow-up-integrity.js",
     "verify:trello-webhooks": "node scripts/verify-trello-webhook-integrity.js",
     "verify:trello-list-index": "node scripts/verify-trello-list-index.js",

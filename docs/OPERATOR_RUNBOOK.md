@@ -73,6 +73,32 @@ npm.cmd run verify:data-retention
 
 Use MongoDB-native, encrypted, access-controlled backups. Before a release, restore the backup into an isolated database, run workspace migration preflight, compare collection counts and critical indexes, and execute read-only acceptance checks. Never use a production restore target for rehearsal.
 
+### Synthetic native restore drill
+
+Install the [MongoDB Database Tools](https://www.mongodb.com/try/download/database-tools), then run this repeatable local rehearsal from the repository:
+
+```powershell
+$env:SNEUP_BACKUP_RESTORE_MONGO_URI = 'mongodb://127.0.0.1:27017'
+npm.cmd run verify:backup-restore
+```
+
+`mongodump` and `mongorestore` must be on `PATH`. Alternatively, set `SNEUP_MONGODUMP_PATH` and `SNEUP_MONGORESTORE_PATH` to their full executable paths. They are operator/developer tools, not bundled into the Windows installer. The drill accepts only an explicit loopback host and port, without credentials, database names, query options, or remote hosts; it does not read `MONGODB_URI` or `.env`. Use a local disposable MongoDB instance matching your deployment's major version. CI also runs this drill using its isolated MongoDB service.
+
+The drill creates two random `sneup_restore_drill_<16 hex characters>_source/target` databases, refuses nonempty targets, and claims each with an ownership marker. It initializes the workspace collection registry and seeds synthetic boards, cards, pending decisions, exact-payload approvals, unresolved action attempts, audit evidence, encrypted credentials, and a second workspace. No provider account is contacted and no worker or app server starts.
+
+Both the application driver and native tools enforce `directConnection=true` internally, so the accepted loopback seed cannot redirect the drill to discovered replica-set hosts. Uncertain marker writes are rechecked during cleanup, never treated as permission to delete by name. Independent cleanup continues after one resource fails; a still-pending model initializer blocks database deletion, while archive and connection cleanup are still attempted. Native-tool deadlines use forced termination rather than relying on a cooperative termination handler.
+
+It uses a compressed native archive with one collection worker, then restores into the second database without `--drop`. The checks compare collection options, every index definition including compound-key order, document counts, and streamed raw-BSON hashes. Restored reads verify approval/reconciliation state, credential decryption, workspace preflight, and HAI snapshot isolation; they must not change the restored data. Each native command is bounded to two minutes. A successful result requires both owned databases and the temporary synthetic archive to be removed. If cleanup cannot be confirmed, inspect only the isolated drill resources; do not delete an existing database on the basis of its name alone.
+
+This is a small, synthetic, quiescent-data rehearsal, not a backup of your workspace, production restore acceptance, an encrypted backup service, or a throughput benchmark. The temporary archive is compressed, not encrypted. It contains only the drill's synthetic data and is removed afterward. MongoDB documents the archive/index behavior in [mongodump](https://www.mongodb.com/docs/database-tools/mongodump/) and the namespace-remapping restore options in [mongorestore](https://www.mongodb.com/docs/database-tools/mongorestore/).
+
+### Production recovery requirements
+
+- Keep the original `CONNECTOR_ENCRYPTION_KEY` and identity-token peppers in a separate protected recovery store. A database backup does not contain the environment's encryption key; losing it prevents decryption of restored connector credentials. Do not put these secrets into Git, support files, or the backup command line.
+- Use a supported consistent backup procedure for the actual standalone, replica-set, sharded, or managed deployment. A plain dump of a changing database is not automatically a point-in-time snapshot. Stop writers or use the topology-appropriate snapshot/oplog mechanism; do not assume this quiescent drill proves concurrent-backup consistency.
+- Keep provider writes disabled in every restored app instance. Restoring old data can restore still-valid approval records while losing evidence of later provider actions. Reconcile against current provider state and preserve post-backup audit/attempt evidence before considering any retry or re-enabling writes.
+- Rehearse with the actual encrypted backup, recovered secrets, production-like volume, access controls, migration/rollback path, and recovery time/data-loss targets in an isolated environment. Verify indexes and read paths before admitting users. The synthetic drill does not close these operator-controlled gates.
+
 ## Rollback
 
 1. Activate the write emergency stop.

@@ -329,6 +329,7 @@ npm.cmd run verify:data-retention
 npm.cmd run verify:review-concurrency
 npm.cmd run verify:hai-snapshot
 npm.cmd run verify:hai-http
+npm.cmd run verify:backup-restore
 npm.cmd run verify:follow-up-integrity
 npm.cmd run verify:trello-webhooks
 npm.cmd run verify:trello-list-index
@@ -340,6 +341,8 @@ npm.cmd run verify:packaged
 Some verifier scripts require a dedicated disposable MongoDB URI with an exact guarded database prefix. They refuse broad database names and drop only the guarded verification database.
 
 For the HAI snapshot/proposal and authenticated HTTP verifiers, see the [disposable database setup and acceptance limits](docs/CLOUD_AND_HAI.md#verification).
+
+For `verify:backup-restore`, see the [native restore drill setup](docs/OPERATOR_RUNBOOK.md#synthetic-native-restore-drill). It checks synthetic data in two new local databases using MongoDB's native tools; it is not a backup of your workspace or proof of production recovery.
 
 ## API overview
 
