@@ -2,6 +2,8 @@
 
 Status meanings: **Implemented** is present and locally verified; **Partial** has useful implementation but an identified gap; **External** requires owner-controlled accounts or infrastructure; **N/A** is outside the product's current surface. No phase is marked complete from documentation alone.
 
+2.3.50 aligns shared authentication, throttling, correlation, and public protocol classification with Express's existing route matching, without rewriting case-sensitive IDs or payloads. Versioned dashboard calls now populate bounded response-time diagnostics. Authenticated real-Mongo HAI verification covers mixed-case/trailing-slash read/propose routes, workspace isolation, canonical retry deduplication, and denied approval/execution. These local checks do not establish hosted or live-provider acceptance.
+
 2.3.49 makes the versioned response contract cover early HTTP failures, so HAI and dashboard consumers receive a structured error code and correlated request ID when parsing, authentication, CORS, or rate limiting rejects a request. Legacy routes, webhook protocols, successful raw OpenAPI, status codes, and authorization decisions remain unchanged.
 
 2.3.48 closes credential-reference authentication failures shared by the browser/API and HAI: orphaned workspaces cannot fall back to the default workspace, orphaned users cannot become service identities, and user-bound credentials require membership in the token's workspace. Intentionally userless scoped service tokens and separately authorized archived-workspace management remain supported. Real HTTP/Mongo verification covers the authenticated HAI read/propose path while denying approval/execution; actual hosted ingress and HAI-client acceptance remain external.

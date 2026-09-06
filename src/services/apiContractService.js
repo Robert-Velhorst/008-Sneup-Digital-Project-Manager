@@ -20,7 +20,7 @@ const boundedCode = value => {
 };
 
 const requestContextMiddleware = (req, res, next) => {
-  if (!req.path.startsWith('/api') && req.path !== '/health' && req.path !== '/ready') return next();
+  if (!/^\/api(?:\/|$)/i.test(req.path) && !/^\/(?:health|ready)\/?$/i.test(req.path)) return next();
   req.sneupRequestId = crypto.randomUUID();
   res.setHeader('X-Sneup-Request-Id', req.sneupRequestId);
   next();

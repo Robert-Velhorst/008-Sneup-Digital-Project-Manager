@@ -8,7 +8,7 @@ const getMaxBodyBytes = () => {
 };
 
 const isGenericWebhookPath = (path) =>
-  /^\/api\/webhooks\/generic\/[a-f\d]{24}(?:\/worker-response)?$/i
+  /^\/api\/webhooks\/generic\/[a-f\d]{24}(?:\/worker-response)?\/?$/i
     .test(String(path || '').split('?')[0]);
 
 module.exports = {

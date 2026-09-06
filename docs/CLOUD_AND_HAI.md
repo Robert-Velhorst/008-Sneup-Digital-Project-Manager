@@ -4,7 +4,7 @@
 
 Sneup supports the same application core in three forms:
 
-1. Windows 11 desktop through the current `Sneup-Setup-2.3.49.exe` release target.
+1. Windows 11 desktop through the current `Sneup-Setup-2.3.50.exe` release target.
 2. Local or server Node runtime through `npm start`.
 3. Authenticated ngrok ingress layered over either runtime.
 
@@ -53,6 +53,8 @@ GET /api/v1/integrations/hai/openapi.json
 HAI can read a bounded operating snapshot with stable public record, board, and card identifiers and submit an idempotent proposal keyed by `externalId`. Versioned JSON responses include one bounded envelope and request ID for support correlation. Sneup hashes the external ID, strips unapproved action fields, and converts the request into its existing recommendation and decision-queue flow.
 
 The `/api/v1` envelope also covers failures raised before route handling, including rejected credentials, rate limits, invalid/oversized JSON, and CORS rejection. Status codes and security decisions are unchanged. Successful OpenAPI documents remain raw protocol JSON; legacy API and webhook responses keep their existing formats.
+
+API authentication, request correlation, and rate buckets recognize Express's existing case-insensitive routing. Changing a route's capitalization does not bypass the API credential check or create a new rate bucket. The established public OAuth, invitation, and webhook endpoints also recognize their supported trailing slash; their method, state/token, and signature checks remain in place. Request paths, provider identifiers, body bytes, and credential/workspace values are not rewritten. The legacy `/api` metadata root remains public. Response-time diagnostics now include the dashboard's versioned routes in the same bounded per-view history as legacy routes.
 
 Live MongoDB identifiers are serialized as hexadecimal strings, including populated board/card references; arbitrary nested object content is not converted into identifiers. First-use board-health reads wait for the existing model initialization before using their index hint. The initialization wait is bounded by the configured query timeout; if it expires, the ledger reports that section unavailable while initialization can finish for later requests. Result caps and the separate aggregate query timeout are unchanged; these are per-phase bounds, not a total HTTP request deadline.
 

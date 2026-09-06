@@ -64,8 +64,8 @@ const run = async () => {
     server = app.listen(0, '127.0.0.1');
     await once(server, 'listening');
     const base = `http://127.0.0.1:${server.address().port}`;
-    const request = async (path, token, { method = 'GET', body, headers = {} } = {}) => {
-      const response = await fetch(`${base}/api/v1${path}`, {
+    const request = async (path, token, { method = 'GET', body, headers = {}, apiPrefix = '/api/v1' } = {}) => {
+      const response = await fetch(`${base}${apiPrefix}${path}`, {
         method, headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'Content-Type': 'application/json', ...headers },
         ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(10000)
       });
@@ -81,11 +81,13 @@ const run = async () => {
       return { status: response.status, body: responseBody };
     };
     for (const token of [serviceToken.raw, session.raw]) {
-      const response = await request('/integrations/hai/snapshot', token, { headers: { 'X-Sneup-Workspace-Id': String(other._id) } });
-      assert.equal(response.status, 200, 'Valid tokens must still read their own workspace');
-      assert.deepEqual(response.body.data.snapshot.partialErrors, []);
-      assert.ok(!JSON.stringify(response.body).includes(String(foreign._id)), 'Workspace header must not override token ownership');
-      checks++;
+      for (const [apiPrefix, path] of [['/api/v1', '/integrations/hai/snapshot'], ['/API/V1', '/Integrations/HAI/Snapshot/']]) {
+        const response = await request(path, token, { apiPrefix, headers: { 'X-Sneup-Workspace-Id': String(other._id) } });
+        assert.equal(response.status, 200, 'Valid tokens must still read their own workspace');
+        assert.deepEqual(response.body.data.snapshot.partialErrors, []);
+        assert.ok(!JSON.stringify(response.body).includes(String(foreign._id)), 'Workspace header must not override token ownership');
+        checks++;
+      }
     }
     assert.equal((await request('/integrations/hai/snapshot')).status, 401);
     checks++;
@@ -93,9 +95,9 @@ const run = async () => {
       externalId: 'http-verification', type: 'request_update', title: 'Reviewed HTTP proposal', reason: 'Synthetic verification',
       payload: { boardId: String(board._id), cardId: String(card._id), skipApproval: true }, autoExecute: true
     };
-    assert.equal((await request('/integrations/hai/proposals', reader.raw, { method: 'POST', body: proposal })).status, 403);
+    assert.equal((await request('/Integrations/HAI/Proposals/', reader.raw, { apiPrefix: '/API/V1', method: 'POST', body: proposal })).status, 403);
     checks++;
-    const created = await request('/integrations/hai/proposals', serviceToken.raw, { method: 'POST', body: proposal });
+    const created = await request('/Integrations/HAI/Proposals/', serviceToken.raw, { apiPrefix: '/API/V1', method: 'POST', body: proposal });
     assert.equal(created.status, 201);
     assert.equal(created.body.data.recommendation.requiresApproval, true);
     assert.equal(created.body.data.recommendation.status, 'pending');

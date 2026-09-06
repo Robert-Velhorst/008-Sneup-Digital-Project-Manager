@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const logger = require('./logger');
+const { isGenericWebhookPath } = require('../services/genericWebhookPolicy');
 
 const isDatabaseConnected = () => require('./database').isDatabaseConnected();
 
@@ -209,14 +210,16 @@ const touchAuthenticationActivity = async ({
 };
 
 const isOAuthCallback = (req) =>
-  req.method === 'GET' && /^\/api\/(?:v1\/)?connectors\/[^/]+\/callback$/.test(req.path);
+  req.method === 'GET' && /^\/api\/(?:v1\/)?connectors\/[^/]+\/callback\/?$/i.test(req.path);
+
+const isTrelloWebhook = (req) =>
+  /^\/api\/webhooks\/trello\/?$/i.test(req.path) && ['HEAD', 'POST'].includes(req.method);
 
 const isWebhook = (req) =>
-  (req.path === '/api/webhooks/trello' && ['HEAD', 'POST'].includes(req.method)) ||
-  (req.method === 'POST' && /^\/api\/webhooks\/generic\/[a-f\d]{24}(?:\/worker-response)?$/i.test(req.path));
+  isTrelloWebhook(req) || (req.method === 'POST' && isGenericWebhookPath(req.path));
 
 const isPublicInviteAcceptance = (req) =>
-  req.method === 'POST' && /^\/api\/(?:v1\/)?workspaces\/invitations\/accept$/.test(req.path);
+  req.method === 'POST' && /^\/api\/(?:v1\/)?workspaces\/invitations\/accept\/?$/i.test(req.path);
 
 const hasValidCredentialRelationships = (candidate, requiresUser = false) => {
   const workspace = candidate.workspaceId;
@@ -348,17 +351,18 @@ const resolveDatabaseSessionToken = async (providedKey, now = new Date()) => {
 };
 
 const requireApiAccess = async (req, res, next) => {
-  if (!req.path.startsWith('/api/')) {
+  // Match Express's case-insensitive namespace without changing route parameters.
+  if (!/^\/api\//i.test(req.path)) {
     return next();
   }
 
   if (isOAuthCallback(req) || isWebhook(req) || isPublicInviteAcceptance(req)) {
-    const isWorkerResponseWebhook = /\/worker-response$/i.test(req.path);
+    const isWorkerResponseWebhook = /\/worker-response\/?$/i.test(req.path);
     attachAuthContext(req, buildAuthContext(req, {
-      authMethod: isWebhook(req) ? (req.path === '/api/webhooks/trello' ? 'trello_webhook' : 'signed_webhook') : isPublicInviteAcceptance(req) ? 'invite_acceptance' : 'oauth_callback',
+      authMethod: isWebhook(req) ? (isTrelloWebhook(req) ? 'trello_webhook' : 'signed_webhook') : isPublicInviteAcceptance(req) ? 'invite_acceptance' : 'oauth_callback',
       actorType: isPublicInviteAcceptance(req) ? 'invite_recipient' : 'external_system',
-      actorId: isWebhook(req) ? (req.path === '/api/webhooks/trello' ? 'trello' : isWorkerResponseWebhook ? 'generic-worker-response-webhook' : 'generic-webhook') : isPublicInviteAcceptance(req) ? 'pending-invite' : 'connector-oauth',
-      displayName: isWebhook(req) ? (req.path === '/api/webhooks/trello' ? 'Trello webhook' : isWorkerResponseWebhook ? 'Inbound worker response webhook' : 'Generic webhook') : isPublicInviteAcceptance(req) ? 'Invitation recipient' : 'Connector OAuth callback',
+      actorId: isWebhook(req) ? (isTrelloWebhook(req) ? 'trello' : isWorkerResponseWebhook ? 'generic-worker-response-webhook' : 'generic-webhook') : isPublicInviteAcceptance(req) ? 'pending-invite' : 'connector-oauth',
+      displayName: isWebhook(req) ? (isTrelloWebhook(req) ? 'Trello webhook' : isWorkerResponseWebhook ? 'Inbound worker response webhook' : 'Generic webhook') : isPublicInviteAcceptance(req) ? 'Invitation recipient' : 'Connector OAuth callback',
       roles: isPublicInviteAcceptance(req) ? [] : ['service'],
       permissions: isPublicInviteAcceptance(req) ? [] : ['webhooks:receive', 'connectors:complete-oauth']
     }));
@@ -479,7 +483,7 @@ const createApiRateLimiter = (options = {}) => {
   };
 
   const middleware = (req, res, next) => {
-    if (!req.path.startsWith('/api/')) {
+    if (!/^\/api\//i.test(req.path)) {
       return next();
     }
 
@@ -497,7 +501,7 @@ const createApiRateLimiter = (options = {}) => {
       100000
     );
     const timestamp = now();
-    const key = `${getClientIp(req)}:${req.path.split('/').slice(0, 3).join('/')}`;
+    const key = `${getClientIp(req)}:${req.path.split('/').slice(0, 3).join('/').toLowerCase()}`;
     const bucket = rateBuckets.get(key);
 
     if (!bucket || bucket.resetAt <= timestamp) {

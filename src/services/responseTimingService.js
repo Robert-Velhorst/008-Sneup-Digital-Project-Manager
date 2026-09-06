@@ -49,7 +49,8 @@ class ResponseTimingService {
 
   getView(req) {
     if (req.method !== 'GET') return null;
-    return Object.entries(VIEW_ROUTES).find(([, paths]) => paths.has(req.path))?.[0] || null;
+    const routePath = req.path.toLowerCase().replace(/^\/api\/v1\//, '/api/').replace(/\/$/, '');
+    return Object.entries(VIEW_ROUTES).find(([, paths]) => paths.has(routePath))?.[0] || null;
   }
 
   record(view, durationMs, statusCode, sampledAt = new Date()) {
