@@ -13,6 +13,26 @@
   ]);
 
   const NL_MESSAGES = Object.freeze({
+    'Technical evidence': 'Technisch bewijs',
+    'Integrity category': 'Integriteitscategorie',
+    'All categories': 'Alle categorieen',
+    'Next records': 'Volgende records',
+    'First records': 'Eerste records',
+    'list card count': 'Kaartaantal per lijst',
+    'member assignment cache': 'Toewijzingscache van leden',
+    'trello reconciliation required': 'Trello-controle vereist',
+    'stranded notification delivery': 'Vastgelopen meldingsbezorging',
+    'stranded recommendation execution': 'Vastgelopen aanbevelingsuitvoering',
+    'stale job run': 'Verouderde taakuitvoering',
+    'pending worker response': 'Onbevestigde medewerkerreactie',
+    'quarantined worker webhook': 'Geblokkeerde medewerkerwebhook',
+    'invalid active approval': 'Ongeldige actieve goedkeuringsverwijzing',
+    'Worker response awaiting confirmation': 'Reactie van medewerker wacht op bevestiging',
+    'Worker webhook awaiting reconciliation': 'Webhook van medewerker wacht op controle',
+    'Active approval reference needs review': 'Verwijzing naar actieve goedkeuring moet worden gecontroleerd',
+    'The response claim is unconfirmed. Check its exact intervention reference before confirming an outcome or resolving follow-ups.': 'De koppeling van de reactie is niet bevestigd. Controleer de exacte verwijzing naar de interventie voordat je een resultaat bevestigt of opvolgingen afsluit.',
+    'This delivery is held to prevent a replay from reaching different work. Review its source event and saved response; do not resend it with a new ID.': 'Deze levering is vastgehouden om te voorkomen dat een herhaling ander werk raakt. Controleer de brongebeurtenis en opgeslagen reactie; verstuur deze niet opnieuw met een nieuwe ID.',
+    'The active approval is missing or does not belong to this recommendation and workspace. Do not substitute an approval from history.': 'De actieve goedkeuring ontbreekt of hoort niet bij deze aanbeveling en werkruimte. Vervang deze niet door een goedkeuring uit de geschiedenis.',
     'Repair derived state': 'Afgeleide status herstellen',
     'This repairs {count} current list or member cache finding(s). It does not contact Trello, retry notifications, alter approvals, or resolve ambiguous executions.': 'Dit herstelt {count} actuele bevinding(en) in de lijst- of ledencache. Trello wordt niet benaderd, meldingen worden niet opnieuw geprobeerd, goedkeuringen blijven ongewijzigd en onduidelijke uitvoeringen worden niet opgelost.',
     'Repair {count}': '{count} herstellen',
@@ -662,14 +682,27 @@
           <div class="meta"><span>${et('Internal database only')}</span><span>${et('No provider writes')}</span><span>${escapeHtml(formatDate(report.scannedAt))}</span></div>
           ${canRepair && repairable.length > 0 ? `<div class="item-actions"><button class="button primary" data-integrity-repair type="button">${et('Repair derived state')}</button></div>` : ''}
         </div>`;
+      const recoveryCategories = new Set(['pending_worker_response', 'quarantined_worker_webhook', 'invalid_active_approval']);
       const rows = report.findings.map(item => `
         <div class="item">
-          <div class="item-title"><strong>${escapeHtml(item.label)}</strong><span class="pill ${item.repairable ? 'healthy' : severityClass(item.severity)}">${et(item.repairable ? 'repairable' : 'review required')}</span></div>
-          <p>${escapeHtml(item.reason)}</p>
+          <div class="item-title"><strong>${recoveryCategories.has(item.category) ? et(item.label) : escapeHtml(item.label)}</strong><span class="pill ${item.repairable ? 'healthy' : severityClass(item.severity)}">${et(item.repairable ? 'repairable' : 'review required')}</span></div>
+          <p>${recoveryCategories.has(item.category) ? et(item.reason) : escapeHtml(item.reason)}</p>
           <div class="meta"><span>${escapeHtml(item.category.replaceAll('_', ' '))}</span><span>${escapeHtml(item.entityType)}</span></div>
+          <details class="payload"><summary>${et('Technical evidence')}</summary><pre>${escapeHtml(JSON.stringify({ entityId: item.entityId, current: item.current, expected: item.expected }, null, 2))}</pre></details>
         </div>`).join('');
-      elements.integrityList.innerHTML = summary + (rows || `<div class="empty">${et('No integrity drift found.')}</div>`);
+      const navigation = report.categories ? `<div class="item-actions">
+        <select class="workspace-select" data-integrity-category aria-label="${et('Integrity category')}">
+          <option value="">${et('All categories')}</option>
+          ${report.categories.map(category => `<option value="${escapeHtml(category)}" ${report.category === category ? 'selected' : ''}>${et(category.replaceAll('_', ' '))}</option>`).join('')}
+        </select>
+        ${report.nextAfterId ? `<button class="button" data-integrity-next type="button">${et('Next records')}</button>` : ''}
+        ${report.afterId ? `<button class="button" data-integrity-first type="button">${et('First records')}</button>` : ''}
+      </div>` : '';
+      elements.integrityList.innerHTML = navigation + summary + (rows || `<div class="empty">${et('No integrity drift found.')}</div>`);
       document.querySelector('[data-integrity-repair]')?.addEventListener('click', callbacks.openIntegrityRepair);
+      document.querySelector('[data-integrity-category]')?.addEventListener('change', event => callbacks.loadIntegrityReport({ category: event.target.value }));
+      document.querySelector('[data-integrity-next]')?.addEventListener('click', () => callbacks.loadIntegrityReport({ category: report.category, afterId: report.nextAfterId }));
+      document.querySelector('[data-integrity-first]')?.addEventListener('click', () => callbacks.loadIntegrityReport({ category: report.category }));
     }
 
     function renderRetentionReport() {

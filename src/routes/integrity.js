@@ -17,7 +17,9 @@ router.get('/', requirePermission('audit:read'), async (req, res) => {
   try {
     const report = await dataIntegrityService.scan({
       workspaceId: getRequestWorkspaceObjectId(req),
-      limit: req.query.limit
+      limit: req.query.limit,
+      category: req.query.category,
+      afterId: req.query.afterId
     });
     res.json({ success: true, report: dataIntegrityService.publicReport(report) });
   } catch (error) {
@@ -31,6 +33,8 @@ router.post('/repair', requirePermission('integrity:repair'), async (req, res) =
     const result = await dataIntegrityService.apply({
       workspaceId: getRequestWorkspaceObjectId(req),
       limit: req.body?.limit,
+      category: req.body?.category,
+      afterId: req.body?.afterId,
       fingerprints: req.body?.fingerprints,
       confirm: req.body?.confirm,
       actor: actorFromRequest(req),

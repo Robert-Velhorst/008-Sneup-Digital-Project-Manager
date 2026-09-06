@@ -95,6 +95,10 @@ Sneup can prepare reconciliation alerts, daily operations briefs, and reports th
 
 Workspace owners can manage users, sessions, invitations, exports, deletion, data integrity repair, and retention policies. Destructive or sensitive workflows require exact confirmations and audit evidence.
 
+The Data Integrity screen also highlights unconfirmed worker responses and quarantined worker webhooks after 15 minutes, plus broken active approval references. Expand **Technical evidence** to inspect the relevant record identifiers and expected state. These findings are read-only: the repair action changes only list-count and member-assignment caches, not approvals, worker outcomes, or provider delivery state.
+
+The overview is capped. Select an individual category and use **Next records** to continue through its records, including pages with no findings. The active-approval check verifies that the referenced approval belongs to the exact recommendation and workspace and records an approved decision; it does not certify approval expiry, payload freshness, or permission to execute. Recovery still requires operator investigation, not an automatic replay.
+
 ### Desktop and remote access
 
 The Electron shell runs the local command center as a desktop app. Optional ngrok support can expose the loopback server through an authenticated HTTPS origin when the environment is configured safely.
@@ -271,7 +275,7 @@ The installer is written to:
 release\Sneup-Setup-<version>.exe
 ```
 
-The local release line currently builds `Sneup-Setup-2.3.53.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
+The local release line currently builds `Sneup-Setup-2.3.54.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
 
 Verify the unpacked Windows app before distributing an installer:
 

@@ -79,6 +79,16 @@ npm.cmd run verify:ledger-acknowledgement
 
 It accepts only the explicit loopback host and port, generates a fresh random database, refuses an existing nonempty database, and checks cleanup. It saves real MongoDB writes before injecting confirmation failures, verifies all three review decisions, response claims, pending-response outcome exclusion, reconnect evidence, and webhook replay isolation. Two explicitly synthetic successful action-attempt fixtures support outcome evaluation; no provider is contacted and no additional action attempt is created. This is not live provider, network-failover, power-loss, or hosted acceptance.
 
+## Read-only recovery findings
+
+Workspace Administration's Data Integrity scan includes pending worker-response claims and quarantined worker webhooks older than 15 minutes, plus invalid active approval references. Technical evidence is collapsed by default and includes only identifiers and the small current/expected state projection, not response bodies or delivery payloads. Do not treat a clear scan as approval to execute: approval expiry and exact payload freshness remain execution-time checks.
+
+The overview prioritizes review-required findings before cache repairs but is bounded. Select a category to scan that category alone, then continue with **Next records** until there is no continuation. Healthy approval records can produce an empty page with a next-page control. **First records** starts that category again; **Scan** returns to the overview. Concurrent workspace/category changes supersede earlier responses. This is a live paginated view, not a transactional snapshot: records can change during a scan.
+
+`GET /api/v1/integrity` requires `audit:read`. Its optional `category` must be one of the returned `categories`; `afterId` requires a category and a 24-character hexadecimal record ID. `nextAfterId` advances in ascending record-ID order. `limit` defaults to 200 and is clamped to 1-500. Derived-state repair requests must preserve the report's `category`, `afterId`, and `limit` with its fingerprints and exact confirmation; they still require `integrity:repair`. None of the recovery categories is repairable by this endpoint.
+
+The ledger acknowledgement verifier additionally checks the real authenticated HTTP path, category continuation beyond healthy approvals, recent-versus-aged recovery records, workspace-header isolation, read-only credential restrictions, and unchanged recovery evidence after skipped repairs. It starts a temporary loopback HTTP listener without runtime initialization or workers, then closes it before database cleanup. This provides visibility and diagnostics, not automatic outage reconciliation.
+
 ## Data retention
 
 Workspace owners configure retention in Workspace Administration. Keep the policy disabled until its four windows have been reviewed. The preview and each scheduled or manual pass are bounded; manual pruning additionally requires the exact workspace slug. `SNEUP_DATA_RETENTION_CRON` controls the daily worker schedule.

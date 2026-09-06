@@ -2,6 +2,78 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const mongoose = require('mongoose');
 const { cleanupVerificationDatabase } = require('./verify-hai-snapshot');
+const { once } = require('node:events');
+const { closeHttpServer } = require('../src/utils/runtimeShutdown');
+
+const verifyIntegrityRecovery = async (workspaceId, createRecommendation) => {
+  const integrity = require('../src/services/dataIntegrityService');
+  const { WorkerResponse, WebhookDelivery, Recommendation, Approval } = mongoose.models;
+  const ApiToken = require('../src/models/ApiToken');
+  const raw = crypto.randomBytes(32).toString('hex');
+  await ApiToken.create(ApiToken.buildSecretRecord(raw, {
+    name: 'Synthetic integrity reader', workspaceId, role: 'service', scopes: ['audit:read'],
+    expiresAt: new Date(Date.now() + 600000)
+  }));
+  const recent = await integrity.scan({ workspaceId });
+  assert.ok(!recent.findings.some(item => ['pending_worker_response', 'quarantined_worker_webhook'].includes(item.category)));
+  const old = new Date(Date.now() - 3600000);
+  await WorkerResponse.collection.updateMany({ workspaceId, claimState: 'pending' }, { $set: { createdAt: old } });
+  await WebhookDelivery.collection.updateMany({ workspaceId, status: 'reconciliation_required' }, { $set: { updatedAt: old } });
+  const broken = await createRecommendation('broken active reference');
+  await Recommendation.updateOne({ _id: broken._id }, { $set: { status: 'approved', currentApprovalId: new mongoose.Types.ObjectId() } });
+  const foreign = await createRecommendation('foreign workspace');
+  const foreignWorkspace = new mongoose.Types.ObjectId();
+  await Recommendation.updateOne({ _id: foreign._id }, { $set: { workspaceId: foreignWorkspace, status: 'approved' } });
+  const snapshot = async () => JSON.stringify(await Promise.all([WorkerResponse, WebhookDelivery, Recommendation, Approval]
+    .map(Model => Model.find({}).sort({ _id: 1 }).lean())));
+  const before = await snapshot();
+  const app = require('../src/index');
+  let server;
+  try {
+    server = app.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const request = async (query = '', { token = raw, method = 'GET', body } = {}) => {
+      const response = await fetch(`http://127.0.0.1:${server.address().port}/api/v1/integrity${query}`, {
+        method, headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'Content-Type': 'application/json', 'X-Sneup-Workspace-Id': String(foreignWorkspace) },
+        ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(10000)
+      });
+      return { status: response.status, body: await response.json() };
+    };
+    assert.equal((await request('', { token: '' })).status, 401);
+    assert.equal((await request('?category=invalid')).status, 400);
+    const response = await request();
+    assert.equal(response.status, 200);
+    const report = response.body.data.report;
+    assert.equal(report.workspaceId, String(workspaceId));
+    assert.ok(!JSON.stringify(report).includes(String(foreign._id)));
+    assert.ok(!JSON.stringify(report).includes('Synthetic private response'));
+    assert.ok(!Object.hasOwn(report, 'repairStates'));
+    const recovery = report.findings.filter(item => ['pending_worker_response', 'quarantined_worker_webhook', 'invalid_active_approval'].includes(item.category));
+    assert.equal(recovery.length, 4);
+    assert.ok(recovery.every(item => !item.repairable));
+    const fingerprints = recovery.map(item => item.fingerprint);
+    assert.equal((await request('/repair', { method: 'POST', body: { confirm: 'repair-derived-state', fingerprints } })).status, 403);
+    const repair = await integrity.apply({ workspaceId, fingerprints, confirm: 'repair-derived-state' });
+    assert.equal(repair.repaired, 0);
+    assert.equal(repair.skipped, 4);
+    let afterId = '';
+    let foundBroken = false;
+    let pages = 0;
+    do {
+      const page = await request(`?category=invalid_active_approval&limit=1${afterId ? `&afterId=${afterId}` : ''}`);
+      assert.equal(page.status, 200);
+      foundBroken ||= page.body.data.report.findings.some(item => item.entityId === String(broken._id));
+      afterId = page.body.data.report.nextAfterId;
+      assert.ok(++pages < 20, 'Continuation must terminate');
+    } while (afterId);
+    assert.ok(foundBroken && pages > 1, 'Broken references after healthy records must be reachable');
+    const pending = await request('?category=pending_worker_response&limit=1');
+    assert.equal(pending.body.data.report.findings[0].category, 'pending_worker_response');
+    assert.equal(await snapshot(), before, 'Read-only findings and skipped repairs must preserve recovery evidence');
+  } finally {
+    await closeHttpServer(server, { timeoutMs: 5000 });
+  }
+};
 
 const loseAcknowledgement = async (Model, operation, { unreadable = false, supersede = false } = {}) => {
   const originalWrite = Model.collection.findOneAndUpdate;
@@ -48,6 +120,9 @@ const run = async () => {
   };
   process.env.SNEUP_DEMO_MODE = 'false';
   process.env.SNEUP_PROVIDER_WRITES_DISABLED = 'true';
+  process.env.SNEUP_REQUIRE_API_KEY = 'true';
+  process.env.SNEUP_API_KEY = crypto.randomBytes(32).toString('hex');
+  process.env.SNEUP_API_TOKEN_PEPPER = crypto.randomBytes(32).toString('hex');
   let ownsDatabase = false;
   let evidence;
   try {
@@ -198,6 +273,7 @@ const run = async () => {
       }
     }
 
+    await verifyIntegrityRecovery(workspaceId, createRecommendation);
     await mongoose.disconnect();
     await mongoose.connect(uri, connectionOptions);
     for (const item of retained) {
@@ -210,7 +286,8 @@ const run = async () => {
       ok: true, synthetic: true, database, scenarios: 8, recoveredDecisions: 3, recoveredWorkerResponses: 1,
       unconfirmedEvidenceRetained: true, supersededReviewNotResumed: true, reconnectEvidencePreserved: true,
       pendingResponsesExcludedFromOutcomes: true, webhookReplayCannotRematchWork: true, staleFinalizerBlocked: true,
-      syntheticSeededAttempts: 2, additionalTrelloActionAttempts: 0, providerWrites: false
+      syntheticSeededAttempts: 2, additionalTrelloActionAttempts: 0, providerWrites: false,
+      integrityRecoveryHttpVerified: true, integrityCategoryContinuationVerified: true, integrityRecoveryEvidenceUnchanged: true
     };
   } finally {
     await cleanupVerificationDatabase(mongoose, ownsDatabase);

@@ -15,6 +15,7 @@ const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character =>
 
 const makeCallbacks = () => ({
   openIntegrityRepair: jest.fn(),
+  loadIntegrityReport: jest.fn(),
   openRetentionPolicy: jest.fn(),
   openRetentionApply: jest.fn(),
   openWorkspaceUserSessions: jest.fn(),
@@ -146,6 +147,50 @@ const createHarness = (locale = 'nl') => {
 };
 
 describe('demand-loaded workspace view', () => {
+  test('keeps category continuation available on a healthy record page', () => {
+    const harness = createHarness('nl');
+    Object.assign(harness.state.integrityReport, {
+      category: 'invalid_active_approval', categories: ['invalid_active_approval', 'pending_worker_response'],
+      afterId: 'first', nextAfterId: 'second', findings: [], summary: { findings: 0, repairable: 0, reviewRequired: 0 }
+    });
+    harness.controller.renderIntegrityReport();
+    const document = harness.dom.window.document;
+    document.querySelector('[data-integrity-next]').click();
+    expect(harness.callbacks.loadIntegrityReport).toHaveBeenLastCalledWith({ category: 'invalid_active_approval', afterId: 'second' });
+    document.querySelector('[data-integrity-first]').click();
+    expect(harness.callbacks.loadIntegrityReport).toHaveBeenLastCalledWith({ category: 'invalid_active_approval' });
+    const select = document.querySelector('[data-integrity-category]');
+    expect(select.getAttribute('aria-label')).toBe('Integriteitscategorie');
+    select.value = 'pending_worker_response';
+    select.dispatchEvent(new harness.dom.window.Event('change'));
+    expect(harness.callbacks.loadIntegrityReport).toHaveBeenLastCalledWith({ category: 'pending_worker_response' });
+    harness.dom.window.close();
+  });
+  test('shows review-only recovery evidence without enabling repair or interpreting source markup', () => {
+    const harness = createHarness('nl');
+    harness.state.integrityReport = {
+      scannedAt: '2026-09-07T00:00:00Z', truncated: false,
+      summary: { findings: 1, repairable: 0, reviewRequired: 1 },
+      findings: [{ category: 'pending_worker_response', label: 'Worker response awaiting confirmation',
+        reason: 'The response claim is unconfirmed. Check its exact intervention reference before confirming an outcome or resolving follow-ups.',
+        severity: 'high', repairable: false, entityType: 'worker_response', entityId: 'response-1',
+        current: { interventionId: '<img src=x onerror=alert(1)>', claimState: 'pending' }, expected: { operatorReview: true }
+      }]
+    };
+    harness.controller.render();
+    const document = harness.dom.window.document;
+    const evidence = document.querySelector('#integrityList details');
+    expect(evidence).not.toBeNull();
+    expect(evidence.open).toBe(false);
+    expect(evidence.querySelector('summary').textContent).toBe('Technisch bewijs');
+    expect(evidence.querySelector('pre').textContent).toContain('response-1');
+    expect(evidence.querySelector('pre').textContent).toContain('<img src=x onerror=alert(1)>');
+    expect(document.querySelector('#integrityList img')).toBeNull();
+    expect(document.querySelector('[data-integrity-repair]')).toBeNull();
+    expect(harness.elements.integrityList.textContent).toContain('Reactie van medewerker wacht op bevestiging');
+    expect(harness.callbacks.openIntegrityRepair).not.toHaveBeenCalled();
+    harness.dom.window.close();
+  });
   test('renders complete Dutch operator chrome while preserving workspace and audit evidence', () => {
     const harness = createHarness('nl');
     harness.controller.render();

@@ -7,6 +7,9 @@ const Member = require('../models/Member');
 const JobRun = require('../models/JobRun');
 const NotificationDelivery = require('../models/NotificationDelivery');
 const Recommendation = require('../models/Recommendation');
+const Approval = require('../models/Approval');
+const WorkerResponse = require('../models/WorkerResponse');
+const WebhookDelivery = require('../models/WebhookDelivery');
 const TrelloActionAttempt = require('../models/TrelloActionAttempt');
 const operationsLedgerService = require('./operationsLedgerService');
 const { normalizeWorkspaceObjectId } = require('./workspaceScopeService');
@@ -16,6 +19,11 @@ const MAX_LIMIT = 500;
 const DEFAULT_LIMIT = 200;
 const STRANDED_MINUTES = 15;
 const APPLY_CONFIRMATION = 'repair-derived-state';
+const CATEGORIES = [
+  'list_card_count', 'member_assignment_cache', 'trello_reconciliation_required',
+  'stranded_notification_delivery', 'stranded_recommendation_execution', 'stale_job_run',
+  'pending_worker_response', 'quarantined_worker_webhook', 'invalid_active_approval'
+];
 
 const models = {
   Board,
@@ -25,6 +33,9 @@ const models = {
   JobRun,
   NotificationDelivery,
   Recommendation,
+  Approval,
+  WorkerResponse,
+  WebhookDelivery,
   TrelloActionAttempt
 };
 
@@ -63,10 +74,11 @@ const finding = data => ({
   })
 });
 
-const leanFind = (Model, query, select, limit) => Model.find(query)
+const leanFind = (Model, query, select, limit, sort = { _id: 1 }) => Model.find(query)
   .select(select)
-  .sort({ _id: 1 })
+  .sort(sort)
   .limit(limit)
+  .maxTimeMS(5000)
   .lean();
 
 class DataIntegrityService {
@@ -88,36 +100,61 @@ class DataIntegrityService {
     if (!options.skipDatabaseCheck) this.requireDatabase();
     const workspaceId = normalizeWorkspaceObjectId(options.workspaceId);
     const limit = boundedLimit(options.limit);
+    const category = options.category || '';
+    const afterId = options.afterId || '';
+    if ((category && !CATEGORIES.includes(category))
+      || (afterId && (!category || typeof afterId !== 'string' || !/^[a-f\d]{24}$/i.test(afterId)))) {
+      const error = new Error('Select a valid integrity category and record cursor');
+      error.statusCode = 400;
+      error.code = 'INVALID_INTEGRITY_CURSOR';
+      throw error;
+    }
+    const readCategory = (key, Model, query, select) => {
+      if (category && category !== key) return [];
+      return leanFind(Model, {
+        ...query, ...(afterId ? { _id: { $gt: new mongoose.Types.ObjectId(afterId) } } : {})
+      }, select, limit + 1);
+    };
     const now = this.now();
     const strandedBefore = new Date(now.getTime() - STRANDED_MINUTES * 60 * 1000);
     const { List: ListModel, Card: CardModel, Member: MemberModel } = this.models;
 
-    const [lists, members, actionAttempts, deliveries, recommendations, runningJobs] = await Promise.all([
-      leanFind(ListModel, { workspaceId }, '_id name cardCount', limit + 1),
-      leanFind(MemberModel, { workspaceId }, '_id fullName username assignedCards workloadLevel', limit + 1),
-      leanFind(this.models.TrelloActionAttempt, {
+    const [lists, members, actionAttempts, deliveries, recommendations, runningJobs, pendingResponses, heldWebhooks, approvedRecommendations] = await Promise.all([
+      readCategory('list_card_count', ListModel, { workspaceId }, '_id name cardCount'),
+      readCategory('member_assignment_cache', MemberModel, { workspaceId }, '_id fullName username assignedCards workloadLevel'),
+      readCategory('trello_reconciliation_required', this.models.TrelloActionAttempt, {
         workspaceId,
         'reconciliation.status': 'required'
-      }, '_id actionType status reconciliation.status updatedAt', limit + 1),
-      leanFind(this.models.NotificationDelivery, {
+      }, '_id actionType status reconciliation.status updatedAt'),
+      readCategory('stranded_notification_delivery', this.models.NotificationDelivery, {
         workspaceId,
         status: 'sending',
         updatedAt: { $lte: strandedBefore }
-      }, '_id channel status updatedAt', limit + 1),
-      leanFind(this.models.Recommendation, {
+      }, '_id channel status updatedAt'),
+      readCategory('stranded_recommendation_execution', this.models.Recommendation, {
         workspaceId,
         status: 'executing',
         updatedAt: { $lte: strandedBefore }
-      }, '_id title actionType status updatedAt', limit + 1),
-      leanFind(this.models.JobRun, { workspaceId, status: 'running' }, '_id jobName status startedAt staleAfterMinutes', limit + 1)
+      }, '_id title actionType status updatedAt'),
+      readCategory('stale_job_run', this.models.JobRun, { workspaceId, status: 'running' }, '_id jobName status startedAt staleAfterMinutes'),
+      readCategory('pending_worker_response', this.models.WorkerResponse, {
+        workspaceId, claimState: 'pending', createdAt: { $lte: strandedBefore }
+      }, '_id claimState recommendationId interventionId createdAt'),
+      readCategory('quarantined_worker_webhook', this.models.WebhookDelivery, {
+        workspaceId, status: 'reconciliation_required', updatedAt: { $lte: strandedBefore }
+      }, '_id status connectorAccountId updatedAt'),
+      readCategory('invalid_active_approval', this.models.Recommendation, { workspaceId, status: 'approved' }, '_id status currentApprovalId')
     ]);
 
     const boundedLists = lists.slice(0, limit);
     const boundedMembers = members.slice(0, limit);
     const listIds = boundedLists.map(item => item._id);
     const memberIds = boundedMembers.map(item => item._id);
+    const approvalIds = [...new Map(approvedRecommendations.slice(0, limit)
+      .filter(item => item.currentApprovalId)
+      .map(item => [asId(item.currentApprovalId), item.currentApprovalId])).values()];
 
-    const [listCounts, memberCards] = await Promise.all([
+    const [listCounts, memberCards, approvals] = await Promise.all([
       listIds.length === 0 ? [] : CardModel.aggregate([
         { $match: { workspaceId, closed: false, listId: { $in: listIds } } },
         { $group: { _id: '$listId', count: { $sum: 1 } } }
@@ -127,7 +164,9 @@ class DataIntegrityService {
         { $unwind: '$members' },
         { $match: { members: { $in: memberIds } } },
         { $group: { _id: '$members', cardIds: { $addToSet: '$_id' } } }
-      ])
+      ]),
+      approvalIds.length === 0 ? [] : leanFind(this.models.Approval, { workspaceId, _id: { $in: approvalIds } },
+        '_id workspaceId recommendationId decision', limit)
     ]);
 
     const listCountMap = new Map(listCounts.map(row => [asId(row._id), Number(row.count) || 0]));
@@ -202,14 +241,50 @@ class DataIntegrityService {
       reason: 'The run exceeded its stale threshold. Confirm lease ownership before changing it.'
     })));
 
-    const truncated = [lists, members, actionAttempts, deliveries, recommendations, runningJobs]
-      .some(items => items.length > limit) || findings.length > limit;
+    pendingResponses.slice(0, limit).forEach(item => findings.push(finding({
+      category: 'pending_worker_response', severity: 'high', repairable: false,
+      entityType: 'worker_response', entityId: asId(item._id), label: 'Worker response awaiting confirmation',
+      current: { claimState: item.claimState, recommendationId: asId(item.recommendationId), interventionId: asId(item.interventionId), createdAt: item.createdAt },
+      expected: { operatorReview: true },
+      reason: 'The response claim is unconfirmed. Check its exact intervention reference before confirming an outcome or resolving follow-ups.'
+    })));
+    heldWebhooks.slice(0, limit).forEach(item => findings.push(finding({
+      category: 'quarantined_worker_webhook', severity: 'high', repairable: false,
+      entityType: 'webhook_delivery', entityId: asId(item._id), label: 'Worker webhook awaiting reconciliation',
+      current: { status: item.status, connectorAccountId: asId(item.connectorAccountId), updatedAt: item.updatedAt },
+      expected: { operatorReview: true, automaticReplay: false },
+      reason: 'This delivery is held to prevent a replay from reaching different work. Review its source event and saved response; do not resend it with a new ID.'
+    })));
+    const approvalsById = new Map(approvals.map(item => [asId(item._id), item]));
+    approvedRecommendations.slice(0, limit).forEach(item => {
+      const approval = approvalsById.get(asId(item.currentApprovalId));
+      if (approval && asId(approval.workspaceId) === String(workspaceId)
+        && asId(approval.recommendationId) === asId(item._id) && approval.decision === 'approved') return;
+      findings.push(finding({
+        category: 'invalid_active_approval', severity: 'high', repairable: false,
+        entityType: 'recommendation', entityId: asId(item._id), label: 'Active approval reference needs review',
+        current: { status: item.status, currentApprovalId: asId(item.currentApprovalId), referenceValid: false },
+        expected: { exactWorkspaceRecommendationApproval: true },
+        reason: 'The active approval is missing or does not belong to this recommendation and workspace. Do not substitute an approval from history.'
+      }));
+    });
+
+    const recordPages = [lists, members, actionAttempts, deliveries, recommendations, runningJobs, pendingResponses, heldWebhooks, approvedRecommendations];
+    const truncated = recordPages.some(items => items.length > limit) || findings.length > limit;
+    const selectedRecords = category ? recordPages[CATEGORIES.indexOf(category)] : [];
+    const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+    findings.sort((left, right) => Number(left.repairable) - Number(right.repairable)
+      || severityOrder[left.severity] - severityOrder[right.severity]);
     const boundedFindings = findings.slice(0, limit);
     return {
       mode: 'live',
       workspaceId: String(workspaceId),
       scannedAt: now.toISOString(),
       limit,
+      category,
+      afterId,
+      categories: CATEGORIES,
+      nextAfterId: selectedRecords.length > limit ? asId(selectedRecords[limit - 1]._id) : null,
       truncated,
       providerWrites: false,
       summary: {

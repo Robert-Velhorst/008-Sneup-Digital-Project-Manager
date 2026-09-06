@@ -158,6 +158,7 @@ function loadWorkspaceView() {
           severityClass,
           callbacks: {
             openIntegrityRepair,
+            loadIntegrityReport,
             openRetentionPolicy,
             openRetentionApply,
             openWorkspaceUserSessions,
@@ -1421,19 +1422,27 @@ async function loadWorkspaceAdmin(options = {}) {
 }
 
 async function loadIntegrityReport(options = {}) {
+  const requestId = state.integrityRequestId = (state.integrityRequestId || 0) + 1;
+  const workspaceId = state.activeWorkspaceId;
+  const isCurrent = () => requestId === state.integrityRequestId && workspaceId === state.activeWorkspaceId;
   els.integrityScanButton.disabled = true;
   try {
-    const data = await fetchApi('/api/integrity?limit=200');
+    const query = new URLSearchParams({ limit: '200' });
+    if (options.category) query.set('category', options.category);
+    if (options.afterId) query.set('afterId', options.afterId);
+    const data = await fetchApi(`/api/integrity?${query}`);
+    if (!isCurrent()) return;
     state.integrityReport = data.report;
     state.integrityError = '';
     if (options.announce) openNotice('Integrity scan complete', `${data.report.summary.findings} finding(s), ${data.report.summary.repairable} safely repairable.`);
   } catch (error) {
+    if (!isCurrent()) return;
     state.integrityReport = null;
     state.integrityError = error.message;
     if (options.announce) openNotice('Integrity scan failed', error.message);
   } finally {
-    els.integrityScanButton.disabled = false;
-    if (options.render !== false) renderIntegrityReport();
+    if (requestId === state.integrityRequestId) els.integrityScanButton.disabled = false;
+    if (isCurrent() && options.render !== false) renderIntegrityReport();
   }
 }
 
@@ -2692,6 +2701,8 @@ function openIntegrityRepair() {
         body: JSON.stringify({
           confirm: 'repair-derived-state',
           limit: state.integrityReport.limit,
+          category: state.integrityReport.category,
+          afterId: state.integrityReport.afterId,
           fingerprints: repairable.map(item => item.fingerprint)
         })
       });
