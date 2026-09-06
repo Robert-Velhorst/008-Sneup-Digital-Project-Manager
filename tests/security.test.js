@@ -10432,6 +10432,7 @@ describe('follow-up accountability', () => {
     }));
     jest.doMock('../src/models/WorkerResponse', () => ({
       create: jest.fn().mockResolvedValue(response),
+      updateOne: jest.fn().mockResolvedValue({ matchedCount: 1 }),
       deleteOne: jest.fn()
     }));
     jest.doMock('../src/models/FollowUpPlan', () => ({

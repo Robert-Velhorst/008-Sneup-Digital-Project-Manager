@@ -58,6 +58,27 @@ npm.cmd run repair:data -- --workspace default --apply --confirm repair-derived-
 
 Apply mode re-scans, skips changed fingerprints, writes an audit event for each successful internal update, and never contacts a provider or retries a delivery.
 
+## Uncertain ledger writes
+
+If a database write loses its acknowledgement, Sneup tries one exact-identity readback from the primary. Review decisions carry `lastReviewDecisionId` plus a revision; worker claims carry `response.workerResponseId`. Matching a similar status or another review is not sufficient. Recovery has a five-second caller deadline and a five-second driver operation timeout; a late read cannot resume downstream writes. The installed driver's [`timeoutMS` option](https://mongodb.github.io/node-mongodb-native/6.19/interfaces/FindOneOptions.html#timeoutMS) covers the client operation, separately from server execution limits.
+
+An unconfirmed outcome returns HTTP 503 with retained evidence instead of deleting the approval/response or claiming success. Refresh the recommendation and inspect its approval history, exact `currentApprovalId`, `lastReviewDecisionId`, intervention response reference, and audit trail. Do not infer execution permission from an unlinked approval-history record. Only the existing exact current approval and protected payload can authorize execution.
+
+New intervention-bound worker responses remain `claimState: pending` until their claim is confirmed. Pending rows stay in recommendation evidence but are excluded from normal response lists, accountability counts, and outcome evaluation. Historical records without this field retain their existing behavior; this change does not certify historical records or silently rewrite them.
+
+Generic worker-response webhooks durably reserve each delivery before matching an intervention. An interrupted or uncertain delivery stays `reconciliation_required`, is not automatically retried, and has no TTL expiry that could permit a delayed replay. Duplicate delivery requests return HTTP 409 until operator reconciliation. Successful processing restores normal delivery retention. Ordinary inbound work-signal retry behavior is unchanged.
+
+Keep uncertain records for investigation. Do not delete a reserved delivery, change it to `failed`, resend it with a new delivery ID, or confirm a pending response merely to clear an error: that can associate one message with another intervention. Review the exact source event, workspace, member/card, response/intervention references, follow-ups, and audits first. Automated recovery after an extended database outage or process loss is not implemented for these ambiguous records; operator reconciliation remains required. These records may accumulate during outages and must be monitored; they are deliberately excluded from routine expiry.
+
+Run the synthetic database test with:
+
+```powershell
+$env:SNEUP_LEDGER_ACK_MONGO_URI = 'mongodb://127.0.0.1:27017'
+npm.cmd run verify:ledger-acknowledgement
+```
+
+It accepts only the explicit loopback host and port, generates a fresh random database, refuses an existing nonempty database, and checks cleanup. It saves real MongoDB writes before injecting confirmation failures, verifies all three review decisions, response claims, pending-response outcome exclusion, reconnect evidence, and webhook replay isolation. Two explicitly synthetic successful action-attempt fixtures support outcome evaluation; no provider is contacted and no additional action attempt is created. This is not live provider, network-failover, power-loss, or hosted acceptance.
+
 ## Data retention
 
 Workspace owners configure retention in Workspace Administration. Keep the policy disabled until its four windows have been reviewed. The preview and each scheduled or manual pass are bounded; manual pruning additionally requires the exact workspace slug. `SNEUP_DATA_RETENTION_CRON` controls the daily worker schedule.

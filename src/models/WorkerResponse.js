@@ -35,6 +35,10 @@ const workerResponseSchema = new mongoose.Schema({
     type: String,
     select: false
   },
+  claimState: {
+    type: String,
+    enum: ['pending', 'confirmed']
+  },
   responseType: {
     type: String,
     enum: ['acknowledged', 'completed', 'blocked', 'needs_help', 'ignored', 'other'],

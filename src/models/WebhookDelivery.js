@@ -20,7 +20,7 @@ const webhookDeliverySchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['processing', 'succeeded', 'failed'],
+    enum: ['processing', 'succeeded', 'failed', 'reconciliation_required'],
     default: 'processing',
     index: true
   },
@@ -40,7 +40,7 @@ const webhookDeliverySchema = new mongoose.Schema({
   processedAt: Date,
   expiresAt: {
     type: Date,
-    required: true,
+    required() { return this.status !== 'reconciliation_required'; },
     index: { expires: 0 }
   }
 }, {

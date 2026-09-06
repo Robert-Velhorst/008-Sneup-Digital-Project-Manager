@@ -32,7 +32,7 @@ describe('Generic Webhook connector', () => {
     WebhookDelivery = {
       findOneAndUpdate: jest.fn(),
       findOne: jest.fn(),
-      updateOne: jest.fn().mockResolvedValue({ acknowledged: true })
+      updateOne: jest.fn().mockResolvedValue({ acknowledged: true, matchedCount: 1 })
     };
     service = new GenericWebhookService({
       ConnectorAccount,
@@ -115,7 +115,7 @@ describe('Generic Webhook connector', () => {
     const body = { id: 'task:1', title: 'Ship safely' };
     const rawBody = Buffer.from(JSON.stringify(body));
     WebhookDelivery.findOneAndUpdate
-      .mockResolvedValueOnce({ _id: 'delivery-1', status: 'processing' })
+      .mockResolvedValueOnce({ _id: 'delivery-1', status: 'processing', attemptCount: 1 })
       .mockRejectedValueOnce(Object.assign(new Error('duplicate key'), { code: 11000 }));
     WebhookDelivery.findOne.mockResolvedValue({ _id: 'delivery-1', status: 'succeeded', signalId: 'signal-1' });
 
@@ -138,7 +138,7 @@ describe('Generic Webhook connector', () => {
     expect(retry).toMatchObject({ duplicate: true, processing: false, signal: { id: 'signal-1' } });
     expect(workSignalService.upsertProviderRecord).toHaveBeenCalledTimes(1);
     expect(operationsLedgerService.recordAudit).toHaveBeenCalledTimes(1);
-    expect(WebhookDelivery.updateOne).toHaveBeenCalledWith({ _id: 'delivery-1' }, expect.objectContaining({
+    expect(WebhookDelivery.updateOne).toHaveBeenCalledWith({ _id: 'delivery-1', status: 'processing', attemptCount: 1 }, expect.objectContaining({
       $set: expect.objectContaining({ status: 'succeeded', signalId: 'signal-1' })
     }));
   });
@@ -168,7 +168,7 @@ describe('Generic Webhook connector', () => {
         }]
       }
     });
-    WebhookDelivery.findOneAndUpdate.mockResolvedValue({ _id: 'delivery-response-1', status: 'processing' });
+    WebhookDelivery.findOneAndUpdate.mockResolvedValue({ _id: 'delivery-response-1', status: 'processing', attemptCount: 1 });
 
     const result = await service.ingestWorkerResponse({
       accountId: ACCOUNT_ID,
@@ -196,7 +196,7 @@ describe('Generic Webhook connector', () => {
       afterState: expect.objectContaining({ eventId: 'slack:message-1', source: 'slack', workerResponseId: 'worker-response-1' })
     }));
     expect(JSON.stringify(operationsLedgerService.recordAudit.mock.calls)).not.toMatch(/private client work/i);
-    expect(WebhookDelivery.updateOne).toHaveBeenCalledWith({ _id: 'delivery-response-1' }, expect.objectContaining({
+    expect(WebhookDelivery.updateOne).toHaveBeenCalledWith({ _id: 'delivery-response-1', status: 'reconciliation_required', attemptCount: 1 }, expect.objectContaining({
       $set: expect.objectContaining({ status: 'succeeded', workerResponseId: 'worker-response-1' })
     }));
   });
@@ -227,6 +227,52 @@ describe('Generic Webhook connector', () => {
     })).rejects.toMatchObject({ statusCode: 403, code: 'not_configured' });
     expect(operationsLedgerService.recordChatWorkerResponse).not.toHaveBeenCalled();
     expect(WebhookDelivery.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+
+  test('reserves worker deliveries before ledger writes and never retries an uncertain response', async () => {
+    jest.spyOn(service, 'findWorkerResponseBinding').mockReturnValue({ memberId: 'member', cardId: 'card', source: 'slack' });
+    const body = { id: 'event:uncertain', source: 'slack', sourceMemberId: 'U1', sourceCardId: 'C1', responseType: 'completed', responseText: 'Done' };
+    const rawBody = Buffer.from(JSON.stringify(body));
+    const request = { accountId: ACCOUNT_ID, rawBody, body, signature: sign(rawBody, secret) };
+    WebhookDelivery.findOneAndUpdate.mockResolvedValueOnce({ _id: 'delivery', status: 'processing', attemptCount: 2 });
+    operationsLedgerService.recordChatWorkerResponse.mockImplementation(async () => {
+      expect(WebhookDelivery.updateOne).toHaveBeenCalledWith({ _id: 'delivery', status: 'processing', attemptCount: 2 }, {
+        $set: { status: 'reconciliation_required' }, $unset: { expiresAt: 1, leaseExpiresAt: 1 }
+      });
+      throw Object.assign(new Error('Cannot confirm'), { code: 'SNEUP_LEDGER_COMMIT_UNCERTAIN', statusCode: 503 });
+    });
+    await expect(service.ingestWorkerResponse(request)).rejects.toMatchObject({ code: 'SNEUP_LEDGER_COMMIT_UNCERTAIN' });
+    expect(WebhookDelivery.updateOne).toHaveBeenCalledTimes(1);
+    WebhookDelivery.findOneAndUpdate.mockRejectedValueOnce(Object.assign(new Error('Duplicate'), { code: 11000 }));
+    WebhookDelivery.findOne.mockResolvedValue({ _id: 'delivery', status: 'reconciliation_required' });
+    await expect(service.ingestWorkerResponse(request)).rejects.toMatchObject({ code: 'reconciliation_required', statusCode: 409 });
+    expect(operationsLedgerService.recordChatWorkerResponse).toHaveBeenCalledTimes(1);
+  });
+
+  test('an expired delivery owner cannot start worker matching after losing its reservation', async () => {
+    jest.spyOn(service, 'findWorkerResponseBinding').mockReturnValue({ memberId: 'member', cardId: 'card', source: 'slack' });
+    const body = { id: 'event:stale', source: 'slack', sourceMemberId: 'U1', sourceCardId: 'C1', responseType: 'completed', responseText: 'Done' };
+    const rawBody = Buffer.from(JSON.stringify(body));
+    WebhookDelivery.findOneAndUpdate.mockResolvedValueOnce({ _id: 'delivery', status: 'processing', attemptCount: 1 });
+    WebhookDelivery.updateOne.mockResolvedValueOnce({ matchedCount: 0 });
+    await expect(service.ingestWorkerResponse({ accountId: ACCOUNT_ID, rawBody, body, signature: sign(rawBody, secret) }))
+      .rejects.toMatchObject({ code: 'reconciliation_required' });
+    expect(operationsLedgerService.recordChatWorkerResponse).not.toHaveBeenCalled();
+  });
+
+  test('stale finalization cannot overwrite a newer reservation', async () => {
+    WebhookDelivery.updateOne.mockResolvedValue({ matchedCount: 0 });
+    await expect(service.finalizeDelivery({ _id: 'delivery', status: 'processing', attemptCount: 1 }, 'failed'))
+      .rejects.toMatchObject({ code: 'stale_delivery', statusCode: 409 });
+    expect(WebhookDelivery.updateOne).toHaveBeenCalledWith({ _id: 'delivery', status: 'processing', attemptCount: 1 }, expect.any(Object));
+  });
+
+  test('a quarantined delivery is a valid persisted schema state without a TTL', async () => {
+    const Delivery = require('../src/models/WebhookDelivery');
+    const record = new Delivery({ workspaceId: WORKSPACE_ID, connectorAccountId: ACCOUNT_ID, deliveryId: 'event:held', status: 'reconciliation_required' });
+    await expect(record.validate()).resolves.toBeUndefined();
+    record.status = 'succeeded';
+    await expect(record.validate()).rejects.toMatchObject({ name: 'ValidationError' });
   });
 
   test('does not resolve a response through a binding from another source', async () => {

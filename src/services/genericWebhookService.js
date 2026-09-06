@@ -368,14 +368,35 @@ class GenericWebhookService {
 
   async finalizeDelivery(delivery, status, artifacts = {}) {
     if (!delivery?._id) return;
+    if (!Number.isSafeInteger(delivery.attemptCount) || delivery.attemptCount < 1
+      || !['processing', 'reconciliation_required'].includes(delivery.status)) {
+      throw webhookError('Webhook delivery ownership changed', 409, 'stale_delivery');
+    }
     const update = {
       status,
       leaseExpiresAt: undefined,
+      expiresAt: new Date(Date.now() + getDeliveryRetentionMs()),
       processedAt: new Date()
     };
     if (artifacts.signalId) update.signalId = artifacts.signalId;
     if (artifacts.workerResponseId) update.workerResponseId = artifacts.workerResponseId;
-    await this.WebhookDelivery.updateOne({ _id: delivery._id }, { $set: update });
+    const finalized = await this.WebhookDelivery.updateOne({
+      _id: delivery._id, status: delivery.status, attemptCount: delivery.attemptCount
+    }, { $set: update });
+    if (finalized.matchedCount !== 1) throw webhookError('Webhook delivery ownership changed', 409, 'stale_delivery');
+  }
+
+  async reserveWorkerResponseDelivery(delivery) {
+    if (!delivery?._id) throw webhookError('Worker response delivery requires reconciliation', 409, 'reconciliation_required');
+    // Reserve before matching work: a crash or uncertain result must never rematch another intervention.
+    const reserved = await this.WebhookDelivery.updateOne({
+      _id: delivery._id, status: 'processing', attemptCount: delivery.attemptCount
+    }, {
+      $set: { status: 'reconciliation_required' },
+      $unset: { expiresAt: 1, leaseExpiresAt: 1 }
+    });
+    if (reserved.matchedCount !== 1) throw webhookError('Worker response delivery requires reconciliation', 409, 'reconciliation_required');
+    delivery.status = 'reconciliation_required';
   }
 
   async ingest({ accountId, rawBody, body, signature, deliveryId }) {
@@ -460,6 +481,9 @@ class GenericWebhookService {
     const normalizedDeliveryId = this.normalizeDeliveryId(deliveryId || event.id);
     const claimed = await this.claimDelivery(account, normalizedDeliveryId);
     if (!claimed.acquired) {
+      if (claimed.delivery.status === 'reconciliation_required') {
+        throw webhookError('Worker response delivery requires reconciliation before replay', 409, 'reconciliation_required');
+      }
       return {
         event: { id: event.id },
         workerResponse: { id: claimed.delivery.workerResponseId || null },
@@ -468,6 +492,7 @@ class GenericWebhookService {
       };
     }
 
+    await this.reserveWorkerResponseDelivery(claimed.delivery);
     let result;
     try {
       result = await this.operationsLedgerService.recordChatWorkerResponse({
@@ -500,7 +525,7 @@ class GenericWebhookService {
         }
       });
     } catch (error) {
-      await this.finalizeDelivery(claimed.delivery, 'failed');
+      // The durable reservation intentionally stays nonretryable, including audit failures.
       throw error;
     }
 

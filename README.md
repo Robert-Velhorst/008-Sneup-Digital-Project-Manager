@@ -271,7 +271,7 @@ The installer is written to:
 release\Sneup-Setup-<version>.exe
 ```
 
-The local release line currently builds `Sneup-Setup-2.3.52.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
+The local release line currently builds `Sneup-Setup-2.3.53.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
 
 Verify the unpacked Windows app before distributing an installer:
 
@@ -330,6 +330,7 @@ npm.cmd run verify:review-concurrency
 npm.cmd run verify:hai-snapshot
 npm.cmd run verify:hai-http
 npm.cmd run verify:backup-restore
+npm.cmd run verify:ledger-acknowledgement
 npm.cmd run verify:follow-up-integrity
 npm.cmd run verify:trello-webhooks
 npm.cmd run verify:trello-list-index
@@ -343,6 +344,8 @@ Some verifier scripts require a dedicated disposable MongoDB URI with an exact g
 For the HAI snapshot/proposal and authenticated HTTP verifiers, see the [disposable database setup and acceptance limits](docs/CLOUD_AND_HAI.md#verification).
 
 For `verify:backup-restore`, see the [native restore drill setup](docs/OPERATOR_RUNBOOK.md#synthetic-native-restore-drill). It checks synthetic data in two new local databases using MongoDB's native tools; it is not a backup of your workspace or proof of production recovery.
+
+For `verify:ledger-acknowledgement`, see [uncertain-write recovery and its test setup](docs/OPERATOR_RUNBOOK.md#uncertain-ledger-writes). The test uses synthetic local database records to check approval preservation, response confirmation, and webhook replay safety. Ambiguous records after an extended outage still require operator reconciliation.
 
 ## API overview
 

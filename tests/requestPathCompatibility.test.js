@@ -116,6 +116,23 @@ describe('API routing compatibility', () => {
   });
 
   test.each([
+    ['reconciliation_required', 409], ['SNEUP_LEDGER_COMMIT_UNCERTAIN', 503], ['stale_delivery', 409], ['private-database-code', 500]
+  ])('serializes only allowlisted worker webhook classification %s', async (code, statusCode) => {
+    const webhook = require('../src/services/genericWebhookService');
+    const ingest = jest.spyOn(webhook, 'ingestWorkerResponse').mockRejectedValue(Object.assign(new Error('private source detail'), { code, statusCode }));
+    try {
+      const result = await fetch(`${base}/api/webhooks/generic/507f1f77bcf86cd799439011/worker-response`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(4000)
+      });
+      expect(result.status).toBe(statusCode);
+      const body = await result.json();
+      if (code === 'private-database-code') expect(body).not.toHaveProperty('code');
+      else expect(body.code).toBe(code);
+      expect(JSON.stringify(body)).not.toMatch(/private/);
+    } finally { ingest.mockRestore(); }
+  });
+
+  test.each([
     ['/api/v1', '/API/V1', '/Api/v1/security/context'],
     ['/api/boards', '/api/BOARDS/', '/API/Boards/SomeCaseSensitiveId']
   ].map(paths => [paths]))('shares one rate bucket for case-equivalent route family %s', paths => {

@@ -368,6 +368,47 @@ class OperationsLedgerService {
     }
   }
 
+  async recoverLedgerCommit(Model, query) {
+    // A lost acknowledgement is not proof that the write failed. Never delete its evidence.
+    try {
+      const { withTimeout } = require('../utils/runtimeShutdown');
+      const committed = await withTimeout(Model.findOne(query).read('primary').maxTimeMS(5000)
+        .setOptions({ timeoutMS: 5000 }).exec(), { timeoutMs: 5000 });
+      if (committed) return committed;
+    } catch {
+      // An unavailable read also leaves the write outcome unknown.
+    }
+    throw this.ledgerCommitUncertain();
+  }
+
+  ledgerCommitUncertain() {
+    const error = new Error('The database write could not be confirmed. Evidence was retained. Refresh and review the current state before trying again.');
+    error.code = 'SNEUP_LEDGER_COMMIT_UNCERTAIN';
+    error.statusCode = 503;
+    return error;
+  }
+
+  async commitRecommendationDecision(recommendation, body, approval, update) {
+    try {
+      return await this.transitionRecommendationReview(recommendation, body, {
+        ...update,
+        $set: { ...update.$set, lastReviewDecisionId: approval._id }
+      });
+    } catch (error) {
+      if (error.code === 'SNEUP_RECOMMENDATION_REVIEW_CONFLICT') {
+        await this.discardUncommittedApproval(approval);
+        throw error;
+      }
+      return this.recoverLedgerCommit(Recommendation, {
+        _id: recommendation._id,
+        workspaceId: recommendation.workspaceId,
+        lastReviewDecisionId: approval._id,
+        status: update.$set.status,
+        __v: body.expectedRevision + 1
+      });
+    }
+  }
+
   requireMutableDecisionQueueItem(item, action) {
     if (MUTABLE_DECISION_QUEUE_STATUSES.has(item.status)) return;
     const error = new Error(`A decision queue item in ${item.status || 'unknown'} status cannot be ${action}`);
@@ -1057,9 +1098,7 @@ class OperationsLedgerService {
       approvedPayloadSnapshot: recommendation.actionPayload,
       expiresAt
     });
-    let approvedRecommendation;
-    try {
-      approvedRecommendation = await this.transitionRecommendationReview(recommendation, body, {
+    const approvedRecommendation = await this.commitRecommendationDecision(recommendation, body, approval, {
         $set: {
           status: 'approved',
           currentApprovalId: approval._id,
@@ -1073,11 +1112,7 @@ class OperationsLedgerService {
           rejectedAt: 1,
           failureReason: 1
         }
-      });
-    } catch (error) {
-      await this.discardUncommittedApproval(approval);
-      throw error;
-    }
+    });
 
     await DecisionQueueItem.updateMany(
       this.workspaceQuery({ workspaceId: approvedRecommendation.workspaceId }, {
@@ -1137,9 +1172,7 @@ class OperationsLedgerService {
       decisionReason: body.decisionReason || 'Rejected',
       approvedPayloadSnapshot: recommendation.actionPayload
     });
-    let rejectedRecommendation;
-    try {
-      rejectedRecommendation = await this.transitionRecommendationReview(recommendation, body, {
+    const rejectedRecommendation = await this.commitRecommendationDecision(recommendation, body, approval, {
         $set: {
           status: 'rejected',
           rejectedAt: approval.decidedAt
@@ -1151,11 +1184,7 @@ class OperationsLedgerService {
           approvalExpiredAt: 1,
           approvalExpiryReason: 1
         }
-      });
-    } catch (error) {
-      await this.discardUncommittedApproval(approval);
-      throw error;
-    }
+    });
 
     await DecisionQueueItem.updateMany(
       this.workspaceQuery({ workspaceId: rejectedRecommendation.workspaceId }, {
@@ -1222,9 +1251,7 @@ class OperationsLedgerService {
       decisionReason: body.decisionReason || 'Change requested',
       approvedPayloadSnapshot: recommendation.actionPayload
     });
-    let changedRecommendation;
-    try {
-      changedRecommendation = await this.transitionRecommendationReview(recommendation, body, {
+    const changedRecommendation = await this.commitRecommendationDecision(recommendation, body, approval, {
         $set: { status: 'change_requested' },
         $unset: {
           currentApprovalId: 1,
@@ -1233,11 +1260,7 @@ class OperationsLedgerService {
           approvalExpiredAt: 1,
           approvalExpiryReason: 1
         }
-      });
-    } catch (error) {
-      await this.discardUncommittedApproval(approval);
-      throw error;
-    }
+    });
 
     await DecisionQueueItem.updateMany(
       this.workspaceQuery({ workspaceId: changedRecommendation.workspaceId }, {
@@ -2717,6 +2740,7 @@ class OperationsLedgerService {
       WorkerResponse.findOne({
         workspaceId: recommendation.workspaceId,
         recommendationId: recommendation._id,
+        claimState: { $in: [null, 'confirmed'] },
         receivedAt: { $gte: attempt.finishedAt || attempt.createdAt }
       })
         .sort({ receivedAt: -1 })
@@ -3085,7 +3109,7 @@ class OperationsLedgerService {
         }
       ]),
       WorkerResponse.aggregate([
-        { $match: { workspaceId, memberId: { $ne: null }, receivedAt: { $gte: windowStart } } },
+        { $match: { workspaceId, claimState: { $in: [null, 'confirmed'] }, memberId: { $ne: null }, receivedAt: { $gte: windowStart } } },
         {
           $group: {
             _id: '$memberId',
@@ -3181,6 +3205,7 @@ class OperationsLedgerService {
   async listWorkerResponses(filters = {}) {
     this.requireDatabase();
     const query = this.workspaceQuery(filters);
+    query.claimState = { $in: [null, 'confirmed'] };
     if (filters.recommendationId) query.recommendationId = filters.recommendationId;
     if (filters.interventionId) query.interventionId = filters.interventionId;
     if (filters.boardId) query.boardId = filters.boardId;
@@ -3368,6 +3393,7 @@ class OperationsLedgerService {
       memberId: body.memberId,
       responseText,
       responseType,
+      claimState: body.interventionId ? 'pending' : 'confirmed',
       source: normalizeWorkerResponseSource(body.source)
     });
 
@@ -3391,9 +3417,13 @@ class OperationsLedgerService {
           memberId: body.memberId,
           'response.respondedAt': { $exists: false }
         }, interventionUpdate, { new: true, runValidators: true });
-      } catch (error) {
-        await this.discardUncommittedWorkerResponse(response);
-        throw error;
+      } catch {
+        intervention = await this.recoverLedgerCommit(Intervention, {
+          _id: body.interventionId,
+          workspaceId,
+          memberId: body.memberId,
+          'response.workerResponseId': response._id
+        });
       }
       if (!intervention) {
         await this.discardUncommittedWorkerResponse(response);
@@ -3401,6 +3431,15 @@ class OperationsLedgerService {
         error.code = 'SNEUP_WORKER_RESPONSE_CONFLICT';
         error.statusCode = 409;
         throw error;
+      }
+      try {
+        const confirmed = await WorkerResponse.updateOne({
+          _id: response._id, workspaceId, claimState: 'pending'
+        }, { $set: { claimState: 'confirmed' } });
+        if (confirmed.matchedCount !== 1) throw this.ledgerCommitUncertain();
+        response.claimState = 'confirmed';
+      } catch {
+        throw this.ledgerCommitUncertain();
       }
     }
 

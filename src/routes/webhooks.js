@@ -13,9 +13,16 @@ const sendGenericWebhookError = (res, error) => {
     404: 'Webhook endpoint is not configured',
     413: 'Webhook payload is too large'
   };
+  const recoveryErrors = {
+    reconciliation_required: 'Worker response delivery requires reconciliation before replay',
+    SNEUP_LEDGER_COMMIT_UNCERTAIN: 'The database write could not be confirmed. Review retained evidence before replay.',
+    stale_delivery: 'Webhook delivery ownership changed. Review the current delivery state.'
+  };
+  const knownRecovery = Object.prototype.hasOwnProperty.call(recoveryErrors, error.code);
   res.status(statusCode).json({
     success: false,
-    error: errorByStatus[statusCode] || 'Webhook could not be processed'
+    error: knownRecovery ? recoveryErrors[error.code] : errorByStatus[statusCode] || 'Webhook could not be processed',
+    ...(knownRecovery ? { code: error.code } : {})
   });
 };
 

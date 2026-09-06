@@ -98,6 +98,10 @@ const recommendationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Approval'
   },
+  lastReviewDecisionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Approval'
+  },
   approvalExpiresAt: {
     type: Date,
     index: true
