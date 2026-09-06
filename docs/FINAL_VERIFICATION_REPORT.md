@@ -2,9 +2,19 @@
 
 This report is updated from executed commands at release time. A passing local suite proves repository behavior under tests; it does not prove live provider authorization or production deployment.
 
-## 2.3.48 authenticated HAI and credential relationships (2026-09-06)
+## 2.3.49 consistent early API failures (2026-09-06)
 
 This is the current local verification record. The sections below retain historical release evidence; dependency audit results are dated observations.
+
+- Seven HTTP regressions reproduced missing versioned error envelopes for authentication, missing configuration, malformed/oversized JSON, CORS rejection, and rate limiting. The existing `/api/v1` formatter now runs immediately after request context, before these middleware failures. Status codes, access decisions, parser limits, and error redaction remain unchanged.
+- All 14 API contract tests pass, including unchanged legacy/webhook parser responses and adjacent `/api/v10` handling. Successful OpenAPI responses retain their existing raw-document opt-out; authentication failures do not use it. The authenticated disposable-MongoDB HAI verifier passed all 13 checks, now also requiring matching response/header request IDs and the v1 envelope for both successful and rejected requests. Cleanup removed the verification database; no provider writes, public tunnel, or scheduled workers were started.
+- Full `npm run check:ci` passed lint, all 180 route authorization contracts, 139 suites/1,057 tests, and all five recommendation evaluation scenarios. The full dependency audit reports zero vulnerabilities. Independent read-only review found no concrete issues in middleware ordering, compatibility, or scoped resource/security behavior; the reviewer ran syntax checks, not HTTP/database verification.
+- The unsigned Windows 2.3.49 installer built successfully, and its packaged application entry point matches source byte for byte. A five-second packaged demo probe passed health, nine redacted diagnostics, HAI `never_direct`, requested normal close, main-process exit code zero, no remaining processes, and port release. Four processes sampled 378.1 MB working set, 386.6 MB private memory, and 2.031 cumulative CPU seconds. This sample is not an isolated performance comparison.
+- GitHub's paginated open-pull-request inventory was empty before publication. Remote CI must be checked after pushing. Live HAI/ngrok/provider acceptance, signed clean-machine installation, recovery drills, and the previously observed intermittent shutdown issue remain incomplete. This passing shutdown probe does not establish that the intermittent issue is resolved. The full production-readiness goal remains incomplete.
+
+## 2.3.48 authenticated HAI and credential relationships (2026-09-06)
+
+Historical release evidence:
 
 - A real Express/HTTP/MongoDB reproduction found four invalid credential cases returning HTTP 200: missing API-token workspace, missing referenced API-token user, API-token user in another workspace, and session user in another workspace. The workspace fallback could select the default workspace; the missing-user fallback could adopt the API token's service role. A valid secret and invalid stored relationships were required; this was not a no-credential bypass or evidence of a live compromise.
 - Both database credential resolvers now share relationship validation before activity updates and auth-context construction. Workspaces must resolve, user-bound credentials require an active user belonging to that workspace, and a dangling user reference cannot become an intentionally userless service token. Existing scoped service access, role precedence, workspace-header restrictions, archived/deleting management access, and provider approval gates remain unchanged. The fix uses already populated records and adds no database queries.

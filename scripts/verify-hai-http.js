@@ -69,7 +69,16 @@ const run = async () => {
         method, headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'Content-Type': 'application/json', ...headers },
         ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(10000)
       });
-      return { status: response.status, body: await response.json() };
+      const responseBody = await response.json();
+      assert.equal(responseBody.ok, response.ok, 'Every HTTP outcome must use the v1 envelope');
+      assert.equal(responseBody.meta?.apiVersion, 'v1');
+      assert.match(responseBody.meta?.requestId || '', /^[a-f0-9-]{36}$/);
+      assert.equal(responseBody.meta.requestId, response.headers.get('x-sneup-request-id'));
+      if (!response.ok) {
+        assert.equal(responseBody.data, null);
+        assert.equal(typeof responseBody.error?.code, 'string');
+      }
+      return { status: response.status, body: responseBody };
     };
     for (const token of [serviceToken.raw, session.raw]) {
       const response = await request('/integrations/hai/snapshot', token, { headers: { 'X-Sneup-Workspace-Id': String(other._id) } });

@@ -93,6 +93,8 @@ const getCurrentDatabaseStatus = () =>
 
 // Middleware
 app.use(requestContextMiddleware);
+// Include failures from parsers, CORS, rate limiting, and authentication in the v1 contract.
+app.use('/api/v1', versionedApiEnvelope);
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -169,7 +171,6 @@ app.get('/ready', (req, res) => {
 
 // Versioned API routes use one strict response envelope. External webhook
 // protocols retain their established unversioned endpoints and signatures.
-app.use('/api/v1', versionedApiEnvelope);
 routeDefinitions.forEach(({ routePath, router }) => app.use(`/api/v1/${routePath}`, router));
 
 // Backward-compatible API routes.

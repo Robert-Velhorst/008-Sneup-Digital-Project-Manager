@@ -2,6 +2,8 @@
 
 Status meanings: **Implemented** is present and locally verified; **Partial** has useful implementation but an identified gap; **External** requires owner-controlled accounts or infrastructure; **N/A** is outside the product's current surface. No phase is marked complete from documentation alone.
 
+2.3.49 makes the versioned response contract cover early HTTP failures, so HAI and dashboard consumers receive a structured error code and correlated request ID when parsing, authentication, CORS, or rate limiting rejects a request. Legacy routes, webhook protocols, successful raw OpenAPI, status codes, and authorization decisions remain unchanged.
+
 2.3.48 closes credential-reference authentication failures shared by the browser/API and HAI: orphaned workspaces cannot fall back to the default workspace, orphaned users cannot become service identities, and user-bound credentials require membership in the token's workspace. Intentionally userless scoped service tokens and separately authorized archived-workspace management remain supported. Real HTTP/Mongo verification covers the authenticated HAI read/propose path while denying approval/execution; actual hosted ingress and HAI-client acceptance remain external.
 
 2.3.47 fixes the database-backed HAI snapshot path: native MongoDB record IDs and populated references retain their hexadecimal identifiers, and first-use board-health reads wait for index initialization within a bounded deadline. Disposable real-Mongo verification covers snapshot-to-proposal round trips, workspace isolation, deduplication, zero approvals or provider attempts, and confirmed cleanup after background model initialization settles. This does not close the live authenticated HAI/ngrok or provider acceptance gates.

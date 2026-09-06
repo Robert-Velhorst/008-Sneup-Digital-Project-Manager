@@ -7,8 +7,8 @@ const {
   versionedApiEnvelope
 } = require('../src/services/apiContractService');
 
-const request = (port, requestPath) => new Promise((resolve, reject) => {
-  const call = http.get({ host: '127.0.0.1', port, path: requestPath }, response => {
+const request = (port, requestPath, options = {}) => new Promise((resolve, reject) => {
+  const call = http.request({ host: '127.0.0.1', port, path: requestPath, method: options.method || 'GET', headers: options.headers }, response => {
     const chunks = [];
     response.on('data', chunk => chunks.push(chunk));
     response.on('end', () => resolve({
@@ -18,6 +18,8 @@ const request = (port, requestPath) => new Promise((resolve, reject) => {
     }));
   });
   call.on('error', reject);
+  call.setTimeout(4000, () => call.destroy(new Error('HTTP fixture request timed out')));
+  call.end(options.body);
 });
 
 const response = (statusCode = 200) => {
@@ -157,5 +159,77 @@ describe('versioned API contract', () => {
     expect(source).toContain("return `/api/v1/${url.slice('/api/'.length)}`");
     expect(source).toContain("data.meta?.apiVersion === 'v1'");
     expect(source).toContain('error.requestId = data.meta?.requestId');
+  });
+
+  const expectFailure = (result, status, code) => {
+    expect(result.statusCode).toBe(status);
+    expect(JSON.parse(result.body)).toMatchObject({
+      ok: false, data: null,
+      error: { code, message: expect.any(String) },
+      meta: { apiVersion: 'v1', requestId: result.headers['x-sneup-request-id'] }
+    });
+    expect(result.headers['x-sneup-request-id']).toMatch(/^[a-f0-9-]{36}$/);
+  };
+
+  test.each([
+    ['/api/v1/integrations/hai/snapshot', 'configured-test-key', 401, 'UNAUTHORIZED'],
+    ['/api/v1/integrations/hai/openapi.json', 'configured-test-key', 401, 'UNAUTHORIZED'],
+    ['/api/v1/integrations/hai/snapshot', undefined, 503, 'SERVICE_UNAVAILABLE']
+  ])('formats authentication failure on %s with request correlation', async (url, key, status, code) => {
+    const previous = { key: process.env.SNEUP_API_KEY, required: process.env.SNEUP_REQUIRE_API_KEY };
+    process.env.SNEUP_REQUIRE_API_KEY = 'true';
+    if (key === undefined) delete process.env.SNEUP_API_KEY;
+    else process.env.SNEUP_API_KEY = key;
+    try {
+      expectFailure(await request(port, url), status, code);
+    } finally {
+      if (previous.key === undefined) delete process.env.SNEUP_API_KEY;
+      else process.env.SNEUP_API_KEY = previous.key;
+      if (previous.required === undefined) delete process.env.SNEUP_REQUIRE_API_KEY;
+      else process.env.SNEUP_REQUIRE_API_KEY = previous.required;
+    }
+  });
+
+  test.each([
+    ['malformed JSON', '{invalid', 400, 'BAD_REQUEST'],
+    ['oversized JSON', JSON.stringify({ value: 'x'.repeat(1024 * 1024) }), 413, 'PAYLOAD_TOO_LARGE']
+  ])('formats %s rejected before routing', async (label, body, status, code) => {
+    expectFailure(await request(port, '/api/v1/integrations/hai/proposals', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body
+    }), status, code);
+  });
+
+  test('formats CORS rejection without exposing its internal error details', async () => {
+    const result = await request(port, '/api/v1/integrations/hai/snapshot', { headers: { Origin: 'https://untrusted.example.invalid' } });
+    expectFailure(result, 500, 'INTERNAL_ERROR');
+    expect(result.body).not.toContain('Origin is not allowed');
+    expect(result.headers).not.toHaveProperty('access-control-allow-origin');
+  });
+
+  test('formats a rate-limit rejection before authentication', async () => {
+    const previous = process.env.SNEUP_RATE_LIMIT_MAX;
+    process.env.SNEUP_RATE_LIMIT_MAX = '1';
+    try {
+      await request(port, '/api/v1/integrations/hai/snapshot');
+      expectFailure(await request(port, '/api/v1/integrations/hai/snapshot'), 429, 'RATE_LIMITED');
+    } finally {
+      if (previous === undefined) delete process.env.SNEUP_RATE_LIMIT_MAX;
+      else process.env.SNEUP_RATE_LIMIT_MAX = previous;
+    }
+  });
+
+  test('leaves legacy and webhook parser failures unwrapped', async () => {
+    for (const [url, body, status] of [
+      ['/api/integrations/hai/proposals', '{invalid', 400],
+      ['/api/webhooks/generic/507f1f77bcf86cd799439011', JSON.stringify({ value: 'x'.repeat(1024 * 1024) }), 413]
+    ]) {
+      const result = await request(port, url, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body
+      });
+      expect(result.statusCode).toBe(status);
+      expect(JSON.parse(result.body)).not.toHaveProperty('ok');
+    }
+    const adjacent = await request(port, '/api/v10/not-a-route');
+    expect(JSON.parse(adjacent.body)).not.toHaveProperty('ok');
   });
 });
