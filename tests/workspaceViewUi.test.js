@@ -497,7 +497,8 @@ describe('demand-loaded workspace view', () => {
       acceptanceSource.indexOf('sessionStorage.setItem(SESSION_TOKEN_KEY, data.sessionToken)')
     );
     expect(acceptanceSource).toContain('sessionPersisted = false');
-    expect(acceptanceSource).toContain('return { sessionPersisted };');
+    expect(acceptanceSource).toContain("const ownsSession = beginWorkspaceRead('acceptedSession');");
+    expect(acceptanceSource).toContain('isCurrent: () => ownsSession() && els.modalBody.firstChild === modalContent');
     expect(appSource).not.toContain('function renderWorkspace(workspace)');
     expect(moduleSource).toContain('id="policyRuleForm"');
     expect(moduleSource).toContain('id="workspaceInviteForm"');

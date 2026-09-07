@@ -129,6 +129,9 @@
     'Delete workspace': 'Werkruimte verwijderen',
     'Deleting...': 'Verwijderen...',
     'Workspace deleted': 'Werkruimte verwijderd',
+    'Deletion result unconfirmed': 'Verwijderingsresultaat niet bevestigd',
+    'The server response did not confirm completed deletion. Check the workspace status before taking further action.': 'Het serverantwoord bevestigt niet dat de verwijdering is voltooid. Controleer de status van de werkruimte voordat u verdergaat.',
+    'Browser session storage could not be cleared. The deleted workspace session is no longer valid.': 'De sessieopslag van de browser kon niet worden gewist. De sessie van de verwijderde werkruimte is niet meer geldig.',
     'Deletion receipt {id}. Local Sneup data for the workspace has been removed.': 'Verwijderingsbewijs {id}. Lokale Sneup-gegevens voor de werkruimte zijn verwijderd.',
     'Workspace deletion failed': 'Werkruimte verwijderen mislukt',
     'Invitation unavailable': 'Uitnodiging niet beschikbaar',
@@ -428,31 +431,36 @@
       `;
       elements.modal.classList.add('open');
       const form = document.getElementById('acceptWorkspaceInviteForm');
+      const isCurrent = callbacks.beginInvitationForm?.(form)
+        || (() => elements.modal.classList.contains('open') && elements.modalBody.contains(form));
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const submitButton = form.querySelector('button[type="submit"]');
-        if (submitButton.disabled) return;
+        if (!isCurrent() || submitButton.disabled) return;
         submitButton.disabled = true;
         submitButton.textContent = t('Joining...');
         setInvitationStatus('');
         const values = new browserWindow.FormData(form);
         let accepted;
         try {
-          accepted = await callbacks.acceptWorkspaceInvitation(rawToken, values.get('displayName'));
+          accepted = await callbacks.acceptWorkspaceInvitation(rawToken, values.get('displayName'), { isCurrent });
         } catch (error) {
+          if (!isCurrent()) return;
           submitButton.disabled = false;
           submitButton.textContent = t('Join workspace');
           setInvitationStatus(error.message);
           return;
         }
+        if (!accepted || accepted.isCurrent?.() === false) return;
         callbacks.closeModal();
         try {
-          await callbacks.reloadAfterInvitationAcceptance();
+          if (await callbacks.reloadAfterInvitationAcceptance(accepted.isCurrent) === false) return;
         } catch (error) {
+          if (accepted.isCurrent?.() === false) return;
           callbacks.openNotice(t('Workspace joined'), t('The invitation was accepted, but Sneup could not load the workspace. Restart Sneup or refresh this page to continue.'));
           return;
         }
-        if (accepted.sessionPersisted === false) {
+        if (accepted.isCurrent?.() !== false && accepted.sessionPersisted === false) {
           callbacks.openNotice(t('Workspace joined'), t('This workspace is open in the current window, but Sneup could not retain the session. Sign in again after restarting Sneup.'));
         }
       });

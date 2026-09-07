@@ -182,6 +182,7 @@ function loadWorkspaceView() {
             revokeWorkspaceInvitation,
             retryWorkspaceInvitationDelivery,
             acceptWorkspaceInvitation,
+            beginInvitationForm,
             refreshWorkspaceAdmin: () => loadWorkspaceAdmin({ throwOnError: true }),
             reloadAfterInvitationAcceptance,
             closeModal,
@@ -1442,10 +1443,29 @@ function beginWorkspaceRead(key) {
   return isCurrent;
 }
 
+function captureWorkspaceContext() {
+  const workspaceId = state.activeWorkspaceId;
+  const sessionToken = state.sessionToken;
+  const epoch = state.workspaceEpoch || 0;
+  return () => workspaceId === state.activeWorkspaceId && sessionToken === state.sessionToken
+    && epoch === (state.workspaceEpoch || 0);
+}
+
 function adoptWorkspaceId(workspaceId) {
   if (!workspaceId || workspaceId === state.activeWorkspaceId) return false;
+  return adoptWorkspaceContext(workspaceId, state.sessionToken, { preserveModal: true });
+}
+
+function adoptWorkspaceContext(workspaceId, sessionToken, options = {}) {
+  if (workspaceId === state.activeWorkspaceId && sessionToken === state.sessionToken) return false;
+  if (!options.preserveModal) {
+    closeModal();
+    els.modalBody.replaceChildren();
+    els.modalTitle.textContent = '';
+  }
   cancelReportDownloads();
   state.workspaceEpoch = (state.workspaceEpoch || 0) + 1;
+  state.sessionToken = sessionToken;
   state.activeWorkspaceId = workspaceId;
   state.securityContext = null;
   state.runtimeMode = 'unknown';
@@ -1468,7 +1488,8 @@ function adoptWorkspaceId(workspaceId) {
   state.loadedViews.clear();
   resetDashboardViews();
   try {
-    localStorage.setItem('sneup.workspaceId', workspaceId);
+    if (workspaceId) localStorage.setItem('sneup.workspaceId', workspaceId);
+    else localStorage.removeItem('sneup.workspaceId');
   } catch {
     // The current page can switch even when browser storage is unavailable.
   }
@@ -3371,12 +3392,16 @@ function openWorkspaceDeletion() {
     </form>
   `;
   els.modal.classList.add('open');
+  const ownsContext = captureWorkspaceContext();
+  const deletionForm = document.getElementById('workspaceDeletionForm');
+  const isCurrent = () => ownsContext() && els.modal.classList.contains('open') && els.modalBody.contains(deletionForm);
   document.getElementById('cancelWorkspaceDeletion').addEventListener('click', closeModal);
   document.getElementById('workspaceDeletionForm').addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
     const values = new FormData(form);
     const submitButton = form.querySelector('button[type="submit"]');
+    if (!isCurrent() || submitButton.disabled) return;
     submitButton.disabled = true;
     submitButton.textContent = t('Deleting...');
     try {
@@ -3388,20 +3413,27 @@ function openWorkspaceDeletion() {
           acknowledgePermanentDeletion: values.get('acknowledgePermanentDeletion') === 'on'
         })
       });
-      state.sessionToken = '';
-      state.workspaceEpoch = (state.workspaceEpoch || 0) + 1;
-      cancelReportDownloads();
-      state.activeWorkspaceId = '';
-      state.currentWorkspace = null;
-      state.workspaces = [];
-      state.workspaceUsers = [];
-      state.workspaceInvitations = [];
-      sessionStorage.removeItem(SESSION_TOKEN_KEY);
-      localStorage.removeItem('sneup.workspaceId');
-      closeModal();
-      renderWorkspaces();
+      // A closed form does not undo a completed server-side deletion.
+      if (!ownsContext()) return;
+      if (typeof data.receipt?.deletionId !== 'string' || !data.receipt.deletionId || data.receipt.status !== 'completed') {
+        openNotice(t('Deletion result unconfirmed'), t('The server response did not confirm completed deletion. Check the workspace status before taking further action.'));
+        return;
+      }
+      adoptWorkspaceContext('', '');
+      let sessionCleared = true;
+      try {
+        sessionStorage.removeItem(SESSION_TOKEN_KEY);
+      } catch {
+        sessionCleared = false;
+      }
       openNotice(t('Workspace deleted'), t('Deletion receipt {id}. Local Sneup data for the workspace has been removed.', { id: data.receipt.deletionId }));
+      if (!sessionCleared) {
+        const warning = document.createElement('p');
+        warning.textContent = t('Browser session storage could not be cleared. The deleted workspace session is no longer valid.');
+        els.modalBody.append(warning);
+      }
     } catch (error) {
+      if (!isCurrent()) return;
       submitButton.disabled = false;
       submitButton.textContent = t('Delete workspace');
       openNotice(t('Workspace deletion failed'), error.message);
@@ -4067,44 +4099,61 @@ function inviteTokenFromUrl() {
 }
 
 async function openInviteAcceptance(rawToken) {
+  const isCurrent = beginWorkspaceRead('invitationOpen');
   try {
     const controller = await loadWorkspaceView();
+    if (!isCurrent()) return;
     controller.openInviteAcceptance(rawToken);
   } catch (error) {
+    if (!isCurrent()) return;
     openNotice(t('Unable to join workspace'), error.message);
   }
 }
 
-async function acceptWorkspaceInvitation(rawToken, displayName) {
+function beginInvitationForm(form) {
+  const ownsContext = beginWorkspaceRead('invitationForm');
+  return () => ownsContext() && els.modal.classList.contains('open') && els.modalBody.contains(form);
+}
+
+async function acceptWorkspaceInvitation(rawToken, displayName, options = {}) {
+  const ownsContext = captureWorkspaceContext();
+  const isCurrent = () => ownsContext() && (!options.isCurrent || options.isCurrent());
+  if (!isCurrent()) return;
   const data = await fetchApi('/api/workspaces/invitations/accept', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token: rawToken, displayName })
+  }).catch(error => {
+    if (!isCurrent()) return null;
+    throw error;
   });
-  state.sessionToken = data.sessionToken;
-  state.workspaceEpoch = (state.workspaceEpoch || 0) + 1;
-  cancelReportDownloads();
-  state.activeWorkspaceId = data.workspace.id;
+  // Invitations are single-use: retain the committed session even if its form closed.
+  if (!ownsContext() || !data) return;
+  if (typeof data.sessionToken !== 'string' || !data.sessionToken || typeof data.workspace?.id !== 'string' || !data.workspace.id) {
+    throw new Error('The invitation response did not include a usable workspace session.');
+  }
+  adoptWorkspaceContext(data.workspace.id, data.sessionToken);
   let sessionPersisted = true;
   try {
     sessionStorage.setItem(SESSION_TOKEN_KEY, data.sessionToken);
   } catch (error) {
     sessionPersisted = false;
   }
-  try {
-    localStorage.setItem('sneup.workspaceId', state.activeWorkspaceId);
-  } catch (error) {
-    // The accepted in-memory session remains usable in the current window.
-  }
-  return { sessionPersisted };
+  const ownsSession = beginWorkspaceRead('acceptedSession');
+  const modalContent = els.modalBody.firstChild;
+  return { sessionPersisted, isCurrent: () => ownsSession() && els.modalBody.firstChild === modalContent };
 }
 
-async function reloadAfterInvitationAcceptance() {
+async function reloadAfterInvitationAcceptance(isCurrent = beginWorkspaceRead('acceptedSession')) {
+  if (!isCurrent()) return false;
+  const ownsNavigation = beginWorkspaceRead('navigation');
   await loadAll({ force: true });
+  if (!isCurrent() || !ownsNavigation()) return false;
   if (!state.securityContext || state.securityContext.workspaceId !== state.activeWorkspaceId) {
     throw new Error('The accepted workspace could not be confirmed in the active session.');
   }
   await showView('overview');
+  return isCurrent();
 }
 
 function listOrEmpty(items, renderer) {
