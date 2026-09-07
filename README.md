@@ -87,6 +87,8 @@ Sneup analyzes health, workload, velocity, cycle time, bottlenecks, stale depend
 
 High-impact actions require human review of the exact payload. Workspace policy can pause action types, raise risk posture, route review to stricter owners, and expire approvals. A global emergency stop rejects provider writes before execution is claimed.
 
+Recommendation decisions and payload reviews retain their original workspace/session context. Stale or detached controls cannot submit, overlapping decisions and payload saves for the same recommendation are suppressed, and late results cannot reopen a dismissed review or replace a newer dialog. Switching workspace clears open payload-review and operating-ledger dialogs. An acknowledged decision or payload save is distinguished from a failed ledger refresh; reopening Approvals then retries the read. These browser safeguards complement the server's exact-revision checks, not replace them, and do not undo a request already accepted by the server.
+
 ### Notifications and reports
 
 Sneup can prepare reconciliation alerts, daily operations briefs, and reports through configured delivery policies. Destinations are encrypted and sends are claimed atomically to avoid duplicate delivery.
@@ -295,7 +297,7 @@ The installer is written to:
 release\Sneup-Setup-<version>.exe
 ```
 
-The local release line currently builds `Sneup-Setup-2.3.61.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
+The local release line currently builds `Sneup-Setup-2.3.62.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
 
 Verify the unpacked Windows app before distributing an installer:
 

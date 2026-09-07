@@ -25,6 +25,7 @@ const elementIds = [
 ];
 
 const makeCallbacks = () => ({
+  captureWorkspaceContext: jest.fn(() => () => true),
   runRecommendationAction: jest.fn(),
   runDecisionAction: jest.fn(),
   runFollowUpAction: jest.fn(),
@@ -363,6 +364,36 @@ describe('demand-loaded approval view', () => {
     expect(harness.elements.decisionQueue.textContent).toContain('HTTP evidence');
     expect(harness.elements.decisionQueue.textContent).toContain('Credential evidence');
     harness.dom.window.close();
+  });
+
+  test('rendering approvals never attaches action handlers to a separate ledger modal', () => {
+    const h = createHarness('en');
+    const document = h.dom.window.document;
+    document.getElementById('modalBody').innerHTML = '<button data-recommendation-action="approve" data-recommendation-id="modal-rec" data-recommendation-revision="7">Modal approve</button>';
+    const button = document.querySelector('[data-recommendation-id="modal-rec"]');
+    h.controller.render();
+    h.controller.render();
+    button.click();
+    expect(h.callbacks.runRecommendationAction).not.toHaveBeenCalled();
+    h.dom.window.close();
+  });
+
+  test('stale and detached approval rows cannot trigger actions', () => {
+    const h = createHarness('en');
+    let current = true;
+    h.callbacks.captureWorkspaceContext.mockImplementation(() => () => current);
+    h.controller.render();
+    const oldButton = h.dom.window.document.querySelector('[data-recommendation-action="approve"]');
+    current = false;
+    oldButton.click();
+    expect(h.callbacks.runRecommendationAction).not.toHaveBeenCalled();
+    current = true;
+    h.controller.render();
+    oldButton.click();
+    expect(h.callbacks.runRecommendationAction).not.toHaveBeenCalled();
+    h.dom.window.document.querySelector('[data-recommendation-action="approve"]').click();
+    expect(h.callbacks.runRecommendationAction).toHaveBeenCalledTimes(1);
+    h.dom.window.close();
   });
 
   test('keeps every approval operator message in the Dutch catalog', () => {

@@ -7,7 +7,7 @@ const initialState = () => new Function('localStorage', 'sessionStorage', 'SESSI
   `${source.slice(source.indexOf('const state = {'), source.indexOf('const els = {'))}; return state;`)(
   { getItem: () => '' }, { getItem: () => '' }, 'session', 'setup');
 
-test.each([null, 'forecastScenarioForm', 'capacityProfileForm', 'boardProjectMappingsForm'])('workspace reset clears dashboard evidence and any open %s without loading modules', formId => {
+test.each([null, 'forecastScenarioForm', 'capacityProfileForm', 'boardProjectMappingsForm', 'payloadReviewForm', 'payloadReviewLoading', 'ledgerClose'])('workspace reset clears dashboard evidence and any open %s without loading modules', formId => {
   expect(source.includes('function resetDashboardViews(')).toBe(true);
   const dom = new JSDOM(fs.readFileSync(path.join(root, 'public/index.html'), 'utf8'));
   const document = dom.window.document;
@@ -33,7 +33,7 @@ test.each([null, 'forecastScenarioForm', 'capacityProfileForm', 'boardProjectMap
     els.connectorModal.classList.add('open');
   }
   const options = { document, window: dom.window, state, elements: els,
-    callbacks: { bindLedgerDrilldownActions: jest.fn(), bindGraphActions: jest.fn() }, t: value => value,
+    callbacks: { captureWorkspaceContext: () => () => true, bindLedgerDrilldownActions: jest.fn(), bindGraphActions: jest.fn() }, t: value => value,
     plural: (one, many, count) => (count === 1 ? one : many).replace('{count}', String(count)),
     escapeHtml: String, isFeatureEnabled: () => false, formatDate: () => '', getId: item => item?.id || '',
     severityClass: () => '', signalClass: () => '' };

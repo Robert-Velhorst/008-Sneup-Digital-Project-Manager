@@ -1,18 +1,12 @@
 const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
+const { cleanupVerificationDatabase } = require('./verify-hai-snapshot');
 
 const uri = process.env.SNEUP_REVIEW_CONCURRENCY_VERIFICATION_MONGO_URI;
 const databaseName = uri ? new URL(uri).pathname.replace(/^\//, '').split('?')[0] : '';
-if (!uri || !/^sneup_review_concurrency_verification_[a-z0-9_-]+$/i.test(databaseName)) {
+if (!uri || Buffer.byteLength(databaseName) > 63 || !/^sneup_review_concurrency_verification_[a-z0-9_-]+$/i.test(databaseName)) {
   throw new Error('SNEUP_REVIEW_CONCURRENCY_VERIFICATION_MONGO_URI must target a dedicated sneup_review_concurrency_verification_* database');
 }
-
-const Workspace = require('../src/models/Workspace');
-const Recommendation = require('../src/models/Recommendation');
-const Approval = require('../src/models/Approval');
-const DecisionQueueItem = require('../src/models/DecisionQueueItem');
-const TrelloActionAttempt = require('../src/models/TrelloActionAttempt');
-const operationsLedgerService = require('../src/services/operationsLedgerService');
 
 const recommendationData = (workspaceId, suffix) => ({
   workspaceId,
@@ -47,8 +41,18 @@ const rejectedCode = result => result.status === 'rejected' ? result.reason?.cod
 
 const run = async () => {
   const startedAt = process.hrtime.bigint();
-  await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
+  let ownsDatabase = false;
   try {
+    await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
+    const collections = await mongoose.connection.db.listCollections({}, { nameOnly: true }).toArray();
+    assert.equal(collections.length, 0, 'Refusing to modify an existing nonempty verification database');
+    ownsDatabase = true;
+    const Workspace = require('../src/models/Workspace');
+    const Recommendation = require('../src/models/Recommendation');
+    const Approval = require('../src/models/Approval');
+    const DecisionQueueItem = require('../src/models/DecisionQueueItem');
+    const TrelloActionAttempt = require('../src/models/TrelloActionAttempt');
+    const operationsLedgerService = require('../src/services/operationsLedgerService');
     await Promise.all([
       Workspace.init(),
       Recommendation.init(),
@@ -164,10 +168,7 @@ const run = async () => {
       providerWrites: false
     }, null, 2)}\n`);
   } finally {
-    if (mongoose.connection.readyState === 1) {
-      await mongoose.connection.dropDatabase();
-    }
-    await mongoose.disconnect();
+    await cleanupVerificationDatabase(mongoose, ownsDatabase);
   }
 };
 

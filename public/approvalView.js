@@ -34,6 +34,9 @@
   ]);
 
   const NL_MESSAGES = Object.freeze({
+    'Loading payload context...': 'Context van de actie laden...',
+    'The action was recorded, but the ledger could not refresh. Reopen Approvals before taking another action.': 'De actie is vastgelegd, maar het logboek kon niet vernieuwen. Open Goedkeuringen opnieuw voordat je een volgende actie uitvoert.',
+    'The revised action needs fresh approval, but the ledger could not refresh. Reopen Approvals before continuing.': 'De aangepaste actie vereist nieuwe goedkeuring, maar het logboek kon niet vernieuwen. Open Goedkeuringen opnieuw voordat je doorgaat.',
     'Operations ledger needs live data:': 'Het bewerkingenlogboek heeft livegegevens nodig:',
     'Read-only demo ledger. It shows representative approval evidence and never sends provider writes or saves decisions.': 'Alleen-lezen demologboek. Het toont representatief goedkeuringsbewijs en verstuurt nooit providerschrijfacties of beslissingen.',
     'Notification policies are unavailable in the read-only demo ledger.': 'Meldingsbeleid is niet beschikbaar in het alleen-lezen demologboek.',
@@ -812,38 +815,52 @@
     }
 
     function bindActions() {
-      document.querySelectorAll('[data-recommendation-action]').forEach(button => button.addEventListener('click', () => callbacks.runRecommendationAction(
+      const roots = [elements.decisionQueue, elements.recommendationList, elements.followUps, elements.trelloAttempts,
+        elements.outcomeList, elements.notificationPolicies, elements.notificationDeliveries];
+      const findButtons = selector => roots.flatMap(root => [...root.querySelectorAll(selector)]);
+      const ownsContext = callbacks.captureWorkspaceContext();
+      const bind = (button, action) => {
+        const root = roots.find(item => item.contains(button));
+        button.addEventListener('click', async () => {
+          if (!ownsContext() || !root.contains(button) || button.disabled) return;
+          button.disabled = true;
+          try { await action(); } finally {
+            if (ownsContext() && root.contains(button)) button.disabled = false;
+          }
+        });
+      };
+      findButtons('[data-recommendation-action]').forEach(button => bind(button, () => callbacks.runRecommendationAction(
         button.dataset.recommendationId,
         button.dataset.recommendationAction,
         Number(button.dataset.recommendationRevision)
       )));
-      document.querySelectorAll('[data-decision-action]').forEach(button => button.addEventListener('click', () => callbacks.runDecisionAction(button.dataset.decisionId, button.dataset.decisionAction)));
-      document.querySelectorAll('[data-followup-action]').forEach(button => button.addEventListener('click', () => callbacks.runFollowUpAction(button.dataset.followupId, button.dataset.followupAction)));
-      document.querySelectorAll('[data-followup-response]').forEach(button => button.addEventListener('click', () => callbacks.openWorkerResponseRecorder(button.dataset.followupResponse)));
-      document.querySelectorAll('[data-payload-edit]').forEach(button => button.addEventListener('click', () => callbacks.editRecommendationPayload(
+      findButtons('[data-decision-action]').forEach(button => bind(button, () => callbacks.runDecisionAction(button.dataset.decisionId, button.dataset.decisionAction)));
+      findButtons('[data-followup-action]').forEach(button => bind(button, () => callbacks.runFollowUpAction(button.dataset.followupId, button.dataset.followupAction)));
+      findButtons('[data-followup-response]').forEach(button => bind(button, () => callbacks.openWorkerResponseRecorder(button.dataset.followupResponse)));
+      findButtons('[data-payload-edit]').forEach(button => bind(button, () => callbacks.editRecommendationPayload(
         button.dataset.payloadEdit,
         Number(button.dataset.recommendationRevision)
       )));
-      document.querySelectorAll('[data-recommendation-evidence]').forEach(button => button.addEventListener('click', () => callbacks.openRecommendationEvidence(button.dataset.recommendationEvidence)));
-      document.querySelectorAll('[data-trello-action-reconcile]').forEach(button => button.addEventListener('click', () => callbacks.openTrelloActionReconciliation(button.dataset.trelloActionReconcile)));
-      document.querySelectorAll('[data-outcome-evaluate]').forEach(button => button.addEventListener('click', () => callbacks.runOutcomeEvaluation(button.dataset.outcomeEvaluate)));
-      document.querySelectorAll('[data-notification-policy-edit]').forEach(button => button.addEventListener('click', () => {
+      findButtons('[data-recommendation-evidence]').forEach(button => bind(button, () => callbacks.openRecommendationEvidence(button.dataset.recommendationEvidence)));
+      findButtons('[data-trello-action-reconcile]').forEach(button => bind(button, () => callbacks.openTrelloActionReconciliation(button.dataset.trelloActionReconcile)));
+      findButtons('[data-outcome-evaluate]').forEach(button => bind(button, () => callbacks.runOutcomeEvaluation(button.dataset.outcomeEvaluate)));
+      findButtons('[data-notification-policy-edit]').forEach(button => bind(button, () => {
         const policy = (state.ledger.notificationPolicies || []).find(item => getId(item.id || item._id) === button.dataset.notificationPolicyEdit);
         if (policy) openNotificationPolicyForm(policy);
       }));
-      document.querySelectorAll('[data-notification-policy-activate]').forEach(button => button.addEventListener('click', () => {
+      findButtons('[data-notification-policy-activate]').forEach(button => bind(button, () => {
         const policy = (state.ledger.notificationPolicies || []).find(item => getId(item.id || item._id) === button.dataset.notificationPolicyActivate);
         if (policy) openNotificationActivation(policy);
       }));
-      document.querySelectorAll('[data-notification-policy-pause]').forEach(button => button.addEventListener('click', () => {
+      findButtons('[data-notification-policy-pause]').forEach(button => bind(button, () => {
         const policy = (state.ledger.notificationPolicies || []).find(item => getId(item.id || item._id) === button.dataset.notificationPolicyPause);
-        if (policy) updateNotificationPolicyStatus(policy, 'paused', button);
+        if (policy) return updateNotificationPolicyStatus(policy, 'paused', button);
       }));
-      document.querySelectorAll('[data-notification-policy-test]').forEach(button => button.addEventListener('click', () => {
+      findButtons('[data-notification-policy-test]').forEach(button => bind(button, () => {
         const policy = (state.ledger.notificationPolicies || []).find(item => getId(item.id || item._id) === button.dataset.notificationPolicyTest);
         if (policy) openNotificationTest(policy);
       }));
-      document.querySelectorAll('[data-notification-delivery-evidence]').forEach(button => button.addEventListener('click', () => callbacks.openNotificationDeliveryEvidence(button.dataset.notificationDeliveryEvidence)));
+      findButtons('[data-notification-delivery-evidence]').forEach(button => bind(button, () => callbacks.openNotificationDeliveryEvidence(button.dataset.notificationDeliveryEvidence)));
       callbacks.bindLedgerDrilldownActions();
       callbacks.bindGraphActions();
     }

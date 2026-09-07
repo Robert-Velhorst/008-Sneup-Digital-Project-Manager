@@ -225,6 +225,7 @@ function loadApprovalView() {
           getId,
           canEditPayload: recommendation => getPayloadReviewFields(recommendation).length > 0,
           callbacks: {
+            captureWorkspaceContext,
             runRecommendationAction,
             runDecisionAction,
             runFollowUpAction,
@@ -1434,7 +1435,7 @@ async function fetchApi(url, options) {
 }
 
 function resetDashboardViews() {
-  if (els.modalBody.querySelector('#forecastScenarioForm, #capacityProfileForm, #boardProjectMappingsForm')) {
+  if (els.modalBody.querySelector('#forecastScenarioForm, #capacityProfileForm, #boardProjectMappingsForm, #payloadReviewForm, #payloadReviewLoading, #ledgerClose')) {
     closeModal();
     els.modalBody.replaceChildren();
     els.modalTitle.textContent = '';
@@ -1517,6 +1518,7 @@ function adoptWorkspaceContext(workspaceId, sessionToken, options = {}) {
   cancelReportDownloads();
   state.workspaceExportController?.abort();
   state.workspaceExportController = null;
+  state.pendingRecommendationActions = new Set();
   state.workspaceEpoch = (state.workspaceEpoch || 0) + 1;
   state.sessionToken = sessionToken;
   state.activeWorkspaceId = workspaceId;
@@ -2306,6 +2308,14 @@ function safeExternalUrl(value) {
 
 async function runRecommendationAction(recommendationId, action, expectedRevision) {
   if (!recommendationId || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0) return;
+  if (!['approve', 'reject', 'change', 'execute-approved'].includes(action)) return;
+  const pending = state.pendingRecommendationActions ||= new Set();
+  if (pending.has(recommendationId)) return;
+  pending.add(recommendationId);
+  const ownsContext = captureWorkspaceContext();
+  const modalContent = els.modalBody.firstChild;
+  const modalEpoch = state.modalEpoch || 0;
+  const canPresent = () => ownsContext() && els.modalBody.firstChild === modalContent && (state.modalEpoch || 0) === modalEpoch;
 
   const endpoint = `/api/recommendations/${recommendationId}/${action}`;
   const body = action === 'approve'
@@ -2322,11 +2332,23 @@ async function runRecommendationAction(recommendationId, action, expectedRevisio
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    openNotice(t('Recommendation updated'), data.message || t('Action completed: {action}', { action: t(String(action).replaceAll('-', ' ')) }));
-    await loadOperationsLedger();
+    if (!ownsContext()) return;
+    try {
+      await loadOperationsLedger({ throwOnError: true });
+    } catch {
+      if (ownsContext()) state.loadedViews.delete('approvals');
+      if (canPresent()) openNotice(t('Recommendation updated'), t('The action was recorded, but the ledger could not refresh. Reopen Approvals before taking another action.'));
+      return;
+    }
+    if (canPresent()) openNotice(t('Recommendation updated'), data.message || t('Action completed: {action}', { action: t(String(action).replaceAll('-', ' ')) }));
   } catch (error) {
-    if (error.code === 'SNEUP_RECOMMENDATION_REVIEW_CONFLICT') await loadOperationsLedger();
-    openNotice(t('Recommendation action failed'), error.message);
+    if (!ownsContext()) return;
+    if (error.code === 'SNEUP_RECOMMENDATION_REVIEW_CONFLICT') {
+      try { await loadOperationsLedger({ throwOnError: true }); } catch { /* Keep the original review conflict. */ }
+    }
+    if (canPresent()) openNotice(t('Recommendation action failed'), error.message);
+  } finally {
+    pending.delete(recommendationId);
   }
 }
 async function runDecisionAction(itemId, action) {
@@ -2500,15 +2522,23 @@ async function editRecommendationPayload(recommendationId, expectedRevision) {
   if (!recommendation) return;
   const fields = getPayloadReviewFields(recommendation);
   if (fields.length === 0) return;
+  const ownsContext = captureWorkspaceContext();
+  const ownsOpening = beginWorkspaceRead('payloadReview');
+  els.modalTitle.textContent = t('Review payload');
+  els.modalBody.innerHTML = `<div id="payloadReviewLoading" class="notice">${et('Loading payload context...')}</div>`;
+  els.modal.classList.add('open');
+  const placeholder = els.modalBody.firstChild;
+  const isOpening = () => ownsOpening() && els.modal.classList.contains('open') && els.modalBody.firstChild === placeholder;
 
   const payload = recommendation.actionPayload || {};
   let context = {};
   try {
     context = await loadPayloadReviewContext(recommendation, fields);
   } catch (error) {
-    openNotice(t('Payload review unavailable'), error.message);
+    if (isOpening()) openNotice(t('Payload review unavailable'), error.message);
     return;
   }
+  if (!isOpening()) return;
   const reviewReady = isPayloadReviewReady(fields, context);
   els.modalTitle.textContent = t('Review {action} payload', {
     action: t(String(recommendation.actionType || 'action').replaceAll('_', ' '))
@@ -2527,10 +2557,15 @@ async function editRecommendationPayload(recommendationId, expectedRevision) {
   `;
   els.modal.classList.add('open');
   document.getElementById('cancelPayloadReview').addEventListener('click', closeModal);
-  document.getElementById('payloadReviewForm').addEventListener('submit', async (event) => {
+  const form = document.getElementById('payloadReviewForm');
+  const isCurrent = () => ownsOpening() && els.modal.classList.contains('open') && els.modalBody.contains(form);
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const form = event.currentTarget;
     const submitButton = form.querySelector('button[type="submit"]');
+    if (!isCurrent() || submitButton.disabled || !reviewReady) return;
+    const pending = state.pendingRecommendationActions ||= new Set();
+    if (pending.has(recommendationId)) return;
+    pending.add(recommendationId);
     const actionPayload = {};
     for (const field of fields) {
       const input = form.elements[field.key];
@@ -2552,17 +2587,32 @@ async function editRecommendationPayload(recommendationId, expectedRevision) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ updatedBy: 'robert', expectedRevision, actionPayload })
       });
-      closeModal();
-      openNotice(t('Payload saved'), t('The revised action is pending a fresh Yes/No approval.'));
-      await loadOperationsLedger();
-    } catch (error) {
-      if (error.code === 'SNEUP_RECOMMENDATION_REVIEW_CONFLICT') {
-        closeModal();
-        await loadOperationsLedger();
-      } else {
-        submitButton.disabled = false;
+      if (!ownsContext()) return;
+      try {
+        await loadOperationsLedger({ throwOnError: true });
+      } catch {
+        if (ownsContext()) state.loadedViews.delete('approvals');
+        if (isCurrent()) {
+          closeModal();
+          openNotice(t('Payload saved'), t('The revised action needs fresh approval, but the ledger could not refresh. Reopen Approvals before continuing.'));
+        }
+        return;
       }
-      openNotice(t('Payload update failed'), error.message);
+      if (isCurrent()) {
+        closeModal();
+        openNotice(t('Payload saved'), t('The revised action is pending a fresh Yes/No approval.'));
+      }
+    } catch (error) {
+      if (!ownsContext()) return;
+      if (error.code === 'SNEUP_RECOMMENDATION_REVIEW_CONFLICT') {
+        try { await loadOperationsLedger({ throwOnError: true }); } catch { /* Keep the original review conflict. */ }
+      }
+      if (isCurrent()) {
+        submitButton.disabled = false;
+        openNotice(t('Payload update failed'), error.message);
+      }
+    } finally {
+      pending.delete(recommendationId);
     }
   });
 }
@@ -2751,25 +2801,26 @@ function bindLedgerDrilldownActions() {
 
 async function openOperatingLedger(type, entityId) {
   if (!entityId) return;
-  await Promise.all([loadApprovalView(), loadWorkSignalsView()]);
-
-  if (state.snapshot?.mode === 'demo' || state.ledger.demoMode) {
-    openNotice(
-      'Read-only demo ledger',
-      'Board and card drill-downs need live workspace data. Review the approval ledger for representative demo evidence.'
-    );
-    return;
-  }
-
+  const ownsContext = beginWorkspaceRead('operatingLedger');
+  const initialContent = els.modalBody.firstChild;
+  const modalEpoch = state.modalEpoch || 0;
+  const isCurrent = () => ownsContext() && els.modalBody.firstChild === initialContent && (state.modalEpoch || 0) === modalEpoch;
   const endpoint = type === 'board'
     ? `/api/boards/${entityId}/operating-ledger`
     : `/api/cards/${entityId}/operating-ledger`;
 
   try {
+    await Promise.all([loadApprovalView(), loadWorkSignalsView()]);
+    if (!isCurrent()) return;
+    if (state.snapshot?.mode === 'demo' || state.ledger.demoMode) {
+      openNotice('Read-only demo ledger', 'Board and card drill-downs need live workspace data. Review the approval ledger for representative demo evidence.');
+      return;
+    }
     const data = await fetchApi(endpoint);
+    if (!isCurrent()) return;
     renderOperatingLedgerModal(type, data.ledger || {});
   } catch (error) {
-    openNotice('Operating ledger unavailable', error.message);
+    if (isCurrent()) openNotice('Operating ledger unavailable', error.message);
   }
 }
 
@@ -2811,24 +2862,29 @@ function renderOperatingLedgerModal(type, ledger = {}) {
   bindLedgerDrilldownActions();
   bindGraphActions();
   bindGraphLedgerFilters();
-  document.querySelectorAll('[data-recommendation-action]').forEach((button) => {
-    button.addEventListener('click', () => runRecommendationAction(
+  const ownsContext = captureWorkspaceContext();
+  const content = els.modalBody.firstChild;
+  const bind = (button, action) => button.addEventListener('click', () => {
+    if (ownsContext() && els.modal.classList.contains('open') && els.modalBody.firstChild === content && els.modalBody.contains(button)) return action();
+  });
+  els.modalBody.querySelectorAll('[data-recommendation-action]').forEach((button) => {
+    bind(button, () => runRecommendationAction(
       button.dataset.recommendationId,
       button.dataset.recommendationAction,
       Number(button.dataset.recommendationRevision)
     ));
   });
-  document.querySelectorAll('[data-recommendation-evidence]').forEach((button) => {
-    button.addEventListener('click', () => openRecommendationEvidence(button.dataset.recommendationEvidence));
+  els.modalBody.querySelectorAll('[data-recommendation-evidence]').forEach((button) => {
+    bind(button, () => openRecommendationEvidence(button.dataset.recommendationEvidence));
   });
-  document.querySelectorAll('[data-payload-edit]').forEach((button) => {
-    button.addEventListener('click', () => editRecommendationPayload(
+  els.modalBody.querySelectorAll('[data-payload-edit]').forEach((button) => {
+    bind(button, () => editRecommendationPayload(
       button.dataset.payloadEdit,
       Number(button.dataset.recommendationRevision)
     ));
   });
-  document.querySelectorAll('[data-outcome-evaluate]').forEach((button) => {
-    button.addEventListener('click', () => runOutcomeEvaluation(button.dataset.outcomeEvaluate));
+  els.modalBody.querySelectorAll('[data-outcome-evaluate]').forEach((button) => {
+    bind(button, () => runOutcomeEvaluation(button.dataset.outcomeEvaluate));
   });
 }
 
@@ -4210,6 +4266,7 @@ function sendNotificationPolicyTest(policyId) {
 }
 
 function closeModal() {
+  state.modalEpoch = (state.modalEpoch || 0) + 1;
   const cleanup = state.modalCleanup;
   state.modalCleanup = null;
   cleanup?.();
