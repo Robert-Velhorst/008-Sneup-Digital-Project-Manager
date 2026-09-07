@@ -18,15 +18,19 @@ test('the existing follow-up worker recovers pending effects first and reports f
     order.push('responses');
     return { processedCount: 2, completedCount: 1, failureCount: 1 };
   });
+  const executions = jest.spyOn(ledger, 'retryPendingTrelloExecutionEffects').mockImplementation(async () => {
+    order.push('executions');
+    return { processedCount: 3, completedCount: 2, failureCount: 1 };
+  });
   const process = jest.spyOn(engine, 'processFollowUps').mockImplementation(async () => {
     order.push('queue');
     return ['synthetic'];
   });
   const provider = jest.spyOn(ledger, 'performTrelloAction');
   await expect(worker.processFollowUps('synthetic-workspace')).resolves.toEqual({
-    processedCount: 10, successCount: 4, failureCount: 2
+    processedCount: 13, successCount: 6, failureCount: 3
   });
-  expect(order).toEqual(['recover', 'responses', 'due', 'queue']);
-  for (const call of [recover, responses, due, process]) expect(call).toHaveBeenCalledWith({ workspaceId: 'synthetic-workspace' });
+  expect(order).toEqual(['recover', 'executions', 'responses', 'due', 'queue']);
+  for (const call of [recover, executions, responses, due, process]) expect(call).toHaveBeenCalledWith({ workspaceId: 'synthetic-workspace' });
   expect(provider).not.toHaveBeenCalled();
 });

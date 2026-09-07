@@ -14,6 +14,7 @@ const sourceEvidenceSchema = new mongoose.Schema({
 }, { _id: false });
 
 const recommendationSchema = new mongoose.Schema({
+  executionAttemptId: { type: mongoose.Schema.Types.ObjectId, ref: 'TrelloActionAttempt' },
   workspaceId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Workspace',

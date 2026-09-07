@@ -1,6 +1,18 @@
 const mongoose = require('mongoose');
 
+const executionEffectsSchema = new mongoose.Schema({
+  status: { type: String, enum: ['pending', 'completed', 'superseded'], required: true },
+  auditId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  followUpId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  actor: String,
+  nextAttemptAt: Date,
+  completedAt: Date,
+  interventionUpdated: Boolean,
+  followUpScheduled: Boolean
+}, { _id: false });
+
 const trelloActionAttemptSchema = new mongoose.Schema({
+  executionEffects: { type: executionEffectsSchema, default: undefined },
   workspaceId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Workspace',
@@ -86,5 +98,6 @@ trelloActionAttemptSchema.index({ workspaceId: 1, status: 1, createdAt: -1 });
 trelloActionAttemptSchema.index({ workspaceId: 1, recommendationId: 1, createdAt: -1, _id: -1 });
 trelloActionAttemptSchema.index({ workspaceId: 1, boardId: 1, createdAt: -1 });
 trelloActionAttemptSchema.index({ workspaceId: 1, 'reconciliation.status': 1, updatedAt: -1 });
+trelloActionAttemptSchema.index({ workspaceId: 1, status: 1, 'executionEffects.status': 1, 'executionEffects.nextAttemptAt': 1, _id: 1 });
 
 module.exports = mongoose.models.TrelloActionAttempt || mongoose.model('TrelloActionAttempt', trelloActionAttemptSchema);

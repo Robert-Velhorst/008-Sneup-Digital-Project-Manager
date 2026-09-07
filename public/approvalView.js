@@ -375,6 +375,7 @@
     'Finalizing...': 'Voltooien...',
     'Ledger reconciled': 'Logboek afgestemd',
     'Internal ledger work pending': 'Interne logboekverwerking in afwachting',
+    'The Trello action succeeded. Internal follow-up or audit work remains pending and will be retried by the follow-up worker.': 'De Trello-actie is geslaagd. Interne opvolging of logboekverwerking is nog niet afgerond en wordt opnieuw geprobeerd door de opvolgtaak.',
     'The provider result is recorded. Internal follow-up or audit work remains pending; the follow-up worker or another reconciliation retry can finish it.': 'Het providerresultaat is vastgelegd. Interne opvolging of auditregistratie is nog niet afgerond; de opvolgtaak of een nieuwe afstemmingspoging kan dit voltooien.',
     'The result was recorded, but the ledger could not be refreshed. Reopen Approvals to review the current state.': 'Het resultaat is vastgelegd, maar het logboek kon niet worden vernieuwd. Open Goedkeuringen opnieuw om de huidige status te bekijken.',
     'Reconciliation blocked': 'Afstemming geblokkeerd',
@@ -968,9 +969,10 @@
 
     function renderTrelloAttempt(attempt) {
       const attemptId = getId(attempt._id || attempt.id);
-      const effectsPending = attempt.recommendationId?.reconciliationDecision?.effects?.status === 'pending';
+      const reconciliationPending = attempt.recommendationId?.reconciliationDecision?.effects?.status === 'pending';
+      const effectsPending = reconciliationPending || (attempt.status === 'succeeded' && attempt.executionEffects?.status === 'pending');
       const needsReconciliation = attempt.status === 'in_progress'
-        || effectsPending
+        || reconciliationPending
         || attempt.recommendationId?.status === 'executing'
         || attempt.reconciliation?.status === 'required';
       const reconciliation = attempt.reconciliation || {};

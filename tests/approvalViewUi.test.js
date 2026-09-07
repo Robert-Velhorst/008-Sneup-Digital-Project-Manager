@@ -160,6 +160,22 @@ describe('demand-loaded approval view', () => {
     harness.dom.window.close();
   });
 
+  test('successful normal execution discloses pending internal effects without reopening provider reconciliation', () => {
+    const harness = createHarness('en');
+    const action = harness.state.ledger.actions[0];
+    action.status = 'succeeded';
+    action.reconciliation = { status: 'not_needed' };
+    action.recommendationId = { status: 'executed' };
+    action.executionEffects = { status: 'pending' };
+    harness.controller.render();
+    expect(harness.elements.trelloAttempts.textContent).toContain('Internal ledger work pending');
+    expect(harness.elements.trelloAttempts.querySelector('[data-trello-action-reconcile]')).toBeNull();
+    action.executionEffects.status = 'completed';
+    harness.controller.render();
+    expect(harness.elements.trelloAttempts.textContent).not.toContain('Internal ledger work pending');
+    harness.dom.window.close();
+  });
+
   test('renders Dutch operator chrome while preserving identities, evidence, errors, and exact payloads', () => {
     const harness = createHarness('nl');
     harness.controller.render();

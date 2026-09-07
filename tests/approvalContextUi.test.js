@@ -112,6 +112,17 @@ test('opposing actions for the same recommendation cannot overlap', async () => 
   h.dom.window.close();
 });
 
+test('successful provider execution with pending internal effects is not presented as fully complete', async () => {
+  const h = harness();
+  const pending = h.runRecommendationAction('rec', 'execute-approved', 7);
+  h.requests[0].resolve({ effectsCompleted: false, attempt: { status: 'succeeded' } });
+  await pending;
+  expect(h.bindings.loadOperationsLedger).toHaveBeenCalledTimes(1);
+  expect(h.bindings.openNotice).toHaveBeenLastCalledWith('Recommendation updated',
+    'The Trello action succeeded. Internal follow-up or audit work remains pending and will be retried by the follow-up worker.');
+  h.dom.window.close();
+});
+
 test('payload editing and approval cannot overlap for the same recommendation', async () => {
   const h = harness();
   await h.editRecommendationPayload('rec', 7);

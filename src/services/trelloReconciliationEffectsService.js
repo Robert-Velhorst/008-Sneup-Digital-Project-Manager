@@ -50,11 +50,10 @@ async function updateIntervention(recommendation, attempt, ledger) {
   return true;
 }
 
-async function createFollowUp(recommendation, attempt, ledger) {
+async function createFollowUp(recommendation, attempt, ledger, plan = recommendation.reconciliationDecision.effects, actor = recommendation.reconciliationDecision.actor, source = 'manual') {
   if (attempt.status !== 'succeeded'
     || !['comment', 'follow_up', 'escalate', 'performance_notification'].includes(recommendation.actionType)) return false;
-  const effects = recommendation.reconciliationDecision.effects;
-  const proof = { _id: effects.followUpId, workspaceId: recommendation.workspaceId, recommendationId: recommendation._id };
+  const proof = { _id: plan.followUpId, workspaceId: recommendation.workspaceId, recommendationId: recommendation._id };
   let followUp = await FollowUpPlan.findOne(proof);
   if (!followUp) {
     const policy = require('./policyRuleService');
@@ -86,8 +85,8 @@ async function createFollowUp(recommendation, attempt, ledger) {
         // This follow-up may postdate the response's original batch. Its own stable audit is part of reconciliation recovery.
         await insertOnce(AuditEvent, {
           _id: followUp._id, workspaceId: response.workspaceId, entityType: 'worker_response', entityId: response._id,
-          action: 'late_follow_up_resolved_from_worker_response', actor: recommendation.reconciliationDecision.actor,
-          source: 'manual', recommendationId: recommendation._id, trelloActionAttemptId: attempt._id,
+          action: 'late_follow_up_resolved_from_worker_response', actor,
+          source, recommendationId: recommendation._id, trelloActionAttemptId: attempt._id,
           riskLevel: resolution.status === 'escalated' ? 'medium' : 'low',
           afterState: { ...resolution, followUpId: followUp._id, workerResponseId: response._id }
         }, { _id: followUp._id, workspaceId: response.workspaceId, entityId: response._id,
@@ -184,4 +183,4 @@ async function retryPending(options, ledger) {
   return { processedCount: records.length, completedCount, failureCount: records.length - completedCount };
 }
 
-module.exports = { finalize, retryPending };
+module.exports = { finalize, retryPending, createFollowUp, insertOnce };

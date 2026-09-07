@@ -2344,7 +2344,9 @@ async function runRecommendationAction(recommendationId, action, expectedRevisio
       if (canPresent()) openNotice(t('Recommendation updated'), t('The action was recorded, but the ledger could not refresh. Reopen Approvals before taking another action.'));
       return;
     }
-    if (canPresent()) openNotice(t('Recommendation updated'), data.message || t('Action completed: {action}', { action: t(String(action).replaceAll('-', ' ')) }));
+    if (canPresent()) openNotice(t('Recommendation updated'), data.effectsCompleted === false
+      ? t('The Trello action succeeded. Internal follow-up or audit work remains pending and will be retried by the follow-up worker.')
+      : data.message || t('Action completed: {action}', { action: t(String(action).replaceAll('-', ' ')) }));
   } catch (error) {
     if (!ownsContext()) return;
     if (error.code === 'SNEUP_RECOMMENDATION_REVIEW_CONFLICT') {

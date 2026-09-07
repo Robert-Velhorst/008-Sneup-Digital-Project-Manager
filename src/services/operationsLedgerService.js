@@ -1488,6 +1488,10 @@ class OperationsLedgerService {
         actionType: claimedRecommendation.actionType,
         payload: claimedRecommendation.actionPayload,
         status: 'in_progress',
+        executionEffects: {
+          status: 'pending', auditId: new mongoose.Types.ObjectId(), followUpId: new mongoose.Types.ObjectId(),
+          actor: options.actor || approval?.decidedBy || 'sneup', nextAttemptAt: new Date(Date.now() + 5 * 60 * 1000)
+        },
         startedAt: new Date()
       });
 
@@ -1496,11 +1500,18 @@ class OperationsLedgerService {
       attempt.status = 'succeeded';
       attempt.finishedAt = new Date();
       attempt.trelloResponse = trelloResponse;
-      await attempt.save();
+      try {
+        await attempt.save();
+      } catch {
+        attempt = await this.recoverLedgerCommit(TrelloActionAttempt, {
+          _id: attempt._id, workspaceId: claimedRecommendation.workspaceId, status: 'succeeded',
+          'executionEffects.auditId': attempt.executionEffects.auditId,
+          'reconciliation.status': 'not_needed'
+        });
+      }
 
-      claimedRecommendation.status = 'executed';
-      claimedRecommendation.executedAt = attempt.finishedAt;
-      await claimedRecommendation.save();
+      const result = await this.finalizeTrelloExecutionEffects(attempt);
+      if (result.superseded) throw this.reconciliationConflict();
       await this.recordRecommendationLearningFeedback(claimedRecommendation, {
         decision: 'executed',
         accepted: true,
@@ -1508,34 +1519,7 @@ class OperationsLedgerService {
         outcome: 'unknown'
       });
 
-      if (claimedRecommendation.interventionId) {
-        const intervention = await Intervention.findOne({
-          _id: claimedRecommendation.interventionId,
-          workspaceId: claimedRecommendation.workspaceId
-        });
-        if (intervention) {
-          await intervention.markExecuted({
-            recommendationId: claimedRecommendation._id,
-            trelloActionAttemptId: attempt._id
-          });
-        }
-      }
-
-      await this.scheduleFollowUp(claimedRecommendation);
-      await this.recordAudit({
-        entityType: 'trello_action_attempt',
-        entityId: attempt._id,
-        action: 'trello_action_succeeded',
-        actor: options.actor || approval?.decidedBy || 'sneup',
-        source: 'trello',
-        riskLevel: claimedRecommendation.riskLevel,
-        approvalId: approval?._id,
-        recommendationId: claimedRecommendation._id,
-        trelloActionAttemptId: attempt._id,
-        afterState: attempt.toObject()
-      });
-
-      return { recommendation: claimedRecommendation, attempt };
+      return result;
     } catch (error) {
       if (providerWriteCompleted) {
         logger.error('Trello write succeeded but post-write ledger finalization failed. Leaving the recommendation claimed to prevent a duplicate provider write.', error);
@@ -2518,6 +2502,15 @@ class OperationsLedgerService {
 
   async finalizeTrelloReconciliationEffects(recommendation, attempt) {
     return require('./trelloReconciliationEffectsService').finalize(recommendation, attempt, this);
+  }
+
+  async finalizeTrelloExecutionEffects(attempt) {
+    return require('./trelloExecutionEffectsService').finalize(attempt, this);
+  }
+
+  async retryPendingTrelloExecutionEffects(options = {}) {
+    this.requireDatabase();
+    return require('./trelloExecutionEffectsService').retryPending(options, this);
   }
 
   async retryPendingTrelloReconciliations(options = {}) {

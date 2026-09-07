@@ -303,7 +303,7 @@ The installer is written to:
 release\Sneup-Setup-<version>.exe
 ```
 
-The local release line currently builds `Sneup-Setup-2.3.66.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
+The local release line currently builds `Sneup-Setup-2.3.67.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
 
 Verify the unpacked Windows app before distributing an installer:
 
@@ -364,6 +364,7 @@ npm.cmd run verify:hai-http
 npm.cmd run verify:backup-restore
 npm.cmd run verify:ledger-acknowledgement
 npm.cmd run verify:follow-up-integrity
+npm.cmd run verify:trello-execution-effects
 npm.cmd run verify:trello-webhooks
 npm.cmd run verify:trello-list-index
 npm.cmd run verify:connector-recovery
@@ -392,6 +393,12 @@ Stop older application processes before upgrading so they cannot continue writin
 **Recovering recorded worker responses:** new responses also retain a pending internal-work plan. Once the exact intervention attachment is confirmed, Sneup fixes the original follow-up set and its result before writing the response and follow-up audit events. Retries reuse those records, preserve the original actor/time, and do not reattach a response to different work. Response text stays out of the ordinary API response and audit history. Follow-ups created later during Trello-result reconciliation are resolved separately with their own stable audit event; the original response receipt describes its original set, not all future activity.
 
 If internal work is interrupted, the response can remain recorded while **Internal ledger work pending** appears on the corresponding follow-up in the currently loaded ledger. Do not submit a second response. Keep the application and follow-up worker running: it retries up to 20 eligible response plans per active workspace on the existing hourly schedule, with a five-minute minimum retry delay. Unconfirmed responses without the exact saved intervention link remain excluded from accountability/outcome evidence and require investigation. Historical responses without recovery plans are not automatically migrated. The command `npm run verify:follow-up-integrity` exercises these recovery cases using `SNEUP_FOLLOW_UP_VERIFICATION_MONGO_URI` pointed at a new empty `sneup_follow_up_verification_<unique-suffix>` database, at most 63 bytes; it verifies exclusive ownership before cleanup. CI runs the same profile on disposable MongoDB.
+
+**Recovering a recorded successful Trello action:** new approved action attempts persist an internal-work plan before calling Trello. Once a successful result is saved, Sneup can resume the recommendation, intervention, follow-up, and success audit without repeating the provider request. The API returns `effectsCompleted: false` when this work remains pending, and **Approvals** shows **Internal ledger work pending** alongside the successful action. Do not approve or execute a replacement action just to finish that bookkeeping. Keep the app and follow-up worker running; it retries up to 20 eligible successful attempts per active workspace on the existing schedule, with at least five minutes between scheduled attempts. Invalid references are backed off so later work remains eligible.
+
+Recovery checks the original workspace, board/card, intervention, approval, and payload. An approval that expired after the recorded provider success does not require renewed provider permission. Failed/cancelled interventions and changed owners are not overwritten. A winning manual reconciliation owns its separate recovery plan. Follow-ups and audits reuse stable identifiers; a worker response recorded before follow-up insertion is applied with separate late-resolution evidence where needed. Historical attempts without plans and actions whose successful result was never saved still require investigation and, when appropriate, evidence-based manual reconciliation. Learning feedback remains best-effort and is not part of the completion receipt.
+
+`npm run verify:trello-execution-effects` uses `SNEUP_EXECUTION_EFFECTS_VERIFICATION_MONGO_URI` pointing to a new, empty `sneup_execution_verification_<unique-suffix>` database (at most 63 bytes). The verifier claims exclusive ownership and removes only its owned temporary database. It runs the actual approved-execution service with a synthetic provider boundary, interrupts database writes before or after commit, and checks recovery, duplicate prevention, original approvals, target identity, operator conflicts, and worker backoff. It makes no real provider calls. CI runs this profile against disposable MongoDB; it is not a live failover or production acceptance test.
 
 ## API overview
 

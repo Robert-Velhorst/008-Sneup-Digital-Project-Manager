@@ -59,6 +59,9 @@ jobs:
       - run: npm run verify:follow-up-integrity
         env:
           SNEUP_FOLLOW_UP_VERIFICATION_MONGO_URI: mongodb://127.0.0.1:27017/sneup_follow_up_verification_0000000000000001
+      - run: npm run verify:trello-execution-effects
+        env:
+          SNEUP_EXECUTION_EFFECTS_VERIFICATION_MONGO_URI: mongodb://127.0.0.1:27017/sneup_execution_verification_0000000000000001
       - name: Use the MongoDB service's native backup tools
         run: |
           docker cp "${{ job.services.mongodb.id }}:/usr/bin/mongodump" "$RUNNER_TEMP/mongodump"
