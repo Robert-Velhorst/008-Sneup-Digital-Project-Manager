@@ -272,6 +272,9 @@
     'Action completed: {action}': 'Actie voltooid: {action}',
     'Recommendation updated': 'Aanbeveling bijgewerkt',
     'Recommendation action failed': 'Aanbevelingsactie mislukt',
+    'The Trello action failed. Review the action history before proposing another action.': 'De Trello-actie is mislukt. Bekijk de actiegeschiedenis voordat je een andere actie voorstelt.',
+    'The Trello action failed. Internal ledger work remains pending and will be retried by the follow-up worker. Do not repeat the action.': 'De Trello-actie is mislukt. De interne registratie wordt opnieuw verwerkt door de opvolgtaak. Herhaal de actie niet.',
+    'The Trello action failed, but the ledger could not refresh. Reopen Approvals before taking another action.': 'De Trello-actie is mislukt, maar de registratie kon niet worden vernieuwd. Open Goedkeuringen opnieuw voordat je een andere actie uitvoert.',
     'Decision updated': 'Beslissing bijgewerkt',
     'Decision update failed': 'Beslissing bijwerken mislukt',
     'Decision snoozed using this workspace default.': 'Beslissing uitgesteld volgens de standaard van deze werkruimte.',
@@ -969,11 +972,14 @@
 
     function renderTrelloAttempt(attempt) {
       const attemptId = getId(attempt._id || attempt.id);
-      const reconciliationPending = attempt.recommendationId?.reconciliationDecision?.effects?.status === 'pending';
-      const effectsPending = reconciliationPending || (attempt.status === 'succeeded' && attempt.executionEffects?.status === 'pending');
+      const reconciliationPending = attempt.recommendationId?.reconciliationDecision
+        && (attempt.recommendationId.status === 'executing' || attempt.recommendationId.reconciliationDecision.effects?.status === 'pending');
+      const definitiveFailure = attempt.status === 'failed' && attempt.executionEffects?.outcome === 'failed'
+        && attempt.reconciliation?.status === 'not_needed' && !attempt.recommendationId?.reconciliationDecision;
+      const effectsPending = reconciliationPending || ((attempt.status === 'succeeded' || definitiveFailure) && attempt.executionEffects?.status === 'pending');
       const needsReconciliation = attempt.status === 'in_progress'
         || reconciliationPending
-        || attempt.recommendationId?.status === 'executing'
+        || (!definitiveFailure && attempt.recommendationId?.status === 'executing')
         || attempt.reconciliation?.status === 'required';
       const reconciliation = attempt.reconciliation || {};
       const stepLabel = (value) => {

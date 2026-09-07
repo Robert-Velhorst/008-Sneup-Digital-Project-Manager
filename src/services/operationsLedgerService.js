@@ -1541,6 +1541,27 @@ class OperationsLedgerService {
             detectedAt: attempt.finishedAt
           };
         }
+        if (error.requiresReconciliation !== true) {
+          // Only a persisted definitive failure authorizes internal recovery, never another provider call.
+          attempt.executionEffects.outcome = 'failed';
+          try {
+            await attempt.save();
+          } catch {
+            attempt = await this.recoverLedgerCommit(TrelloActionAttempt, {
+              _id: attempt._id, workspaceId: claimedRecommendation.workspaceId, status: 'failed',
+              'executionEffects.auditId': attempt.executionEffects.auditId, 'executionEffects.outcome': 'failed',
+              'reconciliation.status': 'not_needed'
+            });
+          }
+          const result = await this.finalizeTrelloExecutionEffects(attempt);
+          if (result.superseded) throw this.reconciliationConflict();
+          const failure = new Error(result.effectsCompleted
+            ? 'The Trello action failed. Review the action history before proposing another action.'
+            : 'The Trello action failed. Internal ledger work remains pending and will be retried by the follow-up worker. Do not repeat the action.');
+          failure.statusCode = 502;
+          failure.code = result.effectsCompleted ? 'SNEUP_TRELLO_ACTION_FAILED' : 'SNEUP_TRELLO_ACTION_FAILED_EFFECTS_PENDING';
+          throw failure;
+        }
         await attempt.save();
       }
 
@@ -2261,10 +2282,12 @@ class OperationsLedgerService {
 
     return actions.filter((attempt) => {
       const recommendation = attempt.recommendationId;
+      const definitiveFailure = attempt.status === 'failed' && attempt.executionEffects?.outcome === 'failed'
+        && attempt.reconciliation?.status === 'not_needed' && !recommendation?.reconciliationDecision;
       return attempt.reconciliation?.status === 'required'
         || attempt.status === 'in_progress'
         || recommendation?.reconciliationDecision?.effects?.status === 'pending'
-        || recommendation?.status === 'executing';
+        || (!definitiveFailure && recommendation?.status === 'executing');
     });
   }
 
@@ -2314,7 +2337,7 @@ class OperationsLedgerService {
         severity,
         recommendationId: recommendation?._id ? String(recommendation._id) : attempt.recommendationId ? String(attempt.recommendationId) : null,
         sourceUrl: safeExternalSourceUrl(attempt.cardId?.url),
-        message: recommendation?.reconciliationDecision?.effects?.status === 'pending'
+        message: recommendation?.reconciliationDecision
           ? 'The provider result is recorded. Internal intervention, follow-up, or audit work remains pending.'
           : partialResult
           ? 'The provider result is not definitive. Confirm the observed Trello result before any new action.'

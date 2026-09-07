@@ -303,7 +303,7 @@ The installer is written to:
 release\Sneup-Setup-<version>.exe
 ```
 
-The local release line currently builds `Sneup-Setup-2.3.67.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
+The local release line currently builds `Sneup-Setup-2.3.68.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
 
 Verify the unpacked Windows app before distributing an installer:
 
@@ -398,7 +398,11 @@ If internal work is interrupted, the response can remain recorded while **Intern
 
 Recovery checks the original workspace, board/card, intervention, approval, and payload. An approval that expired after the recorded provider success does not require renewed provider permission. Failed/cancelled interventions and changed owners are not overwritten. A winning manual reconciliation owns its separate recovery plan. Follow-ups and audits reuse stable identifiers; a worker response recorded before follow-up insertion is applied with separate late-resolution evidence where needed. Historical attempts without plans and actions whose successful result was never saved still require investigation and, when appropriate, evidence-based manual reconciliation. Learning feedback remains best-effort and is not part of the completion receipt.
 
-`npm run verify:trello-execution-effects` uses `SNEUP_EXECUTION_EFFECTS_VERIFICATION_MONGO_URI` pointing to a new, empty `sneup_execution_verification_<unique-suffix>` database (at most 63 bytes). The verifier claims exclusive ownership and removes only its owned temporary database. It runs the actual approved-execution service with a synthetic provider boundary, interrupts database writes before or after commit, and checks recovery, duplicate prevention, original approvals, target identity, operator conflicts, and worker backoff. It makes no real provider calls. CI runs this profile against disposable MongoDB; it is not a live failover or production acceptance test.
+**Recovering a recorded failed Trello action:** starting with 2.3.68, a definite failure saves an explicit `executionEffects.outcome: failed` marker with the attempt. The same internal recovery service can finish its failed recommendation/intervention and one failure audit, preserving the original actor and result time. It never retries Trello or schedules a follow-up for that failed action. Failed, executed, cancelled, or differently owned interventions are not overwritten by failure recovery. The shared 20-attempt worker batch now includes eligible successes and definite failures, with the same schedule and backoff, not an additional timer or a separate 20-failure batch.
+
+Execution still returns an HTTP failure: `SNEUP_TRELLO_ACTION_FAILED` when internal recording is complete, or `SNEUP_TRELLO_ACTION_FAILED_EFFECTS_PENDING` when recovery remains pending. The dashboard refreshes the ledger, shows the failed state and pending label, and does not offer an unsupported provider-reconciliation button for this known failure. If refresh fails, reopen Approvals before acting again. Keep the app and follow-up worker running to finish pending records; do not repeat the external action. Ambiguous/partial provider results remain separate and require evidence-based reconciliation. Historical failed attempts without this explicit marker are not silently migrated, and a failure whose result was never saved remains uncertain.
+
+`npm run verify:trello-execution-effects` uses `SNEUP_EXECUTION_EFFECTS_VERIFICATION_MONGO_URI` pointing to a new, empty `sneup_execution_verification_<unique-suffix>` database (at most 63 bytes). The verifier claims exclusive ownership and removes only its owned temporary database. It runs the actual approved-execution service with a synthetic provider boundary, interrupts success/failure database writes before or after commit, and checks recovery, duplicate prevention, original approvals, target identity, operator conflicts, worker backoff, and exclusion of historical/ambiguous failures. It makes no real provider calls. CI runs this profile against disposable MongoDB; it is not a live failover or production acceptance test.
 
 ## API overview
 

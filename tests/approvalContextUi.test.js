@@ -134,6 +134,42 @@ test('payload editing and approval cannot overlap for the same recommendation', 
   h.dom.window.close();
 });
 
+test.each(['SNEUP_TRELLO_ACTION_FAILED', 'SNEUP_TRELLO_ACTION_FAILED_EFFECTS_PENDING'])('a definite failure refreshes the ledger: %s', async code => {
+  const h = harness();
+  const pending = h.runRecommendationAction('rec', 'execute-approved', 7);
+  h.requests[0].reject(Object.assign(new Error('The Trello action failed.'), { code }));
+  await pending;
+  expect(h.bindings.loadOperationsLedger).toHaveBeenCalledTimes(1);
+  expect(h.bindings.openNotice).toHaveBeenLastCalledWith('Recommendation action failed', 'The Trello action failed.');
+  h.dom.window.close();
+});
+
+test('a failed-action refresh failure invalidates the view without describing execution as successful', async () => {
+  const h = harness();
+  h.bindings.loadOperationsLedger.mockRejectedValue(new Error('Unavailable'));
+  const pending = h.runRecommendationAction('rec', 'execute-approved', 7);
+  h.requests[0].reject(Object.assign(new Error('Pending'), { code: 'SNEUP_TRELLO_ACTION_FAILED_EFFECTS_PENDING' }));
+  await pending;
+  expect(h.state.loadedViews.has('approvals')).toBe(false);
+  expect(h.bindings.openNotice).toHaveBeenLastCalledWith('Recommendation action failed',
+    'The Trello action failed, but the ledger could not refresh. Reopen Approvals before taking another action.');
+  h.dom.window.close();
+});
+
+test('failed execution cannot present its result after a workspace switch during refresh', async () => {
+  const h = harness();
+  const refresh = deferred();
+  h.bindings.loadOperationsLedger.mockReturnValue(refresh.promise);
+  const pending = h.runRecommendationAction('rec', 'execute-approved', 7);
+  h.requests[0].reject(Object.assign(new Error('Pending'), { code: 'SNEUP_TRELLO_ACTION_FAILED_EFFECTS_PENDING' }));
+  await flush();
+  h.adoptWorkspaceContext('b', 'same-session');
+  refresh.resolve();
+  await pending;
+  expect(h.bindings.openNotice).not.toHaveBeenCalled();
+  h.dom.window.close();
+});
+
 test.each(['approval', 'payload'])('%s pending ownership survives a real A-B-A adoption', async mode => {
   const h = harness();
   let action;

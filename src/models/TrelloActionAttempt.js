@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const executionEffectsSchema = new mongoose.Schema({
+  outcome: { type: String, enum: ['failed'] },
   status: { type: String, enum: ['pending', 'completed', 'superseded'], required: true },
   auditId: { type: mongoose.Schema.Types.ObjectId, required: true },
   followUpId: { type: mongoose.Schema.Types.ObjectId, required: true },

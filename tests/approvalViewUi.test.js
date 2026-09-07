@@ -205,6 +205,30 @@ describe('demand-loaded approval view', () => {
     harness.dom.window.close();
   });
 
+  test('definite failures show internal recovery without an unusable reconciliation control', () => {
+    const harness = createHarness('en');
+    const action = harness.state.ledger.actions[0];
+    action.status = 'failed';
+    action.reconciliation = { status: 'not_needed' };
+    action.recommendationId = { status: 'executing' };
+    action.executionEffects = { status: 'pending', outcome: 'failed' };
+    harness.controller.render();
+    expect(harness.elements.trelloAttempts.textContent).toContain('Internal ledger work pending');
+    expect(harness.elements.trelloAttempts.querySelector('[data-trello-action-reconcile]')).toBeNull();
+    action.recommendationId.reconciliationDecision = { outcome: 'succeeded' };
+    harness.controller.render();
+    expect(harness.elements.trelloAttempts.querySelector('[data-trello-action-reconcile]')).not.toBeNull();
+    delete action.recommendationId.reconciliationDecision;
+    action.reconciliation.status = 'required';
+    harness.controller.render();
+    expect(harness.elements.trelloAttempts.querySelector('[data-trello-action-reconcile]')).not.toBeNull();
+    action.reconciliation.status = 'not_needed';
+    delete action.executionEffects.outcome;
+    harness.controller.render();
+    expect(harness.elements.trelloAttempts.textContent).not.toContain('Internal ledger work pending');
+    harness.dom.window.close();
+  });
+
   test('delegates every consequential command to the guarded app controller', async () => {
     const harness = createHarness('en');
     harness.controller.render();

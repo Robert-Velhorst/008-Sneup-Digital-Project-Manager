@@ -98,6 +98,21 @@ describe('versioned API contract', () => {
     expect(sendJson).toHaveBeenCalledWith({ openapi: '3.1.0' });
   });
 
+  test.each(['SNEUP_TRELLO_ACTION_FAILED', 'SNEUP_TRELLO_ACTION_FAILED_EFFECTS_PENDING'])('preserves execution failure code through the v1 envelope and dashboard parser: %s', async code => {
+    const res = response(502);
+    const sendJson = res.json;
+    versionedApiEnvelope({ sneupRequestId: 'failure-request' }, res, jest.fn());
+    res.json({ success: false, code, error: 'The Trello action failed.' });
+    const body = sendJson.mock.calls[0][0];
+    expect(body).toMatchObject({ ok: false, data: null, error: { code, message: 'The Trello action failed.' } });
+    const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+    const parser = source.slice(source.indexOf('function apiErrorMessage('), source.indexOf('async function apiFetch('))
+      + source.slice(source.indexOf('async function readApiResponse('), source.indexOf('async function fetchApi('));
+    const read = new Function(`${parser}; return readApiResponse;`)();
+    await expect(read({ ok: false, json: async () => body }, '/api/recommendations/rec/execute-approved'))
+      .rejects.toMatchObject({ code, message: 'The Trello action failed.', requestId: 'failure-request' });
+  });
+
   test('does not generate request ids for cacheable frontend assets', () => {
     const req = { path: '/app.123.js' };
     const res = response();

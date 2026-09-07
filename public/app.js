@@ -2349,10 +2349,18 @@ async function runRecommendationAction(recommendationId, action, expectedRevisio
       : data.message || t('Action completed: {action}', { action: t(String(action).replaceAll('-', ' ')) }));
   } catch (error) {
     if (!ownsContext()) return;
-    if (error.code === 'SNEUP_RECOMMENDATION_REVIEW_CONFLICT') {
-      try { await loadOperationsLedger({ throwOnError: true }); } catch { /* Keep the original review conflict. */ }
+    const failedExecution = ['SNEUP_TRELLO_ACTION_FAILED', 'SNEUP_TRELLO_ACTION_FAILED_EFFECTS_PENDING'].includes(error.code);
+    if (error.code === 'SNEUP_RECOMMENDATION_REVIEW_CONFLICT' || failedExecution) {
+      try { await loadOperationsLedger({ throwOnError: true }); } catch {
+        if (ownsContext()) state.loadedViews.delete('approvals');
+        if (failedExecution) {
+          if (canPresent()) openNotice(t('Recommendation action failed'),
+            t('The Trello action failed, but the ledger could not refresh. Reopen Approvals before taking another action.'));
+          return;
+        }
+      }
     }
-    if (canPresent()) openNotice(t('Recommendation action failed'), error.message);
+    if (canPresent()) openNotice(t('Recommendation action failed'), failedExecution ? t(error.message) : error.message);
   } finally {
     pending.delete(pendingKey);
   }

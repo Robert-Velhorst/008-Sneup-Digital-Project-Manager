@@ -33,7 +33,12 @@ async function run() {
     await Workspace.create({ _id: workspaceId, name: 'Synthetic execution recovery', slug: `execution-${token}` });
     // Replace the provider boundary before enabling the actual approved-execution controller.
     let simulatedProviderCalls = 0;
-    service.performTrelloAction = async () => { simulatedProviderCalls += 1; return { synthetic: true }; };
+    let providerFailure;
+    service.performTrelloAction = async () => {
+      simulatedProviderCalls += 1;
+      if (providerFailure) throw providerFailure;
+      return { synthetic: true };
+    };
     process.env.SNEUP_DEMO_MODE = 'false';
     process.env.SNEUP_PROVIDER_WRITES_DISABLED = 'false';
     const create = async ({ bindApproval = true } = {}) => {
@@ -120,6 +125,169 @@ async function run() {
         faultCases += 1;
       }
     }
+    const failedFinal = async pair => {
+      const attempt = await Attempt.findOne({ recommendationId: pair.rec._id });
+      const rec = await Recommendation.findById(pair.rec._id);
+      const intervention = await Intervention.findById(pair.intervention._id);
+      assert.equal(rec.status, 'failed');
+      assert.equal(String(rec.executionAttemptId), String(attempt._id));
+      assert.equal(rec.failureReason, 'Synthetic definite rejection');
+      assert.equal(rec.executedAt, undefined);
+      assert.equal(attempt.executionEffects.status, 'completed');
+      assert.equal(attempt.executionEffects.outcome, 'failed');
+      assert.equal(attempt.executionEffects.followUpScheduled, false);
+      assert.equal(intervention.status, 'failed');
+      assert.equal(intervention.executedAt, undefined);
+      assert.equal(intervention.metadata.error, rec.failureReason);
+      assert.equal(await FollowUp.countDocuments({ recommendationId: rec._id }), 0);
+      const audits = await Audit.find({ trelloActionAttemptId: attempt._id });
+      assert.equal(audits.length, 1);
+      assert.equal(audits[0].action, 'trello_action_failed');
+      assert.equal(audits[0].actor, 'synthetic-executor');
+      assert.equal(audits[0].createdAt.getTime(), attempt.finishedAt.getTime());
+      assert.equal(audits[0].afterState.attemptStatus, 'failed');
+      assert.equal(audits[0].afterState.followUpScheduled, false);
+      assert.ok(!JSON.stringify(audits).includes('Synthetic definite rejection'), 'No duplicate provider error in audit payload');
+      const count = simulatedProviderCalls;
+      assert.equal((await service.finalizeTrelloExecutionEffects(attempt)).effectsCompleted, true);
+      assert.equal(simulatedProviderCalls, count);
+    };
+    providerFailure = new Error('Synthetic definite rejection');
+    for (const stage of ['attempt', 'recommendation', 'intervention', 'audit', 'completion']) {
+      for (const afterWrite of [false, true]) {
+        const pair = await create();
+        const target = stage === 'attempt' ? Attempt.prototype : stage === 'recommendation' ? Recommendation
+          : stage === 'intervention' ? Intervention : stage === 'audit' ? Audit : Attempt;
+        const method = stage === 'attempt' ? 'save' : stage === 'audit' ? 'create' : 'findOneAndUpdate';
+        const original = target[method];
+        let injected = false;
+        target[method] = async function(...args) {
+          const eligible = stage === 'attempt' ? this.status === 'failed'
+            : stage === 'recommendation' ? args[1]?.$set?.status === 'failed'
+              : stage === 'audit' ? args[0]?.action === 'trello_action_failed'
+                : stage === 'completion' ? args[1]?.$set?.['executionEffects.status'] === 'completed' : true;
+          if (injected || !eligible) return original.apply(this, args);
+          injected = true;
+          if (afterWrite) await original.apply(this, args);
+          throw new Error(`Synthetic failure ${stage} interruption`);
+        };
+        let failure;
+        const beforeCalls = simulatedProviderCalls;
+        try { await execute(pair); } catch (error) { failure = error; }
+        finally { target[method] = original; }
+        assert.equal(injected, true, `failure ${stage} injection reached`);
+        const attempt = await Attempt.findOne({ recommendationId: pair.rec._id });
+        if (stage === 'attempt' && !afterWrite) {
+          assert.equal(failure?.code, 'SNEUP_LEDGER_COMMIT_UNCERTAIN');
+          assert.equal(attempt.status, 'in_progress');
+          assert.equal((await Recommendation.findById(pair.rec._id)).status, 'executing');
+          await Attempt.updateOne({ _id: attempt._id }, { $unset: { 'executionEffects.nextAttemptAt': 1 } });
+          assert.equal((await service.retryPendingTrelloExecutionEffects({ workspaceId })).processedCount, 0);
+        } else {
+          assert.equal(failure?.code, afterWrite ? 'SNEUP_TRELLO_ACTION_FAILED' : 'SNEUP_TRELLO_ACTION_FAILED_EFFECTS_PENDING');
+          delete require.cache[require.resolve('../src/services/trelloExecutionEffectsService')];
+          const receipts = await Promise.all([service.finalizeTrelloExecutionEffects(attempt), service.finalizeTrelloExecutionEffects(attempt)]);
+          assert.ok(receipts.every(receipt => receipt.effectsCompleted && receipt.followUpScheduled === false));
+          await failedFinal(pair);
+        }
+        assert.equal(simulatedProviderCalls, beforeCalls + 1, 'Failure recovery never repeats provider execution');
+        faultCases += 1;
+      }
+    }
+    const failedPaused = async () => {
+      const pair = await create();
+      const original = Recommendation.findOneAndUpdate;
+      Recommendation.findOneAndUpdate = function(...args) {
+        if (args[1]?.$set?.status === 'failed') throw new Error('Synthetic failed finalization pause');
+        return original.apply(this, args);
+      };
+      try { await assert.rejects(execute(pair), { code: 'SNEUP_TRELLO_ACTION_FAILED_EFFECTS_PENDING' }); }
+      finally { Recommendation.findOneAndUpdate = original; }
+      return { ...pair, attempt: await Attempt.findOne({ recommendationId: pair.rec._id }) };
+    };
+    const failedPending = await failedPaused();
+    const health = await service.getTrelloActionReconciliationHealth({ workspaceId, limit: 100,
+      now: new Date(Date.now() + 48 * 3600000), lean: true });
+    assert.ok(!health.items.some(item => item.attemptId === String(failedPending.attempt._id)),
+      'A persisted definite failure must not raise a provider-evidence alert');
+    await Attempt.updateOne({ _id: failedPending.attempt._id }, { $unset: { 'executionEffects.nextAttemptAt': 1 } });
+    assert.equal((await service.retryPendingTrelloExecutionEffects({ workspaceId: foreignWorkspaceId })).processedCount, 0);
+    const failedCalls = simulatedProviderCalls;
+    assert.deepEqual(await service.retryPendingTrelloExecutionEffects({ workspaceId, limit: 1 }),
+      { processedCount: 1, completedCount: 1, failureCount: 0 });
+    await failedFinal(failedPending);
+    assert.equal(simulatedProviderCalls, failedCalls);
+    for (const terminal of ['failed', 'executed', 'cancelled']) {
+      const pair = await failedPaused();
+      await Intervention.updateOne({ _id: pair.intervention._id }, { $set: { status: terminal, 'metadata.unrelated': 'preserve' } });
+      assert.equal((await service.finalizeTrelloExecutionEffects(pair.attempt)).effectsCompleted, false);
+      const preserved = await Intervention.findById(pair.intervention._id);
+      assert.equal(preserved.status, terminal);
+      assert.equal(preserved.metadata.unrelated, 'preserve');
+      assert.equal(await Audit.countDocuments({ trelloActionAttemptId: pair.attempt._id }), 0);
+      assert.equal(await FollowUp.countDocuments({ recommendationId: pair.rec._id }), 0);
+    }
+    for (const excluded of ['historical', 'ambiguous']) {
+      const pair = await failedPaused();
+      await Attempt.updateOne({ _id: pair.attempt._id }, {
+        $unset: { 'executionEffects.nextAttemptAt': 1, ...(excluded === 'historical' ? { 'executionEffects.outcome': 1 } : {}) },
+        ...(excluded === 'ambiguous' ? { $set: { 'reconciliation.status': 'required' } } : {})
+      });
+      await assert.rejects(service.finalizeTrelloExecutionEffects(pair.attempt), { code: 'SNEUP_LEDGER_COMMIT_UNCERTAIN' });
+      assert.equal((await service.retryPendingTrelloExecutionEffects({ workspaceId })).processedCount, 0);
+      assert.equal((await Recommendation.findById(pair.rec._id)).status, 'executing');
+    }
+    const originalProvider = service.performTrelloAction;
+    const { withTimeout } = require('../src/utils/runtimeShutdown');
+    for (const outcome of ['succeeded', 'failed']) {
+      for (const interruptedClaim of [false, true]) {
+        const pair = await create();
+        let rejectProvider, reached;
+        const providerStarted = new Promise(resolve => { reached = resolve; });
+        const held = new Promise((resolve, reject) => { rejectProvider = reject; });
+        service.performTrelloAction = () => { simulatedProviderCalls += 1; reached(); return held; };
+        const execution = execute(pair).then(value => ({ value }), error => ({ error }));
+        await withTimeout(Promise.race([providerStarted, execution.then(result => {
+          throw result.error || new Error('Synthetic provider was not reached');
+        })]), { timeoutMs: 5000 });
+        const attempt = await Attempt.findOne({ recommendationId: pair.rec._id });
+        const body = { workspaceId, outcome, evidence: 'Synthetic operator evidence', reason: 'Synthetic operator note', actor: 'synthetic-reviewer' };
+        const original = Attempt.findOneAndUpdate;
+        if (interruptedClaim) Attempt.findOneAndUpdate = () => { throw new Error('Synthetic interrupted operator confirmation'); };
+        try {
+          if (interruptedClaim) await assert.rejects(service.reconcileTrelloActionAttempt(attempt._id, body), { code: 'SNEUP_LEDGER_COMMIT_UNCERTAIN' });
+          else assert.equal((await service.reconcileTrelloActionAttempt(attempt._id, body)).effectsCompleted, true);
+        } finally { Attempt.findOneAndUpdate = original; }
+        const recorded = (await Recommendation.findById(pair.rec._id)).reconciliationDecision;
+        rejectProvider(new Error('Synthetic definite rejection'));
+        const result = await withTimeout(execution, { timeoutMs: 5000 });
+        assert.ok(result.error && !result.value, 'Late definite failure cannot report success or overwrite a manual decision');
+        const interim = await Attempt.findById(attempt._id);
+        if (interruptedClaim) {
+          assert.equal(interim.executionEffects.status, 'superseded');
+          assert.equal(await FollowUp.countDocuments({ recommendationId: pair.rec._id }), 0);
+          const operatorHealth = await service.getTrelloActionReconciliationHealth({ workspaceId, limit: 100, lean: true });
+          const item = operatorHealth.items.find(entry => entry.attemptId === String(attempt._id));
+          assert.ok(item?.message.includes('Internal intervention'), 'Recorded operator claims remain visible for internal completion');
+          assert.equal((await service.reconcileTrelloActionAttempt(attempt._id, { ...body, actor: 'different-retry-actor' })).effectsCompleted, true);
+        }
+        const rec = await Recommendation.findById(pair.rec._id);
+        const finalAttempt = await Attempt.findById(attempt._id);
+        assert.equal(rec.status, outcome === 'succeeded' ? 'executed' : 'failed');
+        assert.equal(finalAttempt.status, outcome);
+        assert.equal(finalAttempt.reconciliation.status, `confirmed_${outcome}`);
+        assert.equal(finalAttempt.reconciliation.evidence, body.evidence);
+        assert.equal(finalAttempt.reconciliation.reconciledBy, 'synthetic-reviewer');
+        assert.equal(finalAttempt.reconciliation.reconciledAt.getTime(), recorded.decidedAt.getTime());
+        assert.equal(rec.reconciliationDecision.actor, 'synthetic-reviewer');
+        assert.equal(rec.reconciliationDecision.decidedAt.getTime(), recorded.decidedAt.getTime());
+        assert.equal(await Audit.countDocuments({ trelloActionAttemptId: attempt._id, action: 'trello_action_failed' }), 0);
+        assert.equal(await FollowUp.countDocuments({ recommendationId: rec._id }), outcome === 'succeeded' ? 1 : 0,
+          'Only a confirmed successful manual result may own a follow-up');
+      }
+    }
+    service.performTrelloAction = originalProvider;
+    providerFailure = undefined;
     const legacyApproval = await create({ bindApproval: false });
     assert.equal((await execute(legacyApproval)).effectsCompleted, true);
     await final(legacyApproval);
@@ -265,7 +433,10 @@ async function run() {
       scenarios: ['actual-approved-execution', 'lost-acknowledgements', 'interrupted-internal-writes', 'concurrent-retry',
         'module-reload', 'legacy-approval', 'late-response-audit', 'workspace-isolation', 'bounded-retry', 'cancelled-intervention', 'backoff',
         'failed-intervention-preserved', 'target-and-member-binding', 'original-approval-binding', 'expired-approval-recovery', 'broken-reference-rotation',
-        'manual-reconciliation-wins-success-claim', 'nullable-optional-targets', 'persisted-supersession', 'completion-before-renewal-receipt'],
+        'manual-reconciliation-wins-success-claim', 'nullable-optional-targets', 'persisted-supersession', 'completion-before-renewal-receipt',
+        'definite-failure-write-recovery', 'failed-action-audit-once', 'failed-action-no-follow-ups', 'failed-action-worker-recovery',
+        'failure-terminal-state-preservation', 'historical-and-ambiguous-failure-exclusion',
+        'definite-failure-alert-exclusion', 'late-definite-failure-manual-success-and-failure', 'interrupted-operator-claim-recovery'],
       elapsedMs: Math.round(performance.now() - started) }));
   } finally {
     let verifiedOwnership = false;
