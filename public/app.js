@@ -925,7 +925,38 @@ async function loadAll(options = {}) {
   if (options.force) state.loadedViews.clear();
   if (options.force || state.loadedViews.size === 0) markDeferredViewCounts();
   const activeView = document.querySelector('[data-view-button].active')?.dataset.viewButton || 'overview';
-  await loadView(activeView, { force: options.force });
+  await Promise.all([
+    loadView(activeView, { force: options.force }),
+    activeView !== 'workspaces' && workspaceViewController ? loadWorkspaceSelector() : Promise.resolve()
+  ]);
+}
+
+async function loadWorkspaceSelector(options = {}) {
+  const isCurrent = beginWorkspaceRead('workspaceSelector');
+  state.workspaceSelectorLoading = true;
+  els.workspaceSelect.disabled = true;
+  try {
+    const data = (options.allowOverride ?? state.securityContext?.workspaceOverrideAllowed)
+      ? await fetchApi('/api/workspaces?limit=100')
+      : { workspaces: state.currentWorkspace ? [state.currentWorkspace] : [] };
+    if (!isCurrent()) return;
+    state.workspaces = data.workspaces || [];
+    const selected = state.currentWorkspace;
+    if (selected?.id === state.activeWorkspaceId && !state.workspaces.some(workspace => workspace.id === selected.id)) {
+      state.workspaces = [selected, ...state.workspaces];
+    }
+    state.workspaceSelectorError = '';
+  } catch (error) {
+    if (!isCurrent()) return;
+    state.workspaces = state.currentWorkspace ? [state.currentWorkspace] : [];
+    state.workspaceSelectorError = error.message;
+    if (options.throwOnError) throw error;
+  } finally {
+    if (isCurrent()) {
+      state.workspaceSelectorLoading = false;
+      if (options.render !== false) workspaceViewController?.renderSelector();
+    }
+  }
 }
 
 async function loadFeatureFlags() {
@@ -985,6 +1016,7 @@ async function loadForecast() {
     if (!isCurrent()) return;
     state.forecast = data.forecast || null;
     controller.render();
+    return true;
   } catch (error) {
     if (!isCurrent()) return;
     state.forecast = null;
@@ -1005,18 +1037,28 @@ function renderForecast(errorMessage = '') {
 }
 
 async function resetForecastScenario() {
-  await loadForecast();
-  openNotice(t('Scenario reset'), t('Sneup restored the live analysis without changing any capacity profile.'));
+  const isCurrent = beginWorkspaceRead('forecastReset');
+  if (await loadForecast() && isCurrent()) {
+    openNotice(t('Scenario reset'), t('Sneup restored the live analysis without changing any capacity profile.'));
+  }
+}
+
+function beginForecastForm(form) {
+  const ownsContext = beginWorkspaceRead('forecastForm');
+  return () => ownsContext() && els.modal.classList.contains('open') && els.modalBody.contains(form);
 }
 
 function openForecastScenario() {
   const opened = forecastViewController?.openForecastScenarioForm();
   if (!opened) return;
   const { form } = opened;
+  const isCurrent = beginForecastForm(form);
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const submit = form.querySelector('button[type="submit"]');
+    if (!isCurrent() || submit.disabled) return;
     submit.disabled = true;
+    const ownsForecast = beginWorkspaceRead('forecast');
     try {
       const timeOff = form.elements.timeOff.value.split('\n').map((line) => {
         const [range, label] = line.split('|');
@@ -1036,14 +1078,17 @@ function openForecastScenario() {
           }]
         })
       });
+      if (!isCurrent() || !ownsForecast()) return;
       state.forecast = data.forecast || null;
       formPersistence?.markSaved(form);
       closeModal();
       renderForecast();
       openNotice(t('Scenario ready'), t('Sneup calculated this temporary delivery range without changing live capacity.'));
     } catch (error) {
-      submit.disabled = false;
+      if (!isCurrent() || !ownsForecast()) return;
       openNotice(t('Scenario failed'), error.message);
+    } finally {
+      if (isCurrent()) submit.disabled = false;
     }
   });
 }
@@ -1052,10 +1097,12 @@ function openBoardProjectMappingsEditor(boardId) {
   const opened = forecastViewController?.openBoardProjectMappingsForm(boardId);
   if (!opened) return;
   const { form } = opened;
+  const isCurrent = beginForecastForm(form);
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
     const submit = form.querySelector('button[type="submit"]');
+    if (!isCurrent() || submit.disabled) return;
     submit.disabled = true;
     try {
       await fetchApi(`/api/forecasts/boards/${boardId}/project-mappings`, {
@@ -1068,11 +1115,16 @@ function openBoardProjectMappingsEditor(boardId) {
           }).filter(Boolean)
         })
       });
+      if (!isCurrent()) return;
       formPersistence?.markSaved(form);
+      const refreshed = await loadForecast().catch(() => false);
+      if (!isCurrent()) return;
       closeModal();
-      await loadForecast();
-      openNotice(t('Project mappings saved'), t('Sneup refreshed board-scoped schedule evidence without changing provider data.'));
+      openNotice(t('Project mappings saved'), t(refreshed
+        ? 'Sneup refreshed board-scoped schedule evidence without changing provider data.'
+        : 'The changes were saved, but the forecast could not be refreshed. Refresh to reload the latest analysis.'));
     } catch (error) {
+      if (!isCurrent()) return;
       submit.disabled = false;
       openNotice(t('Project mapping update failed'), error.message);
     }
@@ -1083,10 +1135,12 @@ function openCapacityEditor(memberId) {
   const opened = forecastViewController?.openCapacityForm(memberId);
   if (!opened) return;
   const { form } = opened;
+  const isCurrent = beginForecastForm(form);
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
     const submit = form.querySelector('button[type="submit"]');
+    if (!isCurrent() || submit.disabled) return;
     submit.disabled = true;
     try {
       await fetchApi(`/api/forecasts/capacity/${memberId}`, {
@@ -1108,11 +1162,16 @@ function openCapacityEditor(memberId) {
           }).filter(Boolean)
         })
       });
+      if (!isCurrent()) return;
       formPersistence?.markSaved(form);
+      const refreshed = await loadForecast().catch(() => false);
+      if (!isCurrent()) return;
       closeModal();
-      await loadForecast();
-      openNotice(t('Capacity saved'), t('Sneup refreshed the analysis-only delivery forecast.'));
+      openNotice(t('Capacity saved'), t(refreshed
+        ? 'Sneup refreshed the analysis-only delivery forecast.'
+        : 'The changes were saved, but the forecast could not be refreshed. Refresh to reload the latest analysis.'));
     } catch (error) {
+      if (!isCurrent()) return;
       submit.disabled = false;
       openNotice(t('Capacity update failed'), error.message);
     }
@@ -1323,6 +1382,11 @@ async function fetchApi(url, options) {
 }
 
 function resetDashboardViews() {
+  if (els.modalBody.querySelector('#forecastScenarioForm, #capacityProfileForm, #boardProjectMappingsForm')) {
+    closeModal();
+    els.modalBody.replaceChildren();
+    els.modalTitle.textContent = '';
+  }
   clearTimeout(connectorSearchTimer);
   connectorSearchTimer = undefined;
   state.connectorRequest?.abort();
@@ -1389,6 +1453,8 @@ function adoptWorkspaceId(workspaceId) {
   state.featureFlagError = '';
   state.currentWorkspace = null;
   state.workspaces = [];
+  state.workspaceSelectorLoading = false;
+  state.workspaceSelectorError = '';
   state.workspaceUsers = [];
   state.workspaceInvitations = [];
   state.policyRules = [];
@@ -1581,6 +1647,9 @@ async function loadWorkspaceAdmin(options = {}) {
     if (selectionChanged) isCurrent = beginWorkspaceRead('workspaceAdmin');
     state.currentWorkspace = current.workspace;
     if (current.auth?.demoMode) {
+      beginWorkspaceRead('workspaceSelector');
+      state.workspaceSelectorLoading = false;
+      state.workspaceSelectorError = '';
       state.activeWorkspaceId = current.workspace.id;
       state.workspaces = [current.workspace];
       state.workspaceUsers = [];
@@ -1622,6 +1691,9 @@ async function loadWorkspaceAdmin(options = {}) {
     }
 
     if (!current.auth?.workspaceOverrideAllowed) {
+      beginWorkspaceRead('workspaceSelector');
+      state.workspaceSelectorLoading = false;
+      state.workspaceSelectorError = '';
       state.workspaces = [current.workspace];
       state.workspaceUsers = [];
       state.workspaceInvitations = [];
@@ -1629,13 +1701,9 @@ async function loadWorkspaceAdmin(options = {}) {
       return;
     }
 
-    const workspaceData = await fetchApi('/api/workspaces?limit=100');
+    await loadWorkspaceSelector({ allowOverride: true, render: false, throwOnError: true });
     if (!isCurrent()) return;
-    state.workspaces = workspaceData.workspaces || [];
     const selectedWorkspace = current.workspace;
-    if (selectedWorkspace?.id && !state.workspaces.some(workspace => workspace.id === selectedWorkspace.id)) {
-      state.workspaces = [selectedWorkspace, ...state.workspaces];
-    }
 
     const [userData, invitationData] = selectedWorkspace?.id
       ? await Promise.all([
@@ -1651,7 +1719,6 @@ async function loadWorkspaceAdmin(options = {}) {
     if (!isCurrent()) return;
     state.workspaceUsers = [];
     state.workspaceInvitations = [];
-    state.workspaces = state.currentWorkspace ? [state.currentWorkspace] : [];
     if (workspaceViewController) {
       renderWorkspaces(error.message);
     } else {

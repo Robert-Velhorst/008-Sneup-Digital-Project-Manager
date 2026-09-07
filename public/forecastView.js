@@ -7,6 +7,7 @@
     'The forecast view loaded without its runtime. Try again.': 'De prognoseweergave is zonder runtime geladen. Probeer het opnieuw.',
     'The forecast view could not be loaded. Check the connection and try again.': 'De prognoseweergave kon niet worden geladen. Controleer de verbinding en probeer het opnieuw.',
     'Forecast unavailable': 'Prognose niet beschikbaar',
+    'The changes were saved, but the forecast could not be refreshed. Refresh to reload the latest analysis.': 'De wijzigingen zijn opgeslagen, maar de prognose kon niet worden vernieuwd. Vernieuw om de nieuwste analyse te laden.',
     'unavailable': 'niet beschikbaar',
     'demo': 'demo',
     'scenario': 'scenario',

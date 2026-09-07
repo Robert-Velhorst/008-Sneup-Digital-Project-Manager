@@ -16,20 +16,21 @@ const harness = () => {
   const fetchApi = jest.fn(url => { const pending = deferred(); requests.push({ url, ...pending }); return pending.promise; });
   const render = jest.fn();
   const notice = jest.fn();
-  const els = { retentionScanButton: {}, integrityScanButton: {}, workspaceList: {} };
+  const els = { retentionScanButton: {}, integrityScanButton: {}, workspaceList: {}, workspaceSelect: {} };
   const bindings = {
     state, fetchApi, els, renderWorkspaces: render, renderIntegrityReport: render,
     renderRetentionReport: render, openNotice: notice, loadWorkspaceView: async () => ({}),
-    workspaceViewController: {}, escapeHtml: String, localStorage: { setItem: jest.fn() },
+    workspaceViewController: { renderSelector: render }, escapeHtml: String, localStorage: { setItem: jest.fn() },
     cancelReportDownloads: jest.fn(), resetDashboardViews: jest.fn()
   };
   const code = [
     source.includes('function beginWorkspaceRead(') ? section('function beginWorkspaceRead(', 'async function loadSecurityContext(') : '',
     section('async function loadSecurityContext(', 'async function loadMissionControl('),
     section('async function loadFeatureFlags(', 'function isFeatureEnabled('),
+    section('async function loadWorkspaceSelector(', 'async function loadFeatureFlags('),
     section('async function loadWorkspaceAdmin(', 'async function loadOperationsLedger(')
   ].join('\n');
-  const api = new Function(...Object.keys(bindings), `${code}; return { loadWorkspaceAdmin, loadRetentionReport, loadPolicyHistory, loadSecurityContext, loadFeatureFlags };`)(...Object.values(bindings));
+  const api = new Function(...Object.keys(bindings), `${code}; return { loadWorkspaceAdmin, loadWorkspaceSelector, loadRetentionReport, loadPolicyHistory, loadSecurityContext, loadFeatureFlags };`)(...Object.values(bindings));
   return { state, requests, render, notice, els, storage: bindings.localStorage, ...api };
 };
 const current = (id = 'a', auth = {}) => ({ workspace: { id }, auth });
@@ -233,6 +234,32 @@ test('catalog failure cannot erase independently refreshed history', async () =>
   await pending;
   expect(h.state.policyHistory).toEqual([{ id: 'filtered' }]);
   expect(h.state.policyHistoryError).toBe('');
+});
+
+test.each(['success', 'failure'])('old standalone selector %s cannot replace a newer administration catalog', async outcome => {
+  const h = harness();
+  h.state.securityContext = { workspaceOverrideAllowed: true };
+  const old = h.loadWorkspaceSelector();
+  const admin = h.loadWorkspaceAdmin();
+  h.requests[1].resolve(current('a', { workspaceOverrideAllowed: true }));
+  await flush();
+  h.requests[2].resolve({ report: {} });
+  h.requests[3].resolve({ report: {} });
+  await flush();
+  h.requests[4].resolve({ policies: [] });
+  h.requests[5].resolve({ history: [] });
+  await flush();
+  h.requests[6].resolve({ workspaces: [{ id: 'a' }, { id: 'b' }] });
+  await flush();
+  h.requests[7].resolve({ users: [] });
+  h.requests[8].resolve({ invitations: [] });
+  await admin;
+  if (outcome === 'success') h.requests[0].resolve({ workspaces: [] });
+  else h.requests[0].reject(new Error('Old selector failure'));
+  await old;
+  expect(h.state.workspaces.map(workspace => workspace.id)).toEqual(['a', 'b']);
+  expect(h.state.workspaceSelectorError).toBe('');
+  expect(h.state.workspaceSelectorLoading).toBe(false);
 });
 
 test('same-context repeated navigation still shares one view read', async () => {

@@ -99,7 +99,11 @@ Workspace owners can manage users, sessions, invitations, exports, deletion, dat
 
 Switching workspace clears previous administration and primary dashboard records while the new context loads. Administration, security, feature-flag, policy-history, integrity, retention, and ten primary dashboard readers reject stale workspace/session results. The server-resolved workspace is selected before dependent administration reads, and a failed browser-storage write does not prevent switching for the current page. Cached view modules are reused; a late approvals load cannot steal focus, and the current approvals view renders even when its module arrives after the data.
 
-Context-transition verification remains incomplete for already-open forms, scenario submissions, detail views, and invitation/session transitions. After switching outside Workspace Administration, the workspace selector can remain disabled until **Workspaces** is reopened to reload its catalog. This is a known usability limitation, not a claim of complete application-wide request isolation. The safeguards discard stale browser results; they do not universally cancel server-side work.
+After the workspace catalog has first been opened through **Workspaces**, switching from another view or refreshing it reloads the selector alongside that view. This uses the bounded catalog endpoint, not hidden administration scans. Administration and the standalone selector share request ownership, so an older catalog result cannot overwrite a newer one. Failed catalog reads leave the selector disabled with the error available on the control; Refresh retries.
+
+The scenario, capacity, and project-mapping forms check their original workspace/session before submission and after pending work. Duplicate submissions are suppressed, and switching clears these forecast forms. A dismissed or replaced form cannot later overwrite a newer modal. Scenario results share ownership with ordinary forecast reads. An acknowledged capacity or mapping save is distinguished from a failed subsequent refresh; it is not falsely reported as a failed save. These safeguards do not cancel or undo a request already accepted by the server.
+
+Context-transition verification remains incomplete for other forms, detail views, and invitation/session transitions. This is not a claim of complete application-wide request isolation. The safeguards discard stale browser results; they do not universally cancel server-side work.
 
 The Data Integrity screen also highlights unconfirmed worker responses and quarantined worker webhooks after 15 minutes, plus broken active approval references. Expand **Technical evidence** to inspect the relevant record identifiers and expected state. These findings are read-only: the repair action changes only list-count and member-assignment caches, not approvals, worker outcomes, or provider delivery state.
 
@@ -281,7 +285,7 @@ The installer is written to:
 release\Sneup-Setup-<version>.exe
 ```
 
-The local release line currently builds `Sneup-Setup-2.3.57.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
+The local release line currently builds `Sneup-Setup-2.3.58.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
 
 Verify the unpacked Windows app before distributing an installer:
 

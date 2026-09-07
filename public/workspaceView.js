@@ -935,21 +935,31 @@
       };
     }
 
+    function renderSelector() {
+      const errorMessage = state.workspaceSelectorError || '';
+      const workspaces = state.workspaces || [];
+      const currentWorkspaceId = state.activeWorkspaceId || state.currentWorkspace?.id || '';
+      const options = currentWorkspaceId && !workspaces.some(workspace => workspace.id === currentWorkspaceId)
+        ? [{ id: currentWorkspaceId, name: state.currentWorkspace?.name || t('Current workspace') }, ...workspaces]
+        : workspaces;
+      elements.workspaceSelect.innerHTML = options.length > 0
+        ? options.map(workspace => `
+          <option value="${escapeHtml(workspace.id)}" ${workspace.id === currentWorkspaceId ? 'selected' : ''}>${escapeHtml(workspace.name)}</option>
+        `).join('')
+        : `<option value="${escapeHtml(currentWorkspaceId)}">${escapeHtml(state.currentWorkspace?.name || t('Current workspace'))}</option>`;
+      elements.workspaceSelect.disabled = Boolean(errorMessage || state.workspaceSelectorLoading) || !state.securityContext?.workspaceOverrideAllowed || options.length <= 1;
+      elements.workspaceSelect.title = errorMessage;
+    }
+
     function render(errorMessage = '') {
       const workspaces = state.workspaces || [];
       const currentWorkspaceId = state.activeWorkspaceId || state.currentWorkspace?.id || '';
       const currentWorkspace = workspaces.find(workspace => workspace.id === currentWorkspaceId)
         || state.currentWorkspace
         || workspaces[0];
-
       elements.workspaceCount.textContent = workspaces.length || 1;
       elements.workspaceMode.textContent = t(state.securityContext?.workspaceOverrideAllowed ? 'switchable' : 'locked');
-      elements.workspaceSelect.innerHTML = workspaces.length > 0
-        ? workspaces.map(workspace => `
-          <option value="${escapeHtml(workspace.id)}" ${workspace.id === currentWorkspaceId ? 'selected' : ''}>${escapeHtml(workspace.name)}</option>
-        `).join('')
-        : `<option value="${escapeHtml(currentWorkspaceId)}">${escapeHtml(state.currentWorkspace?.name || t('Current workspace'))}</option>`;
-      elements.workspaceSelect.disabled = !state.securityContext?.workspaceOverrideAllowed || workspaces.length <= 1;
+      renderSelector();
 
       const users = state.workspaceUsers || [];
       const invitations = state.workspaceInvitations || [];
@@ -1014,6 +1024,7 @@
       openPolicyRuleForm,
       openWorkspaceInvite,
       render,
+      renderSelector,
       renderIntegrityReport,
       renderRetentionReport
     };

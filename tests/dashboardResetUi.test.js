@@ -7,7 +7,7 @@ const initialState = () => new Function('localStorage', 'sessionStorage', 'SESSI
   `${source.slice(source.indexOf('const state = {'), source.indexOf('const els = {'))}; return state;`)(
   { getItem: () => '' }, { getItem: () => '' }, 'session', 'setup');
 
-test('workspace reset clears stored and rendered dashboard evidence without loading modules', () => {
+test.each([null, 'forecastScenarioForm', 'capacityProfileForm', 'boardProjectMappingsForm'])('workspace reset clears dashboard evidence and any open %s without loading modules', formId => {
   expect(source.includes('function resetDashboardViews(')).toBe(true);
   const dom = new JSDOM(fs.readFileSync(path.join(root, 'public/index.html'), 'utf8'));
   const document = dom.window.document;
@@ -28,6 +28,10 @@ test('workspace reset clears stored and rendered dashboard evidence without load
   const containers = ['metrics', 'brief', 'operationsBriefItems', 'jobHealthList', 'commandQueue', 'dailyPlan', 'focusQueue',
     'teamLoad', 'boards', 'ledgerMetrics', 'decisionQueue', 'connectorGrid', 'workSignalList', 'portfolioForecast', 'reportList', 'enhancementsList'];
   containers.forEach(key => { els[key].textContent = marker; });
+  if (formId) {
+    els.modalBody.innerHTML = `<form id="${formId}">${marker}</form>`;
+    els.connectorModal.classList.add('open');
+  }
   const options = { document, window: dom.window, state, elements: els,
     callbacks: { bindLedgerDrilldownActions: jest.fn(), bindGraphActions: jest.fn() }, t: value => value,
     plural: (one, many, count) => (count === 1 ? one : many).replace('{count}', String(count)),
@@ -40,7 +44,8 @@ test('workspace reset clears stored and rendered dashboard evidence without load
     forecastViewController: require('../public/forecastView').createController(options),
     reportViewController: require('../public/reportView').createController(options),
     enhancementViewController: require('../public/enhancementView').createController(options),
-    updateApprovalCount: jest.fn(), t: value => value
+    updateApprovalCount: jest.fn(), t: value => value,
+    closeModal: jest.fn(() => els.connectorModal.classList.remove('open'))
   };
   const abortConnector = jest.fn();
   const abortEnhancement = jest.fn();
@@ -60,5 +65,7 @@ test('workspace reset clears stored and rendered dashboard evidence without load
   expect(els.enhancementAreaFilter.dataset.areaSignature).toBe('[]');
   expect(document.getElementById('refreshButton')).not.toBeNull();
   expect(document.querySelectorAll('[data-view-button]')).toHaveLength(8);
+  expect(bindings.closeModal).toHaveBeenCalledTimes(formId ? 1 : 0);
+  if (formId) expect(els.connectorModal.classList.contains('open')).toBe(false);
   dom.window.close();
 });
