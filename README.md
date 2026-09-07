@@ -89,6 +89,12 @@ High-impact actions require human review of the exact payload. Workspace policy 
 
 Recommendation decisions and payload reviews retain their original workspace/session context. Stale or detached controls cannot submit, overlapping decisions and payload saves for the same recommendation are suppressed, and late results cannot reopen a dismissed review or replace a newer dialog. Switching workspace clears open payload-review and operating-ledger dialogs. An acknowledged decision or payload save is distinguished from a failed ledger refresh; reopening Approvals then retries the read. These browser safeguards complement the server's exact-revision checks, not replace them, and do not undo a request already accepted by the server.
 
+### Worker responses and follow-ups
+
+For an executed communication with an accountable worker and no recorded response, the ledger offers **Record response**. Supported observations are Acknowledged, Completed, Blocked, Needs help, and Ignored. Recording an observation updates internal evidence; it does not send a message to the worker. The result distinguishes changed follow-ups from an ignored or unmatched response that changed none. It uses the actual backend follow-up result rather than assuming every recorded response resolved something. Already-responded, unexecuted, non-communication, and workerless interventions do not offer the recording control.
+
+Decision snoozing/delegation, manual follow-up resolution/escalation, outcome refreshes, and worker-response forms preserve their opening context and suppress duplicate pending actions. Linked worker recording and manual follow-up changes share a pending-action guard. Recommendation and ledger guards survive switching away and back to the same workspace until their requests settle; they do not block a different workspace's records. These are page-local safeguards, not cross-device locks. The backend's permissions and concurrency checks remain authoritative. Late results cannot replace another dialog, and an acknowledged update with a failed subsequent refresh is reported separately, with a retry available by reopening Approvals.
+
 ### Notifications and reports
 
 Sneup can prepare reconciliation alerts, daily operations briefs, and reports through configured delivery policies. Destinations are encrypted and sends are claimed atomically to avoid duplicate delivery.
@@ -297,7 +303,7 @@ The installer is written to:
 release\Sneup-Setup-<version>.exe
 ```
 
-The local release line currently builds `Sneup-Setup-2.3.62.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
+The local release line currently builds `Sneup-Setup-2.3.63.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
 
 Verify the unpacked Windows app before distributing an installer:
 
@@ -366,6 +372,8 @@ npm.cmd run verify:packaged
 ```
 
 Some verifier scripts require a dedicated disposable MongoDB URI with an exact guarded database prefix. They refuse broad database names and drop only the guarded verification database.
+
+The follow-up integrity verifier additionally refuses an existing nonempty target, claims an exclusive ownership record before loading models, and verifies its ownership token before cleanup. Competing runs cannot both initialize the same empty target. A failed or uncertain claim does not authorize deletion; use a new disposable name rather than reusing a failed run's database blindly.
 
 For the HAI snapshot/proposal and authenticated HTTP verifiers, see the [disposable database setup and acceptance limits](docs/CLOUD_AND_HAI.md#verification).
 

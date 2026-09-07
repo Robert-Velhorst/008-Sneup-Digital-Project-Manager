@@ -18,6 +18,8 @@ function harness(actionType = 'comment') {
     ledger: { recommendations: [{ _id: 'rec', __v: 7, boardId: 'board-a', actionType, actionPayload: { commentText: 'Original', cardTrelloId: 'card-a' } }] } };
   const requests = [];
   const bindings = { state, els, document, FormData: dom.window.FormData,
+    cancelReportDownloads: jest.fn(), resetDashboardViews: jest.fn(), workspaceViewController: null,
+    localStorage: { setItem: jest.fn(), removeItem: jest.fn() },
     fetchApi: jest.fn((url, options) => { const pending = deferred(); requests.push({ url, options, ...pending }); return pending.promise; }),
     loadOperationsLedger: jest.fn().mockResolvedValue(undefined), openNotice: jest.fn(),
     closeModal: jest.fn(new Function('state', 'els', `${section('function closeModal(', 'function inviteTokenFromUrl(')}; return closeModal;`)(state, els)),
@@ -25,11 +27,11 @@ function harness(actionType = 'comment') {
     t: value => value, et: value => value, escapeHtml: String,
     getId: value => typeof value === 'object' ? value?._id || value?.id : value
   };
-  const code = section('function beginWorkspaceRead(', 'function adoptWorkspaceId(')
+  const code = section('function beginWorkspaceRead(', 'async function loadSecurityContext(')
     + section('async function runRecommendationAction(', 'async function runDecisionAction(')
     + section('async function editRecommendationPayload(', 'async function openRecommendationEvidence(')
     + section('async function openOperatingLedger(', 'function renderOperatingLedgerModal(');
-  const api = new Function(...Object.keys(bindings), `${code}; return { runRecommendationAction, editRecommendationPayload, openOperatingLedger };`)(...Object.values(bindings));
+  const api = new Function(...Object.keys(bindings), `${code}; return { runRecommendationAction, editRecommendationPayload, openOperatingLedger, adoptWorkspaceContext };`)(...Object.values(bindings));
   const submit = async form => {
     form.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
     await flush();
@@ -118,6 +120,28 @@ test('payload editing and approval cannot overlap for the same recommendation', 
   expect(h.requests).toHaveLength(1);
   h.requests[0].resolve({ recommendation: { status: 'pending' } });
   await flush();
+  h.dom.window.close();
+});
+
+test.each(['approval', 'payload'])('%s pending ownership survives a real A-B-A adoption', async mode => {
+  const h = harness();
+  let action;
+  if (mode === 'approval') action = h.runRecommendationAction('rec', 'approve', 7);
+  else {
+    await h.editRecommendationPayload('rec', 7);
+    await h.submit(h.els.modalBody.querySelector('form'));
+  }
+  h.adoptWorkspaceContext('b', 'same-session');
+  h.adoptWorkspaceContext('a', 'same-session');
+  await h.runRecommendationAction('rec', 'reject', 7);
+  await h.editRecommendationPayload('rec', 7);
+  await h.submit(h.els.modalBody.querySelector('form'));
+  expect(h.requests).toHaveLength(1);
+  h.requests[0].resolve({ recommendation: { status: 'pending' } });
+  await action;
+  await flush();
+  expect(h.state.pendingRecommendationActions.size).toBe(0);
+  expect(h.bindings.openNotice).not.toHaveBeenCalled();
   h.dom.window.close();
 });
 

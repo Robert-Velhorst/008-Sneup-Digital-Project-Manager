@@ -1,24 +1,17 @@
 const assert = require('node:assert/strict');
+const { randomUUID } = require('node:crypto');
 const mongoose = require('mongoose');
+const { cleanupVerificationDatabase } = require('./verify-hai-snapshot');
 
 const uri = process.env.SNEUP_FOLLOW_UP_VERIFICATION_MONGO_URI;
 const databaseName = uri ? new URL(uri).pathname.replace(/^\//, '').split('?')[0] : '';
-if (!uri || !/^sneup_follow_up_verification_[a-z0-9_-]+$/i.test(databaseName)) {
+if (!uri || Buffer.byteLength(databaseName) > 63 || !/^sneup_follow_up_verification_[a-z0-9_-]+$/i.test(databaseName)) {
   throw new Error('SNEUP_FOLLOW_UP_VERIFICATION_MONGO_URI must target a dedicated sneup_follow_up_verification_* database');
 }
 
-const Workspace = require('../src/models/Workspace');
-const Recommendation = require('../src/models/Recommendation');
-const Intervention = require('../src/models/Intervention');
-const FollowUpPlan = require('../src/models/FollowUpPlan');
-const WorkerResponse = require('../src/models/WorkerResponse');
-const AuditEvent = require('../src/models/AuditEvent');
-const TrelloActionAttempt = require('../src/models/TrelloActionAttempt');
-const operationsLedgerService = require('../src/services/operationsLedgerService');
-
 const rejectedCode = result => result.status === 'rejected' ? result.reason?.code : null;
 
-const createIntervention = (workspaceId, refs, suffix) => Intervention.create({
+const createIntervention = (Intervention, workspaceId, refs, suffix) => Intervention.create({
   workspaceId,
   boardId: refs.boardId,
   cardId: refs.cardId,
@@ -31,7 +24,7 @@ const createIntervention = (workspaceId, refs, suffix) => Intervention.create({
   executedAt: new Date()
 });
 
-const createRecommendation = (workspaceId, intervention, refs, suffix) => Recommendation.create({
+const createRecommendation = (Recommendation, workspaceId, intervention, refs, suffix) => Recommendation.create({
   workspaceId,
   interventionId: intervention._id,
   boardId: refs.boardId,
@@ -47,7 +40,7 @@ const createRecommendation = (workspaceId, intervention, refs, suffix) => Recomm
   status: 'executed'
 });
 
-const createFollowUp = (workspaceId, recommendation, intervention, refs, suffix) => FollowUpPlan.create({
+const createFollowUp = (FollowUpPlan, workspaceId, recommendation, intervention, refs, suffix) => FollowUpPlan.create({
   workspaceId,
   recommendationId: recommendation._id,
   interventionId: intervention._id,
@@ -62,8 +55,22 @@ const createFollowUp = (workspaceId, recommendation, intervention, refs, suffix)
 
 const run = async () => {
   const startedAt = process.hrtime.bigint();
-  await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
+  let ownsDatabase = false;
+  const ownershipToken = randomUUID();
   try {
+    await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
+    const collections = await mongoose.connection.db.listCollections({}, { nameOnly: true }).toArray();
+    assert.equal(collections.length, 0, 'Refusing to modify an existing nonempty verification database');
+    await mongoose.connection.db.collection('_sneup_verification_owner').insertOne({ _id: 'owner', token: ownershipToken });
+    ownsDatabase = true;
+    const Workspace = require('../src/models/Workspace');
+    const Recommendation = require('../src/models/Recommendation');
+    const Intervention = require('../src/models/Intervention');
+    const FollowUpPlan = require('../src/models/FollowUpPlan');
+    const WorkerResponse = require('../src/models/WorkerResponse');
+    const AuditEvent = require('../src/models/AuditEvent');
+    const TrelloActionAttempt = require('../src/models/TrelloActionAttempt');
+    const operationsLedgerService = require('../src/services/operationsLedgerService');
     await Promise.all([
       Workspace.init(),
       Recommendation.init(),
@@ -84,12 +91,12 @@ const run = async () => {
       memberId: new mongoose.Types.ObjectId()
     };
 
-    const primaryIntervention = await createIntervention(workspaceId, refs, 'primary');
-    const adjacentIntervention = await createIntervention(workspaceId, refs, 'adjacent');
-    const primaryRecommendation = await createRecommendation(workspaceId, primaryIntervention, refs, 'primary');
-    const adjacentRecommendation = await createRecommendation(workspaceId, adjacentIntervention, refs, 'adjacent');
-    const primaryFollowUp = await createFollowUp(workspaceId, primaryRecommendation, primaryIntervention, refs, 'primary');
-    const adjacentFollowUp = await createFollowUp(workspaceId, adjacentRecommendation, adjacentIntervention, refs, 'adjacent');
+    const primaryIntervention = await createIntervention(Intervention, workspaceId, refs, 'primary');
+    const adjacentIntervention = await createIntervention(Intervention, workspaceId, refs, 'adjacent');
+    const primaryRecommendation = await createRecommendation(Recommendation, workspaceId, primaryIntervention, refs, 'primary');
+    const adjacentRecommendation = await createRecommendation(Recommendation, workspaceId, adjacentIntervention, refs, 'adjacent');
+    const primaryFollowUp = await createFollowUp(FollowUpPlan, workspaceId, primaryRecommendation, primaryIntervention, refs, 'primary');
+    const adjacentFollowUp = await createFollowUp(FollowUpPlan, workspaceId, adjacentRecommendation, adjacentIntervention, refs, 'adjacent');
 
     const responseResults = await Promise.allSettled([
       operationsLedgerService.recordWorkerResponse({
@@ -125,6 +132,10 @@ const run = async () => {
     assert.equal(responseRows.length, 1);
     assert.equal(String(primaryAfter.response.workerResponseId), String(responseRows[0]._id));
     assert.equal(primaryFollowUpAfter.status, responseRows[0].responseType === 'blocked' ? 'escalated' : 'resolved');
+    const receipt = responseResults.find(result => result.status === 'fulfilled').value;
+    assert.equal(receipt.followUpResolution.modifiedCount, 1);
+    assert.equal(receipt.followUpResolution.status, primaryFollowUpAfter.status);
+    assert.equal(Object.hasOwn(receipt, 'responseText'), false);
     assert.equal(adjacentFollowUpAfter.status, 'due');
     const responseAuditActions = await AuditEvent.find({
       workspaceId,
@@ -136,9 +147,17 @@ const run = async () => {
       'worker_response_recorded'
     ]);
 
-    const manualIntervention = await createIntervention(workspaceId, refs, 'manual-race');
-    const manualRecommendation = await createRecommendation(workspaceId, manualIntervention, refs, 'manual-race');
-    const manualFollowUp = await createFollowUp(workspaceId, manualRecommendation, manualIntervention, refs, 'manual-race');
+    const ignoredReceipt = await operationsLedgerService.recordWorkerResponse({
+      workspaceId, recommendationId: adjacentRecommendation._id, interventionId: adjacentIntervention._id,
+      ...refs, responseType: 'ignored', source: 'manual', actor: 'reviewer'
+    });
+    assert.equal(ignoredReceipt.followUpResolution.modifiedCount, 0);
+    assert.equal(ignoredReceipt.followUpResolution.status, 'open');
+    assert.equal((await FollowUpPlan.findById(adjacentFollowUp._id).lean()).status, 'due');
+
+    const manualIntervention = await createIntervention(Intervention, workspaceId, refs, 'manual-race');
+    const manualRecommendation = await createRecommendation(Recommendation, workspaceId, manualIntervention, refs, 'manual-race');
+    const manualFollowUp = await createFollowUp(FollowUpPlan, workspaceId, manualRecommendation, manualIntervention, refs, 'manual-race');
     const resolutionResults = await Promise.allSettled([
       operationsLedgerService.resolveFollowUp(manualFollowUp._id, {
         workspaceId,
@@ -168,12 +187,23 @@ const run = async () => {
       primaryFollowUpStatus: primaryFollowUpAfter.status,
       adjacentFollowUpStatus: adjacentFollowUpAfter.status,
       manualResolutionWinner: manualAfter.status,
+      followUpReceiptMatchesPersistence: true,
+      ignoredResponseLeavesFollowUpOpen: true,
       trelloActionAttempts: 0,
       providerWrites: false
     }, null, 2)}\n`);
   } finally {
-    if (mongoose.connection.readyState === 1) await mongoose.connection.dropDatabase();
-    await mongoose.disconnect();
+    try {
+      if (ownsDatabase) {
+        const owner = await mongoose.connection.db.collection('_sneup_verification_owner').findOne({ _id: 'owner' });
+        assert.equal(owner?.token, ownershipToken, 'Refusing to drop a verification database owned by another run');
+      }
+    } catch (error) {
+      ownsDatabase = false;
+      throw error;
+    } finally {
+      await cleanupVerificationDatabase(mongoose, ownsDatabase);
+    }
   }
 };
 

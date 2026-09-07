@@ -7,7 +7,7 @@ const initialState = () => new Function('localStorage', 'sessionStorage', 'SESSI
   `${source.slice(source.indexOf('const state = {'), source.indexOf('const els = {'))}; return state;`)(
   { getItem: () => '' }, { getItem: () => '' }, 'session', 'setup');
 
-test.each([null, 'forecastScenarioForm', 'capacityProfileForm', 'boardProjectMappingsForm', 'payloadReviewForm', 'payloadReviewLoading', 'ledgerClose'])('workspace reset clears dashboard evidence and any open %s without loading modules', formId => {
+test.each([null, 'forecastScenarioForm', 'capacityProfileForm', 'boardProjectMappingsForm', 'payloadReviewForm', 'payloadReviewLoading', 'workerResponseForm', 'ledgerClose'])('workspace reset clears dashboard evidence and any open %s without loading modules', formId => {
   expect(source.includes('function resetDashboardViews(')).toBe(true);
   const dom = new JSDOM(fs.readFileSync(path.join(root, 'public/index.html'), 'utf8'));
   const document = dom.window.document;

@@ -3471,7 +3471,7 @@ class OperationsLedgerService {
       });
     }
 
-    return this.serializeWorkerResponse(response);
+    return { ...this.serializeWorkerResponse(response), followUpResolution };
   }
 
   async recordChatWorkerResponse(body = {}) {

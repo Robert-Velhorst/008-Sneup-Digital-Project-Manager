@@ -115,6 +115,8 @@ describe('ledger evidence after a lost write acknowledgement', () => {
     const ctx = setup();
     const result = await ctx.service.recordWorkerResponse(responseBody);
     expect(result._id).toBe('response');
+    expect(result.followUpResolution).toEqual({ modifiedCount: 1, status: 'resolved' });
+    expect(result).not.toHaveProperty('responseText');
     expect(ctx.interventionModel.findOneAndUpdate).toHaveBeenCalledTimes(1);
     expect(ctx.interventionModel.findOne).toHaveBeenCalledWith({
       _id: 'intervention', workspaceId: 'workspace', memberId: 'member',

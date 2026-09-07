@@ -1435,7 +1435,7 @@ async function fetchApi(url, options) {
 }
 
 function resetDashboardViews() {
-  if (els.modalBody.querySelector('#forecastScenarioForm, #capacityProfileForm, #boardProjectMappingsForm, #payloadReviewForm, #payloadReviewLoading, #ledgerClose')) {
+  if (els.modalBody.querySelector('#forecastScenarioForm, #capacityProfileForm, #boardProjectMappingsForm, #payloadReviewForm, #payloadReviewLoading, #workerResponseForm, #ledgerClose')) {
     closeModal();
     els.modalBody.replaceChildren();
     els.modalTitle.textContent = '';
@@ -1503,6 +1503,10 @@ function captureWorkspaceContext() {
     && epoch === (state.workspaceEpoch || 0);
 }
 
+function ledgerPendingKey(recordKey) {
+  return JSON.stringify([state.activeWorkspaceId || '', recordKey]);
+}
+
 function adoptWorkspaceId(workspaceId) {
   if (!workspaceId || workspaceId === state.activeWorkspaceId) return false;
   return adoptWorkspaceContext(workspaceId, state.sessionToken, { preserveModal: true });
@@ -1518,7 +1522,6 @@ function adoptWorkspaceContext(workspaceId, sessionToken, options = {}) {
   cancelReportDownloads();
   state.workspaceExportController?.abort();
   state.workspaceExportController = null;
-  state.pendingRecommendationActions = new Set();
   state.workspaceEpoch = (state.workspaceEpoch || 0) + 1;
   state.sessionToken = sessionToken;
   state.activeWorkspaceId = workspaceId;
@@ -2310,8 +2313,9 @@ async function runRecommendationAction(recommendationId, action, expectedRevisio
   if (!recommendationId || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0) return;
   if (!['approve', 'reject', 'change', 'execute-approved'].includes(action)) return;
   const pending = state.pendingRecommendationActions ||= new Set();
-  if (pending.has(recommendationId)) return;
-  pending.add(recommendationId);
+  const pendingKey = ledgerPendingKey(`recommendation:${recommendationId}`);
+  if (pending.has(pendingKey)) return;
+  pending.add(pendingKey);
   const ownsContext = captureWorkspaceContext();
   const modalContent = els.modalBody.firstChild;
   const modalEpoch = state.modalEpoch || 0;
@@ -2348,11 +2352,11 @@ async function runRecommendationAction(recommendationId, action, expectedRevisio
     }
     if (canPresent()) openNotice(t('Recommendation action failed'), error.message);
   } finally {
-    pending.delete(recommendationId);
+    pending.delete(pendingKey);
   }
 }
 async function runDecisionAction(itemId, action) {
-  if (!itemId) return;
+  if (!itemId || !['snooze', 'delegate-va', 'delegate-team'].includes(action)) return;
 
   const endpoint = action === 'snooze'
     ? `/api/decision-queue/${itemId}/snooze`
@@ -2369,21 +2373,43 @@ async function runDecisionAction(itemId, action) {
       reason: `Delegated from Sneup command center to ${action === 'delegate-va' ? 'VA' : 'team'}`
     };
 
+  return runLedgerAction(`decision:${itemId}`, endpoint, body, 'Decision updated',
+    () => t(action === 'snooze' ? 'Decision snoozed using this workspace default.' : 'Decision delegated.'), 'Decision update failed');
+}
+
+async function runLedgerAction(key, endpoint, body, title, message, failureTitle) {
+  const pending = state.pendingLedgerActions ||= new Set();
+  const pendingKey = ledgerPendingKey(key);
+  if (pending.has(pendingKey)) return;
+  pending.add(pendingKey);
+  const ownsContext = captureWorkspaceContext();
+  const modalContent = els.modalBody.firstChild;
+  const modalEpoch = state.modalEpoch || 0;
+  const canPresent = () => ownsContext() && els.modalBody.firstChild === modalContent && (state.modalEpoch || 0) === modalEpoch;
   try {
-    await fetchApi(endpoint, {
+    const data = await fetchApi(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    openNotice(t('Decision updated'), t(action === 'snooze' ? 'Decision snoozed using this workspace default.' : 'Decision delegated.'));
-    await loadOperationsLedger();
+    if (!ownsContext()) return;
+    try {
+      await loadOperationsLedger({ throwOnError: true });
+    } catch {
+      if (ownsContext()) state.loadedViews.delete('approvals');
+      if (canPresent()) openNotice(t(title), t('The action was recorded, but the ledger could not refresh. Reopen Approvals before taking another action.'));
+      return;
+    }
+    if (canPresent()) openNotice(t(title), message(data));
   } catch (error) {
-    openNotice(t('Decision update failed'), error.message);
+    if (canPresent()) openNotice(t(failureTitle), error.message);
+  } finally {
+    pending.delete(pendingKey);
   }
 }
 
 async function runFollowUpAction(followUpId, action) {
-  if (!followUpId) return;
+  if (!followUpId || !['escalated', 'resolved'].includes(action)) return;
 
   const status = action === 'escalated' ? 'escalated' : 'resolved';
   const body = {
@@ -2395,21 +2421,16 @@ async function runFollowUpAction(followUpId, action) {
       : 'Resolved from Sneup command center'
   };
 
-  try {
-    await fetchApi(`/api/follow-ups/${followUpId}/resolve`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    openNotice(t('Follow-up updated'), t(status === 'escalated' ? 'Follow-up escalated.' : 'Follow-up resolved.'));
-    await loadOperationsLedger();
-  } catch (error) {
-    openNotice(t('Follow-up update failed'), error.message);
-  }
+  const followUp = (state.ledger.followUps || []).find(item => getId(item._id || item.id) === followUpId);
+  const interventionId = getId(followUp?.interventionId);
+  const key = interventionId ? `intervention:${interventionId}` : `follow-up:${followUpId}`;
+  return runLedgerAction(key, `/api/follow-ups/${followUpId}/resolve`, body, 'Follow-up updated',
+    () => t(status === 'escalated' ? 'Follow-up escalated.' : 'Follow-up resolved.'), 'Follow-up update failed');
 }
 
 function openWorkerResponseRecorder(interventionId) {
   if (!interventionId) return;
+  const ownsContext = captureWorkspaceContext();
 
   els.modalTitle.textContent = t('Record worker response');
   els.modalBody.innerHTML = `
@@ -2422,7 +2443,6 @@ function openWorkerResponseRecorder(interventionId) {
           <option value="blocked">${et('Blocked')}</option>
           <option value="needs_help">${et('Needs help')}</option>
           <option value="ignored">${et('Ignored')}</option>
-          <option value="other">${et('Other')}</option>
         </select>
       </label>
       <label>${et('Observed through')}
@@ -2445,10 +2465,16 @@ function openWorkerResponseRecorder(interventionId) {
   `;
   els.modal.classList.add('open');
   document.getElementById('cancelWorkerResponse').addEventListener('click', closeModal);
-  document.getElementById('workerResponseForm').addEventListener('submit', async (event) => {
+  const form = document.getElementById('workerResponseForm');
+  const isCurrent = () => ownsContext() && els.modal.classList.contains('open') && els.modalBody.contains(form);
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const form = event.currentTarget;
     const submitButton = form.querySelector('button[type="submit"]');
+    if (!isCurrent() || submitButton.disabled) return;
+    const pending = state.pendingLedgerActions ||= new Set();
+    const key = ledgerPendingKey(`intervention:${interventionId}`);
+    if (pending.has(key)) return;
+    pending.add(key);
     const values = new FormData(form);
     submitButton.disabled = true;
     submitButton.textContent = t('Recording...');
@@ -2463,15 +2489,34 @@ function openWorkerResponseRecorder(interventionId) {
           actor: state.securityContext?.actorId || 'local-user'
         })
       });
-      closeModal();
-      await loadOperationsLedger();
-      openNotice(t('Worker response recorded'), t(data.response?.responseType === 'blocked' || data.response?.responseType === 'needs_help'
-        ? 'The matching follow-up was escalated for review.'
-        : 'The matching follow-up and accountability ledger were updated.'));
+      if (!ownsContext()) return;
+      try {
+        await loadOperationsLedger({ throwOnError: true });
+      } catch {
+        if (ownsContext()) state.loadedViews.delete('approvals');
+        if (isCurrent()) {
+          closeModal();
+          openNotice(t('Worker response recorded'), t('The response was recorded, but the ledger could not refresh. Reopen Approvals before continuing.'));
+        }
+        return;
+      }
+      if (isCurrent()) {
+        closeModal();
+        const resolution = data.response?.followUpResolution;
+        const message = resolution?.modifiedCount > 0
+          ? resolution.status === 'escalated' ? 'The matching follow-up was escalated for review.' : 'The matching follow-up and accountability ledger were updated.'
+          : resolution?.modifiedCount === 0 ? 'No follow-up was changed. The response is recorded in the accountability ledger.'
+            : 'The response was recorded. Review the ledger for the current follow-up status.';
+        openNotice(t('Worker response recorded'), t(message));
+      }
     } catch (error) {
-      submitButton.disabled = false;
-      submitButton.textContent = t('Record response');
-      openNotice(t('Worker response blocked'), error.message);
+      if (isCurrent()) {
+        submitButton.disabled = false;
+        submitButton.textContent = t('Record response');
+        openNotice(t('Worker response blocked'), error.message);
+      }
+    } finally {
+      pending.delete(key);
     }
   });
 }
@@ -2479,17 +2524,8 @@ function openWorkerResponseRecorder(interventionId) {
 async function runOutcomeEvaluation(recommendationId) {
   if (!recommendationId) return;
 
-  try {
-    const result = await fetchApi(`/api/outcomes/recommendations/${recommendationId}/evaluate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({})
-    });
-    openNotice('Outcome evidence refreshed', result.outcome?.summary || 'Sneup refreshed the available outcome evidence.');
-    await loadOperationsLedger();
-  } catch (error) {
-    openNotice('Outcome evaluation failed', error.message);
-  }
+  return runLedgerAction(`outcome:${recommendationId}`, `/api/outcomes/recommendations/${recommendationId}/evaluate`, {}, 'Outcome evidence refreshed',
+    result => result.outcome?.summary || t('Sneup refreshed the available outcome evidence.'), 'Outcome evaluation failed');
 }
 
 async function runJobAction(jobName, action) {
@@ -2564,8 +2600,9 @@ async function editRecommendationPayload(recommendationId, expectedRevision) {
     const submitButton = form.querySelector('button[type="submit"]');
     if (!isCurrent() || submitButton.disabled || !reviewReady) return;
     const pending = state.pendingRecommendationActions ||= new Set();
-    if (pending.has(recommendationId)) return;
-    pending.add(recommendationId);
+    const pendingKey = ledgerPendingKey(`recommendation:${recommendationId}`);
+    if (pending.has(pendingKey)) return;
+    pending.add(pendingKey);
     const actionPayload = {};
     for (const field of fields) {
       const input = form.elements[field.key];
@@ -2612,7 +2649,7 @@ async function editRecommendationPayload(recommendationId, expectedRevision) {
         openNotice(t('Payload update failed'), error.message);
       }
     } finally {
-      pending.delete(recommendationId);
+      pending.delete(pendingKey);
     }
   });
 }

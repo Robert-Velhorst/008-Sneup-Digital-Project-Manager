@@ -80,7 +80,7 @@ function createHarness(locale = 'nl') {
         entityType: 'recommendation', riskLevel: 'high', createdAt: '2026-08-09T10:30:00.000Z'
       }],
       followUps: [{
-        _id: 'follow-up-1', interventionId: 'intervention-1', reason: 'Follow-up evidence remains verbatim.',
+        _id: 'follow-up-1', interventionId: { _id: 'intervention-1', status: 'executed', type: 'follow_up', memberId: 'worker' }, reason: 'Follow-up evidence remains verbatim.',
         status: 'due', dueAt: '2026-08-10T10:00:00.000Z', nextAction: 'Next-action evidence remains verbatim.'
       }],
       workerResponses: [{ _id: 'response-1' }],
@@ -206,6 +206,21 @@ describe('demand-loaded approval view', () => {
     expect(harness.elements.decisionQueue.querySelector('[data-decision-action]')).toBeNull();
     expect(harness.elements.decisionQueue.querySelector('[data-recommendation-action]')).toBeNull();
     expect(harness.elements.decisionQueue.textContent).toContain('Evidence question remains verbatim?');
+    harness.dom.window.close();
+  });
+
+  test.each([
+    'intervention-1',
+    { _id: 'intervention-1', status: 'pending', type: 'follow_up', memberId: 'worker' },
+    { _id: 'intervention-1', status: 'executed', type: 'move_card', memberId: 'worker' },
+    { _id: 'intervention-1', status: 'executed', type: 'follow_up' },
+    { _id: 'intervention-1', status: 'executed', type: 'follow_up', memberId: 'worker', response: { respondedAt: '2026-09-07T00:00:00Z' } }
+  ])('hides worker recording when intervention eligibility is absent: %j', intervention => {
+    const harness = createHarness('en');
+    harness.state.ledger.followUps[0].interventionId = intervention;
+    harness.controller.render();
+    expect(harness.elements.followUps.querySelector('[data-followup-response]')).toBeNull();
+    expect(harness.elements.followUps.querySelector('[data-followup-action="resolved"]')).not.toBeNull();
     harness.dom.window.close();
   });
 
