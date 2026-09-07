@@ -25,8 +25,10 @@ const run = async () => {
     const Intervention = require('../src/models/Intervention');
     const Workspace = require('../src/models/Workspace');
     const Approval = require('../src/models/Approval');
+    const FollowUpPlan = require('../src/models/FollowUpPlan');
+    const WorkerResponse = require('../src/models/WorkerResponse');
     const service = require('../src/services/operationsLedgerService');
-    await Promise.all([Recommendation.init(), Attempt.init(), AuditEvent.init(), Intervention.init()]);
+    await Promise.all([Recommendation.init(), Attempt.init(), AuditEvent.init(), Intervention.init(), FollowUpPlan.init(), WorkerResponse.init()]);
     const workspaceId = new mongoose.Types.ObjectId();
     const otherWorkspaceId = new mongoose.Types.ObjectId();
     let providerCalls = 0;
@@ -160,6 +162,124 @@ const run = async () => {
     await verifyFinal(legacy, 'failed');
     assert.equal((await Attempt.findById(legacy.attempt._id)).reconciliation.reconciledBy, 'legacy-reviewer');
 
+    const createLinked = async () => {
+      const pair = await create();
+      const intervention = await Intervention.create({ workspaceId, boardId: new mongoose.Types.ObjectId(),
+        type: 'comment', trigger: 'manual_request', action: 'Synthetic recovery', status: 'executing' });
+      await Recommendation.updateOne({ _id: pair.rec._id }, { $set: { interventionId: intervention._id, actionType: 'comment' } });
+      await Attempt.updateOne({ _id: pair.attempt._id }, { $set: { interventionId: intervention._id, actionType: 'comment' } });
+      return { ...pair, intervention };
+    };
+    const fault = (stage, afterCommit) => {
+      const Model = { intervention: Intervention, followUp: FollowUpPlan, audit: AuditEvent, completion: Recommendation }[stage];
+      const method = ['followUp', 'audit'].includes(stage) ? 'create' : 'findOneAndUpdate';
+      const original = Model[method];
+      let injected = 0;
+      Model[method] = async function(...args) {
+        if (stage === 'completion' && args[1]?.$set?.['reconciliationDecision.effects']?.status !== 'completed') {
+          return original.apply(this, args);
+        }
+        injected++;
+        if (afterCommit) await original.apply(this, args);
+        throw new Error('Synthetic interrupted internal effect');
+      };
+      return () => { Model[method] = original; assert.ok(injected > 0, `Fault ${stage} was exercised`); };
+    };
+    for (const stage of ['intervention', 'followUp', 'audit', 'completion']) {
+      for (const afterCommit of [false, true]) {
+        const pair = await createLinked();
+        const restore = fault(stage, afterCommit);
+        let result;
+        try { result = await service.reconcileTrelloActionAttempt(pair.attempt._id, body()); }
+        finally { restore(); }
+        assert.equal(result.effectsCompleted, afterCommit, `${stage}: read-back distinguishes lost acknowledgement from failed write`);
+        const recorded = await Recommendation.findById(pair.rec._id);
+        assert.equal(recorded.status, 'executed', 'Internal failure must not reopen the provider action');
+        assert.equal(recorded.reconciliationDecision.effects.status, afterCommit ? 'completed' : 'pending');
+        const finishedAt = (await Attempt.findById(pair.attempt._id)).finishedAt;
+        // Reload the module to ensure recovery depends on persisted state, not process-local flags.
+        delete require.cache[require.resolve('../src/services/trelloReconciliationEffectsService')];
+        await Promise.all([1, 2].map(() => service.reconcileTrelloActionAttempt(pair.attempt._id, body())));
+        assert.equal((await service.reconcileTrelloActionAttempt(pair.attempt._id, body())).effectsCompleted, true);
+        await verifyFinal(pair, 'succeeded');
+        assert.equal(await FollowUpPlan.countDocuments({ recommendationId: pair.rec._id }), 1);
+        const updated = await Intervention.findById(pair.intervention._id);
+        assert.equal(updated.executedAt.getTime(), finishedAt.getTime(), 'Recovery preserves the original execution time');
+        assert.equal(String(updated.metadata.reconciliationDecisionId), String(recorded.reconciliationDecision._id));
+        await assert.rejects(service.reconcileTrelloActionAttempt(pair.attempt._id, body('failed')), { statusCode: 409 });
+      }
+    }
+
+    const earlyResponse = await createLinked();
+    const restoreFollowUp = fault('followUp', false);
+    try { assert.equal((await service.reconcileTrelloActionAttempt(earlyResponse.attempt._id, body())).effectsCompleted, false); }
+    finally { restoreFollowUp(); }
+    await service.recordWorkerResponse({ workspaceId, interventionId: earlyResponse.intervention._id,
+      recommendationId: earlyResponse.rec._id, responseType: 'completed', source: 'manual', responseText: 'Synthetic completed response' });
+    await service.reconcileTrelloActionAttempt(earlyResponse.attempt._id, body());
+    const answeredFollowUp = await FollowUpPlan.findOne({ recommendationId: earlyResponse.rec._id });
+    assert.equal(answeredFollowUp.status, 'resolved', 'Recovery catches a response recorded before follow-up insertion');
+    const resolvedAt = answeredFollowUp.resolvedAt.getTime();
+    await service.reconcileTrelloActionAttempt(earlyResponse.attempt._id, body());
+    assert.equal((await FollowUpPlan.findById(answeredFollowUp._id)).resolvedAt.getTime(), resolvedAt);
+
+    const queued = await createLinked();
+    const restoreAudit = fault('audit', false);
+    try { await service.reconcileTrelloActionAttempt(queued.attempt._id, body()); }
+    finally { restoreAudit(); }
+    assert.equal((await service.retryPendingTrelloReconciliations({ workspaceId })).processedCount, 0, 'Backoff avoids hot retries');
+    await Recommendation.updateOne({ _id: queued.rec._id }, { $unset: { 'reconciliationDecision.effects.nextAttemptAt': 1 } });
+    assert.equal((await service.retryPendingTrelloReconciliations({ workspaceId: otherWorkspaceId })).processedCount, 0);
+    assert.deepEqual(await service.retryPendingTrelloReconciliations({ workspaceId, limit: 1 }),
+      { processedCount: 1, completedCount: 1, failureCount: 0 });
+    await verifyFinal(queued, 'succeeded');
+
+    for (const reason of ['', '   ']) {
+      const emptyNote = await createLinked();
+      const restore = fault('audit', false);
+      try { await service.reconcileTrelloActionAttempt(emptyNote.attempt._id, { ...body(), reason }); }
+      finally { restore(); }
+      await Recommendation.updateOne({ _id: emptyNote.rec._id }, { $unset: { 'reconciliationDecision.effects.nextAttemptAt': 1 } });
+      assert.deepEqual(await service.retryPendingTrelloReconciliations({ workspaceId, limit: 1 }),
+        { processedCount: 1, completedCount: 1, failureCount: 0 });
+      const recovered = await service.reconcileTrelloActionAttempt(emptyNote.attempt._id, { ...body(), reason: '' });
+      assert.equal(recovered.effectsCompleted, true);
+      assert.equal(recovered.recommendation.reconciliationDecision.reason, '');
+    }
+
+    const reassigned = await createLinked();
+    const nextRecommendationId = new mongoose.Types.ObjectId();
+    const originalUpdate = Intervention.findOneAndUpdate;
+    let assignmentInjected = false;
+    Intervention.findOneAndUpdate = async function(...args) {
+      if (!assignmentInjected) {
+        assignmentInjected = true;
+        const newer = await Intervention.findById(reassigned.intervention._id);
+        newer.metadata = { recommendationId: nextRecommendationId };
+        await newer.save();
+      }
+      return originalUpdate.apply(this, args);
+    };
+    try { assert.equal((await service.reconcileTrelloActionAttempt(reassigned.attempt._id, body())).effectsCompleted, false); }
+    finally { Intervention.findOneAndUpdate = originalUpdate; }
+    assert.equal(assignmentInjected, true);
+    const retainedAssignment = await Intervention.findById(reassigned.intervention._id);
+    assert.equal(String(retainedAssignment.metadata.recommendationId), String(nextRecommendationId));
+    assert.equal(retainedAssignment.status, 'executing');
+    assert.equal(await FollowUpPlan.countDocuments({ recommendationId: reassigned.rec._id }), 0);
+
+    const invalid = await createLinked();
+    await Intervention.updateOne({ _id: invalid.intervention._id }, { $set: { status: 'cancelled' } });
+    assert.equal((await service.reconcileTrelloActionAttempt(invalid.attempt._id, body())).effectsCompleted, false);
+    assert.equal((await Intervention.findById(invalid.intervention._id)).status, 'cancelled');
+    assert.equal(await FollowUpPlan.countDocuments({ recommendationId: invalid.rec._id }), 0);
+    // A stale approval makes the endpoint reject before effect processing; the worker still backs it off.
+    await Recommendation.updateOne({ _id: invalid.rec._id }, { $set: { currentApprovalId: new mongoose.Types.ObjectId() },
+      $unset: { 'reconciliationDecision.effects.nextAttemptAt': 1 } });
+    assert.deepEqual(await service.retryPendingTrelloReconciliations({ workspaceId, limit: 1 }),
+      { processedCount: 1, completedCount: 0, failureCount: 1 });
+    assert.equal((await service.retryPendingTrelloReconciliations({ workspaceId, limit: 1 })).processedCount, 0);
+
     assert.equal(providerCalls, 0);
     // Run the real executor/ledger path, replacing only its provider boundary with a held synthetic result.
     await Workspace.create({ _id: workspaceId, name: 'Synthetic reconciliation executor', slug: `reconciliation-${token}` });
@@ -192,7 +312,10 @@ const run = async () => {
     assert.equal(simulatedExecutorCalls, 2);
     console.log(JSON.stringify({ result: 'PASS', scenarios: ['conflicting-and-identical-reviewers', 'lost-acknowledgements-all-three-writes',
       'interrupted-write-retry', 'immutable-evidence-and-actor', 'versioned-and-unversioned-stale-provider-saves', 'historical-attempt', 'approval-binding',
-      'workspace-isolation', 'legacy-confirmation-recovery', 'partial-step-evidence', 'actual-executor-with-held-synthetic-provider'],
+      'workspace-isolation', 'legacy-confirmation-recovery', 'partial-step-evidence', 'actual-executor-with-held-synthetic-provider',
+      'four-internal-effect-failures-and-lost-acknowledgements', 'concurrent-idempotent-effect-retries', 'persisted-effect-module-reload',
+      'early-response-follow-up-recovery', 'bounded-workspace-retry-and-backoff', 'cancelled-intervention-and-invalid-reference-backoff',
+      'empty-and-whitespace-reason-replay', 'concurrent-intervention-assignment-preserved'],
     providerCalls, simulatedExecutorCalls, elapsedMs: Math.round(performance.now() - startedAt) }));
   } finally {
     let verifiedOwnership = false;

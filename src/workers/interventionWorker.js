@@ -110,12 +110,13 @@ class InterventionWorker {
   async processFollowUps(workspaceId) {
     try {
       logger.info('Processing follow-ups...');
+      const recovery = await operationsLedgerService.retryPendingTrelloReconciliations({ workspaceId });
       const ledgerResult = await operationsLedgerService.processDueFollowUps({ workspaceId });
       const queuedInterventions = await interventionEngine.processFollowUps({ workspaceId });
       return {
-        processedCount: ledgerResult.markedDue + queuedInterventions.length,
-        successCount: 1,
-        failureCount: 0
+        processedCount: recovery.processedCount + ledgerResult.markedDue + queuedInterventions.length,
+        successCount: recovery.completedCount + 1,
+        failureCount: recovery.failureCount
       };
     } catch (error) {
       logger.error('Failed to process follow-ups:', error);

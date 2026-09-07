@@ -120,6 +120,20 @@ const recommendationSchema = new mongoose.Schema({
       actor: String,
       decidedAt: { type: Date, required: true },
       finalizationId: mongoose.Schema.Types.ObjectId,
+      effects: {
+        type: new mongoose.Schema({
+          status: { type: String, enum: ['pending', 'completed'], required: true },
+          auditId: { type: mongoose.Schema.Types.ObjectId, required: true },
+          followUpId: { type: mongoose.Schema.Types.ObjectId, required: true },
+          plannedAt: { type: Date, required: true },
+          nextAttemptAt: Date,
+          completedAt: Date,
+          interventionUpdated: Boolean,
+          followUpScheduled: Boolean,
+          auditRecorded: Boolean
+        }, { _id: false }),
+        default: undefined
+      },
       beforeState: mongoose.Schema.Types.Mixed
     }),
     default: undefined
@@ -141,5 +155,6 @@ recommendationSchema.index({ workspaceId: 1, status: 1, riskLevel: -1, createdAt
 recommendationSchema.index({ workspaceId: 1, boardId: 1, status: 1, createdAt: -1 });
 recommendationSchema.index({ workspaceId: 1, status: 1, approvalExpiresAt: 1 });
 recommendationSchema.index({ workspaceId: 1, status: 1, _id: 1 });
+recommendationSchema.index({ workspaceId: 1, 'reconciliationDecision.effects.status': 1, 'reconciliationDecision.effects.nextAttemptAt': 1, _id: 1 });
 
 module.exports = mongoose.models.Recommendation || mongoose.model('Recommendation', recommendationSchema);

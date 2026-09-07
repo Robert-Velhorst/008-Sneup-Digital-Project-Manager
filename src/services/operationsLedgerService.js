@@ -2279,6 +2279,7 @@ class OperationsLedgerService {
       const recommendation = attempt.recommendationId;
       return attempt.reconciliation?.status === 'required'
         || attempt.status === 'in_progress'
+        || recommendation?.reconciliationDecision?.effects?.status === 'pending'
         || recommendation?.status === 'executing';
     });
   }
@@ -2329,7 +2330,9 @@ class OperationsLedgerService {
         severity,
         recommendationId: recommendation?._id ? String(recommendation._id) : attempt.recommendationId ? String(attempt.recommendationId) : null,
         sourceUrl: safeExternalSourceUrl(attempt.cardId?.url),
-        message: partialResult
+        message: recommendation?.reconciliationDecision?.effects?.status === 'pending'
+          ? 'The provider result is recorded. Internal intervention, follow-up, or audit work remains pending.'
+          : partialResult
           ? 'The provider result is not definitive. Confirm the observed Trello result before any new action.'
           : severity === 'critical'
           ? `Unresolved for ${ageHours}h. Confirm the observed Trello result before any new action.`
@@ -2401,7 +2404,7 @@ class OperationsLedgerService {
       throw error;
     }
 
-    const reason = String(body.reason || body.reconciliationReason || evidence).trim().slice(0, 1000);
+    const reason = String(body.reason ?? body.reconciliationReason ?? evidence).trim().slice(0, 1000);
     let attempt = await TrelloActionAttempt.findOne(this.workspaceQuery(body, { _id: actionAttemptId }));
     if (!attempt) {
       const error = new Error('Trello action attempt not found');
@@ -2410,7 +2413,9 @@ class OperationsLedgerService {
     }
 
     let recommendation = await Recommendation.findOne(this.workspaceQuery(body, { _id: attempt.recommendationId }));
-    if (!recommendation || recommendation.status !== 'executing') {
+    const canFinishEffects = recommendation?.reconciliationDecision?.effects
+      && ['executed', 'failed'].includes(recommendation.status);
+    if (!recommendation || (recommendation.status !== 'executing' && !canFinishEffects)) {
       const error = new Error('Only an executing recommendation can be reconciled');
       error.statusCode = 409;
       throw error;
@@ -2440,6 +2445,7 @@ class OperationsLedgerService {
     if (decision) {
       if (String(decision.attemptId) !== String(attempt._id) || decision.outcome !== outcome
         || decision.evidence !== evidence || decision.reason !== reason) throw this.reconciliationConflict();
+      if (canFinishEffects) return this.finalizeTrelloReconciliationEffects(recommendation, attempt);
     } else {
       // Claim the recommendation first: late provider saves must not overwrite an operator's decision.
       // Retain evidence from confirmations written by older versions before an interrupted save.
@@ -2499,78 +2505,24 @@ class OperationsLedgerService {
         status: 'executing',
         'reconciliationDecision._id': decision._id }), {
         $set: { status: finalStatus, 'reconciliationDecision.finalizationId': finalizationId,
+          'reconciliationDecision.effects': {
+            status: 'pending', auditId: new mongoose.Types.ObjectId(), followUpId: new mongoose.Types.ObjectId(), plannedAt: new Date()
+          },
           ...(outcome === 'succeeded' ? { executedAt: attempt.finishedAt } : { failureReason: decision.reason }) },
         $unset: outcome === 'succeeded' ? { failureReason: 1 } : { executedAt: 1 }
       }, this.workspaceQuery(body, { _id: recommendation._id, status: finalStatus,
         'reconciliationDecision._id': decision._id, 'reconciliationDecision.finalizationId': finalizationId }));
 
-    let interventionUpdated = false;
-    const intervention = attempt.interventionId
-        ? await Intervention.findOne(this.workspaceQuery(body, { _id: attempt.interventionId }))
-        : null;
-    if (intervention) {
-      try {
-        if (outcome === 'succeeded') {
-          await intervention.markExecuted({
-            recommendationId: recommendation._id,
-            trelloActionAttemptId: attempt._id,
-            reconciled: true
-          });
-        } else {
-          await intervention.markFailed(new Error(reason));
-        }
-        interventionUpdated = true;
-      } catch (error) {
-        logger.error('Trello action reconciliation finalized the ledger but could not update its intervention:', error);
-      }
-    }
+    return this.finalizeTrelloReconciliationEffects(recommendation, attempt);
+  }
 
-    let followUpScheduled = false;
-    if (outcome === 'succeeded') {
-      try {
-        const followUp = await this.scheduleFollowUp(recommendation);
-        followUpScheduled = Boolean(followUp);
-      } catch (error) {
-        logger.error('Trello action reconciliation succeeded but could not schedule its follow-up:', error);
-      }
-    }
+  async finalizeTrelloReconciliationEffects(recommendation, attempt) {
+    return require('./trelloReconciliationEffectsService').finalize(recommendation, attempt, this);
+  }
 
-    let auditRecorded = false;
-    try {
-      auditRecorded = Boolean(await this.recordAudit({
-        workspaceId: attempt.workspaceId,
-        boardId: attempt.boardId,
-        cardId: attempt.cardId,
-        entityType: 'trello_action_attempt',
-        entityId: attempt._id,
-        action: outcome === 'succeeded' ? 'trello_action_reconciled_succeeded' : 'trello_action_reconciled_failed',
-        actor: attempt.reconciliation.reconciledBy,
-        source: 'manual',
-        riskLevel: recommendation.riskLevel,
-        approvalId: attempt.approvalId,
-        recommendationId: recommendation._id,
-        trelloActionAttemptId: attempt._id,
-        beforeState: decision.beforeState,
-        afterState: {
-          attemptStatus: attempt.status,
-          recommendationStatus: recommendation.status,
-          reconciliation: attempt.reconciliation,
-          interventionUpdated,
-          followUpScheduled
-        }
-      }));
-    } catch (error) {
-      auditRecorded = false;
-      logger.error('Trello action reconciliation completed but could not write its audit event:', error);
-    }
-
-    return {
-      attempt,
-      recommendation,
-      interventionUpdated,
-      followUpScheduled,
-      auditRecorded
-    };
+  async retryPendingTrelloReconciliations(options = {}) {
+    this.requireDatabase();
+    return require('./trelloReconciliationEffectsService').retryPending(options, this);
   }
 
   async listInterventionOutcomes(filters = {}) {

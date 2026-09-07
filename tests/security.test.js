@@ -9800,19 +9800,24 @@ describe('Trello action reconciliation safety', () => {
     };
     const auditCreate = jest.fn().mockResolvedValue(auditAvailable ? { _id: 'audit-1' } : null);
     const applyUpdate = (doc, update) => {
-      Object.assign(doc, update.$set);
+      for (const [key, value] of Object.entries(update.$set || {})) {
+        const parts = key.split('.');
+        const parent = parts.slice(0, -1).reduce((object, part) => object[part] ||= {}, doc);
+        parent[parts.at(-1)] = value;
+      }
       doc.__v = (doc.__v || 0) + 1;
       return doc;
     };
     jest.doMock('../src/models/Recommendation', () => ({
       findOne: jest.fn().mockResolvedValue(recommendation),
+      updateOne: jest.fn().mockResolvedValue({ modifiedCount: 1 }),
       findOneAndUpdate: jest.fn(async (query, update) => applyUpdate(recommendation, update))
     }));
     jest.doMock('../src/models/TrelloActionAttempt', () => ({
       findOne: jest.fn(() => Object.assign(Promise.resolve(attempt), { sort: () => Promise.resolve(attempt) })),
       findOneAndUpdate: jest.fn(async (query, update) => applyUpdate(attempt, update))
     }));
-    jest.doMock('../src/models/AuditEvent', () => ({ create: auditCreate }));
+    jest.doMock('../src/models/AuditEvent', () => ({ findOne: jest.fn().mockResolvedValue(null), create: auditCreate }));
     jest.doMock('../src/services/workspaceScopeService', () => ({
       normalizeWorkspaceObjectId: jest.fn(value => value)
     }));

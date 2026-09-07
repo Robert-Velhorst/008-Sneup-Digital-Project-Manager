@@ -47,6 +47,16 @@ function reconciliationHarness() {
   return h;
 }
 
+test('a recorded provider result with pending internal effects is not reported as fully finalized', async () => {
+  const h = reconciliationHarness();
+  await h.submit(h.open());
+  h.requests[0].resolve({ effectsCompleted: false, auditRecorded: true });
+  await flush();
+  expect(h.bindings.openNotice).toHaveBeenCalledWith('Ledger reconciled', expect.stringContaining('remains pending'));
+  expect(h.state.pendingLedgerActions.size).toBe(0);
+  h.dom.window.close();
+});
+
 test.each(['workspace', 'session', 'epoch', 'closed', 'replaced'])('a %s reconciliation form cannot submit', async transition => {
   const h = reconciliationHarness();
   const form = h.open();

@@ -134,6 +134,22 @@ function createHarness(locale = 'nl') {
 }
 
 describe('demand-loaded approval view', () => {
+  test('a finalized provider result remains retryable while internal effects are pending', () => {
+    const harness = createHarness('en');
+    const action = harness.state.ledger.actions[0];
+    action.status = 'succeeded';
+    action.reconciliation.status = 'confirmed_succeeded';
+    action.recommendationId = { status: 'executed', reconciliationDecision: { effects: { status: 'pending' } } };
+    harness.controller.render();
+    expect(harness.elements.trelloAttempts.textContent).toContain('Internal ledger work pending');
+    harness.elements.trelloAttempts.querySelector('[data-trello-action-reconcile]').click();
+    expect(harness.callbacks.openTrelloActionReconciliation).toHaveBeenCalledWith('attempt-1');
+    action.recommendationId.reconciliationDecision.effects.status = 'completed';
+    harness.controller.render();
+    expect(harness.elements.trelloAttempts.querySelector('[data-trello-action-reconcile]')).toBeNull();
+    harness.dom.window.close();
+  });
+
   test('renders Dutch operator chrome while preserving identities, evidence, errors, and exact payloads', () => {
     const harness = createHarness('nl');
     harness.controller.render();

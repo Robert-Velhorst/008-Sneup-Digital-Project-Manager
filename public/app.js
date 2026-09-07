@@ -4242,7 +4242,9 @@ function openTrelloActionReconciliation(actionId) {
         return;
       }
       if (!canPresent()) return;
-      openNotice(t('Ledger reconciled'), t(data.auditRecorded === false
+      openNotice(t('Ledger reconciled'), t(data.effectsCompleted === false
+        ? 'The provider result is recorded. Internal follow-up or audit work remains pending; the follow-up worker or another reconciliation retry can finish it.'
+        : data.auditRecorded === false
         ? 'The provider result is finalized. Audit recording needs operator review.'
         : 'The provider result and approval ledger are finalized.'));
     } catch (error) {

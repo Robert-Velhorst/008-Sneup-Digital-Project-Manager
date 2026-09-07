@@ -373,6 +373,8 @@
     'Finalize ledger': 'Logboek voltooien',
     'Finalizing...': 'Voltooien...',
     'Ledger reconciled': 'Logboek afgestemd',
+    'Internal ledger work pending': 'Interne logboekverwerking in afwachting',
+    'The provider result is recorded. Internal follow-up or audit work remains pending; the follow-up worker or another reconciliation retry can finish it.': 'Het providerresultaat is vastgelegd. Interne opvolging of auditregistratie is nog niet afgerond; de opvolgtaak of een nieuwe afstemmingspoging kan dit voltooien.',
     'The result was recorded, but the ledger could not be refreshed. Reopen Approvals to review the current state.': 'Het resultaat is vastgelegd, maar het logboek kon niet worden vernieuwd. Open Goedkeuringen opnieuw om de huidige status te bekijken.',
     'Reconciliation blocked': 'Afstemming geblokkeerd',
     'The provider result is finalized. Audit recording needs operator review.': 'Het providerresultaat is voltooid. De auditregistratie vereist beoordeling door een beheerder.',
@@ -965,7 +967,9 @@
 
     function renderTrelloAttempt(attempt) {
       const attemptId = getId(attempt._id || attempt.id);
+      const effectsPending = attempt.recommendationId?.reconciliationDecision?.effects?.status === 'pending';
       const needsReconciliation = attempt.status === 'in_progress'
+        || effectsPending
         || attempt.recommendationId?.status === 'executing'
         || attempt.reconciliation?.status === 'required';
       const reconciliation = attempt.reconciliation || {};
@@ -979,6 +983,7 @@
       return `<div class="item">
         <div class="item-title"><strong>${es(attempt.actionType)}</strong><span class="pill ${attempt.status === 'failed' ? 'critical' : attempt.status === 'succeeded' ? 'healthy' : 'review'}">${es(attempt.status)}</span></div>
         <div class="meta"><span>${fd(attempt.startedAt || attempt.createdAt)}</span><span>${escapeHtml(attempt.errorMessage || t('No error recorded'))}</span></div>
+        ${effectsPending ? `<div class="meta"><span>${et('Internal ledger work pending')}</span></div>` : ''}
         <details class="payload"><summary>${et('Attempt payload')}</summary><pre>${escapeHtml(JSON.stringify(attempt.payload || {}, null, 2))}</pre></details>
         ${reconciliation.status && reconciliation.status !== 'not_needed' ? `<div class="meta"><span>${es(reconciliation.status)}</span><span>${escapeHtml(reconciliation.reconciledBy || t('operator'))}</span><span>${fd(reconciliation.reconciledAt)}</span></div>` : ''}
         ${reconciliation.reason ? `<div class="meta"><span>${escapeHtml(reconciliation.reason)}</span></div>` : ''}
