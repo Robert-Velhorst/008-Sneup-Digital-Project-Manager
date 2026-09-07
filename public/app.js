@@ -1435,7 +1435,7 @@ async function fetchApi(url, options) {
 }
 
 function resetDashboardViews() {
-  if (els.modalBody.querySelector('#forecastScenarioForm, #capacityProfileForm, #boardProjectMappingsForm, #payloadReviewForm, #payloadReviewLoading, #workerResponseForm, #ledgerClose')) {
+  if (els.modalBody.querySelector('#forecastScenarioForm, #capacityProfileForm, #boardProjectMappingsForm, #payloadReviewForm, #payloadReviewLoading, #workerResponseForm, #trelloActionReconciliationForm, #ledgerClose')) {
     closeModal();
     els.modalBody.replaceChildren();
     els.modalTitle.textContent = '';
@@ -4167,6 +4167,15 @@ function openNotice(title, message, options = {}) {
 function openTrelloActionReconciliation(actionId) {
   const attempt = (state.ledger.actions || []).find(item => getId(item._id || item.id) === actionId);
   if (!attempt) return;
+  const context = captureWorkspaceContext();
+  const pendingKey = ledgerPendingKey(`trello-reconciliation:${actionId}`);
+  state.pendingLedgerActions ||= new Set();
+  const confirmed = ['confirmed_succeeded', 'confirmed_failed'].includes(attempt.reconciliation?.status);
+  const decision = attempt.recommendationId?.reconciliationDecision || (confirmed ? {
+    outcome: attempt.reconciliation.status.replace('confirmed_', ''),
+    evidence: attempt.reconciliation.evidence,
+    reason: attempt.reconciliation.reason
+  } : null);
 
   els.modalTitle.textContent = t('Reconcile {action}', {
     action: t(String(attempt.actionType || 'Trello action').replaceAll('_', ' '))
@@ -4174,19 +4183,20 @@ function openTrelloActionReconciliation(actionId) {
   els.modalBody.innerHTML = `
     <form id="trelloActionReconciliationForm" class="notice-stack">
       <div class="notice">${et("Confirm the observed provider result. This finalizes Sneup's ledger and does not send another Trello request.")}</div>
-      <label>${et('Observed result')}
-        <select name="outcome" required>
-          <option value="" selected disabled>${et('Select result')}</option>
-          <option value="succeeded">${et('Succeeded in Trello')}</option>
-          <option value="failed">${et('Did not succeed in Trello')}</option>
+      <label class="field">${et('Observed result')}
+        <select name="outcome" required ${decision ? 'disabled' : ''}>
+          <option value="" ${!decision ? 'selected' : ''} disabled>${et('Select result')}</option>
+          <option value="succeeded" ${decision?.outcome === 'succeeded' ? 'selected' : ''}>${et('Succeeded in Trello')}</option>
+          <option value="failed" ${decision?.outcome === 'failed' ? 'selected' : ''}>${et('Did not succeed in Trello')}</option>
         </select>
       </label>
-      <label>${et('Evidence checked')}
-        <textarea name="evidence" rows="4" maxlength="2000" required placeholder="${et('Trello activity, card state, or provider error reviewed')}"></textarea>
+      <label class="field">${et('Evidence checked')}
+        <textarea name="evidence" rows="4" maxlength="2000" required ${decision ? 'readonly' : ''} placeholder="${et('Trello activity, card state, or provider error reviewed')}">${escapeHtml(decision?.evidence || '')}</textarea>
       </label>
-      <label>${et('Resolution note')}
-        <textarea name="reason" rows="2" maxlength="1000" placeholder="${et('Optional decision note')}"></textarea>
+      <label class="field">${et('Resolution note')}
+        <textarea name="reason" rows="2" maxlength="1000" ${decision ? 'readonly' : ''} placeholder="${et('Optional decision note')}">${escapeHtml(decision?.reason || '')}</textarea>
       </label>
+      <div class="notice critical" role="alert" id="trelloReconciliationError" hidden></div>
       <div class="toolbar modal-actions">
         <button class="button" type="button" id="cancelTrelloReconciliation">${et('Cancel')}</button>
         <button class="button primary" type="submit">${et('Finalize ledger')}</button>
@@ -4195,11 +4205,19 @@ function openTrelloActionReconciliation(actionId) {
   `;
   els.modal.classList.add('open');
 
+  const form = document.getElementById('trelloActionReconciliationForm');
+  const modalEpoch = state.modalEpoch || 0;
+  const canPresent = () => context() && (state.modalEpoch || 0) === modalEpoch
+    && els.modalBody.contains(form) && els.modal.classList.contains('open');
   document.getElementById('cancelTrelloReconciliation').addEventListener('click', closeModal);
-  document.getElementById('trelloActionReconciliationForm').addEventListener('submit', async (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    if (!canPresent() || state.pendingLedgerActions.has(pendingKey)) return;
     const submitButton = event.currentTarget.querySelector('button[type="submit"]');
     const formData = new FormData(event.currentTarget);
+    const errorBox = form.querySelector('#trelloReconciliationError');
+    errorBox.hidden = true;
+    state.pendingLedgerActions.add(pendingKey);
     submitButton.disabled = true;
     submitButton.textContent = t('Finalizing...');
 
@@ -4208,21 +4226,34 @@ function openTrelloActionReconciliation(actionId) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          outcome: formData.get('outcome'),
+          outcome: decision?.outcome || formData.get('outcome'),
           evidence: formData.get('evidence'),
           reason: formData.get('reason'),
           reconciledBy: state.securityContext?.actorId || 'local-user'
         })
       });
-      closeModal();
-      await loadOperationsLedger();
+      if (!context()) return;
+      try {
+        await loadOperationsLedger({ throwOnError: true });
+      } catch {
+        if (!context()) return;
+        state.loadedViews.delete('approvals');
+        if (canPresent()) openNotice(t('Ledger reconciled'), t('The result was recorded, but the ledger could not be refreshed. Reopen Approvals to review the current state.'));
+        return;
+      }
+      if (!canPresent()) return;
       openNotice(t('Ledger reconciled'), t(data.auditRecorded === false
         ? 'The provider result is finalized. Audit recording needs operator review.'
         : 'The provider result and approval ledger are finalized.'));
     } catch (error) {
+      if (!canPresent()) return;
+      state.loadedViews.delete('approvals');
+      errorBox.textContent = error.message;
+      errorBox.hidden = false;
+    } finally {
+      state.pendingLedgerActions.delete(pendingKey);
       submitButton.disabled = false;
       submitButton.textContent = t('Finalize ledger');
-      openNotice(t('Reconciliation blocked'), error.message);
     }
   });
 }

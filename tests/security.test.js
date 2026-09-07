@@ -9765,6 +9765,7 @@ describe('approved Trello action execution safety', () => {
 
 describe('Trello action reconciliation safety', () => {
   afterEach(() => {
+    jest.dontMock('../src/models/Recommendation');
     jest.dontMock('../src/models/TrelloActionAttempt');
     jest.dontMock('../src/models/AuditEvent');
     jest.dontMock('../src/services/operationsLedgerService');
@@ -9772,7 +9773,7 @@ describe('Trello action reconciliation safety', () => {
     jest.resetModules();
   });
 
-  test('records human evidence while reconciling a claimed action without another provider write', async () => {
+  test.each([true, false])('records human evidence without another provider write and reports audit availability %s', async auditAvailable => {
     jest.resetModules();
     jest.dontMock('../src/services/operationsLedgerService');
 
@@ -9787,19 +9788,29 @@ describe('Trello action reconciliation safety', () => {
     const attempt = {
       _id: 'attempt-1',
       workspaceId: 'workspace-1',
+      boardId: 'board-1',
+      cardId: 'card-1',
       actionType: 'move_card',
       status: 'in_progress',
-      recommendationId: recommendation,
+      recommendationId: recommendation._id,
       interventionId: null,
       reconciliation: { status: 'not_needed' },
       save: jest.fn().mockResolvedValue(undefined),
       toObject: jest.fn(() => ({ _id: 'attempt-1', status: 'succeeded' }))
     };
-    const auditCreate = jest.fn().mockResolvedValue({ _id: 'audit-1' });
-    const populate = jest.fn().mockResolvedValue(attempt);
-
+    const auditCreate = jest.fn().mockResolvedValue(auditAvailable ? { _id: 'audit-1' } : null);
+    const applyUpdate = (doc, update) => {
+      Object.assign(doc, update.$set);
+      doc.__v = (doc.__v || 0) + 1;
+      return doc;
+    };
+    jest.doMock('../src/models/Recommendation', () => ({
+      findOne: jest.fn().mockResolvedValue(recommendation),
+      findOneAndUpdate: jest.fn(async (query, update) => applyUpdate(recommendation, update))
+    }));
     jest.doMock('../src/models/TrelloActionAttempt', () => ({
-      findOne: jest.fn(() => ({ populate }))
+      findOne: jest.fn(() => Object.assign(Promise.resolve(attempt), { sort: () => Promise.resolve(attempt) })),
+      findOneAndUpdate: jest.fn(async (query, update) => applyUpdate(attempt, update))
     }));
     jest.doMock('../src/models/AuditEvent', () => ({ create: auditCreate }));
     jest.doMock('../src/services/workspaceScopeService', () => ({
@@ -9820,7 +9831,7 @@ describe('Trello action reconciliation safety', () => {
     expect(result).toMatchObject({
       followUpScheduled: false,
       interventionUpdated: false,
-      auditRecorded: true
+      auditRecorded: auditAvailable
     });
     expect(attempt.status).toBe('succeeded');
     expect(attempt.reconciliation).toMatchObject({
@@ -9830,6 +9841,9 @@ describe('Trello action reconciliation safety', () => {
     });
     expect(recommendation.status).toBe('executed');
     expect(auditCreate).toHaveBeenCalledWith(expect.objectContaining({
+      workspaceId: 'workspace-1',
+      boardId: 'board-1',
+      cardId: 'card-1',
       action: 'trello_action_reconciled_succeeded',
       source: 'manual',
       trelloActionAttemptId: 'attempt-1'

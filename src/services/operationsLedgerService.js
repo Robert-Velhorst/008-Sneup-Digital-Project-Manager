@@ -2363,6 +2363,27 @@ class OperationsLedgerService {
     };
   }
 
+  reconciliationConflict() {
+    const error = new Error('The action or its reconciliation changed. Refresh the ledger and review the recorded evidence before continuing.');
+    error.code = 'SNEUP_RECONCILIATION_CONFLICT';
+    error.statusCode = 409;
+    return error;
+  }
+
+  async commitReconciliationState(Model, query, update, proof) {
+    let committed;
+    try {
+      committed = await Model.findOneAndUpdate(query, {
+        ...update,
+        $inc: { __v: 1 }
+      }, { new: true, runValidators: true });
+    } catch {
+      return this.recoverLedgerCommit(Model, proof);
+    }
+    if (!committed) throw this.reconciliationConflict();
+    return committed;
+  }
+
   async reconcileTrelloActionAttempt(actionAttemptId, body = {}) {
     this.requireDatabase();
 
@@ -2381,24 +2402,29 @@ class OperationsLedgerService {
     }
 
     const reason = String(body.reason || body.reconciliationReason || evidence).trim().slice(0, 1000);
-    const attempt = await TrelloActionAttempt.findOne(this.workspaceQuery(body, { _id: actionAttemptId }))
-      .populate('recommendationId interventionId');
+    let attempt = await TrelloActionAttempt.findOne(this.workspaceQuery(body, { _id: actionAttemptId }));
     if (!attempt) {
       const error = new Error('Trello action attempt not found');
       error.statusCode = 404;
       throw error;
     }
 
-    const recommendation = attempt.recommendationId && typeof attempt.recommendationId === 'object'
-      ? attempt.recommendationId
-      : await Recommendation.findOne(this.workspaceQuery(body, { _id: attempt.recommendationId }));
+    let recommendation = await Recommendation.findOne(this.workspaceQuery(body, { _id: attempt.recommendationId }));
     if (!recommendation || recommendation.status !== 'executing') {
       const error = new Error('Only an executing recommendation can be reconciled');
       error.statusCode = 409;
       throw error;
     }
+    const latestAttempt = await TrelloActionAttempt.findOne(this.workspaceQuery(body, {
+      recommendationId: recommendation._id
+    })).sort({ createdAt: -1, _id: -1 });
+    if (String(latestAttempt?._id) !== String(attempt._id)
+      || (recommendation.currentApprovalId && String(recommendation.currentApprovalId) !== String(attempt.approvalId))) {
+      throw this.reconciliationConflict();
+    }
+    const confirmed = ['confirmed_succeeded', 'confirmed_failed'].includes(attempt.reconciliation?.status);
     const partialResult = attempt.status === 'failed' && attempt.reconciliation?.status === 'required';
-    if (!['in_progress', 'succeeded'].includes(attempt.status) && !partialResult) {
+    if (!['in_progress', 'succeeded'].includes(attempt.status) && !partialResult && !confirmed && !recommendation.reconciliationDecision) {
       const error = new Error('Only in-progress, partially finalized, or partial-result Trello attempts can be reconciled');
       error.statusCode = 409;
       throw error;
@@ -2408,33 +2434,78 @@ class OperationsLedgerService {
     const beforeState = {
       attemptStatus: attempt.status,
       recommendationStatus: recommendation.status,
-      reconciliation: attempt.reconciliation || {}
+      reconciliation: attempt.toObject().reconciliation || {}
     };
-    attempt.status = outcome;
-    attempt.finishedAt = attempt.finishedAt || now;
-    if (outcome === 'failed') {
-      attempt.errorMessage = reason;
+    let decision = recommendation.reconciliationDecision;
+    if (decision) {
+      if (String(decision.attemptId) !== String(attempt._id) || decision.outcome !== outcome
+        || decision.evidence !== evidence || decision.reason !== reason) throw this.reconciliationConflict();
     } else {
-      attempt.errorMessage = undefined;
+      // Claim the recommendation first: late provider saves must not overwrite an operator's decision.
+      // Retain evidence from confirmations written by older versions before an interrupted save.
+      if (confirmed && (attempt.reconciliation.status !== `confirmed_${outcome}`
+        || attempt.reconciliation.evidence !== evidence || attempt.reconciliation.reason !== reason)) {
+        throw this.reconciliationConflict();
+      }
+      decision = {
+        _id: new mongoose.Types.ObjectId(),
+        attemptId: attempt._id,
+        outcome,
+        evidence,
+        reason,
+        actor: confirmed ? attempt.reconciliation.reconciledBy : body.reconciledBy || body.actor || 'sneup-operator',
+        decidedAt: confirmed ? attempt.reconciliation.reconciledAt || now : now,
+        beforeState
+      };
+      const claimQuery = this.workspaceQuery(body, this.recommendationRevisionQuery(recommendation, recommendation.__v));
+      claimQuery.reconciliationDecision = { $exists: false };
+      recommendation = await this.commitReconciliationState(Recommendation, claimQuery, {
+        $set: { reconciliationDecision: decision }
+      }, this.workspaceQuery(body, { _id: recommendation._id, 'reconciliationDecision._id': decision._id }));
+      decision = recommendation.reconciliationDecision;
     }
-    attempt.reconciliation = {
-      status: outcome === 'succeeded' ? 'confirmed_succeeded' : 'confirmed_failed',
-      reason,
-      evidence,
-      reconciledBy: body.reconciledBy || body.actor || 'sneup-operator',
-      reconciledAt: now
-    };
-    await attempt.save();
 
-    recommendation.status = outcome === 'succeeded' ? 'executed' : 'failed';
-    recommendation.executedAt = outcome === 'succeeded' ? attempt.finishedAt : undefined;
-    recommendation.failureReason = outcome === 'failed' ? reason : undefined;
-    await recommendation.save();
+    attempt = await TrelloActionAttempt.findOne(this.workspaceQuery(body, { _id: attempt._id }));
+    if (!attempt || attempt.status === 'cancelled') throw this.reconciliationConflict();
+    const confirmation = `confirmed_${decision.outcome}`;
+    if (['confirmed_succeeded', 'confirmed_failed'].includes(attempt.reconciliation?.status)) {
+      if (attempt.reconciliation.status !== confirmation || attempt.status !== outcome
+        || attempt.reconciliation.evidence !== decision.evidence || attempt.reconciliation.reason !== decision.reason) {
+        throw this.reconciliationConflict();
+      }
+    } else {
+      const reconciliation = {
+        ...attempt.toObject().reconciliation,
+        status: confirmation,
+        reason: decision.reason,
+        evidence: decision.evidence,
+        reconciledBy: decision.actor,
+        reconciledAt: decision.decidedAt
+      };
+      attempt = await this.commitReconciliationState(TrelloActionAttempt,
+        this.workspaceQuery(body, this.recommendationRevisionQuery(attempt, attempt.__v)), {
+          $set: { status: outcome, finishedAt: attempt.finishedAt || now, reconciliation,
+            ...(outcome === 'failed' ? { errorMessage: decision.reason } : {}) },
+          ...(outcome === 'succeeded' ? { $unset: { errorMessage: 1 } } : {})
+        }, this.workspaceQuery(body, { _id: attempt._id, status: outcome,
+          'reconciliation.status': confirmation, 'reconciliation.reconciledAt': decision.decidedAt,
+          'reconciliation.evidence': decision.evidence, 'reconciliation.reconciledBy': decision.actor }));
+    }
+
+    const finalStatus = outcome === 'succeeded' ? 'executed' : 'failed';
+    const finalizationId = new mongoose.Types.ObjectId();
+    recommendation = await this.commitReconciliationState(Recommendation,
+      this.workspaceQuery(body, { ...this.recommendationRevisionQuery(recommendation, recommendation.__v),
+        status: 'executing',
+        'reconciliationDecision._id': decision._id }), {
+        $set: { status: finalStatus, 'reconciliationDecision.finalizationId': finalizationId,
+          ...(outcome === 'succeeded' ? { executedAt: attempt.finishedAt } : { failureReason: decision.reason }) },
+        $unset: outcome === 'succeeded' ? { failureReason: 1 } : { executedAt: 1 }
+      }, this.workspaceQuery(body, { _id: recommendation._id, status: finalStatus,
+        'reconciliationDecision._id': decision._id, 'reconciliationDecision.finalizationId': finalizationId }));
 
     let interventionUpdated = false;
-    const intervention = attempt.interventionId && typeof attempt.interventionId === 'object'
-      ? attempt.interventionId
-      : attempt.interventionId
+    const intervention = attempt.interventionId
         ? await Intervention.findOne(this.workspaceQuery(body, { _id: attempt.interventionId }))
         : null;
     if (intervention) {
@@ -2464,9 +2535,12 @@ class OperationsLedgerService {
       }
     }
 
-    let auditRecorded = true;
+    let auditRecorded = false;
     try {
-      await this.recordAudit({
+      auditRecorded = Boolean(await this.recordAudit({
+        workspaceId: attempt.workspaceId,
+        boardId: attempt.boardId,
+        cardId: attempt.cardId,
         entityType: 'trello_action_attempt',
         entityId: attempt._id,
         action: outcome === 'succeeded' ? 'trello_action_reconciled_succeeded' : 'trello_action_reconciled_failed',
@@ -2476,7 +2550,7 @@ class OperationsLedgerService {
         approvalId: attempt.approvalId,
         recommendationId: recommendation._id,
         trelloActionAttemptId: attempt._id,
-        beforeState,
+        beforeState: decision.beforeState,
         afterState: {
           attemptStatus: attempt.status,
           recommendationStatus: recommendation.status,
@@ -2484,7 +2558,7 @@ class OperationsLedgerService {
           interventionUpdated,
           followUpScheduled
         }
-      });
+      }));
     } catch (error) {
       auditRecorded = false;
       logger.error('Trello action reconciliation completed but could not write its audit event:', error);

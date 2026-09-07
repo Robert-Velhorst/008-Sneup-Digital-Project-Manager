@@ -70,13 +70,20 @@ const trelloActionAttemptSchema = new mongoose.Schema({
     reconciledAt: Date
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  optimisticConcurrency: true
+});
+
+trelloActionAttemptSchema.pre('save', function guardUnversionedSave() {
+  // Mongoose omits its optimistic predicate for legacy records without a version key.
+  if (!this.isNew) this.$where = { ...this.$where, __v: this.__v === undefined ? { $exists: false } : this.__v };
 });
 
 trelloActionAttemptSchema.index({ status: 1, createdAt: -1 });
 trelloActionAttemptSchema.index({ boardId: 1, createdAt: -1 });
 trelloActionAttemptSchema.index({ cardId: 1, createdAt: -1 });
 trelloActionAttemptSchema.index({ workspaceId: 1, status: 1, createdAt: -1 });
+trelloActionAttemptSchema.index({ workspaceId: 1, recommendationId: 1, createdAt: -1, _id: -1 });
 trelloActionAttemptSchema.index({ workspaceId: 1, boardId: 1, createdAt: -1 });
 trelloActionAttemptSchema.index({ workspaceId: 1, 'reconciliation.status': 1, updatedAt: -1 });
 

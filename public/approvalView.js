@@ -373,6 +373,7 @@
     'Finalize ledger': 'Logboek voltooien',
     'Finalizing...': 'Voltooien...',
     'Ledger reconciled': 'Logboek afgestemd',
+    'The result was recorded, but the ledger could not be refreshed. Reopen Approvals to review the current state.': 'Het resultaat is vastgelegd, maar het logboek kon niet worden vernieuwd. Open Goedkeuringen opnieuw om de huidige status te bekijken.',
     'Reconciliation blocked': 'Afstemming geblokkeerd',
     'The provider result is finalized. Audit recording needs operator review.': 'Het providerresultaat is voltooid. De auditregistratie vereist beoordeling door een beheerder.',
     'The provider result and approval ledger are finalized.': 'Het providerresultaat en goedkeuringslogboek zijn voltooid.',
@@ -965,7 +966,7 @@
     function renderTrelloAttempt(attempt) {
       const attemptId = getId(attempt._id || attempt.id);
       const needsReconciliation = attempt.status === 'in_progress'
-        || (attempt.status === 'succeeded' && attempt.recommendationId?.status === 'executing')
+        || attempt.recommendationId?.status === 'executing'
         || attempt.reconciliation?.status === 'required';
       const reconciliation = attempt.reconciliation || {};
       const stepLabel = (value) => {

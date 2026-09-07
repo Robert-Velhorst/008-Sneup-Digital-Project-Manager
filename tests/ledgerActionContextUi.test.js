@@ -18,6 +18,7 @@ function harness() {
     ledger: { followUps: [{ _id: 'item', interventionId: 'intervention' }] } };
   const requests = [];
   const bindings = { state, els, document, FormData: dom.window.FormData, t: value => value, et: value => value,
+    escapeHtml: value => String(value).replaceAll('<', '&lt;').replaceAll('>', '&gt;'),
     getId: value => typeof value === 'object' ? value?._id || value?.id : value,
     cancelReportDownloads: jest.fn(), resetDashboardViews: jest.fn(), workspaceViewController: null,
     localStorage: { setItem: jest.fn(), removeItem: jest.fn() },
@@ -26,11 +27,107 @@ function harness() {
     closeModal: jest.fn(new Function('state', 'els', `${section('function closeModal(', 'function inviteTokenFromUrl(')}; return closeModal;`)(state, els))
   };
   const code = section('function beginWorkspaceRead(', 'async function loadSecurityContext(')
-    + section('async function runDecisionAction(', 'async function runJobAction(');
-  const api = new Function(...Object.keys(bindings), `${code}; return { runDecisionAction, runFollowUpAction, openWorkerResponseRecorder, runOutcomeEvaluation, adoptWorkspaceContext };`)(...Object.values(bindings));
+    + section('async function runDecisionAction(', 'async function runJobAction(')
+    + section('function openTrelloActionReconciliation(', 'async function openNotificationPolicy(');
+  const api = new Function(...Object.keys(bindings), `${code}; return { runDecisionAction, runFollowUpAction, openWorkerResponseRecorder, runOutcomeEvaluation, adoptWorkspaceContext, openTrelloActionReconciliation };`)(...Object.values(bindings));
   const submit = async form => { form.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true })); await flush(); };
   return { dom, state, els, requests, bindings, submit, ...api };
 }
+
+function reconciliationHarness() {
+  const h = harness();
+  h.state.ledger.actions = [{ _id: 'attempt', actionType: 'move_card', status: 'in_progress' }];
+  h.open = () => {
+    h.openTrelloActionReconciliation('attempt');
+    const form = h.els.modalBody.querySelector('form');
+    form.querySelector('[name="outcome"]').value = 'failed';
+    form.querySelector('[name="evidence"]').value = 'Provider evidence';
+    return form;
+  };
+  return h;
+}
+
+test.each(['workspace', 'session', 'epoch', 'closed', 'replaced'])('a %s reconciliation form cannot submit', async transition => {
+  const h = reconciliationHarness();
+  const form = h.open();
+  if (transition === 'workspace') h.state.activeWorkspaceId = 'b';
+  if (transition === 'session') h.state.sessionToken = 'replacement';
+  if (transition === 'epoch') h.state.workspaceEpoch++;
+  if (transition === 'closed') h.bindings.closeModal();
+  if (transition === 'replaced') h.els.modalBody.replaceChildren();
+  await h.submit(form);
+  expect(h.requests).toHaveLength(0);
+  h.dom.window.close();
+});
+
+test('reconciliation retains evidence on a failed request and permits an exact retry', async () => {
+  const h = reconciliationHarness();
+  const form = h.open();
+  await h.submit(form);
+  h.requests[0].reject(new Error('Database write uncertain'));
+  await flush();
+  expect(form.querySelector('[name="evidence"]').value).toBe('Provider evidence');
+  expect(form.querySelector('[role="alert"]').textContent).toBe('Database write uncertain');
+  expect(h.bindings.openNotice).not.toHaveBeenCalled();
+  await h.submit(form);
+  expect(h.requests).toHaveLength(2);
+  expect(h.requests[1].options.body).toBe(h.requests[0].options.body);
+  h.requests[1].resolve({ auditRecorded: true });
+  await flush();
+  h.dom.window.close();
+});
+
+test('reconciliation uses recorded evidence when resuming an interrupted finalization', async () => {
+  const h = reconciliationHarness();
+  const decision = { outcome: 'failed', evidence: '<script>Recorded evidence</script>', reason: 'Recorded note' };
+  h.state.ledger.actions[0].recommendationId = { status: 'executing', reconciliationDecision: decision };
+  h.openTrelloActionReconciliation('attempt');
+  const form = h.els.modalBody.querySelector('form');
+  expect(form.querySelector('script')).toBeNull();
+  expect(form.querySelector('[name="outcome"]').disabled).toBe(true);
+  expect(form.querySelector('[name="evidence"]').readOnly).toBe(true);
+  await h.submit(form);
+  expect(JSON.parse(h.requests[0].options.body)).toMatchObject(decision);
+  h.requests[0].resolve({});
+  await flush();
+  h.dom.window.close();
+});
+
+test('reconciliation is single-flight across reopening and ignores an old dialog completion', async () => {
+  const h = reconciliationHarness();
+  await h.submit(h.open());
+  await h.submit(h.open());
+  expect(h.requests).toHaveLength(1);
+  h.requests[0].resolve({});
+  await flush();
+  expect(h.bindings.openNotice).not.toHaveBeenCalled();
+  expect(h.state.pendingLedgerActions.size).toBe(0);
+  h.dom.window.close();
+});
+
+test.each(['resolve', 'reject'])('a late reconciliation %s cannot disturb another workspace', async settle => {
+  const h = reconciliationHarness();
+  await h.submit(h.open());
+  h.state.activeWorkspaceId = 'b';
+  h.requests[0][settle](settle === 'resolve' ? {} : new Error('Rejected'));
+  await flush();
+  expect(h.bindings.loadOperationsLedger).not.toHaveBeenCalled();
+  expect(h.bindings.openNotice).not.toHaveBeenCalled();
+  expect(h.state.pendingLedgerActions.size).toBe(0);
+  h.dom.window.close();
+});
+
+test('a reconciliation write receipt is distinguished from a failed ledger refresh', async () => {
+  const h = reconciliationHarness();
+  h.bindings.loadOperationsLedger.mockRejectedValue(new Error('Read unavailable'));
+  await h.submit(h.open());
+  h.requests[0].resolve({});
+  await flush();
+  expect(h.bindings.loadOperationsLedger).toHaveBeenCalledWith({ throwOnError: true });
+  expect(h.bindings.openNotice).toHaveBeenCalledWith('Ledger reconciled', expect.stringContaining('recorded'));
+  expect(h.state.loadedViews.has('approvals')).toBe(false);
+  h.dom.window.close();
+});
 
 const actions = [
   ['decision', h => h.runDecisionAction('item', 'snooze'), 'Decision updated'],

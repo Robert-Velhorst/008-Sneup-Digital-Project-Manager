@@ -303,7 +303,7 @@ The installer is written to:
 release\Sneup-Setup-<version>.exe
 ```
 
-The local release line currently builds `Sneup-Setup-2.3.63.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
+The local release line currently builds `Sneup-Setup-2.3.64.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
 
 Verify the unpacked Windows app before distributing an installer:
 
@@ -380,6 +380,10 @@ For the HAI snapshot/proposal and authenticated HTTP verifiers, see the [disposa
 For `verify:backup-restore`, see the [native restore drill setup](docs/OPERATOR_RUNBOOK.md#synthetic-native-restore-drill). It checks synthetic data in two new local databases using MongoDB's native tools; it is not a backup of your workspace or proof of production recovery.
 
 For `verify:ledger-acknowledgement`, see [uncertain-write recovery and its test setup](docs/OPERATOR_RUNBOOK.md#uncertain-ledger-writes). The test uses synthetic local database records to check approval preservation, response confirmation, and webhook replay safety. Ambiguous records after an extended outage still require operator reconciliation.
+
+For manual Trello-result reconciliation, `npm run verify:trello-reconciliation` uses `SNEUP_RECONCILIATION_VERIFICATION_MONGO_URI`. Set it to a new, empty database named `sneup_reconciliation_verification_<unique-suffix>` (at most 63 bytes), for example on loopback MongoDB. It refuses nonempty targets, claims exclusive ownership, and removes only its verified temporary database. CI runs it against its disposable MongoDB service. It tests competing reviews, interrupted writes, lost acknowledgements, legacy records, approval binding, and workspace isolation without calling Trello.
+
+**Recovering an uncertain Trello result:** open **Approvals**, find the action, and choose **Reconcile result** only after checking the actual Trello activity/state. This records an internal outcome, not another provider request. An accepted reconciliation decision retains its original result, evidence, note, and actor. After an interrupted save, reopen the action to resume those recorded values; contradictory reviews are rejected. Failed requests keep entered evidence visible, and a failed refresh is distinguished from a failed save. Audits belong to the action's workspace. Stop older application processes before upgrading so they cannot continue writing under older concurrency rules. Final recommendation/attempt writes have recovery checks, but crash recovery of every subsequent intervention update, follow-up, and audit remains incomplete; a green test run is not live-provider acceptance.
 
 ## API overview
 

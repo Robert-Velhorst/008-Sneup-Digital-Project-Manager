@@ -110,9 +110,28 @@ const recommendationSchema = new mongoose.Schema({
   approvalExpiryReason: String,
   rejectedAt: Date,
   executedAt: Date,
-  failureReason: String
+  failureReason: String,
+  reconciliationDecision: {
+    type: new mongoose.Schema({
+      attemptId: { type: mongoose.Schema.Types.ObjectId, ref: 'TrelloActionAttempt', required: true },
+      outcome: { type: String, enum: ['succeeded', 'failed'], required: true },
+      evidence: { type: String, required: true, maxlength: 2000 },
+      reason: { type: String, maxlength: 1000 },
+      actor: String,
+      decidedAt: { type: Date, required: true },
+      finalizationId: mongoose.Schema.Types.ObjectId,
+      beforeState: mongoose.Schema.Types.Mixed
+    }),
+    default: undefined
+  }
 }, {
-  timestamps: true
+  timestamps: true,
+  optimisticConcurrency: true
+});
+
+recommendationSchema.pre('save', function guardUnversionedSave() {
+  // Mongoose omits its optimistic predicate for legacy records without a version key.
+  if (!this.isNew) this.$where = { ...this.$where, __v: this.__v === undefined ? { $exists: false } : this.__v };
 });
 
 recommendationSchema.index({ status: 1, riskLevel: -1, createdAt: 1 });
