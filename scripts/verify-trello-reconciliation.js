@@ -216,12 +216,71 @@ const run = async () => {
     finally { restoreFollowUp(); }
     await service.recordWorkerResponse({ workspaceId, interventionId: earlyResponse.intervention._id,
       recommendationId: earlyResponse.rec._id, responseType: 'completed', source: 'manual', responseText: 'Synthetic completed response' });
+    const originalAuditCreate = AuditEvent.create;
+    let lateAuditFailure = false;
+    AuditEvent.create = function(data, ...args) {
+      if (data.action === 'late_follow_up_resolved_from_worker_response') {
+        lateAuditFailure = true;
+        return Promise.reject(new Error('Synthetic late-response audit interruption'));
+      }
+      return originalAuditCreate.call(this, data, ...args);
+    };
+    try { assert.equal((await service.reconcileTrelloActionAttempt(earlyResponse.attempt._id, body())).effectsCompleted, false); }
+    finally { AuditEvent.create = originalAuditCreate; }
+    assert.equal(lateAuditFailure, true);
     await service.reconcileTrelloActionAttempt(earlyResponse.attempt._id, body());
     const answeredFollowUp = await FollowUpPlan.findOne({ recommendationId: earlyResponse.rec._id });
     assert.equal(answeredFollowUp.status, 'resolved', 'Recovery catches a response recorded before follow-up insertion');
+    const originalResponse = await WorkerResponse.findOne({ interventionId: earlyResponse.intervention._id });
+    assert.equal(originalResponse.effects.followUpResolution.modifiedCount, 0, 'The original empty batch remains a historical receipt');
+    const lateAudits = await AuditEvent.find({ entityId: originalResponse._id, action: 'late_follow_up_resolved_from_worker_response' });
+    assert.equal(lateAudits.length, 1);
+    assert.equal(String(lateAudits[0].afterState.followUpId), String(answeredFollowUp._id));
+    assert.equal(lateAudits[0].afterState.modifiedCount, 1);
     const resolvedAt = answeredFollowUp.resolvedAt.getTime();
     await service.reconcileTrelloActionAttempt(earlyResponse.attempt._id, body());
     assert.equal((await FollowUpPlan.findById(answeredFollowUp._id)).resolvedAt.getTime(), resolvedAt);
+
+    const overlappingResponse = await createLinked();
+    const originalFollowUpCreate = FollowUpPlan.create;
+    const originalInterventionUpdate = Intervention.findOneAndUpdate;
+    let releaseClaim, reachedClaim, responseRecording;
+    const claimPaused = new Promise(resolve => { reachedClaim = resolve; });
+    const holdClaim = new Promise(resolve => { releaseClaim = resolve; });
+    Intervention.findOneAndUpdate = async function(query, update, options) {
+      if (update.$set?.response) { reachedClaim(); await holdClaim; }
+      return originalInterventionUpdate.call(this, query, update, options);
+    };
+    FollowUpPlan.create = async function(...args) {
+      responseRecording = service.recordWorkerResponse({ workspaceId, interventionId: overlappingResponse.intervention._id,
+        recommendationId: overlappingResponse.rec._id, responseType: 'completed', source: 'manual' })
+        .then(value => ({ value }), error => ({ error }));
+      const { withTimeout } = require('../src/utils/runtimeShutdown');
+      await withTimeout(Promise.race([claimPaused, responseRecording.then(result => {
+        throw result.error || new Error('Response did not reach the held claim');
+      })]), { timeoutMs: 5000 });
+      await new Promise(resolve => setTimeout(resolve, 5));
+      return originalFollowUpCreate.apply(this, args);
+    };
+    try {
+      const reconciliation = await service.reconcileTrelloActionAttempt(overlappingResponse.attempt._id, body());
+      assert.equal(reconciliation.effectsCompleted, true);
+      releaseClaim();
+      const settled = await responseRecording;
+      if (settled.error) throw settled.error;
+      const result = settled.value;
+      assert.equal(result.effectsCompleted, true);
+      assert.equal(result.followUpResolution.modifiedCount, 1, 'Post-claim batch includes follow-ups inserted while the claim was held');
+      const resolved = await FollowUpPlan.findOne({ recommendationId: overlappingResponse.rec._id });
+      assert.equal(resolved.status, 'resolved');
+      assert.ok(resolved.createdAt > result.receivedAt, 'The interleaving is later than response insertion');
+      assert.equal(await AuditEvent.countDocuments({ entityId: result._id, action: 'follow_ups_resolved_from_worker_response' }), 1);
+    } finally {
+      releaseClaim();
+      if (responseRecording) await responseRecording;
+      FollowUpPlan.create = originalFollowUpCreate;
+      Intervention.findOneAndUpdate = originalInterventionUpdate;
+    }
 
     const queued = await createLinked();
     const restoreAudit = fault('audit', false);
@@ -315,7 +374,7 @@ const run = async () => {
       'workspace-isolation', 'legacy-confirmation-recovery', 'partial-step-evidence', 'actual-executor-with-held-synthetic-provider',
       'four-internal-effect-failures-and-lost-acknowledgements', 'concurrent-idempotent-effect-retries', 'persisted-effect-module-reload',
       'early-response-follow-up-recovery', 'bounded-workspace-retry-and-backoff', 'cancelled-intervention-and-invalid-reference-backoff',
-      'empty-and-whitespace-reason-replay', 'concurrent-intervention-assignment-preserved'],
+      'empty-and-whitespace-reason-replay', 'concurrent-intervention-assignment-preserved', 'response-claim-overlaps-follow-up-insertion'],
     providerCalls, simulatedExecutorCalls, elapsedMs: Math.round(performance.now() - startedAt) }));
   } finally {
     let verifiedOwnership = false;

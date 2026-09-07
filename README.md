@@ -303,7 +303,7 @@ The installer is written to:
 release\Sneup-Setup-<version>.exe
 ```
 
-The local release line currently builds `Sneup-Setup-2.3.65.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
+The local release line currently builds `Sneup-Setup-2.3.66.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
 
 Verify the unpacked Windows app before distributing an installer:
 
@@ -388,6 +388,10 @@ For manual Trello-result reconciliation, `npm run verify:trello-reconciliation` 
 New manual reconciliations persist a recovery plan with stable follow-up and audit identifiers. If the provider outcome is recorded but internal work fails, the dashboard shows **Internal ledger work pending**. Retry **Reconcile result** with the locked recorded evidence, or leave the application running: the existing follow-up worker retries up to 20 due plans per active workspace on its normal hourly schedule (`FOLLOWUP_CRON` can change that schedule). Failed entries wait at least five minutes before another scheduled attempt. Recovery never sends another Trello request; repeated attempts reuse the same records and preserve the original execution time. A response recorded before follow-up creation is checked when that follow-up is recovered. Cancelled or inconsistent linked records remain pending for operator review rather than being overwritten.
 
 Stop older application processes before upgrading so they cannot continue writing under older concurrency rules. This recovery plan applies to new manual reconciliations, not a retroactive repair of every historical record or every normal provider-execution/worker-response crash path. Live failover, provider acceptance, and clean-machine Windows installation remain separate verification gates; a green test run does not close them.
+
+**Recovering recorded worker responses:** new responses also retain a pending internal-work plan. Once the exact intervention attachment is confirmed, Sneup fixes the original follow-up set and its result before writing the response and follow-up audit events. Retries reuse those records, preserve the original actor/time, and do not reattach a response to different work. Response text stays out of the ordinary API response and audit history. Follow-ups created later during Trello-result reconciliation are resolved separately with their own stable audit event; the original response receipt describes its original set, not all future activity.
+
+If internal work is interrupted, the response can remain recorded while **Internal ledger work pending** appears on the corresponding follow-up in the currently loaded ledger. Do not submit a second response. Keep the application and follow-up worker running: it retries up to 20 eligible response plans per active workspace on the existing hourly schedule, with a five-minute minimum retry delay. Unconfirmed responses without the exact saved intervention link remain excluded from accountability/outcome evidence and require investigation. Historical responses without recovery plans are not automatically migrated. The command `npm run verify:follow-up-integrity` exercises these recovery cases using `SNEUP_FOLLOW_UP_VERIFICATION_MONGO_URI` pointed at a new empty `sneup_follow_up_verification_<unique-suffix>` database, at most 63 bytes; it verifies exclusive ownership before cleanup. CI runs the same profile on disposable MongoDB.
 
 ## API overview
 

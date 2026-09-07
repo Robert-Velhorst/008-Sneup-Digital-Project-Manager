@@ -39,6 +39,19 @@ const workerResponseSchema = new mongoose.Schema({
     type: String,
     enum: ['pending', 'confirmed']
   },
+  effects: {
+    type: new mongoose.Schema({
+      status: { type: String, enum: ['pending', 'completed'], required: true },
+      auditId: { type: mongoose.Schema.Types.ObjectId, required: true },
+      followUpAuditId: { type: mongoose.Schema.Types.ObjectId, required: true },
+      actor: String,
+      nextAttemptAt: Date,
+      completedAt: Date,
+      followUpIds: { type: [mongoose.Schema.Types.ObjectId], default: undefined },
+      followUpResolution: mongoose.Schema.Types.Mixed
+    }, { _id: false }),
+    default: undefined
+  },
   responseType: {
     type: String,
     enum: ['acknowledged', 'completed', 'blocked', 'needs_help', 'ignored', 'other'],
@@ -66,5 +79,6 @@ workerResponseSchema.index({ workspaceId: 1, cardId: 1, receivedAt: -1 });
 workerResponseSchema.index({ workspaceId: 1, boardId: 1, receivedAt: -1 });
 workerResponseSchema.index({ workspaceId: 1, recommendationId: 1, receivedAt: -1 });
 workerResponseSchema.index({ workspaceId: 1, claimState: 1, _id: 1, createdAt: 1 });
+workerResponseSchema.index({ workspaceId: 1, 'effects.status': 1, 'effects.nextAttemptAt': 1, _id: 1 });
 
 module.exports = mongoose.models.WorkerResponse || mongoose.model('WorkerResponse', workerResponseSchema);

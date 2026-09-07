@@ -176,8 +176,82 @@ const run = async () => {
     assert.ok(['resolved', 'escalated'].includes(manualAfter.status));
     assert.equal(await TrelloActionAttempt.countDocuments({ workspaceId }), 0);
 
+    const service = operationsLedgerService;
+    let recoveryCases = 0;
+    for (const stage of ['confirmation', 'batch', 'followUps', 'receipt', 'responseAudit', 'followUpAudit', 'completion']) {
+      for (const lostAck of [false, true]) {
+        const suffix = `${stage}-${lostAck}`;
+        const intervention = await createIntervention(Intervention, workspaceId, refs, suffix);
+        const recommendation = await createRecommendation(Recommendation, workspaceId, intervention, refs, suffix);
+        const followUp = await createFollowUp(FollowUpPlan, workspaceId, recommendation, intervention, refs, suffix);
+        const Model = stage === 'followUps' ? FollowUpPlan : stage.endsWith('Audit') ? AuditEvent : WorkerResponse;
+        const method = stage === 'followUps' ? 'updateMany' : stage.endsWith('Audit') ? 'create'
+          : stage === 'confirmation' ? 'updateOne' : 'findOneAndUpdate';
+        const original = Model[method];
+        let injected = 0;
+        Model[method] = async function(...args) {
+          const targeted = stage === 'confirmation' ? args[1]?.$set?.claimState === 'confirmed'
+            : stage === 'responseAudit' ? args[0]?.action === 'worker_response_recorded'
+              : stage === 'followUpAudit' ? args[0]?.action === 'follow_ups_resolved_from_worker_response'
+                : stage === 'batch' ? Array.isArray(args[1]?.$set?.['effects.followUpIds'])
+                  : stage === 'receipt' ? Boolean(args[1]?.$set?.['effects.followUpResolution']) && !args[1]?.$set?.['effects.status']
+                    : stage === 'completion' ? args[1]?.$set?.['effects.status'] === 'completed' : true;
+          if (!targeted) return original.apply(this, args);
+          injected++;
+          if (lostAck) await original.apply(this, args);
+          throw new Error('Synthetic interrupted worker response effect');
+        };
+        try {
+          const result = await service.recordWorkerResponse({ workspaceId, ...refs, interventionId: intervention._id,
+            recommendationId: recommendation._id, responseType: 'completed', source: 'manual', actor: 'original-reviewer',
+            responseText: 'Synthetic private response text' }).catch(error => ({ error }));
+          if (stage === 'confirmation' && !lostAck) assert.equal(result.error?.code, 'SNEUP_LEDGER_COMMIT_UNCERTAIN');
+          else assert.equal(result.effectsCompleted, lostAck && stage !== 'followUps');
+        } finally { Model[method] = original; }
+        assert.ok(injected > 0, `Fault ${suffix} was exercised`);
+        const response = await WorkerResponse.findOne({ interventionId: intervention._id });
+        if (stage === 'confirmation' && !lostAck) {
+          await WorkerResponse.updateOne({ _id: response._id }, { $unset: { 'effects.nextAttemptAt': 1 } });
+          assert.deepEqual(await service.retryPendingWorkerResponseEffects({ workspaceId, limit: 1 }),
+            { processedCount: 1, completedCount: 1, failureCount: 0 });
+        }
+        const later = stage === 'responseAudit' ? await createFollowUp(FollowUpPlan, workspaceId, recommendation, intervention, refs, 'later') : null;
+        assert.equal(String((await Intervention.findById(intervention._id)).response.workerResponseId), String(response._id));
+        delete require.cache[require.resolve('../src/services/workerResponseEffectsService')];
+        await Promise.all([1, 2].map(() => service.finalizeWorkerResponseEffects(response)));
+        const final = await service.finalizeWorkerResponseEffects(await WorkerResponse.findById(response._id));
+        assert.equal(final.effectsCompleted, true);
+        assert.equal(final.claimState, 'confirmed');
+        assert.equal(final.followUpResolution.modifiedCount, 1);
+        assert.equal(Object.hasOwn(final, 'responseText'), false);
+        const recovered = await FollowUpPlan.findById(followUp._id);
+        assert.equal(recovered.status, 'resolved');
+        assert.equal(String(recovered.resolutionWorkerResponseId), String(response._id));
+        assert.equal(recovered.resolvedAt.getTime(), response.receivedAt.getTime());
+        const audits = await AuditEvent.find({ workspaceId, entityId: response._id }).lean();
+        assert.equal(audits.length, 2);
+        assert.ok(audits.every(audit => audit.actor === 'original-reviewer'));
+        assert.equal(JSON.stringify(audits).includes('Synthetic private response text'), false);
+        assert.ok(audits.every(audit => (audit.afterState.followUpResolution || audit.afterState).modifiedCount === 1));
+        if (later) assert.equal((await FollowUpPlan.findById(later._id)).status, 'due', 'A later follow-up is outside the frozen response batch');
+        recoveryCases++;
+      }
+    }
+
+    const unclaimed = await WorkerResponse.create({ workspaceId, interventionId: primaryIntervention._id, memberId: refs.memberId,
+      claimState: 'pending', responseType: 'completed', effects: { status: 'pending', auditId: new mongoose.Types.ObjectId(),
+        followUpAuditId: new mongoose.Types.ObjectId(), actor: 'synthetic' } });
+    const foreignWorkspaceId = new mongoose.Types.ObjectId();
+    assert.equal((await service.retryPendingWorkerResponseEffects({ workspaceId: foreignWorkspaceId })).processedCount, 0);
+    assert.deepEqual(await service.retryPendingWorkerResponseEffects({ workspaceId, limit: 1 }),
+      { processedCount: 1, completedCount: 0, failureCount: 1 });
+    assert.equal((await WorkerResponse.findById(unclaimed._id)).claimState, 'pending');
+    assert.equal((await service.retryPendingWorkerResponseEffects({ workspaceId })).processedCount, 0, 'Unclaimed entries are backed off');
+    assert.equal(await AuditEvent.countDocuments({ entityId: unclaimed._id }), 0);
+    assert.equal(await TrelloActionAttempt.countDocuments({ workspaceId }), 0);
+
     const durationMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
-    process.stdout.write(`${JSON.stringify({
+    process.stdout.write(`${JSON.stringify({ recoveryCases,
       ok: true,
       database: databaseName,
       durationMs: Math.round(durationMs * 10) / 10,

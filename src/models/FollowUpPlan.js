@@ -46,6 +46,7 @@ const followUpPlanSchema = new mongoose.Schema({
   },
   resolvedAt: Date,
   resolvedBy: String,
+  resolutionWorkerResponseId: { type: mongoose.Schema.Types.ObjectId, ref: 'WorkerResponse' },
   resolutionNote: String,
   outcome: {
     type: String,
@@ -62,5 +63,6 @@ followUpPlanSchema.index({ boardId: 1, status: 1 });
 followUpPlanSchema.index({ workspaceId: 1, status: 1, dueAt: 1 });
 followUpPlanSchema.index({ workspaceId: 1, boardId: 1, status: 1 });
 followUpPlanSchema.index({ workspaceId: 1, memberId: 1, createdAt: -1, status: 1 });
+followUpPlanSchema.index({ workspaceId: 1, resolutionWorkerResponseId: 1 });
 
 module.exports = mongoose.models.FollowUpPlan || mongoose.model('FollowUpPlan', followUpPlanSchema);

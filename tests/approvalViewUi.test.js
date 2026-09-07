@@ -134,6 +134,16 @@ function createHarness(locale = 'nl') {
 }
 
 describe('demand-loaded approval view', () => {
+  test('pending worker-response recovery is visible without offering a duplicate response', () => {
+    const harness = createHarness('en');
+    harness.state.ledger.workerResponses = [{ interventionId: 'intervention-1', effects: { status: 'pending' } }];
+    harness.state.ledger.followUps[0].interventionId.response = { respondedAt: '2026-09-07T03:00:00Z' };
+    harness.controller.render();
+    expect(harness.elements.followUps.textContent).toContain('Internal ledger work pending');
+    expect(harness.elements.followUps.querySelector('[data-followup-response]')).toBeNull();
+    harness.dom.window.close();
+  });
+
   test('a finalized provider result remains retryable while internal effects are pending', () => {
     const harness = createHarness('en');
     const action = harness.state.ledger.actions[0];

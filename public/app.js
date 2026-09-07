@@ -2503,7 +2503,9 @@ function openWorkerResponseRecorder(interventionId) {
       if (isCurrent()) {
         closeModal();
         const resolution = data.response?.followUpResolution;
-        const message = resolution?.modifiedCount > 0
+        const message = data.response?.effectsCompleted === false
+          ? 'The response is recorded. Internal follow-up or audit work remains pending and will be retried by the follow-up worker.'
+          : resolution?.modifiedCount > 0
           ? resolution.status === 'escalated' ? 'The matching follow-up was escalated for review.' : 'The matching follow-up and accountability ledger were updated.'
           : resolution?.modifiedCount === 0 ? 'No follow-up was changed. The response is recorded in the accountability ledger.'
             : 'The response was recorded. Review the ledger for the current follow-up status.';

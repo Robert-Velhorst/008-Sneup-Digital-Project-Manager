@@ -364,6 +364,17 @@ test('ignored responses are not reported as resolved follow-ups', async () => {
   h.dom.window.close();
 });
 
+test('pending worker-response effects are disclosed even when follow-up changes succeeded', async () => {
+  const h = harness();
+  h.openWorkerResponseRecorder('intervention');
+  await h.submit(h.els.modalBody.querySelector('form'));
+  h.requests[0].resolve({ response: { _id: 'response', effectsCompleted: false,
+    followUpResolution: { modifiedCount: 1, status: 'resolved' } } });
+  await flush();
+  expect(h.bindings.openNotice).toHaveBeenLastCalledWith('Worker response recorded', expect.stringContaining('remains pending'));
+  h.dom.window.close();
+});
+
 test.each([
   [{ modifiedCount: 1, status: 'escalated' }, 'escalated for review'],
   [{ modifiedCount: 1, status: 'resolved' }, 'ledger were updated'],

@@ -299,6 +299,7 @@
     'Cancel': 'Annuleren',
     'Recording...': 'Vastleggen...',
     'Worker response recorded': 'Reactie van medewerker vastgelegd',
+    'The response is recorded. Internal follow-up or audit work remains pending and will be retried by the follow-up worker.': 'De reactie is vastgelegd. Interne opvolging of auditregistratie is nog niet afgerond en wordt opnieuw geprobeerd door de opvolgtaak.',
     'Worker response blocked': 'Reactie van medewerker geblokkeerd',
     'The response was recorded, but the ledger could not refresh. Reopen Approvals before continuing.': 'De reactie is vastgelegd, maar het logboek kon niet vernieuwen. Open Goedkeuringen opnieuw voordat je doorgaat.',
     'No follow-up was changed. The response is recorded in the accountability ledger.': 'Er is geen opvolging gewijzigd. De reactie is vastgelegd in het verantwoordingslogboek.',
@@ -1085,12 +1086,15 @@
       const interventionId = getId(followUp.interventionId);
       const canManageFollowUp = ['scheduled', 'due'].includes(followUp.status || 'due');
       const intervention = followUp.interventionId;
+      const pendingResponse = (state.ledger.workerResponses || []).some(response =>
+        getId(response.interventionId) === interventionId && response.effects?.status === 'pending');
       const canRecordResponse = interventionId && intervention?.status === 'executed'
         && ['comment', 'follow_up', 'escalate'].includes(intervention.type)
         && getId(intervention.memberId) && !intervention.response?.respondedAt;
       return `<div class="item">
         <div class="item-title"><strong>${escapeHtml(followUp.reason || t('Follow-up needed'))}</strong><span class="pill review">${es(followUp.status, 'due')}</span></div>
         <div class="meta"><span>${et('Due {date}', { date: fd(followUp.dueAt) })}</span><span>${escapeHtml(followUp.nextAction || t('Review worker response'))}</span></div>
+        ${pendingResponse ? `<div class="meta"><span>${et('Internal ledger work pending')}</span></div>` : ''}
         ${state.ledger.demoMode || !canManageFollowUp ? '' : `<div class="item-actions">${canRecordResponse ? `<button class="button" data-followup-response="${escapeHtml(interventionId)}" type="button">${et('Record response')}</button>` : ''}<button class="button primary" data-followup-id="${escapeHtml(followUpId)}" data-followup-action="resolved" type="button">${et('Resolved')}</button><button class="button" data-followup-id="${escapeHtml(followUpId)}" data-followup-action="escalated" type="button">${et('Escalate')}</button></div>`}
       </div>`;
     }

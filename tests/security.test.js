@@ -10482,18 +10482,24 @@ describe('follow-up accountability', () => {
       connection: { readyState: 1 }
     }));
     jest.doMock('../src/models/WorkerResponse', () => ({
-      create: jest.fn().mockResolvedValue(response),
+      create: jest.fn(async data => Object.assign(response, data)),
+      findOneAndUpdate: jest.fn(async (query, update) => {
+        for (const [key, value] of Object.entries(update.$set)) response.effects[key.split('.')[1]] = value;
+        return response;
+      }),
       updateOne: jest.fn().mockResolvedValue({ matchedCount: 1 }),
       deleteOne: jest.fn()
     }));
     jest.doMock('../src/models/FollowUpPlan', () => ({
-      updateMany
+      updateMany, countDocuments: jest.fn().mockResolvedValue(1),
+      find: jest.fn(() => ({ select() { return this; }, lean: async () => [{ _id: new mongoose.Types.ObjectId() }] }))
     }));
     jest.doMock('../src/models/Intervention', () => ({
-      findOneAndUpdate
+      findOneAndUpdate,
+      findOne: jest.fn(() => ({ read() { return this; }, maxTimeMS() { return this; }, setOptions() { return this; }, exec: async () => intervention }))
     }));
     jest.doMock('../src/models/AuditEvent', () => ({
-      create: auditCreate
+      create: auditCreate, findOne: jest.fn().mockResolvedValue(null)
     }));
     [
       '../src/models/Recommendation',

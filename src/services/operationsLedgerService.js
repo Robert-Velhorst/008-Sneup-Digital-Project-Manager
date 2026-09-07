@@ -3420,6 +3420,8 @@ class OperationsLedgerService {
       responseText,
       responseType,
       claimState: body.interventionId ? 'pending' : 'confirmed',
+      effects: { status: 'pending', auditId: new mongoose.Types.ObjectId(), followUpAuditId: new mongoose.Types.ObjectId(),
+        actor: body.actor || 'worker', nextAttemptAt: new Date(Date.now() + 5 * 60 * 1000) },
       source: normalizeWorkerResponseSource(body.source)
     });
 
@@ -3465,39 +3467,21 @@ class OperationsLedgerService {
         if (confirmed.matchedCount !== 1) throw this.ledgerCommitUncertain();
         response.claimState = 'confirmed';
       } catch {
-        throw this.ledgerCommitUncertain();
+        await this.recoverLedgerCommit(WorkerResponse, { _id: response._id, workspaceId, claimState: 'confirmed' });
+        response.claimState = 'confirmed';
       }
     }
 
-    const followUpResolution = await this.resolveFollowUpsForWorkerResponse(response, body);
+    return this.finalizeWorkerResponseEffects(response);
+  }
 
-    await this.recordAudit({
-      workspaceId,
-      entityType: 'worker_response',
-      entityId: response._id,
-      action: 'worker_response_recorded',
-      actor: body.actor || 'worker',
-      source: this.workerResponseAuditSource(response.source),
-      riskLevel: 'low',
-      recommendationId: response.recommendationId,
-      afterState: this.workerResponseAuditState(response, followUpResolution)
-    });
+  async finalizeWorkerResponseEffects(response) {
+    return require('./workerResponseEffectsService').finalize(response, this);
+  }
 
-    if (followUpResolution.modifiedCount > 0) {
-      await this.recordAudit({
-        workspaceId,
-        entityType: 'worker_response',
-        entityId: response._id,
-        action: 'follow_ups_resolved_from_worker_response',
-        actor: body.actor || 'worker',
-        source: this.workerResponseAuditSource(response.source),
-        riskLevel: followUpResolution.status === 'escalated' ? 'medium' : 'low',
-        recommendationId: response.recommendationId,
-        afterState: followUpResolution
-      });
-    }
-
-    return { ...this.serializeWorkerResponse(response), followUpResolution };
+  async retryPendingWorkerResponseEffects(options = {}) {
+    this.requireDatabase();
+    return require('./workerResponseEffectsService').retryPending(options, this);
   }
 
   async recordChatWorkerResponse(body = {}) {
@@ -3557,6 +3541,7 @@ class OperationsLedgerService {
   }
 
   async resolveFollowUpsForWorkerResponse(response, body = {}) {
+    const durableResolution = Boolean(response.effects || Array.isArray(body.followUpIds));
     const responseType = body.responseType || response.responseType || 'other';
     if (responseType === 'ignored') {
       return { matchedCount: 0, modifiedCount: 0, status: 'open' };
@@ -3566,6 +3551,10 @@ class OperationsLedgerService {
     if (!matcher) {
       return { matchedCount: 0, modifiedCount: 0, status: 'unmatched' };
     }
+    if (response.effects && !response.interventionId && !response.recommendationId) {
+      matcher.createdAt = { $lte: response.receivedAt };
+    }
+    if (Array.isArray(body.followUpIds)) matcher._id = { $in: body.followUpIds };
 
     const needsAttention = ['blocked', 'needs_help'].includes(responseType);
     const nextStatus = needsAttention ? 'escalated' : 'resolved';
@@ -3578,16 +3567,21 @@ class OperationsLedgerService {
     const result = await FollowUpPlan.updateMany(matcher, {
       $set: {
         status: nextStatus,
-        resolvedAt: new Date(),
-        resolvedBy: body.actor || 'worker',
+        resolvedAt: durableResolution ? response.receivedAt : new Date(),
+        resolvedBy: body.actor || response.effects?.actor || 'worker',
         resolutionNote: `Worker response recorded: ${responseType}`,
+        ...(durableResolution ? { resolutionWorkerResponseId: response._id } : {}),
         outcome
       }
     });
 
+    const recoveredCount = durableResolution ? await FollowUpPlan.countDocuments({
+      workspaceId: response.workspaceId, resolutionWorkerResponseId: response._id,
+      ...(Array.isArray(body.followUpIds) ? { _id: { $in: body.followUpIds } } : {})
+    }) : null;
     return {
-      matchedCount: result.matchedCount || result.n || 0,
-      modifiedCount: result.modifiedCount || result.nModified || 0,
+      matchedCount: recoveredCount ?? (result.matchedCount || result.n || 0),
+      modifiedCount: recoveredCount ?? (result.modifiedCount || result.nModified || 0),
       status: nextStatus,
       outcome
     };

@@ -45,7 +45,11 @@ const setup = (recovery = 'saved') => {
     })
   };
   const approvalModel = { create: jest.fn().mockResolvedValue(approval), deleteOne: jest.fn() };
-  const responseModel = { create: jest.fn().mockResolvedValue(response), deleteOne: jest.fn(), updateOne: jest.fn().mockResolvedValue({ matchedCount: 1 }) };
+  const responseModel = { create: jest.fn(async data => Object.assign(response, data)), deleteOne: jest.fn(), updateOne: jest.fn().mockResolvedValue({ matchedCount: 1 }),
+    findOneAndUpdate: jest.fn(async (query, update) => {
+      for (const [key, value] of Object.entries(update.$set)) response.effects[key.split('.')[1]] = value;
+      return response;
+    }) };
   const queueModel = { updateMany: jest.fn().mockResolvedValue({ modifiedCount: 1 }) };
   jest.dontMock('../src/services/operationsLedgerService');
   jest.doMock('../src/models/Recommendation', () => recommendationModel);
@@ -53,6 +57,8 @@ const setup = (recovery = 'saved') => {
   jest.doMock('../src/models/WorkerResponse', () => responseModel);
   jest.doMock('../src/models/Intervention', () => interventionModel);
   jest.doMock('../src/models/DecisionQueueItem', () => queueModel);
+  jest.doMock('../src/models/AuditEvent', () => ({ findOne: jest.fn().mockResolvedValue(null) }));
+  jest.doMock('../src/models/FollowUpPlan', () => ({ find: jest.fn(() => ({ select() { return this; }, lean: async () => [{ _id: 'follow-up' }] })) }));
   jest.doMock('../src/services/workspaceScopeService', () => ({ normalizeWorkspaceObjectId: value => value }));
   const service = require('../src/services/operationsLedgerService');
   jest.spyOn(service, 'isDatabaseReady').mockReturnValue(true);

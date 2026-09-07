@@ -76,7 +76,23 @@ async function createFollowUp(recommendation, attempt, ledger) {
       const response = await WorkerResponse.findOne({ _id: intervention.response.workerResponseId,
         workspaceId: recommendation.workspaceId, interventionId: recommendation.interventionId });
       if (!response) throw ledger.reconciliationConflict();
-      await ledger.resolveFollowUpsForWorkerResponse(response);
+      if (response.effects) {
+        const receipt = await ledger.finalizeWorkerResponseEffects(response);
+        if (!receipt.effectsCompleted) throw ledger.ledgerCommitUncertain();
+        if (receipt.effects.followUpIds?.some(followUpId => id(followUpId) === id(followUp._id))) return true;
+      }
+      const resolution = await ledger.resolveFollowUpsForWorkerResponse(response, { followUpIds: [followUp._id] });
+      if (resolution.modifiedCount > 0) {
+        // This follow-up may postdate the response's original batch. Its own stable audit is part of reconciliation recovery.
+        await insertOnce(AuditEvent, {
+          _id: followUp._id, workspaceId: response.workspaceId, entityType: 'worker_response', entityId: response._id,
+          action: 'late_follow_up_resolved_from_worker_response', actor: recommendation.reconciliationDecision.actor,
+          source: 'manual', recommendationId: recommendation._id, trelloActionAttemptId: attempt._id,
+          riskLevel: resolution.status === 'escalated' ? 'medium' : 'low',
+          afterState: { ...resolution, followUpId: followUp._id, workerResponseId: response._id }
+        }, { _id: followUp._id, workspaceId: response.workspaceId, entityId: response._id,
+          action: 'late_follow_up_resolved_from_worker_response' }, ledger);
+      }
     }
   }
   return Boolean(followUp);
