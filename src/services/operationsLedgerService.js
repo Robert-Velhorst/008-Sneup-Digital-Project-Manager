@@ -2271,13 +2271,42 @@ class OperationsLedgerService {
 
   async listTrelloActionsNeedingReconciliation(filters = {}) {
     this.requireDatabase();
-    const query = this.workspaceQuery(filters, {
-      status: { $in: ['in_progress', 'succeeded', 'failed'] }
-    });
-    const actionQuery = TrelloActionAttempt.find(query)
-      .sort({ startedAt: 1, createdAt: 1 })
-      .populate('recommendationId interventionId approvalId boardId cardId')
-      .limit(filters.limit || 50);
+    const workspaceId = this.resolveWorkspaceId(filters.workspaceId);
+    const limit = boundedInteger(filters.limit, 50, 1, 250);
+    const sort = { startedAt: 1, createdAt: 1, _id: 1 };
+    // Bound each eligible source before hydration; completed history must not consume the result limit.
+    const [direct, linked] = await Promise.all([
+      TrelloActionAttempt.find({ workspaceId, status: { $in: ['in_progress', 'succeeded', 'failed'] },
+        $or: [{ status: 'in_progress' }, { 'reconciliation.status': 'required' }]
+      }).select('_id').sort(sort).limit(limit).maxTimeMS(5000).lean(),
+      Recommendation.aggregate([
+        { $match: { workspaceId, $or: [{ status: 'executing' }, { 'reconciliationDecision.effects.status': 'pending' }] } },
+        { $project: { status: 1, 'reconciliationDecision.effects.status': 1, 'reconciliationDecision._id': 1,
+          hasDecision: { $ne: [{ $ifNull: ['$reconciliationDecision', null] }, null] } } },
+        { $lookup: {
+          from: TrelloActionAttempt.collection.name, let: { recommendationId: '$_id', hasDecision: '$hasDecision',
+            pendingDecision: { $eq: ['$reconciliationDecision.effects.status', 'pending'] } },
+          pipeline: [
+            { $match: { workspaceId, status: { $in: ['succeeded', 'failed'] },
+              $expr: { $eq: ['$recommendationId', '$$recommendationId'] } } },
+            { $match: { $expr: { $or: ['$$pendingDecision', '$$hasDecision', { $not: [{ $and: [
+              { $eq: ['$status', 'failed'] }, { $eq: ['$executionEffects.outcome', 'failed'] },
+              { $eq: ['$reconciliation.status', 'not_needed'] }
+            ] }] }] } } },
+            { $sort: sort }, { $limit: limit }, { $project: { _id: 1, startedAt: 1, createdAt: 1 } }
+          ], as: 'attempts'
+        } },
+        { $unwind: '$attempts' }, { $replaceRoot: { newRoot: '$attempts' } },
+        { $sort: sort }, { $limit: limit }, { $project: { _id: 1 } }
+      ]).option({ maxTimeMS: 5000 })
+    ]);
+    const ids = [...new Map([...direct, ...linked].map(attempt => [String(attempt._id), attempt._id])).values()];
+    if (ids.length === 0) return [];
+    const actionQuery = TrelloActionAttempt.find({ workspaceId, _id: { $in: ids }, status: { $in: ['in_progress', 'succeeded', 'failed'] } })
+      .sort(sort).limit(limit).maxTimeMS(5000)
+      .populate(['recommendationId', 'interventionId', 'approvalId', 'boardId', 'cardId'].map(path => ({
+        path, match: { workspaceId }, options: { maxTimeMS: 5000 }
+      })));
     const actions = await (filters.lean === true ? actionQuery.lean() : actionQuery);
 
     return actions.filter((attempt) => {

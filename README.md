@@ -303,7 +303,7 @@ The installer is written to:
 release\Sneup-Setup-<version>.exe
 ```
 
-The local release line currently builds `Sneup-Setup-2.3.68.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
+The local release line currently builds `Sneup-Setup-2.3.69.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
 
 Verify the unpacked Windows app before distributing an installer:
 
@@ -365,6 +365,7 @@ npm.cmd run verify:backup-restore
 npm.cmd run verify:ledger-acknowledgement
 npm.cmd run verify:follow-up-integrity
 npm.cmd run verify:trello-execution-effects
+npm.cmd run verify:trello-reconciliation-queue
 npm.cmd run verify:trello-webhooks
 npm.cmd run verify:trello-list-index
 npm.cmd run verify:connector-recovery
@@ -403,6 +404,17 @@ Recovery checks the original workspace, board/card, intervention, approval, and 
 Execution still returns an HTTP failure: `SNEUP_TRELLO_ACTION_FAILED` when internal recording is complete, or `SNEUP_TRELLO_ACTION_FAILED_EFFECTS_PENDING` when recovery remains pending. The dashboard refreshes the ledger, shows the failed state and pending label, and does not offer an unsupported provider-reconciliation button for this known failure. If refresh fails, reopen Approvals before acting again. Keep the app and follow-up worker running to finish pending records; do not repeat the external action. Ambiguous/partial provider results remain separate and require evidence-based reconciliation. Historical failed attempts without this explicit marker are not silently migrated, and a failure whose result was never saved remains uncertain.
 
 `npm run verify:trello-execution-effects` uses `SNEUP_EXECUTION_EFFECTS_VERIFICATION_MONGO_URI` pointing to a new, empty `sneup_execution_verification_<unique-suffix>` database (at most 63 bytes). The verifier claims exclusive ownership and removes only its owned temporary database. It runs the actual approved-execution service with a synthetic provider boundary, interrupts success/failure database writes before or after commit, and checks recovery, duplicate prevention, original approvals, target identity, operator conflicts, worker backoff, and exclusion of historical/ambiguous failures. It makes no real provider calls. CI runs this profile against disposable MongoDB; it is not a live failover or production acceptance test.
+
+**Keeping unresolved actions visible:** starting with 2.3.69, completed action history cannot fill the reconciliation queue's result limit before unresolved actions are selected. Sneup selects eligible attempts in MongoDB first, then loads the bounded display results in oldest-first order with a stable ID tie-breaker. Recorded definite failures remain separate from uncertain provider results; interrupted operator decisions remain visible. Related recommendation, intervention, approval, board, and card records are restricted to the same workspace.
+
+For developers: the service defaults to 50 eligible results and clamps explicit limits to 1-250; the queue HTTP route caps at 100 and health caps at 250. Health summaries describe the returned page, not an exact count of every unresolved record. Each selection, hydration, and related-record query has a five-second MongoDB execution limit; this is not a five-second end-to-end request deadline. Database failures propagate as unavailable health, not a healthy zero. Selection and hydration are separate reads, so concurrent completions can shorten a page; this is not a transactional snapshot.
+
+`npm run verify:trello-reconciliation-queue` requires `SNEUP_RECONCILIATION_QUEUE_MONGO_URI` pointing to a new, empty `sneup_reconciliation_queue_<unique-suffix>` database (at most 63 bytes). It creates 5,000 synthetic completed records and checks that newer unresolved actions remain visible, including through the authenticated HTTP API. It covers result limits, workspace isolation, operator decisions, and selection/population failures, without real provider calls. It checks exclusive ownership before removing its temporary database and is included in MongoDB CI. For a local MongoDB instance in PowerShell:
+
+```powershell
+$env:SNEUP_RECONCILIATION_QUEUE_MONGO_URI = 'mongodb://127.0.0.1:27017/sneup_reconciliation_queue_' + [guid]::NewGuid().ToString('N').Substring(0,12)
+npm.cmd run verify:trello-reconciliation-queue
+```
 
 ## API overview
 

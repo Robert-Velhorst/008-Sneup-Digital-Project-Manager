@@ -9744,10 +9744,15 @@ describe('approved Trello action execution safety', () => {
     const actionQuery = {
       sort: jest.fn(() => actionQuery),
       populate: jest.fn(() => actionQuery),
-      limit: jest.fn().mockResolvedValue([partialAttempt])
+      limit: jest.fn(() => actionQuery),
+      maxTimeMS: jest.fn(() => actionQuery),
+      select: jest.fn(() => actionQuery),
+      lean: jest.fn().mockResolvedValue([partialAttempt]),
+      then: (resolve, reject) => Promise.resolve([partialAttempt]).then(resolve, reject)
     };
     const find = jest.fn(() => actionQuery);
-    jest.doMock('../src/models/TrelloActionAttempt', () => ({ find }));
+    jest.doMock('../src/models/TrelloActionAttempt', () => ({ find, collection: { name: 'trelloactionattempts' } }));
+    jest.doMock('../src/models/Recommendation', () => ({ aggregate: jest.fn(() => ({ option: jest.fn().mockResolvedValue([]) })) }));
     jest.doMock('../src/services/workspaceScopeService', () => ({ normalizeWorkspaceObjectId: jest.fn(value => value) }));
 
     const operationsLedgerService = require('../src/services/operationsLedgerService');
@@ -9756,9 +9761,15 @@ describe('approved Trello action execution safety', () => {
     const attempts = await operationsLedgerService.listTrelloActionsNeedingReconciliation({ workspaceId: 'workspace-1' });
 
     expect(attempts).toEqual([partialAttempt]);
+    expect(actionQuery.populate).toHaveBeenCalledWith(
+      ['recommendationId', 'interventionId', 'approvalId', 'boardId', 'cardId'].map(path => ({
+        path, match: { workspaceId: 'workspace-1' }, options: { maxTimeMS: 5000 }
+      }))
+    );
     expect(find).toHaveBeenCalledWith({
       workspaceId: 'workspace-1',
-      status: { $in: ['in_progress', 'succeeded', 'failed'] }
+      status: { $in: ['in_progress', 'succeeded', 'failed'] },
+      $or: [{ status: 'in_progress' }, { 'reconciliation.status': 'required' }]
     });
   });
 });
@@ -9881,18 +9892,12 @@ describe('Trello action reconciliation safety', () => {
       startedAt: new Date('2026-07-13T06:00:00.000Z'),
       recommendationId: { _id: 'recommendation-critical', status: 'executing' }
     };
-    const chain = {
-      sort: jest.fn(() => chain),
-      populate: jest.fn(() => chain),
-      limit: jest.fn().mockResolvedValue([freshAttempt, warningAttempt, criticalAttempt])
-    };
-
-    jest.doMock('../src/models/TrelloActionAttempt', () => ({ find: jest.fn(() => chain) }));
     jest.doMock('../src/services/workspaceScopeService', () => ({ normalizeWorkspaceObjectId: jest.fn(value => value) }));
 
     const operationsLedgerService = require('../src/services/operationsLedgerService');
     jest.spyOn(operationsLedgerService, 'isDatabaseReady').mockReturnValue(true);
 
+    jest.spyOn(operationsLedgerService, 'listTrelloActionsNeedingReconciliation').mockResolvedValue([freshAttempt, warningAttempt, criticalAttempt]);
     const health = await operationsLedgerService.getTrelloActionReconciliationHealth({
       workspaceId: 'workspace-1',
       now,
