@@ -141,6 +141,58 @@ const run = async () => {
       }
     }
 
+    // Exercise the actual session lifecycle without creating provider actions.
+    const owner = await User.create({ workspaceId: workspace._id, displayName: 'Session verification owner', role: 'owner', email: 'owner@example.invalid' });
+    const ownerSession = await issue(SessionToken, { userId: owner._id });
+    const secondSession = await issue(SessionToken, { userId: owner._id });
+    const foreignOwner = await User.create({ workspaceId: other._id, displayName: 'Foreign owner', role: 'owner', email: 'foreign-owner@example.invalid' });
+    const foreignSession = await issue(SessionToken, { workspaceId: other._id, userId: foreignOwner._id });
+    const foreignApiToken = await issue(ApiToken, { workspaceId: other._id, scopes: ['identity:manage', 'api:read'] });
+    const sessionsPath = `/workspaces/${workspace._id}/users/${owner._id}/sessions`;
+    const revoke = (record, token) => request(`${sessionsPath}/${record._id}/revoke`, token, { method: 'POST', body: {} });
+    const context = await request('/security/context', ownerSession.raw);
+    assert.equal(context.body.data.context.tokenId, String(ownerSession.record._id));
+    assert.equal(context.body.data.context.authMethod, 'database_session');
+    assert.equal(context.body.data.context.workspaceOverrideAllowed, false);
+    const currentWorkspace = await request('/workspaces/current', ownerSession.raw);
+    assert.equal(currentWorkspace.body.data.auth.workspaceOverrideAllowed, false);
+    const ownCatalog = await request('/workspaces', ownerSession.raw);
+    assert.deepEqual(ownCatalog.body.data.workspaces.map(item => item.id), [String(workspace._id)]);
+    assert.equal((await request(sessionsPath, session.raw)).status, 403, 'A manager cannot administer sessions');
+    assert.equal((await revoke(secondSession.record, foreignSession.raw)).status, 403, 'A foreign workspace cannot revoke this session');
+    assert.equal((await revoke(secondSession.record, foreignApiToken.raw)).status, 403, 'A privileged foreign API token cannot revoke this session');
+    const sessionList = await request(sessionsPath, ownerSession.raw);
+    assert.equal(sessionList.status, 200);
+    assert.ok(sessionList.body.data.sessions.some(item => item.id === String(secondSession.record._id)));
+    assert.ok(!JSON.stringify(sessionList.body).includes(secondSession.raw), 'Session lists must never return raw credentials');
+    assert.ok(!JSON.stringify(sessionList.body).includes('tokenHash'));
+    const revokedOther = await revoke(secondSession.record, ownerSession.raw);
+    assert.equal(revokedOther.status, 200);
+    assert.equal(revokedOther.body.data.currentSessionRevoked, false);
+    assert.equal(revokedOther.body.data.session.status, 'revoked');
+    assert.equal((await SessionToken.findById(secondSession.record._id)).status, 'revoked');
+    const revokedSelf = await revoke(ownerSession.record, ownerSession.raw);
+    assert.equal(revokedSelf.status, 200);
+    assert.equal(revokedSelf.body.data.currentSessionRevoked, true);
+    const AuditEvent = require('../src/models/AuditEvent');
+    for (const token of [secondSession, ownerSession]) {
+      const audits = await AuditEvent.find({ workspaceId: workspace._id, entityId: token.record._id, action: 'workspace_user_session_revoked', riskLevel: 'high' }).lean();
+      assert.equal(audits.length, 1);
+      assert.equal(audits[0].beforeState.status, 'active');
+      assert.equal(audits[0].afterState.status, 'revoked');
+      for (const required of ['true', 'false']) {
+        process.env.SNEUP_REQUIRE_API_KEY = required;
+        assert.equal((await request('/security/context', token.raw)).status, 401, 'A revoked token cannot become a local owner');
+        checks++;
+      }
+    }
+    delete process.env.SNEUP_API_KEY;
+    assert.equal((await request('/security/context', ownerSession.raw)).status, 401, 'Revoked credentials fail closed without a bootstrap key');
+    assert.equal((await request('/security/context')).body.data.context.authMethod, 'local_bypass', 'Explicit no-credential local mode remains supported');
+    process.env.SNEUP_REQUIRE_API_KEY = 'true';
+    process.env.SNEUP_API_KEY = crypto.randomBytes(32).toString('hex');
+    checks += 11;
+
     // These references model lifecycle/data-integrity failures, not user records.
     const invalidCases = [
       [ApiToken, { workspaceId: new mongoose.Types.ObjectId() }, 'missing API-token workspace'],

@@ -4,7 +4,8 @@ const workspaceIdOf = (workspace) => {
 };
 
 const canManageAcrossWorkspaces = (auth = {}) => Boolean(
-  auth.localRequest || auth.workspaceOverrideAllowed
+  !['database_session', 'database_api_token'].includes(auth.authMethod)
+  && (auth.localRequest || auth.workspaceOverrideAllowed)
 );
 
 const assertWorkspaceAdministrationAccess = (req, workspace) => {

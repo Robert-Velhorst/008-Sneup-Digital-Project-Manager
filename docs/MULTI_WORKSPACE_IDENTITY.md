@@ -12,10 +12,10 @@ Raw API/session secrets are only shown at creation time. MongoDB stores prefixes
 
 Every authenticated request resolves a workspace context into `req.auth`.
 
-- Normal database API tokens and user sessions use their assigned workspace.
-- Local requests, service contexts, and owner contexts may override the workspace with `X-Sneup-Workspace-Id`.
+- Database API tokens and user sessions use only their assigned workspace, even for owners and even on localhost. They cannot list or administer another workspace by supplying its identifier in a route or header.
+- Intentional no-credential local-owner access and permitted environment-key service contexts may override the workspace with `X-Sneup-Workspace-Id`.
 - Optional `X-Sneup-Workspace-Name` is only used when override is allowed.
-- Non-owner user sessions cannot jump between workspaces with headers.
+- Supplied invalid, expired, revoked, or malformed credentials are rejected rather than falling back to no-credential local-owner access.
 
 Use:
 
@@ -69,6 +69,10 @@ Authorization: Bearer <admin-or-service-token>
 ```
 
 Issuing and revoking sessions emits high-risk audit events in the operations ledger.
+
+Successful revocation responses include `currentSessionRevoked`, which is true only when the request used the exact database session being revoked. The browser then clears cached data and permissions and replaces the raw token with a non-secret signed-out marker. Refresh and startup recognize that marker and do not issue ordinary API requests. A new invitation remains usable. On literal loopback page origins, **Use local access** explicitly clears the marker before requesting the installation's normal local access mode; the backend still enforces its configured authentication policy. If browser storage cannot be updated, the current window remains signed out and any retained revoked token fails backend authentication.
+
+Session-list and confirmation results are scoped to their original workspace, session generation, and dialog. Closing a submitted self-revocation confirmation does not skip sign-out. Revocation of another session can refresh its list without signing out the caller, and a failed post-revocation refresh is not mislabeled as a failed revocation. General browser-wide handling of sessions revoked by another browser remains a separate verification task; backend rejection of subsequent requests is covered. Already-authorized in-flight work is not canceled universally.
 
 ## Workspace Invitations
 

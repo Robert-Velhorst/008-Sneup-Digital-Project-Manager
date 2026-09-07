@@ -191,6 +191,16 @@
     'this session': 'deze sessie',
     'belonging to {name}. This cannot be undone; issue a new session if access is needed again.': 'van {name}. Dit kan niet ongedaan worden gemaakt; geef een nieuwe sessie uit als opnieuw toegang nodig is.',
     'Session revocation failed': 'Sessie intrekken mislukt',
+    'Session revoked': 'Sessie ingetrokken',
+    'The session was revoked, but Sneup could not refresh the session list. Open Sessions again to retry.': 'De sessie is ingetrokken, maar Sneup kon de sessielijst niet vernieuwen. Open Sessies opnieuw om het nogmaals te proberen.',
+    'Session revocation unconfirmed': 'Intrekken van sessie niet bevestigd',
+    'The server did not confirm revocation. Check the session list before taking further action.': 'De server heeft de intrekking niet bevestigd. Controleer de sessielijst voordat u verdergaat.',
+    'This window is signed out. Use a new session or invitation to access the workspace again.': 'Dit venster is afgemeld. Gebruik een nieuwe sessie of uitnodiging om de werkruimte opnieuw te openen.',
+    'Browser session storage could not be updated. The revoked session no longer grants API access.': 'De sessieopslag van de browser kon niet worden bijgewerkt. De ingetrokken sessie geeft geen API-toegang meer.',
+    'This session has been revoked. Use a new invitation or explicitly choose local access.': 'Deze sessie is ingetrokken. Gebruik een nieuwe uitnodiging of kies expliciet voor lokale toegang.',
+    'Use local access': 'Lokale toegang gebruiken',
+    'Local access unavailable': 'Lokale toegang niet beschikbaar',
+    'Browser session storage could not be updated. Refresh to retry, or use a new invitation.': 'De sessieopslag van de browser kon niet worden bijgewerkt. Vernieuw om het opnieuw te proberen of gebruik een nieuwe uitnodiging.',
   });
 
   function createController(context = {}) {

@@ -146,7 +146,7 @@ router.get('/current', requirePermission('api:read'), async (req, res) => {
         displayName: req.auth?.displayName,
         roles: req.auth?.roles || [],
         permissions: req.auth?.permissions || [],
-        workspaceOverrideAllowed: Boolean(req.auth?.workspaceOverrideAllowed || req.auth?.localRequest)
+        workspaceOverrideAllowed: canManageAcrossWorkspaces(req.auth)
       }
     });
   } catch (error) {
@@ -710,6 +710,7 @@ router.post('/:workspaceId/users/:userId/sessions/:sessionId/revoke', requirePer
 
     res.json({
       success: true,
+      currentSessionRevoked: req.auth?.authMethod === 'database_session' && String(req.auth.tokenId) === String(session._id),
       session: publicSession(session),
       user: publicUser(user),
       workspace: publicWorkspace(workspace)

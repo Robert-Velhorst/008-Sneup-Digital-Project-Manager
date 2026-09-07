@@ -105,7 +105,11 @@ The scenario, capacity, and project-mapping forms check their original workspace
 
 Invitation acceptance and confirmed workspace deletion now clear the previous session's cached records and permissions through the same context-reset path, including acceptance into the same workspace with a new session. Storage failures are distinguished from successful server outcomes. Closing an invitation form does not discard its single-use returned session; closing or reopening a deletion form does not prevent cleanup of the deleted session. Responses cannot replace a newer workspace/session context, and delayed reload errors cannot overwrite a newer dialog. An incomplete deletion receipt is reported as unconfirmed, not completed.
 
-Context-transition verification remains incomplete for other forms, detail views, and session-revocation flows. This is not a claim of complete application-wide request isolation. The safeguards discard stale browser results; they do not universally cancel server-side work or recover every interrupted invitation flow.
+Session lists and revocation confirmations also reject stale workspace, session, and dialog results. Revoking the current session clears cached records and marks the window signed out, even if the confirmation dialog was closed while the request was pending. Refresh and restart do not silently restore local-owner access. On loopback pages, **Use local access** explicitly re-enters the installation's local access mode; a new valid invitation can establish a new authenticated session. A successful revocation followed by a failed list refresh is reported separately.
+
+Database API tokens and user sessions stay bound to their assigned workspace, including on localhost. Invalid, expired, revoked, or malformed supplied credentials never fall back to local-owner access. Intentional no-credential localhost access remains available when API-key enforcement is off; it is not a replacement for authenticated remote deployment. Revocation blocks subsequent authenticated requests, not work that was already authorized and running.
+
+Context-transition verification remains incomplete for other forms, detail views, and general handling of sessions revoked from another browser. This is not a claim of complete application-wide request isolation. The safeguards discard stale browser results; they do not universally cancel server-side work or recover every interrupted invitation flow.
 
 The Data Integrity screen also highlights unconfirmed worker responses and quarantined worker webhooks after 15 minutes, plus broken active approval references. Expand **Technical evidence** to inspect the relevant record identifiers and expected state. These findings are read-only: the repair action changes only list-count and member-assignment caches, not approvals, worker outcomes, or provider delivery state.
 
@@ -287,7 +291,7 @@ The installer is written to:
 release\Sneup-Setup-<version>.exe
 ```
 
-The local release line currently builds `Sneup-Setup-2.3.59.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
+The local release line currently builds `Sneup-Setup-2.3.60.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
 
 Verify the unpacked Windows app before distributing an installer:
 

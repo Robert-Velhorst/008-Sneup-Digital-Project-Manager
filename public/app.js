@@ -916,6 +916,17 @@ async function loadView(viewName, options = {}) {
 }
 
 async function loadAll(options = {}) {
+  if (state.sessionToken === 'sneup_session_revoked') {
+    const isCurrent = beginWorkspaceRead('signedOutNotice');
+    const content = els.modalBody.firstChild;
+    try {
+      await loadWorkspaceView();
+    } catch {
+      // Sign-out remains usable when its optional localization module cannot load.
+    }
+    if (isCurrent() && els.modalBody.firstChild === content) openRevokedSessionNotice();
+    return;
+  }
   const requestId = state.refreshRequestId = (state.refreshRequestId || 0) + 1;
   const sessionToken = state.sessionToken;
   const securityCurrent = await loadSecurityContext();
@@ -1347,6 +1358,10 @@ function apiErrorMessage(data, fallback) {
 }
 
 async function apiFetch(url, options) {
+  if (state.sessionToken === 'sneup_session_revoked'
+    && !(versionedApiUrl(url) === '/api/v1/workspaces/invitations/accept' && options?.method === 'POST')) {
+    throw new Error(t('This session has been revoked. Use a new invitation or explicitly choose local access.'));
+  }
   return fetch(versionedApiUrl(url), apiOptions(options));
 }
 
@@ -3474,7 +3489,7 @@ function retryWorkspaceInvitationDelivery(workspaceId, invitationId) {
   });
 }
 
-async function openWorkspaceUserSessions(userId) {
+async function openWorkspaceUserSessions(userId, options = {}) {
   const workspaceId = state.activeWorkspaceId || state.currentWorkspace?.id;
   const user = state.workspaceUsers.find(item => item.id === userId);
   if (!workspaceId || !user) {
@@ -3485,12 +3500,21 @@ async function openWorkspaceUserSessions(userId) {
   els.modalTitle.textContent = t('Session access');
   els.modalBody.innerHTML = `<div class="notice">${et('Loading active and historical sessions...')}</div>`;
   els.modal.classList.add('open');
+  const ownsRequest = beginWorkspaceRead('workspaceUserSessions');
+  const loadingContent = els.modalBody.firstElementChild;
+  const isCurrent = () => ownsRequest() && els.modal.classList.contains('open') && els.modalBody.contains(loadingContent);
 
   try {
     const data = await fetchApi(`/api/workspaces/${encodeURIComponent(workspaceId)}/users/${encodeURIComponent(user.id)}/sessions?limit=100`);
+    if (!isCurrent()) return;
     renderWorkspaceUserSessions(data.user || user, data.sessions || []);
   } catch (error) {
-    openNotice(t('Session access unavailable'), error.message);
+    if (!isCurrent()) return;
+    if (options.revocationConfirmed) {
+      openNotice(t('Session revoked'), t('The session was revoked, but Sneup could not refresh the session list. Open Sessions again to retry.'));
+    } else {
+      openNotice(t('Session access unavailable'), error.message);
+    }
   }
 }
 
@@ -3536,14 +3560,22 @@ function renderWorkspaceUserSessions(user, sessions) {
     </div>
   `;
   document.getElementById('closeSessionAccess').addEventListener('click', closeModal);
+  const ownsContext = captureWorkspaceContext();
+  const content = els.modalBody.firstElementChild;
   document.querySelectorAll('[data-revoke-workspace-session]').forEach((button) => {
     const session = sessions.find(item => item.id === button.dataset.revokeWorkspaceSession);
-    button.addEventListener('click', () => openSessionRevocationConfirmation(user, session));
+    button.addEventListener('click', () => {
+      if (!ownsContext() || !els.modal.classList.contains('open') || !els.modalBody.contains(content)) return;
+      openSessionRevocationConfirmation(user, session);
+    });
   });
 }
 
 function openSessionRevocationConfirmation(user, session) {
   if (!session || session.status !== 'active') return;
+  const workspaceId = state.activeWorkspaceId || state.currentWorkspace?.id;
+  if (!workspaceId) return;
+  const ownsContext = captureWorkspaceContext();
   els.modalTitle.textContent = t('Revoke session?');
   els.modalBody.innerHTML = `
     <div class="notice-stack">
@@ -3554,26 +3586,74 @@ function openSessionRevocationConfirmation(user, session) {
       </div>
     </div>
   `;
-  document.getElementById('cancelSessionRevoke').addEventListener('click', () => openWorkspaceUserSessions(user.id));
-  document.getElementById('confirmSessionRevoke').addEventListener('click', async () => {
-    const workspaceId = state.activeWorkspaceId || state.currentWorkspace?.id;
-    if (!workspaceId) return;
-    const button = document.getElementById('confirmSessionRevoke');
+  const button = document.getElementById('confirmSessionRevoke');
+  const isCurrent = () => ownsContext() && els.modal.classList.contains('open') && els.modalBody.contains(button);
+  document.getElementById('cancelSessionRevoke').addEventListener('click', () => {
+    if (isCurrent()) openWorkspaceUserSessions(user.id);
+  });
+  button.addEventListener('click', async () => {
+    if (!isCurrent() || button.disabled) return;
     button.disabled = true;
     button.textContent = t('Revoking...');
     try {
-      await fetchApi(`/api/workspaces/${encodeURIComponent(workspaceId)}/users/${encodeURIComponent(user.id)}/sessions/${encodeURIComponent(session.id)}/revoke`, {
+      const data = await fetchApi(`/api/workspaces/${encodeURIComponent(workspaceId)}/users/${encodeURIComponent(user.id)}/sessions/${encodeURIComponent(session.id)}/revoke`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
       });
-      await openWorkspaceUserSessions(user.id);
+      if (!ownsContext()) return;
+      if (data.session?.id !== session.id || data.session?.status !== 'revoked') {
+        if (isCurrent()) openNotice(t('Session revocation unconfirmed'), t('The server did not confirm revocation. Check the session list before taking further action.'));
+        return;
+      }
+      if (data.currentSessionRevoked === true) {
+        // A non-secret marker prevents refresh/restart from silently using local owner access.
+        adoptWorkspaceContext('', 'sneup_session_revoked');
+        let storageCleared = true;
+        try {
+          sessionStorage.setItem(SESSION_TOKEN_KEY, 'sneup_session_revoked');
+        } catch {
+          storageCleared = false;
+        }
+        openRevokedSessionNotice(storageCleared);
+        return;
+      }
+      if (isCurrent()) await openWorkspaceUserSessions(user.id, { revocationConfirmed: true });
     } catch (error) {
+      if (!isCurrent()) return;
       button.disabled = false;
       button.textContent = t('Revoke session');
       openNotice(t('Session revocation failed'), error.message);
     }
   });
+}
+
+function openRevokedSessionNotice(storageCleared = true) {
+  openNotice(t('Session revoked'), t('This window is signed out. Use a new session or invitation to access the workspace again.'));
+  if (!storageCleared) {
+    const warning = document.createElement('p');
+    warning.textContent = t('Browser session storage could not be updated. The revoked session no longer grants API access.');
+    els.modalBody.append(warning);
+  }
+  if (!['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)) return;
+  const localButton = document.createElement('button');
+  localButton.type = 'button';
+  localButton.className = 'button';
+  localButton.textContent = t('Use local access');
+  const ownsSignedOutContext = captureWorkspaceContext();
+  localButton.addEventListener('click', async () => {
+    if (!ownsSignedOutContext() || !els.modal.classList.contains('open') || !els.modalBody.contains(localButton) || localButton.disabled) return;
+    localButton.disabled = true;
+    try {
+      sessionStorage.removeItem(SESSION_TOKEN_KEY);
+    } catch {
+      openNotice(t('Local access unavailable'), t('Browser session storage could not be updated. Refresh to retry, or use a new invitation.'));
+      return;
+    }
+    adoptWorkspaceContext('', '');
+    await loadAll({ force: true });
+  });
+  (els.modalBody.querySelector('.modal-actions') || els.modalBody).append(localButton);
 }
 
 function renderWorkSignals() {

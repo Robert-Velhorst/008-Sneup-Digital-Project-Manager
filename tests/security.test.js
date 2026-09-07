@@ -200,6 +200,13 @@ describe('request security boundaries', () => {
     expect(canManageAcrossWorkspaces({ workspaceOverrideAllowed: true })).toBe(true);
   });
 
+  test.each(['database_session', 'database_api_token'])('%s stays workspace-bound on localhost', authMethod => {
+    const auth = { authMethod, localRequest: true, workspaceOverrideAllowed: false, workspaceId: 'own' };
+    expect(canManageAcrossWorkspaces(auth)).toBe(false);
+    expect(() => assertWorkspaceAdministrationAccess({ auth }, 'foreign')).toThrow('limited to the authenticated workspace');
+    expect(assertWorkspaceAdministrationAccess({ auth }, 'own')).toBe('own');
+  });
+
   test('blocks remote API access when no API key is configured', async () => {
     delete process.env.SNEUP_API_KEY;
     process.env.SNEUP_REQUIRE_API_KEY = 'false';
@@ -331,6 +338,25 @@ describe('request security boundaries', () => {
       roles: ['owner'],
       workspaceId: 'default'
     });
+  });
+
+  test.each([
+    ['authorization', 'Bearer revoked-session'],
+    ['authorization', 'Basic malformed'],
+    ['x-sneup-api-key', 'invalid-key']
+  ])('invalid explicit %s credentials never fall back to local owner access', async (header, value) => {
+    delete process.env.SNEUP_API_KEY;
+    process.env.SNEUP_REQUIRE_API_KEY = 'false';
+    const req = createRequest({
+      ip: '127.0.0.1', connection: { remoteAddress: '127.0.0.1' }, socket: { remoteAddress: '127.0.0.1' },
+      get: name => name.toLowerCase() === header ? value : undefined
+    });
+    const res = createResponse();
+    const next = jest.fn();
+    await requireApiAccess(req, res, next);
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(401);
+    expect(req.auth).toBeUndefined();
   });
 
   test('allows only the exact invitation acceptance route without an existing API credential', async () => {
@@ -1940,7 +1966,7 @@ describe('workspace identity models', () => {
     }
   });
 
-  test('revokes a workspace-scoped session and records the high-risk audit event', async () => {
+  test.each([false, true])('revokes a workspace-scoped session and records the high-risk audit event (self: %s)', async self => {
     jest.resetModules();
 
     const workspaceId = new mongoose.Types.ObjectId();
@@ -2030,6 +2056,8 @@ describe('workspace identity models', () => {
       },
       auth: {
         actorId: 'owner-1',
+        authMethod: 'database_session',
+        tokenId: self ? String(sessionId) : 'other-session',
         workspaceId: String(workspaceId),
         localRequest: false,
         workspaceOverrideAllowed: false
@@ -2048,7 +2076,8 @@ describe('workspace identity models', () => {
     }));
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       success: true,
-      session: expect.objectContaining({ status: 'revoked' })
+      session: expect.objectContaining({ status: 'revoked' }),
+      currentSessionRevoked: self
     }));
 
     jest.dontMock('../src/models/Workspace');

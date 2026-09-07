@@ -397,7 +397,9 @@ const requireApiAccess = async (req, res, next) => {
     });
   }
 
-  const localBypassAllowed = process.env.SNEUP_REQUIRE_API_KEY !== 'true' && isLocalRequest(req);
+  // Explicit credentials must validate; failure must never become local owner access.
+  const suppliedCredential = Boolean(providedKey || req.get('authorization') || req.get('x-sneup-api-key'));
+  const localBypassAllowed = !suppliedCredential && process.env.SNEUP_REQUIRE_API_KEY !== 'true' && isLocalRequest(req);
   if (localBypassAllowed) {
     attachAuthContext(req, buildAuthContext(req, {
       authMethod: 'local_bypass',
@@ -409,7 +411,7 @@ const requireApiAccess = async (req, res, next) => {
     return next();
   }
 
-  if (!configuredKey) {
+  if (!configuredKey && !suppliedCredential) {
     return res.status(503).json({
       success: false,
       error: 'SNEUP_API_KEY or an active database API token must be configured before remote API access is allowed'

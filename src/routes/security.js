@@ -5,6 +5,7 @@ const { getDemoSecurityContext, isDemoMode } = require('../services/demoWorkspac
 const { getRateLimitMetrics, requirePermission } = require('../utils/requestSecurity');
 const { getProviderWriteSafetyStatus } = require('../services/providerWriteSafetyService');
 const { getRuntimeTroubleshooting } = require('../services/runtimeTroubleshootingService');
+const { canManageAcrossWorkspaces } = require('../utils/workspaceAdministrationAccess');
 
 const publicAuthContext = (auth = {}) => ({
   authenticated: Boolean(auth.authenticated),
@@ -19,7 +20,7 @@ const publicAuthContext = (auth = {}) => ({
   tokenId: auth.tokenId || null,
   userId: auth.userId || null,
   localRequest: Boolean(auth.localRequest),
-  workspaceOverrideAllowed: Boolean(auth.workspaceOverrideAllowed || auth.localRequest)
+  workspaceOverrideAllowed: canManageAcrossWorkspaces(auth)
 });
 
 router.get('/context', requirePermission('api:read'), (req, res) => {
