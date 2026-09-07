@@ -78,7 +78,9 @@ const run = async () => {
         assert.equal(responseBody.data, null);
         assert.equal(typeof responseBody.error?.code, 'string');
       }
-      return { status: response.status, body: responseBody };
+      const authentication = response.headers.get('x-sneup-authentication');
+      if (response.status === 403 || response.status === 503 || response.ok) assert.equal(authentication, null);
+      return { status: response.status, body: responseBody, authentication };
     };
     for (const token of [serviceToken.raw, session.raw]) {
       for (const [apiPrefix, path] of [['/api/v1', '/integrations/hai/snapshot'], ['/API/V1', '/Integrations/HAI/Snapshot/']]) {
@@ -182,7 +184,9 @@ const run = async () => {
       assert.equal(audits[0].afterState.status, 'revoked');
       for (const required of ['true', 'false']) {
         process.env.SNEUP_REQUIRE_API_KEY = required;
-        assert.equal((await request('/security/context', token.raw)).status, 401, 'A revoked token cannot become a local owner');
+        const rejection = await request('/security/context', token.raw);
+        assert.equal(rejection.status, 401, 'A revoked token cannot become a local owner');
+        assert.equal(rejection.authentication, 'required');
         checks++;
       }
     }
@@ -192,6 +196,17 @@ const run = async () => {
     process.env.SNEUP_REQUIRE_API_KEY = 'true';
     process.env.SNEUP_API_KEY = crypto.randomBytes(32).toString('hex');
     checks += 11;
+
+    const expiredSession = await issue(SessionToken, { userId: user._id, expiresAt: new Date(Date.now() - 1000) });
+    const expired = await request('/security/context', expiredSession.raw);
+    assert.equal(expired.status, 401);
+    assert.equal(expired.authentication, 'required');
+    const disabledUser = await User.create({ workspaceId: workspace._id, displayName: 'Disabled verification user', role: 'viewer', status: 'disabled', email: 'disabled@example.invalid' });
+    const disabledSession = await issue(SessionToken, { userId: disabledUser._id });
+    const disabled = await request('/security/context', disabledSession.raw);
+    assert.equal(disabled.status, 401);
+    assert.equal(disabled.authentication, 'required');
+    checks += 2;
 
     // These references model lifecycle/data-integrity failures, not user records.
     const invalidCases = [

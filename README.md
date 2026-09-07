@@ -97,6 +97,8 @@ The Reports screen also downloads weekly status, standup, risk-register, and cli
 
 Workspace owners can manage users, sessions, invitations, exports, deletion, data integrity repair, and retention policies. Destructive or sensitive workflows require exact confirmations and audit evidence.
 
+Workspace exports cancel when the workspace or session changes, including during file-picker selection, streamed saving, or browser download preparation. Duplicate exports are suppressed while one is pending. A canceled stream is not reported as a completed export.
+
 Switching workspace clears previous administration and primary dashboard records while the new context loads. Administration, security, feature-flag, policy-history, integrity, retention, and ten primary dashboard readers reject stale workspace/session results. The server-resolved workspace is selected before dependent administration reads, and a failed browser-storage write does not prevent switching for the current page. Cached view modules are reused; a late approvals load cannot steal focus, and the current approvals view renders even when its module arrives after the data.
 
 After the workspace catalog has first been opened through **Workspaces**, switching from another view or refreshing it reloads the selector alongside that view. This uses the bounded catalog endpoint, not hidden administration scans. Administration and the standalone selector share request ownership, so an older catalog result cannot overwrite a newer one. Failed catalog reads leave the selector disabled with the error available on the control; Refresh retries.
@@ -109,7 +111,9 @@ Session lists and revocation confirmations also reject stale workspace, session,
 
 Database API tokens and user sessions stay bound to their assigned workspace, including on localhost. Invalid, expired, revoked, or malformed supplied credentials never fall back to local-owner access. Intentional no-credential localhost access remains available when API-key enforcement is off; it is not a replacement for authenticated remote deployment. Revocation blocks subsequent authenticated requests, not work that was already authorized and running.
 
-Context-transition verification remains incomplete for other forms, detail views, and general handling of sessions revoked from another browser. This is not a claim of complete application-wide request isolation. The safeguards discard stale browser results; they do not universally cancel server-side work or recover every interrupted invitation flow.
+The next protected request after session expiry, revocation elsewhere, or user disabling now clears cached records and permissions when the backend confirms credential rejection. Ordinary provider errors, permission denials, and database outages do not sign out a valid session. Late responses cannot replace a newer session; a successfully accepted single-use invitation is retained even if the old session ends while it is pending. Pending changes are never automatically replayed. There is no background revocation polling, so an idle window learns about revocation on its next request.
+
+Context-transition verification remains incomplete for other forms and detail views, especially same-session workspace changes. This is not a claim of complete application-wide request isolation. The safeguards discard stale browser results; they do not universally cancel server-side work or recover every interrupted invitation flow.
 
 The Data Integrity screen also highlights unconfirmed worker responses and quarantined worker webhooks after 15 minutes, plus broken active approval references. Expand **Technical evidence** to inspect the relevant record identifiers and expected state. These findings are read-only: the repair action changes only list-count and member-assignment caches, not approvals, worker outcomes, or provider delivery state.
 
@@ -291,7 +295,7 @@ The installer is written to:
 release\Sneup-Setup-<version>.exe
 ```
 
-The local release line currently builds `Sneup-Setup-2.3.60.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
+The local release line currently builds `Sneup-Setup-2.3.61.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
 
 Verify the unpacked Windows app before distributing an installer:
 

@@ -8,6 +8,7 @@ const response = () => {
   const res = { statusCode: 200 };
   res.status = jest.fn(code => { res.statusCode = code; return res; });
   res.json = jest.fn(body => body);
+  res.setHeader = jest.fn();
   return res;
 };
 const request = (path, method = 'GET') => ({ path, method, ip: '192.0.2.1', get: () => undefined });

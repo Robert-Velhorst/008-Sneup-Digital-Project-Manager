@@ -181,7 +181,9 @@ describe('versioned API contract', () => {
     if (key === undefined) delete process.env.SNEUP_API_KEY;
     else process.env.SNEUP_API_KEY = key;
     try {
-      expectFailure(await request(port, url), status, code);
+      const result = await request(port, url);
+      expectFailure(result, status, code);
+      expect(result.headers['x-sneup-authentication']).toBe(status === 401 ? 'required' : undefined);
     } finally {
       if (previous.key === undefined) delete process.env.SNEUP_API_KEY;
       else process.env.SNEUP_API_KEY = previous.key;
@@ -197,6 +199,12 @@ describe('versioned API contract', () => {
     expectFailure(await request(port, '/api/v1/integrations/hai/proposals', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body
     }), status, code);
+  });
+
+  test('an unavailable credential database is retryable and never signals session rejection', async () => {
+    const result = await request(port, '/api/v1/security/context', { headers: { Authorization: 'Bearer synthetic-session' } });
+    expectFailure(result, 503, 'SERVICE_UNAVAILABLE');
+    expect(result.headers['x-sneup-authentication']).toBeUndefined();
   });
 
   test('formats CORS rejection without exposing its internal error details', async () => {

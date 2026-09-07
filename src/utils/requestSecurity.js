@@ -378,6 +378,10 @@ const requireApiAccess = async (req, res, next) => {
   }
 
   try {
+    // An unavailable credential store is not evidence that a session is invalid.
+    if (providedKey && !isDatabaseConnected()) {
+      return res.status(503).json({ success: false, error: 'Sneup credential verification is temporarily unavailable' });
+    }
     const databaseToken = await resolveDatabaseApiToken(providedKey);
     if (databaseToken) {
       attachAuthContext(req, buildAuthContext(req, databaseToken.context));
@@ -388,6 +392,9 @@ const requireApiAccess = async (req, res, next) => {
     if (databaseSession) {
       attachAuthContext(req, buildAuthContext(req, databaseSession.context));
       return next();
+    }
+    if (providedKey && !isDatabaseConnected()) {
+      return res.status(503).json({ success: false, error: 'Sneup credential verification is temporarily unavailable' });
     }
   } catch (error) {
     logger.error('Failed to resolve Sneup database API credential:', error);
@@ -418,6 +425,7 @@ const requireApiAccess = async (req, res, next) => {
     });
   }
 
+  res.setHeader('X-Sneup-Authentication', 'required');
   return res.status(401).json({
     success: false,
     error: 'Valid Sneup API key required'

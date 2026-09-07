@@ -31,6 +31,8 @@ const reportingService = require('../src/services/reportingService');
 const createResponse = () => ({
   statusCode: 200,
   body: null,
+  headers: {},
+  setHeader(name, value) { this.headers[name.toLowerCase()] = value; },
   status(code) {
     this.statusCode = code;
     return this;
@@ -341,10 +343,10 @@ describe('request security boundaries', () => {
   });
 
   test.each([
-    ['authorization', 'Bearer revoked-session'],
-    ['authorization', 'Basic malformed'],
-    ['x-sneup-api-key', 'invalid-key']
-  ])('invalid explicit %s credentials never fall back to local owner access', async (header, value) => {
+    ['authorization', 'Bearer revoked-session', 503],
+    ['authorization', 'Basic malformed', 401],
+    ['x-sneup-api-key', 'invalid-key', 503]
+  ])('unverified explicit %s credentials never fall back to local owner access', async (header, value, status) => {
     delete process.env.SNEUP_API_KEY;
     process.env.SNEUP_REQUIRE_API_KEY = 'false';
     const req = createRequest({
@@ -355,7 +357,8 @@ describe('request security boundaries', () => {
     const next = jest.fn();
     await requireApiAccess(req, res, next);
     expect(next).not.toHaveBeenCalled();
-    expect(res.statusCode).toBe(401);
+    expect(res.statusCode).toBe(status);
+    expect(res.headers['x-sneup-authentication']).toBe(status === 401 ? 'required' : undefined);
     expect(req.auth).toBeUndefined();
   });
 

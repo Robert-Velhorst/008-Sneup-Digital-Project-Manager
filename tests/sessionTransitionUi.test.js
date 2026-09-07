@@ -28,6 +28,8 @@ function harness() {
   const notice = jest.fn(() => els.modal.classList.add('open'));
   const closeModal = jest.fn(() => els.modal.classList.remove('open'));
   const bindings = { state, els, document, window: dom.window, FormData: dom.window.FormData, fetch: jest.fn(),
+    URL: { createObjectURL: jest.fn(() => 'blob:synthetic-export'), revokeObjectURL: jest.fn() },
+    listOrEmpty: (items, render) => items.map(render).join(''),
     fetchApi: jest.fn((url, options) => { const request = deferred(); requests.push({ url, options, ...request }); return request.promise; }),
     localStorage: storage, sessionStorage: storage, SESSION_TOKEN_KEY: 'session',
     cancelReportDownloads: jest.fn(), updateApprovalCount: jest.fn(), renderWorkspaces: jest.fn(),
@@ -40,9 +42,11 @@ function harness() {
   const code = section('function apiOptions(', 'async function readApiResponse(')
     + section('function resetDashboardViews(', 'async function loadSecurityContext(')
     + section('function openWorkspaceDeletion(', 'async function openWorkspaceInvite(')
+    + section('async function downloadWorkspaceExport(', 'function openWorkspaceDeletion(')
+    + section('async function openFeatureFlagHistory(', 'function openFeatureFlagEditor(')
     + section('async function openWorkspaceUserSessions(', 'function renderWorkSignals(')
     + section('function beginInvitationForm(', 'function severityClass(');
-  const api = new Function(...Object.keys(bindings), 'enhancementRequest', 'connectorSearchTimer', `${code}; return { acceptWorkspaceInvitation, openWorkspaceDeletion, reloadAfterInvitationAcceptance, beginInvitationForm, openWorkspaceUserSessions, openSessionRevocationConfirmation, apiFetch, openRevokedSessionNotice };`)(...Object.values(bindings), null, null);
+  const api = new Function(...Object.keys(bindings), 'enhancementRequest', 'connectorSearchTimer', `${code}; return { acceptWorkspaceInvitation, openWorkspaceDeletion, reloadAfterInvitationAcceptance, beginInvitationForm, openWorkspaceUserSessions, openSessionRevocationConfirmation, apiFetch, openRevokedSessionNotice, downloadWorkspaceExport, openFeatureFlagHistory };`)(...Object.values(bindings), null, null);
   const submitDeletion = async () => {
     document.getElementById('workspaceDeletionForm').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
     await flush();
@@ -50,6 +54,207 @@ function harness() {
   return { dom, state, els, storage, requests, notice, closeModal, bindings, submitDeletion, ...api };
 }
 const accepted = id => ({ workspace: { id }, sessionToken: 'new-session' });
+
+const rejectedSession = () => new Response('{}', { status: 401, headers: { 'X-Sneup-Authentication': 'required' } });
+
+test('confirmed credential rejection clears workspace caches and blocks repeated requests', async () => {
+  const h = harness();
+  h.bindings.fetch.mockResolvedValue(rejectedSession());
+  await expect(h.apiFetch('/api/security/context')).rejects.toThrow('session');
+  expect(h.state.sessionToken).toBe('sneup_session_revoked');
+  expect(h.state.securityContext).toBeNull();
+  expect(h.state.snapshot).toBeNull();
+  expect(h.state.reports).toEqual([]);
+  expect(h.state.activeWorkspaceId).toBe('');
+  expect(h.storage.setItem).toHaveBeenCalledWith('session', 'sneup_session_revoked');
+  await expect(h.apiFetch('/api/boards')).rejects.toThrow('session');
+  expect(h.bindings.fetch).toHaveBeenCalledTimes(1);
+  expect(h.notice).toHaveBeenCalledTimes(1);
+  h.dom.window.close();
+});
+
+test.each([401, 403, 503])('an ordinary %s response does not sign out the session', async status => {
+  const h = harness();
+  const response = new Response('{}', { status });
+  h.bindings.fetch.mockResolvedValue(response);
+  expect(await h.apiFetch('/api/connectors')).toBe(response);
+  expect(h.state.sessionToken).toBe('old-session');
+  expect(h.notice).not.toHaveBeenCalled();
+  h.dom.window.close();
+});
+
+test('a rejected old credential cannot sign out a replacement session', async () => {
+  const h = harness();
+  const pending = deferred();
+  h.bindings.fetch.mockReturnValue(pending.promise);
+  const request = h.apiFetch('/api/security/context');
+  h.state.sessionToken = 'replacement';
+  pending.resolve(rejectedSession());
+  await expect(request).rejects.toThrow('session');
+  expect(h.state.sessionToken).toBe('replacement');
+  expect(h.notice).not.toHaveBeenCalled();
+  h.dom.window.close();
+});
+
+test.each(['invitation', 'override'])('%s authentication failure cannot end the current session', async mode => {
+  const h = harness();
+  const response = rejectedSession();
+  h.bindings.fetch.mockResolvedValue(response);
+  const url = mode === 'invitation' ? '/api/workspaces/invitations/accept' : '/api/security/context';
+  const options = mode === 'invitation' ? { method: 'POST' } : { headers: { Authorization: 'Bearer other' } };
+  expect(await h.apiFetch(url, options)).toBe(response);
+  expect(h.state.sessionToken).toBe('old-session');
+  h.dom.window.close();
+});
+
+test.each([200, 401])('late protected %s responses cannot repopulate a signed-out workspace', async status => {
+  const h = harness();
+  const late = deferred();
+  h.bindings.fetch.mockReturnValueOnce(late.promise).mockResolvedValueOnce(rejectedSession());
+  const request = h.apiFetch('/api/boards');
+  await expect(h.apiFetch('/api/security/context')).rejects.toThrow('session');
+  const response = status === 401 ? rejectedSession() : new Response('{"private":"old workspace"}');
+  late.resolve(response);
+  await expect(request).rejects.toThrow('session');
+  expect(response.bodyUsed).toBe(true);
+  expect(h.notice).toHaveBeenCalledTimes(1);
+  h.dom.window.close();
+});
+
+test('confirmed rejection remains signed out when browser storage fails', async () => {
+  const h = harness();
+  h.storage.setItem.mockImplementation(() => { throw new Error('Denied'); });
+  h.bindings.fetch.mockResolvedValue(rejectedSession());
+  await expect(h.apiFetch('/api/security/context')).rejects.toThrow('session');
+  expect(h.state.sessionToken).toBe('sneup_session_revoked');
+  expect(h.state.snapshot).toBeNull();
+  expect(h.els.modalBody.textContent).toContain('storage');
+  h.dom.window.close();
+});
+
+test('a one-use invitation accepted during session rejection still retains its new session', async () => {
+  const h = harness();
+  const invitation = h.acceptWorkspaceInvitation('synthetic-invite', 'Synthetic person');
+  h.bindings.fetch.mockResolvedValue(rejectedSession());
+  await expect(h.apiFetch('/api/security/context')).rejects.toThrow('session');
+  h.requests[0].resolve(accepted('b'));
+  await invitation;
+  expect(h.state.sessionToken).toBe('new-session');
+  expect(h.state.activeWorkspaceId).toBe('b');
+  expect(h.storage.setItem).toHaveBeenLastCalledWith('session', 'new-session');
+  h.dom.window.close();
+});
+
+test.each([true, false])('a delayed JSON body (success %s) cannot restore data after the session ends', async ok => {
+  const h = harness();
+  const body = deferred();
+  const read = new Function('apiFetch', 'state', 'versionedApiUrl', 'apiErrorMessage', 't',
+    `${section('async function readApiResponse(', 'function resetDashboardViews(')}; return fetchApi;`)(
+    h.apiFetch, h.state, value => value, data => data.error, value => value);
+  h.bindings.fetch.mockResolvedValueOnce({ ok, status: ok ? 200 : 409, json: () => body.promise })
+    .mockResolvedValueOnce(rejectedSession());
+  const pending = read('/api/boards');
+  await flush();
+  await expect(h.apiFetch('/api/security/context')).rejects.toThrow('session');
+  body.resolve(ok ? { success: true, boards: [{ name: 'Private old workspace' }] } : {
+    ok: false, error: { code: 'SNEUP_RECOMMENDATION_REVIEW_CONFLICT', message: 'Old private error' }, meta: { apiVersion: 'v1' }
+  });
+  await expect(pending).rejects.toThrow('Check workspace history');
+  h.dom.window.close();
+});
+
+test('an export blob arriving after sign-out is never downloaded', async () => {
+  const h = harness();
+  const body = deferred();
+  h.bindings.fetch.mockResolvedValueOnce({ ok: true, status: 200, blob: () => body.promise })
+    .mockResolvedValueOnce(rejectedSession());
+  const download = h.downloadWorkspaceExport();
+  await flush();
+  const signal = h.bindings.fetch.mock.calls[0][1].signal;
+  await expect(h.apiFetch('/api/security/context')).rejects.toThrow('session');
+  body.resolve(new Blob(['synthetic workspace']));
+  await download;
+  expect(signal.aborted).toBe(true);
+  expect(h.bindings.URL.createObjectURL).not.toHaveBeenCalled();
+  expect(h.notice).toHaveBeenCalledTimes(1);
+  expect(h.state.workspaceExportController).toBeNull();
+  h.dom.window.close();
+});
+
+test('streaming export aborts its destination and source on sign-out', async () => {
+  const h = harness();
+  const cancel = jest.fn();
+  const abort = jest.fn();
+  const close = jest.fn();
+  h.dom.window.showSaveFilePicker = jest.fn(async () => ({ createWritable: async () => new WritableStream({ abort, close }) }));
+  const body = new ReadableStream({ start(controller) { controller.enqueue(new Uint8Array([1, 2])); }, cancel });
+  h.bindings.fetch.mockResolvedValueOnce({ ok: true, status: 200, body }).mockResolvedValueOnce(rejectedSession());
+  const download = h.downloadWorkspaceExport();
+  await flush();
+  await expect(h.apiFetch('/api/security/context')).rejects.toThrow('session');
+  await download;
+  expect(cancel).toHaveBeenCalledTimes(1);
+  expect(abort).toHaveBeenCalledTimes(1);
+  expect(close).not.toHaveBeenCalled();
+  expect(h.notice).toHaveBeenCalledTimes(1);
+  h.dom.window.close();
+});
+
+test('late file-picker selection cannot export a replacement session', async () => {
+  const h = harness();
+  const picker = deferred();
+  h.dom.window.showSaveFilePicker = jest.fn(() => picker.promise);
+  const download = h.downloadWorkspaceExport();
+  await h.downloadWorkspaceExport();
+  expect(h.dom.window.showSaveFilePicker).toHaveBeenCalledTimes(1);
+  h.state.sessionToken = 'replacement';
+  picker.resolve({ createWritable: jest.fn() });
+  await download;
+  expect(h.bindings.fetch).not.toHaveBeenCalled();
+  h.dom.window.close();
+});
+
+test.each(['blob', 'file'])('a current workspace export still completes through %s delivery', async mode => {
+  const h = harness();
+  const click = jest.spyOn(h.dom.window.HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  const close = jest.fn();
+  if (mode === 'file') h.dom.window.showSaveFilePicker = jest.fn(async () => ({ createWritable: async () => new WritableStream({ close }) }));
+  h.bindings.fetch.mockResolvedValue(new Response('synthetic workspace export'));
+  await h.downloadWorkspaceExport();
+  expect(mode === 'file' ? close : click).toHaveBeenCalledTimes(1);
+  expect(h.notice).toHaveBeenCalledWith('Workspace export complete', expect.anything());
+  expect(h.state.workspaceExportController).toBeNull();
+  h.dom.window.close();
+});
+
+test.each(['reject', 'resolve'])('rollout history cannot overwrite sign-out on late %s', async outcome => {
+  const h = harness();
+  h.state.featureFlags = [{ key: 'connector_sync', label: 'Connector sync' }];
+  const history = h.openFeatureFlagHistory('connector_sync');
+  h.bindings.fetch.mockResolvedValue(rejectedSession());
+  await expect(h.apiFetch('/api/security/context')).rejects.toThrow('session');
+  const localButton = [...h.els.modalBody.querySelectorAll('button')].find(button => button.textContent === 'Use local access');
+  if (outcome === 'reject') h.requests[0].reject(new Error('Old history error'));
+  else h.requests[0].resolve({ history: [{ actor: 'Old private actor' }] });
+  await history;
+  expect(h.els.modalBody.contains(localButton)).toBe(true);
+  expect(h.els.modalBody.textContent).not.toContain('Old');
+  h.dom.window.close();
+});
+
+test('late operation notices cannot overwrite sign-out, but explicit recovery errors can', () => {
+  const h = harness();
+  const openNotice = new Function('state', 'els', 'escapeHtml', 'document', 'closeModal',
+    `${section('function openNotice(', 'function openTrelloActionReconciliation(')}; return openNotice;`)(
+    h.state, h.els, String, h.dom.window.document, h.closeModal);
+  h.state.sessionToken = 'sneup_session_revoked';
+  h.els.modalTitle.textContent = 'Session ended';
+  openNotice('Operation failed', 'A late error');
+  expect(h.els.modalTitle.textContent).toBe('Session ended');
+  openNotice('Local access unavailable', 'Retry', { allowSignedOut: true });
+  expect(h.els.modalTitle.textContent).toBe('Local access unavailable');
+  h.dom.window.close();
+});
 
 function invitationController(h) {
   return require('../public/workspaceView').createController({
@@ -303,9 +508,9 @@ test.each([false, true])('self-revocation clears identity and caches despite sto
   expect(h.state.securityContext).toBeNull();
   expect(h.state.reports).toEqual([]);
   expect(h.storage.setItem).toHaveBeenCalledWith('session', 'sneup_session_revoked');
-  await expect(h.apiFetch('/api/security/context')).rejects.toThrow('revoked');
+  await expect(h.apiFetch('/api/security/context')).rejects.toThrow('ended');
   expect(h.bindings.fetch).not.toHaveBeenCalled();
-  expect(h.notice).toHaveBeenCalledWith('Session revoked', expect.anything());
+  expect(h.notice).toHaveBeenCalledWith('Session ended', expect.anything(), { allowSignedOut: true });
   expect(h.requests).toHaveLength(1);
   h.dom.window.close();
 });
@@ -395,7 +600,7 @@ test('local access requires explicit re-entry after self-revocation', async () =
   openRevocation(h).click();
   h.requests[0].resolve(revoked(true));
   await flush();
-  await expect(h.apiFetch('/api/security/context')).rejects.toThrow('revoked');
+  await expect(h.apiFetch('/api/security/context')).rejects.toThrow('ended');
   const localButton = [...h.els.modalBody.querySelectorAll('button')].find(button => button.textContent === 'Use local access');
   expect(localButton).toBeTruthy();
   expect(h.bindings.loadAll).not.toHaveBeenCalled();
@@ -412,7 +617,7 @@ test('revoked-session marker permits a fresh invitation without restoring local 
   h.state.sessionToken = 'sneup_session_revoked';
   await h.apiFetch('/api/workspaces/invitations/accept', { method: 'POST' });
   expect(h.bindings.fetch).toHaveBeenCalledTimes(1);
-  await expect(h.apiFetch('/api/workspaces/invitations/accept')).rejects.toThrow('revoked');
+  await expect(h.apiFetch('/api/workspaces/invitations/accept')).rejects.toThrow('ended');
   const pending = h.acceptWorkspaceInvitation('new-invite', 'Synthetic person');
   h.requests[0].resolve(accepted('b'));
   await pending;
@@ -430,7 +635,7 @@ test('storage failure cannot silently opt into local mode', async () => {
   await flush();
   expect(h.state.sessionToken).toBe('sneup_session_revoked');
   expect(h.bindings.loadAll).not.toHaveBeenCalled();
-  expect(h.notice).toHaveBeenCalledWith('Local access unavailable', expect.anything());
+  expect(h.notice).toHaveBeenCalledWith('Local access unavailable', expect.anything(), { allowSignedOut: true });
   h.dom.window.close();
 });
 
@@ -446,7 +651,7 @@ test.each([false, true])('a restarted signed-out window makes no API requests (m
     `${section('async function loadAll(', 'async function loadWorkspaceSelector(')}; return loadAll;`)(
     h.state, h.els, () => () => true, loadWorkspaceView, h.openRevokedSessionNotice);
   await refresh({ force: true });
-  expect(h.notice).toHaveBeenCalledWith('Session revoked', expect.anything());
+  expect(h.notice).toHaveBeenCalledWith('Session ended', expect.anything(), { allowSignedOut: true });
   expect(h.bindings.fetch).not.toHaveBeenCalled();
   expect(h.requests).toHaveLength(0);
   h.dom.window.close();

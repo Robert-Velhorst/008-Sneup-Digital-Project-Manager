@@ -1358,11 +1358,39 @@ function apiErrorMessage(data, fallback) {
 }
 
 async function apiFetch(url, options) {
-  if (state.sessionToken === 'sneup_session_revoked'
-    && !(versionedApiUrl(url) === '/api/v1/workspaces/invitations/accept' && options?.method === 'POST')) {
-    throw new Error(t('This session has been revoked. Use a new invitation or explicitly choose local access.'));
+  const path = versionedApiUrl(url);
+  const invitation = path === '/api/v1/workspaces/invitations/accept' && options?.method === 'POST';
+  const sessionToken = state.sessionToken;
+  if (sessionToken === 'sneup_session_revoked' && !invitation) {
+    throw new Error(t('This session has ended. Use a new invitation or explicitly choose local access.'));
   }
-  return fetch(versionedApiUrl(url), apiOptions(options));
+  const request = apiOptions(options);
+  const headers = new Headers(request.headers);
+  const usesSession = Boolean(sessionToken && headers.get('authorization') === `Bearer ${sessionToken}`
+    && !headers.has('x-sneup-api-key') && typeof path === 'string' && path.startsWith('/api/v1/') && !invitation);
+  const response = await fetch(path, request);
+  if (usesSession && state.sessionToken === sessionToken
+    && response.status === 401 && response.headers.get('x-sneup-authentication') === 'required') {
+    endWorkspaceSession();
+  }
+  if (usesSession && state.sessionToken !== sessionToken) {
+    // Never render a response from an ended identity or replay a possibly committed write.
+    void response.body?.cancel().catch(() => {});
+    throw new Error(t('The session changed while this request was pending. Check workspace history before retrying changes.'));
+  }
+  return response;
+}
+
+function endWorkspaceSession() {
+  // Keep a non-secret marker so refresh cannot silently fall back to local owner access.
+  adoptWorkspaceContext('', 'sneup_session_revoked');
+  let storageUpdated = true;
+  try {
+    sessionStorage.setItem(SESSION_TOKEN_KEY, 'sneup_session_revoked');
+  } catch {
+    storageUpdated = false;
+  }
+  openRevokedSessionNotice(storageUpdated);
 }
 
 async function readApiResponse(response, url) {
@@ -1393,8 +1421,16 @@ async function readApiResponse(response, url) {
 }
 
 async function fetchApi(url, options) {
+  const sessionToken = state.sessionToken;
   const response = await apiFetch(url, options);
-  return readApiResponse(response, url);
+  try {
+    return await readApiResponse(response, url);
+  } finally {
+    if (sessionToken !== state.sessionToken
+      && !(versionedApiUrl(url) === '/api/v1/workspaces/invitations/accept' && options?.method === 'POST')) {
+      throw new Error(t('The session changed while this request was pending. Check workspace history before retrying changes.'));
+    }
+  }
 }
 
 function resetDashboardViews() {
@@ -1479,6 +1515,8 @@ function adoptWorkspaceContext(workspaceId, sessionToken, options = {}) {
     els.modalTitle.textContent = '';
   }
   cancelReportDownloads();
+  state.workspaceExportController?.abort();
+  state.workspaceExportController = null;
   state.workspaceEpoch = (state.workspaceEpoch || 0) + 1;
   state.sessionToken = sessionToken;
   state.activeWorkspaceId = workspaceId;
@@ -3161,8 +3199,12 @@ async function openFeatureFlagHistory(key) {
   els.modalTitle.textContent = t('{label} history', { label: flag.label });
   els.modalBody.innerHTML = `<div class="notice">${et('Loading rollout history...')}</div>`;
   els.modal.classList.add('open');
+  const ownsContext = captureWorkspaceContext();
+  const placeholder = els.modalBody.firstChild;
+  const isCurrent = () => ownsContext() && els.modal.classList.contains('open') && els.modalBody.firstChild === placeholder;
   try {
     const result = await fetchApi(`/api/feature-flags/${encodeURIComponent(key)}/history?limit=25`);
+    if (!isCurrent()) return;
     els.modalBody.innerHTML = `
       <div class="notice-stack">
         ${listOrEmpty(result.history || [], entry => `
@@ -3184,6 +3226,7 @@ async function openFeatureFlagHistory(key) {
     `;
     document.getElementById('closeFeatureHistory').addEventListener('click', closeModal);
   } catch (error) {
+    if (!isCurrent()) return;
     els.modalBody.innerHTML = `<div class="notice">${escapeHtml(error.message)}</div>`;
   }
 }
@@ -3317,6 +3360,7 @@ function openPolicyRuleEditor(actionType) {
 }
 
 async function downloadWorkspaceExport() {
+  if (state.workspaceExportController) return;
   const workspace = (state.workspaces || []).find(item => item.id === state.activeWorkspaceId)
     || state.currentWorkspace;
   if (!workspace?.id || !(state.securityContext?.roles || []).includes('owner')) {
@@ -3331,9 +3375,13 @@ async function downloadWorkspaceExport() {
     .slice(0, 80) || 'workspace';
   const suggestedName = `sneup-${safeSlug}-export-${new Date().toISOString().slice(0, 10)}.ndjson`;
   let fileHandle = null;
-
-  if (typeof window.showSaveFilePicker === 'function') {
-    try {
+  const controller = new AbortController();
+  state.workspaceExportController = controller;
+  const ownsContext = captureWorkspaceContext();
+  const isCurrent = () => ownsContext() && state.workspaceExportController === controller && !controller.signal.aborted;
+  els.workspaceExportButton.disabled = true;
+  try {
+    if (typeof window.showSaveFilePicker === 'function') {
       fileHandle = await window.showSaveFilePicker({
         suggestedName,
         types: [{
@@ -3341,16 +3389,13 @@ async function downloadWorkspaceExport() {
           accept: { 'application/x-ndjson': ['.ndjson'] }
         }]
       });
-    } catch (error) {
-      if (error.name === 'AbortError') return;
-      openNotice(t('Workspace export unavailable'), error.message);
+    }
+    if (!isCurrent()) return;
+    const response = await apiFetch(`/api/workspaces/${encodeURIComponent(workspace.id)}/export`, { signal: controller.signal });
+    if (!isCurrent()) {
+      void response.body?.cancel().catch(() => {});
       return;
     }
-  }
-
-  els.workspaceExportButton.disabled = true;
-  try {
-    const response = await apiFetch(`/api/workspaces/${encodeURIComponent(workspace.id)}/export`);
     if (!response.ok) {
       let message = t('Workspace export failed with status {status}', { status: response.status });
       try {
@@ -3364,9 +3409,15 @@ async function downloadWorkspaceExport() {
 
     if (fileHandle && response.body) {
       const writable = await fileHandle.createWritable();
-      await response.body.pipeTo(writable);
+      if (!isCurrent()) {
+        await writable.abort();
+        void response.body.cancel().catch(() => {});
+        return;
+      }
+      await response.body.pipeTo(writable, { signal: controller.signal });
     } else {
       const blob = await response.blob();
+      if (!isCurrent()) return;
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -3377,11 +3428,14 @@ async function downloadWorkspaceExport() {
       URL.revokeObjectURL(url);
     }
 
-    openNotice(t('Workspace export complete'), t('The export contains workspace records and excludes credentials, token hashes, and encrypted notification destinations.'));
+    if (isCurrent()) openNotice(t('Workspace export complete'), t('The export contains workspace records and excludes credentials, token hashes, and encrypted notification destinations.'));
   } catch (error) {
-    openNotice(t('Workspace export failed'), error.message);
+    if (isCurrent() && error.name !== 'AbortError') openNotice(t('Workspace export failed'), error.message);
   } finally {
-    renderWorkspaces();
+    if (state.workspaceExportController === controller) {
+      state.workspaceExportController = null;
+      renderWorkspaces();
+    }
   }
 }
 
@@ -3607,15 +3661,7 @@ function openSessionRevocationConfirmation(user, session) {
         return;
       }
       if (data.currentSessionRevoked === true) {
-        // A non-secret marker prevents refresh/restart from silently using local owner access.
-        adoptWorkspaceContext('', 'sneup_session_revoked');
-        let storageCleared = true;
-        try {
-          sessionStorage.setItem(SESSION_TOKEN_KEY, 'sneup_session_revoked');
-        } catch {
-          storageCleared = false;
-        }
-        openRevokedSessionNotice(storageCleared);
+        endWorkspaceSession();
         return;
       }
       if (isCurrent()) await openWorkspaceUserSessions(user.id, { revocationConfirmed: true });
@@ -3629,10 +3675,10 @@ function openSessionRevocationConfirmation(user, session) {
 }
 
 function openRevokedSessionNotice(storageCleared = true) {
-  openNotice(t('Session revoked'), t('This window is signed out. Use a new session or invitation to access the workspace again.'));
+  openNotice(t('Session ended'), t('This window is signed out. Use a new session or invitation to access the workspace again.'), { allowSignedOut: true });
   if (!storageCleared) {
     const warning = document.createElement('p');
-    warning.textContent = t('Browser session storage could not be updated. The revoked session no longer grants API access.');
+    warning.textContent = t('Browser session storage could not be updated. The rejected session no longer grants API access.');
     els.modalBody.append(warning);
   }
   if (!['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)) return;
@@ -3647,7 +3693,7 @@ function openRevokedSessionNotice(storageCleared = true) {
     try {
       sessionStorage.removeItem(SESSION_TOKEN_KEY);
     } catch {
-      openNotice(t('Local access unavailable'), t('Browser session storage could not be updated. Refresh to retry, or use a new invitation.'));
+      openNotice(t('Local access unavailable'), t('Browser session storage could not be updated. Refresh to retry, or use a new invitation.'), { allowSignedOut: true });
       return;
     }
     adoptWorkspaceContext('', '');
@@ -4010,7 +4056,8 @@ function openCredentialModal(connector, data, account) {
   });
 }
 
-function openNotice(title, message) {
+function openNotice(title, message, options = {}) {
+  if (state.sessionToken === 'sneup_session_revoked' && !options.allowSignedOut) return;
   els.modalTitle.textContent = title;
   els.modalBody.innerHTML = `
     <div class="notice-stack">
@@ -4186,7 +4233,7 @@ async function openInviteAcceptance(rawToken) {
     controller.openInviteAcceptance(rawToken);
   } catch (error) {
     if (!isCurrent()) return;
-    openNotice(t('Unable to join workspace'), error.message);
+    openNotice(t('Unable to join workspace'), error.message, { allowSignedOut: true });
   }
 }
 
@@ -4197,6 +4244,7 @@ function beginInvitationForm(form) {
 
 async function acceptWorkspaceInvitation(rawToken, displayName, options = {}) {
   const ownsContext = captureWorkspaceContext();
+  const initialEpoch = state.workspaceEpoch || 0;
   const isCurrent = () => ownsContext() && (!options.isCurrent || options.isCurrent());
   if (!isCurrent()) return;
   const data = await fetchApi('/api/workspaces/invitations/accept', {
@@ -4208,7 +4256,8 @@ async function acceptWorkspaceInvitation(rawToken, displayName, options = {}) {
     throw error;
   });
   // Invitations are single-use: retain the committed session even if its form closed.
-  if (!ownsContext() || !data) return;
+  const endedWhilePending = state.sessionToken === 'sneup_session_revoked' && state.workspaceEpoch === initialEpoch + 1;
+  if ((!ownsContext() && !endedWhilePending) || !data) return;
   if (typeof data.sessionToken !== 'string' || !data.sessionToken || typeof data.workspace?.id !== 'string' || !data.workspace.id) {
     throw new Error('The invitation response did not include a usable workspace session.');
   }
