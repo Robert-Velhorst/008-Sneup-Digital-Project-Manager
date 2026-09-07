@@ -233,7 +233,7 @@ function getDemoOperationsLedger(now = new Date()) {
       generatedAt
     }],
     reconciliationHealth: {
-      summary: { requiresOperator: 1, critical: 1, warning: 0 },
+      summary: { unresolved: 1, requiresOperator: 1, critical: 1, warning: 0 },
       items: [{
         actionType: 'reassign',
         severity: 'critical',

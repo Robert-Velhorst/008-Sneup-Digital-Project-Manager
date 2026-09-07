@@ -134,6 +134,52 @@ function createHarness(locale = 'nl') {
 }
 
 describe('demand-loaded approval view', () => {
+  test.each(['en', 'nl'])('partial ledger data is visibly unavailable in %s while valid actions remain usable', locale => {
+    const h = createHarness(locale);
+    h.state.ledger.unavailableSections = ['decisions', 'reconciliationHealth', 'actions'];
+    h.state.ledger.errors = ['<script>private error</script>'];
+    h.controller.render();
+    expect(h.elements.approvalCount.textContent).toBe('--');
+    expect(h.elements.ledgerMetrics.querySelectorAll('strong[aria-label]').length).toBe(5);
+    expect(h.elements.trelloAttemptCount.textContent).toBe(h.i18n.t('Unavailable'));
+    expect(h.elements.trelloAttempts.querySelector('.pill.healthy')).toBeNull();
+    expect(h.elements.trelloAttempts.querySelector('[data-trello-action-reconcile]')).toBeNull();
+    expect(h.elements.decisionQueue.querySelector('script')).toBeNull();
+    expect(h.elements.decisionQueue.querySelector('.empty')).toBeNull();
+    expect(h.elements.timelineCount.textContent).toBe(h.i18n.t('Partial'));
+    expect(h.elements.operationsTimeline.textContent).toContain('Timeline Evidence Title');
+    h.elements.recommendationList.querySelector('[data-recommendation-action]').click();
+    expect(h.callbacks.runRecommendationAction).toHaveBeenCalledTimes(1);
+    h.dom.window.close();
+  });
+
+  test('failed full read shows no empty/healthy sections or actionable stale records', () => {
+    const h = createHarness('en');
+    h.state.ledger.unavailableSections = ['*'];
+    h.controller.render();
+    expect([...h.elements.ledgerMetrics.querySelectorAll('strong')].every(node => node.textContent === '--')).toBe(true);
+    expect(h.elements.timelineCount.textContent).toBe('Unavailable');
+    expect(h.dom.window.document.querySelector('.empty')).toBeNull();
+    expect(h.dom.window.document.querySelector('[data-recommendation-action]')).toBeNull();
+    expect(h.elements.accountabilityList.textContent).toContain('This section is unavailable');
+    h.state.ledger.unavailableSections = [];
+    h.controller.render();
+    expect(h.elements.approvalCount.textContent).toBe('2');
+    expect(h.elements.ledgerMetrics.querySelector('strong[aria-label]')).toBeNull();
+    expect(h.elements.recommendationList.querySelector('[data-recommendation-action]')).not.toBeNull();
+    h.dom.window.close();
+  });
+
+  test('a partial empty timeline does not say nothing needs attention', () => {
+    const h = createHarness('en');
+    h.state.ledger.unavailableSections = ['workerResponses'];
+    h.state.ledger.timeline = [];
+    h.controller.render();
+    expect(h.elements.operationsTimeline.textContent).toContain('Some timeline sources are unavailable');
+    expect(h.elements.operationsTimeline.querySelector('.empty')).toBeNull();
+    h.dom.window.close();
+  });
+
   test('pending worker-response recovery is visible without offering a duplicate response', () => {
     const harness = createHarness('en');
     harness.state.ledger.workerResponses = [{ interventionId: 'intervention-1', effects: { status: 'pending' } }];

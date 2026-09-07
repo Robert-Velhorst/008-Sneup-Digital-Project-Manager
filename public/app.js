@@ -492,6 +492,7 @@ const state = {
     notificationPolicies: [],
     notificationDeliveries: [],
     timeline: [],
+    unavailableSections: ['*'],
     errors: []
   },
   category: 'all',
@@ -861,12 +862,13 @@ const viewLoaders = {
   ]),
   approvals: async () => {
     const isCurrent = beginWorkspaceRead('approvalView');
-    await Promise.all([
+    const [ledgerReady] = await Promise.all([
       loadOperationsLedger(),
       loadNotificationDeliveryHealth(),
       loadApprovalView()
     ]);
     if (isCurrent()) renderOperationsLedger();
+    return ledgerReady;
   },
   connectors: loadConnectors,
   enhancements: loadEnhancements,
@@ -909,7 +911,11 @@ async function loadView(viewName, options = {}) {
     && epoch === (state.workspaceEpoch || 0);
   const load = Promise.resolve()
     .then(() => entry.isCurrent() ? loader() : undefined)
-    .then(() => { if (entry.isCurrent()) state.loadedViews.add(viewName); })
+    .then(result => {
+      if (entry.isCurrent() && result !== false && (viewName !== 'approvals' || !state.ledger?.unavailableSections?.length)) {
+        state.loadedViews.add(viewName);
+      }
+    })
     .finally(() => { if (state.viewLoads.get(viewName) === entry) state.viewLoads.delete(viewName); });
   entry.promise = load;
   state.viewLoads.set(viewName, entry);
@@ -1461,7 +1467,8 @@ function resetDashboardViews() {
   state.ledger = {
     decisions: [], recommendations: [], actions: [], auditEvents: [], followUps: [], workerResponses: [],
     accountability: null, outcomes: [], findings: [], healthSnapshots: [], reconciliationHealth: null,
-    notificationPolicies: [], notificationDeliveries: [], timeline: [], errors: [], demoMode: false
+    notificationPolicies: [], notificationDeliveries: [], timeline: [], errors: [], demoMode: false,
+    unavailableSections: ['*']
   };
   // Clear old content synchronously, including error-only views whose module never loaded.
   for (const key of ['metrics', 'brief', 'operationsBriefItems', 'jobHealthList', 'commandQueue', 'dailyPlan',
@@ -1887,55 +1894,47 @@ async function loadPolicyHistory(options = {}) {
 async function loadOperationsLedger(options = {}) {
   const isCurrent = beginWorkspaceRead('operationsLedger');
   let loadError = null;
+  const defaults = {
+    decisions: [], recommendations: [], actions: [], auditEvents: [], followUps: [], workerResponses: [],
+    accountability: null, outcomes: [], findings: [], healthSnapshots: [], reconciliationHealth: null,
+    notificationPolicies: [], notificationDeliveries: [], timeline: []
+  };
   try {
     const data = await fetchApi('/api/operations-ledger');
     if (!isCurrent()) return;
     const ledger = data.ledger || {};
-    state.ledger = {
-      decisions: ledger.decisions || [],
-      recommendations: ledger.recommendations || [],
-      actions: ledger.actions || [],
-      auditEvents: ledger.auditEvents || [],
-      followUps: ledger.followUps || [],
-      workerResponses: ledger.workerResponses || [],
-      accountability: ledger.accountability || null,
-      outcomes: ledger.outcomes || [],
-      findings: ledger.findings || [],
-      healthSnapshots: ledger.healthSnapshots || [],
-      reconciliationHealth: ledger.reconciliationHealth || null,
-      notificationPolicies: ledger.notificationPolicies || [],
-      notificationDeliveries: ledger.notificationDeliveries || [],
-      timeline: ledger.timeline || [],
-      demoMode: Boolean(ledger.demoMode),
-      errors: (ledger.errors || []).map((error) => error.message || String(error))
-    };
+    const errors = Array.isArray(ledger.errors) ? ledger.errors : [];
+    const unavailable = new Set(errors.map(error => Object.hasOwn(defaults, error?.section) ? error.section : '*'));
+    const sections = Object.fromEntries(Object.entries(defaults).map(([section, fallback]) => {
+      const value = ledger[section];
+      const summaryFields = section === 'accountability' ? ['members', 'overdueFollowUps', 'membersNeedingAttention']
+        : ['unresolved', 'requiresOperator', 'critical', 'warning'];
+      const validSummary = value && summaryFields.every(key => Number.isInteger(value.summary?.[key]) && value.summary[key] >= 0);
+      const valid = Array.isArray(fallback) ? Array.isArray(value)
+        : validSummary && (section === 'accountability' ? Array.isArray(value.members)
+          : Array.isArray(value.items) && ['warningHours', 'criticalHours'].every(key => Number.isFinite(value.thresholds?.[key]) && value.thresholds[key] > 0));
+      if (!valid) unavailable.add(section);
+      return [section, valid && !unavailable.has(section) && !unavailable.has('*') ? value : fallback];
+    }));
+    if (unavailable.size > 0) loadError = new Error('Operations ledger is incomplete. Refresh to try again.');
+    state.ledger = { ...sections, demoMode: Boolean(ledger.demoMode), unavailableSections: [...unavailable],
+      errors: errors.map(error => error?.message || String(error)) };
   } catch (error) {
     if (!isCurrent()) return;
     loadError = error;
     state.ledger = {
-      ...state.ledger,
-      decisions: [],
-      recommendations: [],
-      actions: [],
-      auditEvents: [],
-      followUps: [],
-      workerResponses: [],
-      accountability: null,
-      outcomes: [],
-      findings: [],
-      healthSnapshots: [],
-      reconciliationHealth: null,
-      notificationPolicies: [],
-      notificationDeliveries: [],
-      timeline: [],
+      ...defaults,
+      unavailableSections: ['*'],
       demoMode: false,
       errors: [error.message]
     };
   }
 
+  if (loadError) state.loadedViews?.delete('approvals');
   updateApprovalCount();
   renderOperationsLedger();
   if (loadError && options.throwOnError) throw loadError;
+  return !loadError;
 }
 
 function renderOverview() {
@@ -2141,6 +2140,11 @@ function renderOperationsLedger() {
 }
 
 function updateApprovalCount() {
+  const unavailable = state.ledger?.unavailableSections || [];
+  if (['*', 'decisions', 'recommendations'].some(section => unavailable.includes(section))) {
+    els.approvalCount.textContent = '--';
+    return;
+  }
   const decisions = state.ledger?.decisions || [];
   const recommendations = state.ledger?.recommendations || [];
   const openRobert = decisions.filter(item => item.ownerType === 'robert').length;

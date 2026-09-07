@@ -303,7 +303,7 @@ The installer is written to:
 release\Sneup-Setup-<version>.exe
 ```
 
-The local release line currently builds `Sneup-Setup-2.3.69.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
+The local release line currently builds `Sneup-Setup-2.3.70.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
 
 Verify the unpacked Windows app before distributing an installer:
 
@@ -415,6 +415,10 @@ For developers: the service defaults to 50 eligible results and clamps explicit 
 $env:SNEUP_RECONCILIATION_QUEUE_MONGO_URI = 'mongodb://127.0.0.1:27017/sneup_reconciliation_queue_' + [guid]::NewGuid().ToString('N').Substring(0,12)
 npm.cmd run verify:trello-reconciliation-queue
 ```
+
+**When only part of the ledger is available:** starting with 2.3.70, Approvals preserves the API's section-level failures. An unavailable metric displays `--`, and the affected list/count says **Unavailable**, instead of presenting an empty queue as evidence that nothing needs attention. Successfully loaded sections remain usable. A timeline assembled from incomplete sources is marked **Partial**. English and Dutch labels are included.
+
+Use **Refresh**, or leave and reopen **Approvals**, to retry. Partial results are not cached as a completed view, even if an earlier screen load finishes later. A saved action followed by an incomplete refresh uses the existing recorded-but-not-refreshed notice; do not repeat the action merely because its updated record could not load. Missing/malformed top-level section containers and the displayed accountability/reconciliation summary fields are treated as unavailable. This validation does not certify every nested record field or other dashboard view. No new background polling, database model, API route, or provider permission is added.
 
 ## API overview
 

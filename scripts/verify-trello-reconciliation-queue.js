@@ -106,8 +106,8 @@ async function run() {
     const app = require('../src/index');
     server = app.listen(0, '127.0.0.1');
     await new Promise((resolve, reject) => { server.once('listening', resolve); server.once('error', reject); });
-    const request = async route => {
-      const response = await fetch(`http://127.0.0.1:${server.address().port}/api/v1/trello-actions/${route}`, {
+    const request = async (route, area = 'trello-actions/') => {
+      const response = await fetch(`http://127.0.0.1:${server.address().port}/api/v1/${area}${route}`, {
         headers: { 'x-sneup-api-key': token, 'x-sneup-workspace-id': String(workspaceId) }, signal: AbortSignal.timeout(10000)
       });
       return { status: response.status, body: await response.json() };
@@ -127,6 +127,13 @@ async function run() {
       assert.equal(failedHttp.status, 500);
       assert.equal(failedHttp.body.ok, false);
       assert.equal(failedHttp.body.data, null, 'Unavailable health must not become a healthy zero');
+      const ledgerHttp = await request('', 'operations-ledger');
+      assert.equal(ledgerHttp.status, 200, 'Healthy ledger sections must remain available');
+      const ledger = ledgerHttp.body.data.ledger;
+      assert.equal(ledger.reconciliationHealth, null);
+      assert.deepEqual(ledger.errors, [{ section: 'reconciliationHealth', message: 'Temporarily unavailable' }]);
+      assert.ok(ledger.recommendations.length > 0);
+      assert.ok(ledger.actions.length > 0);
     }
     finally { Recommendation.aggregate = originalAggregate; }
     const originalReferenceFind = Recommendation.collection.find;
@@ -157,7 +164,7 @@ async function run() {
         'lean-and-document-results', 'workspace-objectid-casting', 'foreign-reference-isolation', 'failure-exclusion',
         'operator-claim-and-effects-pending', 'health-after-history', 'query-failure-propagation', 'bounded-hydration',
         'authenticated-queue-and-health-http', 'unavailable-health-is-not-zero', 'service-limit-clamping',
-        'population-timeout-propagation'] };
+        'population-timeout-propagation', 'workspace-ledger-partial-http'] };
   } finally {
     try {
       if (server?.listening) {

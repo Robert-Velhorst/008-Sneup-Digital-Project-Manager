@@ -49,6 +49,74 @@ const harness = (name, field, end, delayedRenderer = false) => {
   return { state, requests, render, renderer, load, els };
 };
 
+describe('operations ledger availability', () => {
+  const complete = () => ({ decisions: [], recommendations: [], actions: [], auditEvents: [], followUps: [],
+    workerResponses: [], accountability: { summary: { members: 0, overdueFollowUps: 0, membersNeedingAttention: 0 }, members: [] }, outcomes: [], findings: [], healthSnapshots: [],
+    reconciliationHealth: { summary: { unresolved: 0, requiresOperator: 0, critical: 0, warning: 0 }, items: [], thresholds: { warningHours: 4, criticalHours: 24 } }, notificationPolicies: [], notificationDeliveries: [], timeline: [], errors: [] });
+  test('a healthy empty response is complete, not unavailable', async () => {
+    const h = harness('loadOperationsLedger', 'ledger', 'renderOverview');
+    const pending = h.load({ throwOnError: true });
+    h.requests[0].resolve({ ledger: complete() });
+    await expect(pending).resolves.toBe(true);
+    expect(h.state.ledger.unavailableSections).toEqual([]);
+  });
+  test.each(['actions', 'recommendations', 'reconciliationHealth', 'accountability', 'workerResponses'])(
+    'partial %s errors retain section identity and other evidence, invalidate cache, and reject refresh', async sectionName => {
+      const h = harness('loadOperationsLedger', 'ledger', 'renderOverview');
+      h.state.loadedViews = new Set(['approvals']);
+      const ledger = complete();
+      ledger.decisions = [{ _id: 'live-decision' }];
+      ledger.errors = [{ section: sectionName, message: '<untrusted error>' }];
+      const pending = h.load({ throwOnError: true });
+      h.requests[0].resolve({ ledger });
+      await expect(pending).rejects.toThrow('Operations ledger is incomplete');
+      expect(h.state.ledger.unavailableSections).toEqual([sectionName]);
+      expect(h.state.ledger.decisions).toEqual([{ _id: 'live-decision' }]);
+      expect(h.state.loadedViews.has('approvals')).toBe(false);
+      expect(h.render).toHaveBeenCalledTimes(1);
+    });
+  test.each(['missing', 'invalid', 'null'])('%s data is not accepted as a healthy empty section', async kind => {
+    const h = harness('loadOperationsLedger', 'ledger', 'renderOverview');
+    const ledger = complete();
+    if (kind === 'missing') delete ledger.actions;
+    if (kind === 'invalid') ledger.actions = {};
+    if (kind === 'null') ledger.actions = null;
+    const pending = h.load();
+    h.requests[0].resolve({ ledger });
+    await expect(pending).resolves.toBe(false);
+    expect(h.state.ledger.unavailableSections).toContain('actions');
+    expect(h.state.ledger.actions).toEqual([]);
+  });
+  test('whole-read failure clears evidence, and a successful retry restores availability', async () => {
+    const h = harness('loadOperationsLedger', 'ledger', 'renderOverview');
+    const failed = h.load();
+    h.requests[0].reject(new Error('Offline'));
+    await expect(failed).resolves.toBe(false);
+    expect(h.state.ledger.unavailableSections).toEqual(['*']);
+    expect(h.state.ledger.errors).toEqual(['Offline']);
+    const retry = h.load();
+    h.requests[1].resolve({ ledger: complete() });
+    await expect(retry).resolves.toBe(true);
+    expect(h.state.ledger.unavailableSections).toEqual([]);
+    expect(h.state.ledger.errors).toEqual([]);
+  });
+  test.each(['accountability', 'reconciliationHealth'])('malformed %s summaries and collections remain unavailable', async sectionName => {
+    for (const value of [{}, { summary: {} }, { summary: { members: '0', unresolved: -1 } },
+      { ...complete()[sectionName], [sectionName === 'accountability' ? 'members' : 'items']: null },
+      ...(sectionName === 'reconciliationHealth' ? [
+        { ...complete()[sectionName], thresholds: { warningHours: '4', criticalHours: 24 } },
+        { ...complete()[sectionName], thresholds: { warningHours: 4, criticalHours: 0 } }
+      ] : [])]) {
+      const h = harness('loadOperationsLedger', 'ledger', 'renderOverview');
+      const pending = h.load({ throwOnError: true });
+      h.requests[0].resolve({ ledger: { ...complete(), [sectionName]: value } });
+      await expect(pending).rejects.toThrow('Operations ledger is incomplete');
+      expect(h.state.ledger.unavailableSections).toEqual([sectionName]);
+      expect(h.state.ledger[sectionName]).toBeNull();
+    }
+  });
+});
+
 describe.each(loaders)('%s request ownership', (name, field, end) => {
   test.each(['workspace', 'session', 'generation'])('ignores late success after %s changes', async change => {
     const h = harness(name, field, end);
@@ -170,5 +238,31 @@ test('current approvals render when a shared lazy module arrives after both work
   module.resolve();
   await Promise.all([old, current]);
   expect(rendered).toEqual(['b']);
+  expect(state.loadedViews.has('approvals')).toBe(true);
+});
+
+test('a delayed module cannot recache Approvals after a newer ledger failure', async () => {
+  const state = { activeWorkspaceId: 'a', sessionToken: 's', loadedViews: new Set(), viewLoads: new Map(), ledger: { unavailableSections: [] } };
+  const module = deferred();
+  const noop = () => {};
+  const loadOperationsLedger = jest.fn().mockResolvedValue(true);
+  const bindings = { state, loadMissionControl: noop, loadOperationsBrief: noop, loadJobDashboard: noop,
+    loadConnectors: noop, loadEnhancements: noop, loadWorkSignals: noop, loadForecast: noop,
+    loadReports: noop, loadWorkspaceAdmin: noop, loadNotificationDeliveryHealth: noop,
+    loadOperationsLedger, loadApprovalView: () => module.promise, renderOperationsLedger: noop };
+  const code = section('function beginWorkspaceRead(', 'function adoptWorkspaceId(')
+    + section('const viewLoaders = {', 'const deferredViewCounts = {')
+    + section('async function loadView(', 'async function loadAll(');
+  const loadView = new Function(...Object.keys(bindings), `${code}; return loadView;`)(...Object.values(bindings));
+  const initial = loadView('approvals');
+  await flush();
+  state.ledger = { unavailableSections: ['*'] };
+  state.loadedViews.delete('approvals');
+  module.resolve();
+  await initial;
+  expect(state.loadedViews.has('approvals')).toBe(false);
+  loadOperationsLedger.mockImplementation(async () => { state.ledger = { unavailableSections: [] }; return true; });
+  await loadView('approvals');
+  expect(loadOperationsLedger).toHaveBeenCalledTimes(2);
   expect(state.loadedViews.has('approvals')).toBe(true);
 });

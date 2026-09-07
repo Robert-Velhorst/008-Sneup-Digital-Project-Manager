@@ -34,6 +34,10 @@
   ]);
 
   const NL_MESSAGES = Object.freeze({
+    'Unavailable': 'Niet beschikbaar',
+    'Partial': 'Onvolledig',
+    'This section is unavailable. Refresh to try again.': 'Dit onderdeel is niet beschikbaar. Vernieuw om het opnieuw te proberen.',
+    'Some timeline sources are unavailable.': 'Sommige bronnen van de tijdlijn zijn niet beschikbaar.',
     'Loading payload context...': 'Context van de actie laden...',
     'The action was recorded, but the ledger could not refresh. Reopen Approvals before taking another action.': 'De actie is vastgelegd, maar het logboek kon niet vernieuwen. Open Goedkeuringen opnieuw voordat je een volgende actie uitvoert.',
     'The revised action needs fresh approval, but the ledger could not refresh. Reopen Approvals before continuing.': 'De aangepaste actie vereist nieuwe goedkeuring, maar het logboek kon niet vernieuwen. Open Goedkeuringen opnieuw voordat je doorgaat.',
@@ -743,6 +747,11 @@
       });
 
       const ledger = state.ledger || {};
+      const unavailable = new Set(ledger.unavailableSections || []);
+      const isUnavailable = section => unavailable.has('*') || unavailable.has(section);
+      const unavailableNotice = `<div class="notice" role="status">${et('This section is unavailable. Refresh to try again.')}</div>`;
+      const sectionList = (section, items, renderer) => isUnavailable(section) ? unavailableNotice : listOrEmpty(items, renderer);
+      const countLabel = (section, value) => isUnavailable(section) ? t('Unavailable') : value;
       const decisions = ledger.decisions || [];
       const recommendations = ledger.recommendations || [];
       const actions = ledger.actions || [];
@@ -766,23 +775,23 @@
       const highRiskFindings = findings.filter(item => ['critical', 'high'].includes(item.severity)).length;
       const outcomesNeedingAttention = outcomes.filter(item => ['needs_attention', 'not_verified'].includes(item.status)).length;
 
-      elements.approvalCount.textContent = openRobert + pendingRecommendations;
+      elements.approvalCount.textContent = isUnavailable('decisions') || isUnavailable('recommendations') ? '--' : openRobert + pendingRecommendations;
       elements.ledgerMetrics.innerHTML = [
-        ['Robert decisions', openRobert],
-        ['VA/team queue', vaTeam],
-        ['Awaiting review', pendingRecommendations],
-        ['Failed actions', failedActions],
-        ['Reconciliation alerts', reconciliationSummary.requiresOperator || 0],
-        ['Critical evidence gaps', reconciliationSummary.critical || 0],
-        ['Open findings', findings.length],
-        ['High-risk findings', highRiskFindings],
-        ['Overdue follow-ups', accountability?.summary?.overdueFollowUps || 0],
-        ['Workers needing attention', accountability?.summary?.membersNeedingAttention || 0],
-        ['Outcome reviews', outcomesNeedingAttention],
-        ['Audit events', auditEvents.length],
-        ['Recent responses', workerResponses.length]
-      ].map(([label, value]) => `
-        <div class="metric"><span>${et(label)}</span><strong>${value}</strong></div>
+        ['Robert decisions', openRobert, 'decisions'],
+        ['VA/team queue', vaTeam, 'decisions'],
+        ['Awaiting review', pendingRecommendations, 'recommendations'],
+        ['Failed actions', failedActions, 'actions'],
+        ['Reconciliation alerts', reconciliationSummary.requiresOperator || 0, 'reconciliationHealth'],
+        ['Critical evidence gaps', reconciliationSummary.critical || 0, 'reconciliationHealth'],
+        ['Open findings', findings.length, 'findings'],
+        ['High-risk findings', highRiskFindings, 'findings'],
+        ['Overdue follow-ups', accountability?.summary?.overdueFollowUps || 0, 'accountability'],
+        ['Workers needing attention', accountability?.summary?.membersNeedingAttention || 0, 'accountability'],
+        ['Outcome reviews', outcomesNeedingAttention, 'outcomes'],
+        ['Audit events', auditEvents.length, 'auditEvents'],
+        ['Recent responses', workerResponses.length, 'workerResponses']
+      ].map(([label, value, section]) => `
+        <div class="metric"><span>${et(label)}</span><strong${isUnavailable(section) ? ` title="${et('Unavailable')}" aria-label="${et('Unavailable')}"` : ''}>${isUnavailable(section) ? '--' : value}</strong></div>
       `).join('');
 
       const filteredDecisions = state.queueFilter === 'all'
@@ -798,33 +807,35 @@
       elements.notificationPolicyButton.title = ledger.demoMode
         ? t('Notification policies are unavailable in the read-only demo ledger.')
         : '';
-      elements.decisionQueue.innerHTML = errorNotice + listOrEmpty(filteredDecisions, renderDecisionItem);
-      elements.recommendationCount.textContent = ep('{count} pending', '{count} pending', pendingRecommendations, { count: pendingRecommendations });
-      elements.recommendationList.innerHTML = listOrEmpty(recommendations, renderRecommendation);
-      elements.findingsCount.textContent = ep('{count} open', '{count} open', findings.length, { count: findings.length });
-      elements.findingsList.innerHTML = listOrEmpty(findings, renderFinding);
-      elements.timelineCount.textContent = ep('{count} recent', '{count} recent', timeline.length, { count: timeline.length });
-      elements.operationsTimeline.innerHTML = listOrEmpty(timeline.slice(0, 12), renderTimelineItem);
-      elements.boardHealthCount.textContent = ep('{count} snapshot', '{count} snapshots', healthSnapshots.length, { count: healthSnapshots.length });
-      elements.boardHealthList.innerHTML = listOrEmpty(healthSnapshots, renderBoardHealth);
-      elements.trelloAttemptCount.textContent = reconciliationSummary.requiresOperator
+      elements.decisionQueue.innerHTML = errorNotice + sectionList('decisions', filteredDecisions, renderDecisionItem);
+      elements.recommendationCount.textContent = countLabel('recommendations', ep('{count} pending', '{count} pending', pendingRecommendations, { count: pendingRecommendations }));
+      elements.recommendationList.innerHTML = sectionList('recommendations', recommendations, renderRecommendation);
+      elements.findingsCount.textContent = countLabel('findings', ep('{count} open', '{count} open', findings.length, { count: findings.length }));
+      elements.findingsList.innerHTML = sectionList('findings', findings, renderFinding);
+      const partialTimeline = ['recommendations', 'decisions', 'actions', 'auditEvents', 'followUps', 'workerResponses', 'outcomes', 'findings'].some(isUnavailable);
+      elements.timelineCount.textContent = countLabel('timeline', partialTimeline ? t('Partial') : ep('{count} recent', '{count} recent', timeline.length, { count: timeline.length }));
+      elements.operationsTimeline.innerHTML = isUnavailable('timeline') ? unavailableNotice
+        : `${partialTimeline ? `<div class="notice" role="status">${et('Some timeline sources are unavailable.')}</div>` : ''}${partialTimeline && timeline.length === 0 ? '' : listOrEmpty(timeline.slice(0, 12), renderTimelineItem)}`;
+      elements.boardHealthCount.textContent = countLabel('healthSnapshots', ep('{count} snapshot', '{count} snapshots', healthSnapshots.length, { count: healthSnapshots.length }));
+      elements.boardHealthList.innerHTML = sectionList('healthSnapshots', healthSnapshots, renderBoardHealth);
+      elements.trelloAttemptCount.textContent = isUnavailable('actions') || isUnavailable('reconciliationHealth') ? t('Unavailable') : reconciliationSummary.requiresOperator
         ? ep('{count} needs evidence', '{count} need evidence', reconciliationSummary.requiresOperator, { count: reconciliationSummary.requiresOperator })
         : ep('{count} attempt', '{count} attempts', actions.length, { count: actions.length });
-      elements.trelloAttempts.innerHTML = `${renderTrelloReconciliationHealth(reconciliationHealth)}${listOrEmpty(actions, renderTrelloAttempt)}`;
-      elements.notificationPolicyCount.textContent = ep('{count} policy', '{count} policies', notificationPolicies.length, { count: notificationPolicies.length });
-      elements.notificationPolicies.innerHTML = listOrEmpty(notificationPolicies, renderNotificationPolicy);
-      elements.notificationDeliveryCount.textContent = ep('{count} event', '{count} events', notificationDeliveries.length, { count: notificationDeliveries.length });
-      elements.notificationDeliveries.innerHTML = listOrEmpty(notificationDeliveries, renderNotificationDelivery);
-      elements.followUpCount.textContent = ep('{count} due', '{count} due', followUps.length, { count: followUps.length });
-      elements.followUps.innerHTML = listOrEmpty(followUps, renderFollowUp);
-      elements.accountabilityCount.textContent = ep('{count} person', '{count} people', accountability?.summary?.members || 0, { count: accountability?.summary?.members || 0 });
-      elements.accountabilityList.innerHTML = accountability
+      elements.trelloAttempts.innerHTML = `${isUnavailable('reconciliationHealth') ? `<div class="item"><strong>${et('Reconciliation coverage')}: ${et('Unavailable')}</strong>${unavailableNotice}</div>` : renderTrelloReconciliationHealth(reconciliationHealth)}${sectionList('actions', actions, renderTrelloAttempt)}`;
+      elements.notificationPolicyCount.textContent = countLabel('notificationPolicies', ep('{count} policy', '{count} policies', notificationPolicies.length, { count: notificationPolicies.length }));
+      elements.notificationPolicies.innerHTML = sectionList('notificationPolicies', notificationPolicies, renderNotificationPolicy);
+      elements.notificationDeliveryCount.textContent = countLabel('notificationDeliveries', ep('{count} event', '{count} events', notificationDeliveries.length, { count: notificationDeliveries.length }));
+      elements.notificationDeliveries.innerHTML = sectionList('notificationDeliveries', notificationDeliveries, renderNotificationDelivery);
+      elements.followUpCount.textContent = countLabel('followUps', ep('{count} due', '{count} due', followUps.length, { count: followUps.length }));
+      elements.followUps.innerHTML = sectionList('followUps', followUps, renderFollowUp);
+      elements.accountabilityCount.textContent = countLabel('accountability', ep('{count} person', '{count} people', accountability?.summary?.members || 0, { count: accountability?.summary?.members || 0 }));
+      elements.accountabilityList.innerHTML = isUnavailable('accountability') ? unavailableNotice : accountability
         ? listOrEmpty(accountability.members || [], renderWorkerAccountability)
         : `<div class="notice">${et('Worker accountability needs ledger access.')}</div>`;
-      elements.outcomeCount.textContent = ep('{count} review', '{count} reviews', outcomesNeedingAttention, { count: outcomesNeedingAttention });
-      elements.outcomeList.innerHTML = listOrEmpty(outcomes, renderInterventionOutcome);
-      elements.auditCount.textContent = ep('{count} event', '{count} events', auditEvents.length, { count: auditEvents.length });
-      elements.auditTrail.innerHTML = listOrEmpty(auditEvents, renderAuditEvent);
+      elements.outcomeCount.textContent = countLabel('outcomes', ep('{count} review', '{count} reviews', outcomesNeedingAttention, { count: outcomesNeedingAttention }));
+      elements.outcomeList.innerHTML = sectionList('outcomes', outcomes, renderInterventionOutcome);
+      elements.auditCount.textContent = countLabel('auditEvents', ep('{count} event', '{count} events', auditEvents.length, { count: auditEvents.length }));
+      elements.auditTrail.innerHTML = sectionList('auditEvents', auditEvents, renderAuditEvent);
       bindActions();
     }
 
