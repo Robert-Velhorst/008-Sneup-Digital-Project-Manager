@@ -6,7 +6,7 @@ const WorkDependency = require('../models/WorkDependency');
 const WorkEvent = require('../models/WorkEvent');
 const WorkItem = require('../models/WorkItem');
 const Recommendation = require('../models/Recommendation');
-const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
+const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId, workspacePopulate } = require('./workspaceScopeService');
 const { extractTrelloCardShortLink, trelloCardAliases } = require('../utils/trelloIdentifiers');
 
 const slugify = (value) => String(value || '')
@@ -582,7 +582,7 @@ class WorkGraphService {
           { sourceItemId: item._id },
           { targetItemId: item._id }
         ]
-      }).populate('sourceItemId targetItemId').sort({ updatedAt: -1 }).limit(50),
+      }).populate(workspacePopulate(workspaceId, 'sourceItemId targetItemId')).sort({ updatedAt: -1 }).limit(50),
       WorkContainer.findOne({
         workspaceId,
         sourceProvider: item.sourceProvider,
@@ -690,7 +690,7 @@ class WorkGraphService {
           { sourceItemId: { $in: itemIds } },
           { targetItemId: { $in: itemIds } }
         ]
-      }).populate('sourceItemId targetItemId').sort({ updatedAt: -1 }).limit(limit * 4),
+      }).populate(workspacePopulate(workspaceId, 'sourceItemId targetItemId')).sort({ updatedAt: -1 }).limit(limit * 4),
       Recommendation.find({
         workspaceId,
         'actionPayload.workItemId': { $in: itemIds.map(id => String(id)) }

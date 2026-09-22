@@ -18,7 +18,8 @@ class OperationsBriefService {
 
     const limit = options.limit || 100;
     const now = new Date();
-    const workspaceId = require('./workspaceScopeService').normalizeWorkspaceObjectId(options.workspaceId);
+    const { normalizeWorkspaceObjectId, workspacePopulate } = require('./workspaceScopeService');
+    const workspaceId = normalizeWorkspaceObjectId(options.workspaceId);
     const DecisionQueueItem = require('../models/DecisionQueueItem');
     const Recommendation = require('../models/Recommendation');
     const TrelloActionAttempt = require('../models/TrelloActionAttempt');
@@ -37,15 +38,15 @@ class OperationsBriefService {
       graphDecisionResult
     ] = await Promise.all([
       DecisionQueueItem.find({ workspaceId, status: 'open' })
-        .populate('recommendationId boardId cardId')
+        .populate(workspacePopulate(workspaceId, 'recommendationId boardId cardId'))
         .sort({ riskLevel: -1, dueAt: 1, createdAt: 1 })
         .limit(limit),
       Recommendation.find({ workspaceId, status: { $in: ['pending', 'approved', 'change_requested', 'failed'] } })
-        .populate('boardId cardId memberId')
+        .populate(workspacePopulate(workspaceId, 'boardId cardId memberId'))
         .sort({ riskLevel: -1, createdAt: 1 })
         .limit(limit),
       TrelloActionAttempt.find({ workspaceId, status: 'failed' })
-        .populate('recommendationId boardId cardId')
+        .populate(workspacePopulate(workspaceId, 'recommendationId boardId cardId'))
         .sort({ createdAt: -1 })
         .limit(25),
       FollowUpPlan.find({
@@ -53,11 +54,11 @@ class OperationsBriefService {
         status: { $in: ['scheduled', 'due'] },
         dueAt: { $lte: now }
       })
-        .populate('recommendationId interventionId boardId cardId memberId')
+        .populate(workspacePopulate(workspaceId, 'recommendationId interventionId boardId cardId memberId'))
         .sort({ dueAt: 1 })
         .limit(50),
       CardFinding.find({ workspaceId, status: 'open' })
-        .populate('boardId cardId memberId')
+        .populate(workspacePopulate(workspaceId, 'boardId cardId memberId'))
         .sort({ lastObservedAt: -1 })
         .limit(limit),
       boardHealthSnapshotService.listLatestByBoard({

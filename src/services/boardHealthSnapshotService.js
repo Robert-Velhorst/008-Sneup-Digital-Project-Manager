@@ -1,5 +1,6 @@
 const BoardHealthSnapshot = require('../models/BoardHealthSnapshot');
 const { withTimeout } = require('../utils/runtimeShutdown');
+const { workspacePopulate } = require('./workspaceScopeService');
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 250;
@@ -69,10 +70,10 @@ class BoardHealthSnapshotService {
         hint: LATEST_BY_BOARD_INDEX,
         maxTimeMS: queryTimeoutMs
       });
-    return this.BoardHealthSnapshot.populate(snapshots, {
-      path: 'boardId',
-      select: 'name trelloId url closed'
-    });
+    return this.BoardHealthSnapshot.populate(snapshots, workspacePopulate(options.workspaceId, 'boardId', {
+      select: 'name trelloId url closed',
+      maxTimeMS: queryTimeoutMs
+    }));
   }
 }
 

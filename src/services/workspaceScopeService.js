@@ -53,6 +53,18 @@ const scopeQuery = (req, query = {}) => ({
   workspaceId: getRequestWorkspaceObjectId(req)
 });
 
+// Root query ownership does not authorize the records referenced by that root.
+const workspacePopulate = (workspaceId, paths, { select, maxTimeMS = 5000 } = {}) => {
+  if (!workspaceId) throw new Error('Workspace is required to populate references');
+  const scope = normalizeWorkspaceObjectId(workspaceId);
+  return paths.split(/\s+/).filter(Boolean).map(path => ({
+    path,
+    match: { workspaceId: scope },
+    options: { maxTimeMS },
+    ...(select ? { select } : {})
+  }));
+};
+
 const defaultWorkspaceQuery = (query = {}) => ({
   ...query,
   workspaceId: getDefaultWorkspaceObjectId()
@@ -380,6 +392,7 @@ module.exports = {
   plannedDefaultWorkspaceQuery,
   providerEntityModels,
   scopeQuery,
+  workspacePopulate,
   slugifyWorkspaceKey,
   workspaceScopedModels
 };

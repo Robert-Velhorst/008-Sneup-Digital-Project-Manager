@@ -303,7 +303,7 @@ The installer is written to:
 release\Sneup-Setup-<version>.exe
 ```
 
-The local release line currently builds `Sneup-Setup-2.3.70.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
+The local release line currently builds `Sneup-Setup-2.3.71.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
 
 Verify the unpacked Windows app before distributing an installer:
 
@@ -419,6 +419,17 @@ npm.cmd run verify:trello-reconciliation-queue
 **When only part of the ledger is available:** starting with 2.3.70, Approvals preserves the API's section-level failures. An unavailable metric displays `--`, and the affected list/count says **Unavailable**, instead of presenting an empty queue as evidence that nothing needs attention. Successfully loaded sections remain usable. A timeline assembled from incomplete sources is marked **Partial**. English and Dutch labels are included.
 
 Use **Refresh**, or leave and reopen **Approvals**, to retry. Partial results are not cached as a completed view, even if an earlier screen load finishes later. A saved action followed by an incomplete refresh uses the existing recorded-but-not-refreshed notice; do not repeat the action merely because its updated record could not load. Missing/malformed top-level section containers and the displayed accountability/reconciliation summary fields are treated as unavailable. This validation does not certify every nested record field or other dashboard view. No new background polling, database model, API route, or provider permission is added.
+
+**Workspace ownership of linked evidence:** starting with 2.3.71, recommendation details/evidence, decision queues, action history, follow-ups, outcomes, findings, health history, daily operations briefs, and work graph dependencies restrict linked-record lookups to the selected workspace. Shared workspace, board, card, and work graph ledger reads use the same boundary. A foreign-workspace, unscoped legacy, or missing singular reference becomes `null`; the authorized ledger entry stays visible, and valid local links remain populated. Reads do not modify stored links or authorize Trello writes.
+
+The regression was reproduced through authenticated HTTP with deliberately malformed stored links. This does not establish that a normal user can create those links through a public write endpoint, and it is not a claim of complete application-wide reference isolation or automatic historical-data repair. The changed lookups have five-second MongoDB execution limits; latest-board-health population follows its existing configurable query deadline. Limits are per query, not an end-to-end request timeout. No production-scale speed or memory improvement is claimed.
+
+`npm run verify:ledger-reference-isolation` verifies these boundaries on a new, empty MongoDB database named `sneup_ledger_references_<unique-suffix>` (at most 63 bytes). It claims exclusive ownership before loading models and removes only its verified temporary database. It exercises authenticated HTTP, local and invalid references, work graph dependencies, daily briefs, and timeout/partial-failure handling without real provider calls. CI includes this profile. For local MongoDB in PowerShell:
+
+```powershell
+$env:SNEUP_LEDGER_REFERENCES_MONGO_URI = 'mongodb://127.0.0.1:27017/sneup_ledger_references_' + [guid]::NewGuid().ToString('N').Substring(0,12)
+npm.cmd run verify:ledger-reference-isolation
+```
 
 ## API overview
 

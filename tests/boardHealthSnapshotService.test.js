@@ -63,10 +63,12 @@ describe('board health snapshot service', () => {
       hint: { workspaceId: 1, boardId: 1, generatedAt: -1 },
       maxTimeMS: 2400
     });
-    expect(model.populate).toHaveBeenCalledWith(expect.any(Array), {
+    expect(model.populate).toHaveBeenCalledWith(expect.any(Array), [{
       path: 'boardId',
-      select: 'name trelloId url closed'
-    });
+      select: 'name trelloId url closed',
+      match: { workspaceId: require('../src/services/workspaceScopeService').normalizeWorkspaceObjectId('workspace-1') },
+      options: { maxTimeMS: 2400 }
+    }]);
   });
 
   test('rejects an unscoped query and bounds an excessive result request', async () => {

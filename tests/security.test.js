@@ -8109,10 +8109,14 @@ describe('work graph drilldowns', () => {
       return query;
     };
 
+    const workspacePopulate = jest.fn((workspaceId, paths) => paths.split(/\s+/).filter(Boolean).map(path => ({
+      path, match: { workspaceId }, options: { maxTimeMS: 5000 }
+    })));
     jest.doMock('mongoose', () => ({ connection: { readyState: 1 } }));
     jest.doMock('../src/services/workspaceScopeService', () => ({
       normalizeWorkspaceObjectId: jest.fn(() => 'workspace-object-id'),
-      getDefaultWorkspaceObjectId: jest.fn(() => 'workspace-object-id')
+      getDefaultWorkspaceObjectId: jest.fn(() => 'workspace-object-id'),
+      workspacePopulate
     }));
     jest.doMock('../src/models/WorkItem', () => ({ findOne: jest.fn().mockResolvedValue(item) }));
     jest.doMock('../src/models/WorkDependency', () => ({ find: jest.fn().mockReturnValue(chain([dependency])) }));
@@ -8153,6 +8157,7 @@ describe('work graph drilldowns', () => {
     const workGraphService = require('../src/services/workGraphService');
     const detail = await workGraphService.getItemDetail('item-1', { workspaceId: 'tenant-a' });
 
+    expect(workspacePopulate).toHaveBeenCalledWith('workspace-object-id', 'sourceItemId targetItemId');
     expect(detail.item).toMatchObject({
       id: 'item-1',
       title: 'Client launch blocker',
@@ -8274,14 +8279,19 @@ describe('work graph drilldowns', () => {
       return query;
     };
     const workItemFind = jest.fn().mockReturnValue(chain([item]));
+    const dependencyFind = jest.fn().mockReturnValue(chain([dependency]));
+    const workspacePopulate = jest.fn((workspaceId, paths) => paths.split(/\s+/).filter(Boolean).map(path => ({
+      path, match: { workspaceId }, options: { maxTimeMS: 5000 }
+    })));
 
     jest.doMock('mongoose', () => ({ connection: { readyState: 1 } }));
     jest.doMock('../src/services/workspaceScopeService', () => ({
       normalizeWorkspaceObjectId: jest.fn(() => 'workspace-object-id'),
-      getDefaultWorkspaceObjectId: jest.fn(() => 'workspace-object-id')
+      getDefaultWorkspaceObjectId: jest.fn(() => 'workspace-object-id'),
+      workspacePopulate
     }));
     jest.doMock('../src/models/WorkItem', () => ({ find: workItemFind }));
-    jest.doMock('../src/models/WorkDependency', () => ({ find: jest.fn().mockReturnValue(chain([dependency])) }));
+    jest.doMock('../src/models/WorkDependency', () => ({ find: dependencyFind }));
     jest.doMock('../src/models/WorkComment', () => ({}));
     jest.doMock('../src/models/WorkContainer', () => ({}));
     jest.doMock('../src/models/WorkActor', () => ({}));
@@ -8310,6 +8320,11 @@ describe('work graph drilldowns', () => {
         })
       ])
     }));
+    expect(workspacePopulate).toHaveBeenCalledWith('workspace-object-id', 'sourceItemId targetItemId');
+    expect(dependencyFind.mock.results[0].value.populate).toHaveBeenCalledWith([
+      { path: 'sourceItemId', match: { workspaceId: 'workspace-object-id' }, options: { maxTimeMS: 5000 } },
+      { path: 'targetItemId', match: { workspaceId: 'workspace-object-id' }, options: { maxTimeMS: 5000 } }
+    ]);
     expect(context).toMatchObject({
       contextType: 'board',
       sourceProvider: 'trello',
@@ -9753,7 +9768,12 @@ describe('approved Trello action execution safety', () => {
     const find = jest.fn(() => actionQuery);
     jest.doMock('../src/models/TrelloActionAttempt', () => ({ find, collection: { name: 'trelloactionattempts' } }));
     jest.doMock('../src/models/Recommendation', () => ({ aggregate: jest.fn(() => ({ option: jest.fn().mockResolvedValue([]) })) }));
-    jest.doMock('../src/services/workspaceScopeService', () => ({ normalizeWorkspaceObjectId: jest.fn(value => value) }));
+    jest.doMock('../src/services/workspaceScopeService', () => ({
+      normalizeWorkspaceObjectId: jest.fn(value => value),
+      workspacePopulate: jest.fn((workspaceId, paths) => paths.split(/\s+/).filter(Boolean).map(path => ({
+        path, match: { workspaceId }, options: { maxTimeMS: 5000 }
+      })))
+    }));
 
     const operationsLedgerService = require('../src/services/operationsLedgerService');
     jest.spyOn(operationsLedgerService, 'isDatabaseReady').mockReturnValue(true);
@@ -10157,8 +10177,11 @@ describe('operations daily brief', () => {
     });
 
     jest.doMock('mongoose', () => ({ connection: { readyState: 1 } }));
+    const workspacePopulate = jest.fn((workspaceId, paths) => paths.split(/\s+/).filter(Boolean).map(path => ({
+      path, match: { workspaceId }, options: { maxTimeMS: 5000 }
+    })));
     jest.doMock('../src/services/workspaceScopeService', () => ({
-      normalizeWorkspaceObjectId: jest.fn(() => 'workspace-object-id')
+      normalizeWorkspaceObjectId: jest.fn(() => 'workspace-object-id'), workspacePopulate
     }));
     jest.doMock('../src/models/DecisionQueueItem', () => makeModel('DecisionQueueItem'));
     jest.doMock('../src/models/Recommendation', () => makeModel('Recommendation'));
@@ -10185,6 +10208,7 @@ describe('operations daily brief', () => {
     expect(queryLog.TrelloActionAttempt).toMatchObject({ workspaceId: 'workspace-object-id' });
     expect(queryLog.FollowUpPlan).toMatchObject({ workspaceId: 'workspace-object-id' });
     expect(queryLog.CardFinding).toMatchObject({ workspaceId: 'workspace-object-id' });
+    expect(workspacePopulate).toHaveBeenCalledTimes(5);
     expect(listLatestByBoard).toHaveBeenCalledWith({
       workspaceId: 'workspace-object-id',
       limit: 5

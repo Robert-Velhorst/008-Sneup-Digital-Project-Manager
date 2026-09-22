@@ -17,7 +17,7 @@ const Member = require('../models/Member');
 const WorkItem = require('../models/WorkItem');
 const { createLazyValue } = require('../utils/lazyModule');
 const logger = require('../utils/logger');
-const { normalizeWorkspaceObjectId } = require('./workspaceScopeService');
+const { normalizeWorkspaceObjectId, workspacePopulate } = require('./workspaceScopeService');
 const {
   TRELLO_WEBHOOK_ACTIONS,
   normalizeTrelloWebhookCallbackUrl
@@ -981,15 +981,16 @@ class OperationsLedgerService {
 
     const recommendations = Recommendation.find(query)
       .sort({ riskLevel: -1, createdAt: -1 })
-      .populate('boardId cardId memberId interventionId')
+      .populate(workspacePopulate(query.workspaceId, 'boardId cardId memberId interventionId'))
       .limit(filters.limit || 100);
     return filters.lean === true ? recommendations.lean() : recommendations;
   }
 
   async getRecommendation(recommendationId, filters = {}) {
     this.requireDatabase();
-    return Recommendation.findOne(this.workspaceQuery(filters, { _id: recommendationId }))
-      .populate('boardId cardId memberId interventionId');
+    const query = this.workspaceQuery(filters, { _id: recommendationId });
+    return Recommendation.findOne(query)
+      .populate(workspacePopulate(query.workspaceId, 'boardId cardId memberId interventionId'));
   }
 
   async getRecommendationEvidence(recommendationId, filters = {}) {
@@ -1931,7 +1932,7 @@ class OperationsLedgerService {
 
     const decisions = DecisionQueueItem.find(query)
       .sort({ riskLevel: -1, dueAt: 1, createdAt: 1 })
-      .populate('recommendationId boardId cardId')
+      .populate(workspacePopulate(query.workspaceId, 'recommendationId boardId cardId'))
       .limit(filters.limit || 100);
     return filters.lean === true ? decisions.lean() : decisions;
   }
@@ -2264,7 +2265,7 @@ class OperationsLedgerService {
 
     const actions = TrelloActionAttempt.find(query)
       .sort({ createdAt: -1 })
-      .populate('recommendationId interventionId approvalId boardId cardId')
+      .populate(workspacePopulate(query.workspaceId, 'recommendationId interventionId approvalId boardId cardId'))
       .limit(filters.limit || 100);
     return filters.lean === true ? actions.lean() : actions;
   }
@@ -2304,9 +2305,7 @@ class OperationsLedgerService {
     if (ids.length === 0) return [];
     const actionQuery = TrelloActionAttempt.find({ workspaceId, _id: { $in: ids }, status: { $in: ['in_progress', 'succeeded', 'failed'] } })
       .sort(sort).limit(limit).maxTimeMS(5000)
-      .populate(['recommendationId', 'interventionId', 'approvalId', 'boardId', 'cardId'].map(path => ({
-        path, match: { workspaceId }, options: { maxTimeMS: 5000 }
-      })));
+      .populate(workspacePopulate(workspaceId, 'recommendationId interventionId approvalId boardId cardId'));
     const actions = await (filters.lean === true ? actionQuery.lean() : actionQuery);
 
     return actions.filter((attempt) => {
@@ -2581,7 +2580,7 @@ class OperationsLedgerService {
 
     const outcomes = OutcomeRecord.find(query)
       .sort({ evaluatedAt: -1, createdAt: -1 })
-      .populate('recommendationId interventionId actionAttemptId boardId cardId')
+      .populate(workspacePopulate(query.workspaceId, 'recommendationId interventionId actionAttemptId boardId cardId'))
       .limit(filters.limit || 100);
     return filters.lean === true ? outcomes.lean() : outcomes;
   }
@@ -3100,7 +3099,7 @@ class OperationsLedgerService {
       outcomes: () => this.listInterventionOutcomes(queryFilters),
       findings: () => CardFinding.find(this.workspaceQuery(queryFilters, { status: 'open' }))
         .sort({ severity: -1, signalScore: -1, lastObservedAt: -1 })
-        .populate('boardId cardId memberId')
+        .populate(workspacePopulate(workspaceId, 'boardId cardId memberId'))
         .limit(ledgerLimit)
         .lean(),
       healthSnapshots: () => require('./boardHealthSnapshotService').listLatestByBoard({
@@ -3268,7 +3267,7 @@ class OperationsLedgerService {
 
     const followUps = FollowUpPlan.find(query)
       .sort({ dueAt: 1 })
-      .populate('recommendationId interventionId boardId cardId memberId')
+      .populate(workspacePopulate(query.workspaceId, 'recommendationId interventionId boardId cardId memberId'))
       .limit(filters.limit || 100);
     return filters.lean === true ? followUps.lean() : followUps;
   }

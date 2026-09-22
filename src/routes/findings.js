@@ -4,7 +4,7 @@ const logger = require('../utils/logger');
 const CardFinding = require('../models/CardFinding');
 const BoardHealthSnapshot = require('../models/BoardHealthSnapshot');
 const operationsLedgerService = require('../services/operationsLedgerService');
-const { scopeQuery } = require('../services/workspaceScopeService');
+const { scopeQuery, workspacePopulate } = require('../services/workspaceScopeService');
 const { clampInteger, requirePermission } = require('../utils/requestSecurity');
 
 const sendError = (res, error, fallback) => res.status(error.statusCode || 500).json({
@@ -25,7 +25,7 @@ router.get('/', requirePermission('audit:read'), async (req, res) => {
 
     const findings = await CardFinding.find(query)
       .sort({ severity: -1, signalScore: -1, lastObservedAt: -1 })
-      .populate('boardId cardId memberId')
+      .populate(workspacePopulate(query.workspaceId, 'boardId cardId memberId'))
       .limit(clampInteger(req.query.limit, 100, 1, 250));
 
     res.json({ success: true, count: findings.length, findings });
@@ -44,7 +44,7 @@ router.get('/board-health', requirePermission('audit:read'), async (req, res) =>
 
     const snapshots = await BoardHealthSnapshot.find(query)
       .sort({ generatedAt: -1 })
-      .populate('boardId')
+      .populate(workspacePopulate(query.workspaceId, 'boardId'))
       .limit(clampInteger(req.query.limit, 50, 1, 100));
 
     res.json({ success: true, count: snapshots.length, snapshots });
