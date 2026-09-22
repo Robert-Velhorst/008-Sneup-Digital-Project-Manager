@@ -88,17 +88,23 @@ commentSchema.methods.extractMentions = function() {
 };
 
 // Static method to find action items
-commentSchema.statics.findActionItems = function() {
+commentSchema.statics.findActionItems = function(workspaceId) {
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
   return this.find({
+    workspaceId: scope,
     isActionItem: true
-  }).populate('cardId memberId');
+  }).populate(scopeService.workspacePopulate(scope, 'cardId memberId'));
 };
 
 // Static method to find comments by sentiment
-commentSchema.statics.findBySentiment = function(classification) {
+commentSchema.statics.findBySentiment = function(classification, workspaceId) {
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
   return this.find({
+    workspaceId: scope,
     'sentiment.classification': classification
-  }).populate('cardId memberId');
+  }).populate(scopeService.workspacePopulate(scope, 'cardId memberId'));
 };
 
 const Comment = mongoose.models.Comment || mongoose.model('Comment', commentSchema);

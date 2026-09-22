@@ -9,7 +9,7 @@ const logger = require('../utils/logger');
 const Card = require('../models/Card');
 const Comment = require('../models/Comment');
 const Member = require('../models/Member');
-const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
+const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId, workspacePopulate } = require('./workspaceScopeService');
 
 // Initialize NLP components
 const tokenizer = new WordTokenizer();
@@ -29,10 +29,7 @@ const analyzeCardContent = async (cardId, options = {}) => {
     
     // Get card with comments
     const card = await Card.findOne({ _id: cardId, workspaceId })
-      .populate({
-        path: 'comments',
-        populate: { path: 'memberId' }
-      });
+      .populate(workspacePopulate(workspaceId, 'comments', { nested: { comments: 'memberId' } }));
     
     if (!card) {
       logger.warn(`Card not found: ${cardId}`);
@@ -41,7 +38,8 @@ const analyzeCardContent = async (cardId, options = {}) => {
     
     // Combine text from card and comments
     let fullText = `${card.name} ${card.description}`;
-    const commentTexts = card.comments.map(c => c.text || '');
+    const comments = card.comments || [];
+    const commentTexts = comments.map(c => c.text || '');
     fullText += ' ' + commentTexts.join(' ');
     
     // Perform analyses
@@ -52,7 +50,7 @@ const analyzeCardContent = async (cardId, options = {}) => {
     
     // Analyze individual comments
     const commentAnalyses = [];
-    for (const comment of card.comments) {
+    for (const comment of comments) {
       if (comment.text) {
         const commentSentiment = analyzeSentiment(comment.text);
         const isAction = detectActionItem(comment.text);
@@ -284,8 +282,7 @@ const analyzeCommunicationPatterns = async (options = {}) => {
     
     // Get all comments with populated references
     const comments = await Comment.find({ workspaceId })
-      .populate('memberId')
-      .populate('cardId');
+      .populate(workspacePopulate(workspaceId, 'memberId cardId'));
     
     // Build communication graph
     const communicationGraph = {};

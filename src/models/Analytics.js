@@ -147,29 +147,33 @@ analyticsSchema.index({ date: -1 });
 
 // Static method to get latest analytics for a board
 analyticsSchema.statics.getLatest = function(boardId, workspaceId) {
-  return this.findOne({ boardId, ...(workspaceId ? { workspaceId } : {}) })
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
+  return this.findOne({ boardId, workspaceId: scope })
     .sort({ date: -1 })
-    .populate('boardId')
-    .populate('bottlenecks.listId')
-    .populate('teamPerformance.memberUtilization.memberId');
+    .populate(scopeService.workspacePopulate(scope, 'boardId bottlenecks.listId teamPerformance.memberUtilization.memberId'));
 };
 
 // Static method to get analytics history for a board
 analyticsSchema.statics.getHistory = function(boardId, days = 30, workspaceId) {
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
   const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   return this.find({
     boardId,
-    ...(workspaceId ? { workspaceId } : {}),
+    workspaceId: scope,
     date: { $gte: cutoffDate }
   })
   .sort({ date: -1 })
-  .populate('boardId');
+  .populate(scopeService.workspacePopulate(scope, 'boardId'));
 };
 
 // Static method to get boards with critical health
 analyticsSchema.statics.getCriticalBoards = function(workspaceId) {
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
   return this.aggregate([
-    ...(workspaceId ? [{ $match: { workspaceId } }] : []),
+    { $match: { workspaceId: scope } },
     {
       $sort: { date: -1 }
     },
@@ -194,6 +198,7 @@ analyticsSchema.statics.getCriticalBoards = function(workspaceId) {
 analyticsSchema.methods.compareWithPrevious = async function() {
   const previous = await this.constructor.findOne({
     boardId: this.boardId,
+    workspaceId: this.workspaceId,
     date: { $lt: this.date }
   }).sort({ date: -1 });
   

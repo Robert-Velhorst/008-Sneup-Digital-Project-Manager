@@ -252,20 +252,26 @@ cardSchema.methods.assessRisk = function(averageTimeInList) {
 };
 
 // Static method to find overdue cards
-cardSchema.statics.findOverdue = function() {
+cardSchema.statics.findOverdue = function(workspaceId) {
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
   return this.find({
+    workspaceId: scope,
     closed: false,
     dueComplete: false,
     due: { $lt: new Date() }
-  }).populate('boardId listId members');
+  }).populate(scopeService.workspacePopulate(scope, 'boardId listId members'));
 };
 
 // Static method to find high-risk cards
-cardSchema.statics.findHighRisk = function() {
+cardSchema.statics.findHighRisk = function(workspaceId) {
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
   return this.find({
+    workspaceId: scope,
     closed: false,
     riskLevel: { $in: ['high', 'critical'] }
-  }).populate('boardId listId members');
+  }).populate(scopeService.workspacePopulate(scope, 'boardId listId members'));
 };
 
 const Card = mongoose.models.Card || mongoose.model('Card', cardSchema);

@@ -1,7 +1,7 @@
 const logger = require('../utils/logger');
 const Card = require('../models/Card');
 const Member = require('../models/Member');
-const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
+const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId, workspacePopulate } = require('./workspaceScopeService');
 
 class PriorityEngine {
   // Calculate priority score for a card
@@ -40,13 +40,13 @@ class PriorityEngine {
     }
 
     // Time stuck in current list (0-10 points)
-    if (card.enteredCurrentListAt) {
-      const daysInList = (Date.now() - card.enteredCurrentListAt) / (1000 * 60 * 60 * 24);
-      const expectedTime = card.currentList?.averageTimeInList || 2;
+    if (Number.isFinite(card.timeInCurrentList)) {
+      const hoursInList = card.timeInCurrentList;
+      const expectedHours = card.listId?.averageTimeInList || 48;
       
-      if (daysInList > expectedTime * 2) {
+      if (hoursInList > expectedHours * 2) {
         score += 10;
-      } else if (daysInList > expectedTime) {
+      } else if (hoursInList > expectedHours) {
         score += 5;
       }
     }
@@ -58,11 +58,13 @@ class PriorityEngine {
   async getPrioritizedCards(memberId, options = {}) {
     try {
       const workspaceId = normalizeWorkspaceObjectId(options.workspaceId || getDefaultWorkspaceObjectId());
+      const localMember = await Member.findOne({ _id: memberId, workspaceId }).select('_id');
+      if (!localMember) return { urgent: [], high: [], normal: [], low: [], all: [] };
       const cards = await Card.find({
         members: memberId,
         workspaceId,
         closed: false
-      }).populate('currentList');
+      }).populate(workspacePopulate(workspaceId, 'listId'));
 
       // Calculate priority score for each card
       const cardsWithScores = cards.map(card => ({

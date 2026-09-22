@@ -12,7 +12,8 @@ const CardFinding = require('../models/CardFinding');
 const BoardHealthSnapshot = require('../models/BoardHealthSnapshot');
 const {
   getRequestWorkspaceObjectId,
-  scopeQuery
+  scopeQuery,
+  workspacePopulate
 } = require('../services/workspaceScopeService');
 const {
   clampInteger,
@@ -45,8 +46,9 @@ const sendScopedError = (res, error, fallbackMessage) => {
 // Get all boards
 router.get('/', requirePermission('audit:read'), async (req, res) => {
   try {
-    const boards = await Board.find(scopeQuery(req, { closed: false }))
-      .populate('members')
+    const query = scopeQuery(req, { closed: false });
+    const boards = await Board.find(query)
+      .populate(workspacePopulate(query.workspaceId, 'members'))
       .sort({ name: 1 });
 
     res.json({
@@ -66,8 +68,9 @@ router.get('/', requirePermission('audit:read'), async (req, res) => {
 // Get a specific board
 router.get('/:boardId', requirePermission('audit:read'), async (req, res) => {
   try {
-    const board = await Board.findOne(scopedBoardQuery(req, req.params.boardId))
-      .populate('members');
+    const boardQuery = scopedBoardQuery(req, req.params.boardId);
+    const board = await Board.findOne(boardQuery)
+      .populate(workspacePopulate(boardQuery.workspaceId, 'members'));
 
     if (!board) {
       return res.status(404).json({
@@ -79,8 +82,9 @@ router.get('/:boardId', requirePermission('audit:read'), async (req, res) => {
     const lists = await List.find(scopeQuery(req, { boardId: board._id, closed: false }))
       .sort({ position: 1 });
 
-    const cards = await Card.find(scopeQuery(req, { boardId: board._id, closed: false }))
-      .populate('members');
+    const cardsQuery = scopeQuery(req, { boardId: board._id, closed: false });
+    const cards = await Card.find(cardsQuery)
+      .populate(workspacePopulate(cardsQuery.workspaceId, 'members'));
 
     res.json({
       success: true,
@@ -187,12 +191,13 @@ router.get('/:boardId/findings', requirePermission('audit:read'), async (req, re
   try {
     await requireScopedBoard(req);
     operationsLedgerService.requireDatabase();
-    const findings = await CardFinding.find(scopeQuery(req, {
+    const query = scopeQuery(req, {
       boardId: req.params.boardId,
       status: req.query.status || 'open'
-    }))
+    });
+    const findings = await CardFinding.find(query)
       .sort({ severity: -1, signalScore: -1, lastObservedAt: -1 })
-      .populate('cardId memberId')
+      .populate(workspacePopulate(query.workspaceId, 'cardId memberId'))
       .limit(clampInteger(req.query.limit, 100, 1, 250));
 
     res.json({ success: true, count: findings.length, findings });
@@ -247,14 +252,11 @@ router.get('/:boardId/context', requirePermission('audit:read'), async (req, res
 router.get('/:boardId/cards/:cardId', requirePermission('audit:read'), async (req, res) => {
   try {
     const board = await requireScopedBoard(req);
-    const card = await Card.findOne(scopeQuery(req, { _id: req.params.cardId, boardId: board._id }))
-      .populate('boardId')
-      .populate('listId')
-      .populate('members')
-      .populate({
-        path: 'comments',
-        populate: { path: 'memberId' }
-      });
+    const query = scopeQuery(req, { _id: req.params.cardId, boardId: board._id });
+    const card = await Card.findOne(query)
+      .populate(workspacePopulate(query.workspaceId, 'boardId listId members comments', {
+        nested: { comments: 'memberId' }
+      }));
 
     if (!card) {
       return res.status(404).json({

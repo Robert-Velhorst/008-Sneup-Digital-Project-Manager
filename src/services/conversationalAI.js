@@ -8,7 +8,7 @@ const performanceTracker = require('./performanceTracker');
 const teamManager = require('./teamManager');
 const operationsLedgerService = require('./operationsLedgerService');
 const aiResponseService = require('./aiResponseService');
-const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
+const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId, workspacePopulate } = require('./workspaceScopeService');
 
 class ConversationalAI {
   constructor(options = {}) {
@@ -64,7 +64,10 @@ Remember: You're here to help workers succeed while ensuring projects stay on tr
       });
       const workspaceId = normalizeWorkspaceObjectId(options.workspaceId || getDefaultWorkspaceObjectId());
 
-      const member = await Member.findOne({ _id: memberId, workspaceId }).populate('boards');
+      const member = await Member.findOne({ _id: memberId, workspaceId })
+        .populate(workspacePopulate(workspaceId, 'boards assignedCards', {
+          selectByPath: { boards: '_id name url', assignedCards: '_id' }
+        }));
       if (!member) {
         throw new Error('Member not found');
       }
@@ -213,8 +216,7 @@ Remember: You're here to help workers succeed while ensuring projects stay on tr
       workspaceId,
       closed: false
     })
-      .populate('boardId')
-      .populate('listId')
+      .populate(workspacePopulate(workspaceId, 'boardId listId members'))
       .sort({ due: 1, riskLevel: -1 })
       .limit(10);
 
@@ -222,10 +224,10 @@ Remember: You're here to help workers succeed while ensuring projects stay on tr
       id: c._id,
       trelloId: c.trelloId,
       name: c.name,
-      boardId: c.boardId?._id || c.boardId,
+      boardId: c.boardId?._id || null,
       boardName: c.boardId?.name,
       boardUrl: c.boardId?.url,
-      listId: c.listId?._id || c.listId,
+      listId: c.listId?._id || null,
       listName: c.listId?.name,
       due: c.due,
       riskLevel: c.riskLevel,
@@ -237,17 +239,18 @@ Remember: You're here to help workers succeed while ensuring projects stay on tr
 
     // Get specific card if provided
     if (cardId) {
-      const card = await Card.findOne({ _id: cardId, workspaceId }).populate('boardId').populate('listId');
+      const card = await Card.findOne({ _id: cardId, workspaceId })
+        .populate(workspacePopulate(workspaceId, 'boardId listId members'));
       if (card) {
         context.currentCard = {
           id: card._id,
           trelloId: card.trelloId,
           name: card.name,
           description: card.description,
-          boardId: card.boardId?._id || card.boardId,
+          boardId: card.boardId?._id || null,
           boardName: card.boardId?.name,
           boardUrl: card.boardId?.url,
-          listId: card.listId?._id || card.listId,
+          listId: card.listId?._id || null,
           listName: card.listId?.name,
           due: card.due,
           riskLevel: card.riskLevel,

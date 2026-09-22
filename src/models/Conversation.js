@@ -87,38 +87,46 @@ conversationSchema.index({ intent: 1 });
 
 // Get recent conversations for a member
 conversationSchema.statics.getRecentForMember = function(memberId, limit = 10, workspaceId) {
-  return this.find({ memberId, ...(workspaceId ? { workspaceId } : {}) })
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
+  return this.find({ memberId, workspaceId: scope })
     .sort({ createdAt: -1 })
     .limit(limit)
-    .populate('memberId boardId cardId');
+    .populate(scopeService.workspacePopulate(scope, 'memberId boardId cardId'));
 };
 
 // Get unresolved conversations
 conversationSchema.statics.getUnresolved = function(workspaceId) {
-  return this.find({ resolved: false, ...(workspaceId ? { workspaceId } : {}) })
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
+  return this.find({ resolved: false, workspaceId: scope })
     .sort({ createdAt: 1 })
-    .populate('memberId boardId cardId');
+    .populate(scopeService.workspacePopulate(scope, 'memberId boardId cardId'));
 };
 
 // Get conversations by intent
 conversationSchema.statics.getByIntent = function(intent, days = 7, workspaceId) {
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
   const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   
   return this.find({
     intent,
-    ...(workspaceId ? { workspaceId } : {}),
+    workspaceId: scope,
     createdAt: { $gte: startDate }
   })
     .sort({ createdAt: -1 })
-    .populate('memberId');
+    .populate(scopeService.workspacePopulate(scope, 'memberId'));
 };
 
 // Get conversation statistics
 conversationSchema.statics.getStatistics = async function(days = 30, workspaceId) {
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
   const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   
   const conversations = await this.find({
-    ...(workspaceId ? { workspaceId } : {}),
+    workspaceId: scope,
     createdAt: { $gte: startDate }
   });
 
@@ -194,7 +202,9 @@ conversationSchema.methods.setSatisfactionRating = function(rating) {
 
 // Get conversation context
 conversationSchema.methods.getContext = async function() {
-  await this.populate('memberId boardId cardId');
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(this.workspaceId || scopeService.getDefaultWorkspaceObjectId());
+  await this.populate(scopeService.workspacePopulate(scope, 'memberId boardId cardId'));
   
   return {
     member: this.memberId,

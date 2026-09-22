@@ -22,7 +22,7 @@ async function run() {
     assert.equal((await mongoose.connection.db.listCollections({}, { nameOnly: true }).toArray()).length, 0);
     await mongoose.connection.db.collection('_sneup_verification_owner').insertOne({ _id: 'owner', token });
     ownsDatabase = true;
-    const models = Object.fromEntries(['Board', 'List', 'Card', 'Member', 'Intervention', 'Recommendation', 'Approval',
+    const models = Object.fromEntries(['Board', 'List', 'Card', 'Member', 'Comment', 'Intervention', 'Recommendation', 'Approval',
       'TrelloActionAttempt', 'DecisionQueueItem', 'FollowUpPlan', 'OutcomeRecord', 'CardFinding', 'BoardHealthSnapshot']
       .map(model => [model, require(`../src/models/${model}`)]));
     const WorkItem = require('../src/models/WorkItem');
@@ -40,10 +40,12 @@ async function run() {
       const common = { workspaceId: scope, boardId: refs.Board, cardId: refs.Card, memberId: refs.Member,
         interventionId: refs.Intervention, recommendationId: refs.Recommendation };
       const fields = {
-        Board: { trelloId: String(ids.Board), name: label, url: 'https://trello.com/b/synthetic' },
-        List: { trelloId: String(ids.List), name: label, boardId: refs.Board },
-        Card: { ...common, trelloId: String(ids.Card), name: label, listId: refs.List },
-        Member: { trelloId: String(ids.Member), username: String(ids.Member), fullName: label },
+        Board: { trelloId: String(ids.Board), name: label, url: 'https://trello.com/b/synthetic', members: [refs.Member], lists: [refs.List] },
+        List: { trelloId: String(ids.List), name: label, boardId: refs.Board, cards: [refs.Card] },
+        Card: { ...common, trelloId: String(ids.Card), name: label, listId: refs.List, members: [refs.Member], comments: [refs.Comment] },
+        Member: { trelloId: String(ids.Member), username: String(ids.Member), fullName: label, boards: [refs.Board], assignedCards: [refs.Card] },
+        Comment: { trelloId: String(ids.Comment), cardId: refs.Card, memberId: refs.Member,
+          text: `${label} Please send the confidential report by Friday`, createdAt: new Date('2026-01-01T00:00:00Z') },
         Intervention: { ...common, type: 'comment', trigger: 'manual_request', action: label },
         Recommendation: { ...common, findingType: 'manual', title: label, recommendedAction: label, actionType: 'comment' },
         Approval: { ...common, requestedAction: 'comment', decision: 'rejected', decisionReason: label },
@@ -73,6 +75,20 @@ async function run() {
       actionType: 'comment', status: 'in_progress', payload: { text: 'FOREIGN_REFERENCE_SENTINEL' } });
     const mixed = await bundle(workspaceId, 'Synthetic mixed links', { ...foreign.ids, Board: good.ids.Board,
       Card: good.ids.Card, TrelloActionAttempt: mixedAttempt._id });
+    const contaminatedCardId = new mongoose.Types.ObjectId();
+    await models.Card.create({ _id: contaminatedCardId, workspaceId,
+      trelloId: `synthetic-contaminated-${contaminatedCardId}`, name: 'Synthetic contaminated card',
+      description: 'Local card details', boardId: good.ids.Board, listId: foreign.ids.List,
+      members: [good.ids.Member, foreign.ids.Member], comments: [foreign.ids.Comment, good.ids.Comment], closed: false });
+    const thirdLocalCardId = new mongoose.Types.ObjectId();
+    await models.Card.create({ _id: thirdLocalCardId, workspaceId, trelloId: `synthetic-third-${thirdLocalCardId}`,
+      name: 'Synthetic third local card', boardId: good.ids.Board, listId: good.ids.List,
+      members: [good.ids.Member], comments: [], closed: false });
+    await models.Board.collection.updateOne({ _id: good.ids.Board }, { $set: { members: [good.ids.Member, foreign.ids.Member] } });
+    await models.Member.collection.updateOne({ _id: good.ids.Member }, { $set: {
+      boards: [good.ids.Board, foreign.ids.Board],
+      assignedCards: [good.ids.Card, contaminatedCardId, thirdLocalCardId, foreign.ids.Card]
+    } });
     const localWorkItem = await WorkItem.create({ workspaceId, connectorAccountId: new mongoose.Types.ObjectId(),
       sourceProvider: 'trello', externalId: String(good.ids.Board), canonicalKey: `trello:${good.ids.Board}`,
       title: 'Synthetic local graph item', itemType: 'task', status: 'blocked',
@@ -121,6 +137,23 @@ async function run() {
     const graphDetail = await workGraphService.getItemDetail(localWorkItem._id, { workspaceId });
     assert.equal(graphDetail.dependencies[0].targetItem, null);
     assertPrivate(graphDetail);
+    const contextAnalyzer = require('../src/services/contextAnalyzer');
+    const contaminatedContext = await contextAnalyzer.getCardContext(contaminatedCardId, { workspaceId });
+    assertPrivate(contaminatedContext);
+    assert.equal(String(contaminatedContext.card.board.id), String(good.ids.Board));
+    assert.equal(contaminatedContext.card.list, null, 'A foreign list is hidden without discarding the local card context');
+    assert.deepEqual(contaminatedContext.card.members.map(member => String(member.id)), [String(good.ids.Member)]);
+    assert.deepEqual(contaminatedContext.card.comments.map(comment => String(comment.id)), [String(good.ids.Comment)]);
+    const teamPatterns = await contextAnalyzer.analyzeTeamPatterns({ workspaceId });
+    assertPrivate(teamPatterns);
+    assert.equal(teamPatterns.find(pattern => String(pattern.memberId) === String(good.ids.Member))?.totalAssignedCards, 3,
+      'Only local assigned cards with local boards contribute to team analysis');
+    const priorityEngine = require('../src/services/priorityEngine');
+    const foreignMemberPriorities = await priorityEngine.getPrioritizedCards(foreign.ids.Member, { workspaceId });
+    assert.deepEqual(foreignMemberPriorities.all, [], 'A foreign member cannot retrieve cards through contaminated local assignment refs');
+    const localMemberPriorities = await priorityEngine.getPrioritizedCards(good.ids.Member, { workspaceId });
+    assertPrivate(localMemberPriorities);
+    assert.equal(localMemberPriorities.all.length, 3, 'Local member retains local card priorities');
     const app = require('../src/index');
     server = app.listen(0, '127.0.0.1');
     await new Promise((resolve, reject) => { server.once('listening', resolve); server.once('error', reject); });
@@ -131,6 +164,31 @@ async function run() {
       });
       return { status: response.status, body: await response.json() };
     };
+    const boardList = await request('boards');
+    assert.equal(boardList.status, 200);
+    assertPrivate(boardList.body);
+    const listedGoodBoard = boardList.body.data.boards.find(board => String(board._id) === String(good.ids.Board));
+    assert.ok(listedGoodBoard, 'Local board remains visible');
+    assert.deepEqual(listedGoodBoard.members.map(member => String(member._id)), [String(good.ids.Member)]);
+    const boardContext = await request(`boards/${good.ids.Board}/context`);
+    assert.equal(boardContext.status, 200);
+    assertPrivate(boardContext.body);
+    const foreignCommentBefore = await models.Comment.findById(foreign.ids.Comment).lean();
+    assert.equal(foreignCommentBefore.isActionItem, false);
+    const contaminatedRead = await request(`boards/${good.ids.Board}/cards/${contaminatedCardId}`);
+    assert.equal(contaminatedRead.status, 200);
+    assertPrivate(contaminatedRead.body);
+    assert.equal(contaminatedRead.body.data.card.listId, null);
+    assert.deepEqual(contaminatedRead.body.data.card.members.map(member => String(member._id)), [String(good.ids.Member)]);
+    assert.deepEqual(contaminatedRead.body.data.card.comments.map(comment => String(comment._id)), [String(good.ids.Comment)]);
+    const foreignCommentAfter = await models.Comment.findById(foreign.ids.Comment).lean();
+    assert.deepEqual({ sentiment: foreignCommentAfter.sentiment, isActionItem: foreignCommentAfter.isActionItem,
+      entities: foreignCommentAfter.entities }, { sentiment: foreignCommentBefore.sentiment,
+      isActionItem: foreignCommentBefore.isActionItem, entities: foreignCommentBefore.entities },
+    'Reading a local card must not analyze or mutate a foreign linked comment');
+    const relationships = await request(`boards/${good.ids.Board}/relationships`);
+    assert.equal(relationships.status, 200);
+    assertPrivate(relationships.body);
     const localDetail = await request(`recommendations/${good.ids.Recommendation}`);
     assert.equal(localDetail.status, 200);
     assertRows([localDetail.body.data.recommendation], 'Recommendation', [good]);
@@ -203,7 +261,9 @@ async function run() {
       'unscoped-legacy-references', 'dangling-references', 'mixed-valid-invalid-links', 'lean-and-document-results',
       'objectid-and-string-scope', 'history-and-evidence-http', 'workspace-board-card-ledgers', 'latest-health-board',
       'authentication-and-root-isolation', 'stored-links-unchanged', 'reference-query-timeouts', 'partial-failure-propagation',
-      'daily-brief-isolation', 'work-graph-ledger-and-item-detail'], httpReadRoutes: routes.length, realProviderCalls: 0 };
+      'daily-brief-isolation', 'work-graph-ledger-and-item-detail', 'board-card-context-reference-isolation',
+      'nested-member-reference-isolation', 'nlp-foreign-comment-write-isolation', 'priority-member-reference-isolation'],
+    httpReadRoutes: routes.length + 4, realProviderCalls: 0 };
   } finally {
     try {
       if (server?.listening) {

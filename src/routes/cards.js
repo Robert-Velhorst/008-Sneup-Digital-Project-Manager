@@ -3,7 +3,7 @@ const router = express.Router();
 const logger = require('../utils/logger');
 const operationsLedgerService = require('../services/operationsLedgerService');
 const CardFinding = require('../models/CardFinding');
-const { getRequestWorkspaceObjectId, scopeQuery } = require('../services/workspaceScopeService');
+const { getRequestWorkspaceObjectId, scopeQuery, workspacePopulate } = require('../services/workspaceScopeService');
 const { requirePermission, validateObjectIdParam } = require('../utils/requestSecurity');
 
 router.param('cardId', validateObjectIdParam('cardId'));
@@ -48,12 +48,13 @@ router.get('/:cardId/audit', requirePermission('audit:read'), async (req, res) =
 router.get('/:cardId/findings', requirePermission('audit:read'), async (req, res) => {
   try {
     operationsLedgerService.requireDatabase();
-    const findings = await CardFinding.find(scopeQuery(req, {
+    const query = scopeQuery(req, {
       cardId: req.params.cardId,
       status: req.query.status || 'open'
-    }))
+    });
+    const findings = await CardFinding.find(query)
       .sort({ severity: -1, signalScore: -1, lastObservedAt: -1 })
-      .populate('boardId memberId')
+      .populate(workspacePopulate(query.workspaceId, 'boardId memberId'))
       .limit(100);
 
     res.json({ success: true, count: findings.length, findings });

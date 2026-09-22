@@ -5,7 +5,7 @@ const Member = require('../models/Member');
 const Intervention = require('../models/Intervention');
 const contextAnalyzer = require('./contextAnalyzer');
 const operationsLedgerService = require('./operationsLedgerService');
-const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
+const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId, workspacePopulate } = require('./workspaceScopeService');
 
 /**
  * Team Manager Service
@@ -84,7 +84,9 @@ const analyzeTeamWorkload = async (boardId, options = {}) => {
     const workspaceId = resolveWorkspaceId(options.workspaceId);
     
     const board = await Board.findOne({ _id: boardId, workspaceId })
-      .populate('members', 'username fullName specialties workloadLevel');
+      .populate(workspacePopulate(workspaceId, 'members', {
+        selectByPath: { members: 'username fullName specialties workloadLevel' }
+      }));
     if (!board) {
       logger.warn(`Board not found: ${boardId}`);
       return null;
@@ -262,7 +264,9 @@ const autoAssignCards = async (boardId, options = {}) => {
     const workspaceId = resolveWorkspaceId(options.workspaceId);
     
     const board = await Board.findOne({ _id: boardId, workspaceId })
-      .populate('members', 'username fullName workloadLevel specialties');
+      .populate(workspacePopulate(workspaceId, 'members', {
+        selectByPath: { members: 'username fullName workloadLevel specialties' }
+      }));
     if (!board) {
       logger.warn(`Board not found: ${boardId}`);
       return null;
@@ -444,8 +448,9 @@ const identifyAtRiskCards = async (boardId, options = {}) => {
       riskLevel: 1,
       timeInCurrentList: 1,
       lastActivity: 1
-    }).populate('listId', 'name averageTimeInList')
-      .populate('members', 'username')
+    }).populate(workspacePopulate(workspaceId, 'listId members', {
+      selectByPath: { listId: 'name averageTimeInList', members: 'username' }
+    }))
       .lean();
 
     const assessCardRisk = (card, averageTimeInList, now = new Date()) => {
@@ -578,7 +583,8 @@ const generateTeamReport = async (boardId, options = {}) => {
     logger.info(`Generating team report for board: ${boardId}`);
     const workspaceId = resolveWorkspaceId(options.workspaceId);
     
-    const board = await Board.findOne({ _id: boardId, workspaceId }).populate('members');
+    const board = await Board.findOne({ _id: boardId, workspaceId })
+      .populate(workspacePopulate(workspaceId, 'members'));
     if (!board) {
       logger.warn(`Board not found: ${boardId}`);
       return null;

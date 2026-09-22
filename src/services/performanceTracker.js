@@ -4,7 +4,7 @@ const Member = require('../models/Member');
 const Card = require('../models/Card');
 const Intervention = require('../models/Intervention');
 const Comment = require('../models/Comment');
-const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
+const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId, workspacePopulate } = require('./workspaceScopeService');
 
 class PerformanceTracker {
   recordKey(value) {
@@ -121,7 +121,8 @@ class PerformanceTracker {
       const workspaceId = normalizeWorkspaceObjectId(options.workspaceId || getDefaultWorkspaceObjectId());
       const memberKey = this.recordKey(memberId);
       const member = context?.membersById.get(memberKey)
-        || await Member.findOne({ _id: memberId, workspaceId }).populate('boards');
+        || await Member.findOne({ _id: memberId, workspaceId })
+          .populate(workspacePopulate(workspaceId, 'boards'));
       if (!member) {
         throw new Error('Member not found');
       }

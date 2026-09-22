@@ -4,7 +4,7 @@ const logger = require('../utils/logger');
 const conversationalAI = require('../services/conversationalAI');
 const priorityEngine = require('../services/priorityEngine');
 const Conversation = require('../models/Conversation');
-const { getRequestWorkspaceObjectId, scopeQuery } = require('../services/workspaceScopeService');
+const { getRequestWorkspaceObjectId, scopeQuery, workspacePopulate } = require('../services/workspaceScopeService');
 const {
   clampInteger,
   requirePermission,
@@ -118,8 +118,9 @@ router.get('/conversations/:memberId', requirePermission('chat:write'), async (r
 // Get specific conversation
 router.get('/conversation/:conversationId', requirePermission('chat:write'), async (req, res) => {
   try {
-    const conversation = await Conversation.findOne(scopeQuery(req, { _id: req.params.conversationId }))
-      .populate('memberId boardId cardId');
+    const query = scopeQuery(req, { _id: req.params.conversationId });
+    const conversation = await Conversation.findOne(query)
+      .populate(workspacePopulate(query.workspaceId, 'memberId boardId cardId'));
 
     if (!conversation) {
       return res.status(404).json({

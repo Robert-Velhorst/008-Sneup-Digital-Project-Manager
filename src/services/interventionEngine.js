@@ -6,7 +6,7 @@ const Board = require('../models/Board');
 const operationsLedgerService = require('./operationsLedgerService');
 const policyRuleService = require('./policyRuleService');
 const interventionPolicy = require('./interventionPolicy');
-const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
+const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId, workspacePopulate } = require('./workspaceScopeService');
 const { trelloCardAliases } = require('../utils/trelloIdentifiers');
 
 const ACTIVE_INTERVENTION_STATUSES = ['pending', 'awaiting_approval', 'executing', 'executed'];
@@ -58,14 +58,17 @@ class InterventionEngine {
       logger.info(`Processing interventions for board ${boardId}`);
       const workspaceId = normalizeWorkspaceObjectId(options.workspaceId || getDefaultWorkspaceObjectId());
 
-      const board = await Board.findOne({ _id: boardId, workspaceId }).populate('members');
+      const board = await Board.findOne({ _id: boardId, workspaceId })
+        .populate(workspacePopulate(workspaceId, 'members'));
       if (!board) {
         logger.error(`Board ${boardId} not found`);
         return;
       }
 
       const cards = await Card.find({ boardId, workspaceId, closed: false })
-        .populate({ path: 'listId', select: 'name averageTimeInList' });
+        .populate(workspacePopulate(workspaceId, 'listId members', {
+          selectByPath: { listId: 'name averageTimeInList', members: '_id' }
+        }));
       const cooldownPolicy = await policyRuleService.getScheduledInterventionCooldownPolicy({ workspaceId });
       const scanOptions = { cooldownPolicy };
       const interventions = [];
@@ -103,7 +106,7 @@ class InterventionEngine {
         boardId: board._id,
         workspaceId: board.workspaceId,
         cardId: card._id,
-        memberId: card.members[0],
+        memberId: card.members[0]?._id || card.members[0],
         type: 'comment',
         trigger: 'card_stuck',
         severity: 'high',

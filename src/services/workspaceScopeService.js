@@ -54,15 +54,23 @@ const scopeQuery = (req, query = {}) => ({
 });
 
 // Root query ownership does not authorize the records referenced by that root.
-const workspacePopulate = (workspaceId, paths, { select, maxTimeMS = 5000 } = {}) => {
+const workspacePopulate = (workspaceId, paths, { select, selectByPath = {}, maxTimeMS = 5000, nested = {} } = {}) => {
   if (!workspaceId) throw new Error('Workspace is required to populate references');
   const scope = normalizeWorkspaceObjectId(workspaceId);
-  return paths.split(/\s+/).filter(Boolean).map(path => ({
-    path,
-    match: { workspaceId: scope },
-    options: { maxTimeMS },
-    ...(select ? { select } : {})
-  }));
+  if (typeof paths !== 'string') throw new Error('Workspace population paths must be a string');
+  return paths.split(/\s+/).filter(Boolean).map(path => {
+    const pathSelect = selectByPath[path] || select;
+    const descriptor = {
+      path,
+      match: { workspaceId: scope },
+      options: { maxTimeMS },
+      ...(pathSelect ? { select: pathSelect } : {})
+    };
+    if (nested[path]) {
+      descriptor.populate = workspacePopulate(scope, nested[path], { maxTimeMS });
+    }
+    return descriptor;
+  });
 };
 
 const defaultWorkspaceQuery = (query = {}) => ({

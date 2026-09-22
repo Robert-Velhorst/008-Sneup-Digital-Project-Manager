@@ -164,61 +164,73 @@ performanceSchema.index({ 'flags.type': 1 });
 
 // Get latest performance for a member
 performanceSchema.statics.getLatest = function(memberId, period = 'weekly', workspaceId) {
-  return this.findOne({ memberId, period, ...(workspaceId ? { workspaceId } : {}) })
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
+  return this.findOne({ memberId, period, workspaceId: scope })
     .sort({ startDate: -1 })
-    .populate('memberId boardId');
+    .populate(scopeService.workspacePopulate(scope, 'memberId boardId'));
 };
 
 // Get performance history
 performanceSchema.statics.getHistory = function(memberId, period = 'weekly', limit = 12, workspaceId) {
-  return this.find({ memberId, period, ...(workspaceId ? { workspaceId } : {}) })
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
+  return this.find({ memberId, period, workspaceId: scope })
     .sort({ startDate: -1 })
     .limit(limit)
-    .populate('memberId boardId');
+    .populate(scopeService.workspacePopulate(scope, 'memberId boardId'));
 };
 
 // Get team performance for a board
 performanceSchema.statics.getTeamPerformance = function(boardId, period = 'weekly', workspaceId) {
-  return this.find({ boardId, period, ...(workspaceId ? { workspaceId } : {}) })
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
+  return this.find({ boardId, period, workspaceId: scope })
     .sort({ startDate: -1, 'calculated.performanceScore': -1 })
     .limit(100)
-    .populate('memberId');
+    .populate(scopeService.workspacePopulate(scope, 'memberId'));
 };
 
 // Get underperformers
 performanceSchema.statics.getUnderperformers = function(boardId, period = 'weekly', workspaceId) {
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
   return this.find({
     boardId,
     period,
-    ...(workspaceId ? { workspaceId } : {}),
+    workspaceId: scope,
     'flags.type': 'underperforming'
   })
     .sort({ 'calculated.performanceScore': 1 })
-    .populate('memberId');
+    .populate(scopeService.workspacePopulate(scope, 'memberId'));
 };
 
 // Get high performers
 performanceSchema.statics.getHighPerformers = function(boardId, period = 'weekly', workspaceId) {
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
   return this.find({
     boardId,
     period,
-    ...(workspaceId ? { workspaceId } : {}),
+    workspaceId: scope,
     'flags.type': 'high_performer'
   })
     .sort({ 'calculated.performanceScore': -1 })
-    .populate('memberId');
+    .populate(scopeService.workspacePopulate(scope, 'memberId'));
 };
 
 // Get members needing support
 performanceSchema.statics.getNeedingSupport = function(boardId, workspaceId) {
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
   return this.find({
     boardId,
-    ...(workspaceId ? { workspaceId } : {}),
+    workspaceId: scope,
     period: 'weekly',
     'flags.type': { $in: ['needs_support', 'overloaded', 'non_responsive'] }
   })
     .sort({ 'flags.severity': -1 })
-    .populate('memberId');
+    .populate(scopeService.workspacePopulate(scope, 'memberId'));
 };
 
 // Instance methods

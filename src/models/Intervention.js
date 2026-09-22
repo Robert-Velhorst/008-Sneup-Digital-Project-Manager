@@ -141,14 +141,18 @@ interventionSchema.index({ workspaceId: 1, boardId: 1, cardId: 1, memberId: 1, t
 // Static methods
 
 // Get pending interventions
-interventionSchema.statics.getPending = function() {
-  return this.find({ status: 'pending' })
+interventionSchema.statics.getPending = function(workspaceId) {
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
+  return this.find({ status: 'pending', workspaceId: scope })
     .sort({ severity: -1, createdAt: 1 })
-    .populate('boardId cardId memberId');
+    .populate(scopeService.workspacePopulate(scope, 'boardId cardId memberId'));
 };
 
 // Get interventions needing follow-up
 interventionSchema.statics.getNeedingFollowUp = function(options = {}) {
+  const scopeService = require('../services/workspaceScopeService');
+  const workspaceId = scopeService.normalizeWorkspaceObjectId(options.workspaceId || scopeService.getDefaultWorkspaceObjectId());
   const followUpAfterHours = Number.isInteger(options.followUpAfterHours) && options.followUpAfterHours >= 24
     ? options.followUpAfterHours
     : 24;
@@ -161,15 +165,17 @@ interventionSchema.statics.getNeedingFollowUp = function(options = {}) {
     followUpInterventionId: { $exists: false },
     executedAt: { $lt: followUpThreshold }
   };
-  if (options.workspaceId) query.workspaceId = options.workspaceId;
+  query.workspaceId = workspaceId;
 
   return this.find(query)
     .sort({ severity: -1, executedAt: 1 })
-    .populate('boardId cardId memberId');
+    .populate(scopeService.workspacePopulate(workspaceId, 'boardId cardId memberId'));
 };
 
 // Get interventions needing escalation
 interventionSchema.statics.getNeedingEscalation = function(options = {}) {
+  const scopeService = require('../services/workspaceScopeService');
+  const workspaceId = scopeService.normalizeWorkspaceObjectId(options.workspaceId || scopeService.getDefaultWorkspaceObjectId());
   const escalationAfterHours = Number.isInteger(options.escalationAfterHours) && options.escalationAfterHours >= 48
     ? options.escalationAfterHours
     : 48;
@@ -183,38 +189,46 @@ interventionSchema.statics.getNeedingEscalation = function(options = {}) {
     executedAt: { $lt: escalationThreshold },
     severity: { $in: ['high', 'critical'] }
   };
-  if (options.workspaceId) query.workspaceId = options.workspaceId;
+  query.workspaceId = workspaceId;
 
   return this.find(query)
     .sort({ severity: -1, executedAt: 1 })
-    .populate('boardId cardId memberId');
+    .populate(scopeService.workspacePopulate(workspaceId, 'boardId cardId memberId'));
 };
 
 // Get intervention history for a card
-interventionSchema.statics.getCardHistory = function(cardId) {
-  return this.find({ cardId })
+interventionSchema.statics.getCardHistory = function(cardId, workspaceId) {
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
+  return this.find({ cardId, workspaceId: scope })
     .sort({ createdAt: -1 })
-    .populate('memberId');
+    .populate(scopeService.workspacePopulate(scope, 'memberId'));
 };
 
 // Get intervention history for a member
-interventionSchema.statics.getMemberHistory = function(memberId, days = 30) {
+interventionSchema.statics.getMemberHistory = function(memberId, days = 30, workspaceId) {
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
   const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   
   return this.find({
     memberId,
+    workspaceId: scope,
     createdAt: { $gte: startDate }
   })
     .sort({ createdAt: -1 })
-    .populate('cardId boardId');
+    .populate(scopeService.workspacePopulate(scope, 'cardId boardId'));
 };
 
 // Get member response rate
-interventionSchema.statics.getMemberResponseRate = async function(memberId, days = 30) {
+interventionSchema.statics.getMemberResponseRate = async function(memberId, days = 30, workspaceId) {
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
   const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   
   const interventions = await this.find({
     memberId,
+    workspaceId: scope,
     type: { $in: ['comment', 'follow_up'] },
     status: 'executed',
     createdAt: { $gte: startDate }
@@ -232,11 +246,14 @@ interventionSchema.statics.getMemberResponseRate = async function(memberId, days
 };
 
 // Get intervention success rate by type
-interventionSchema.statics.getSuccessRate = async function(type, days = 30) {
+interventionSchema.statics.getSuccessRate = async function(type, days = 30, workspaceId) {
+  const scopeService = require('../services/workspaceScopeService');
+  const scope = scopeService.normalizeWorkspaceObjectId(workspaceId || scopeService.getDefaultWorkspaceObjectId());
   const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   
   const interventions = await this.find({
     type,
+    workspaceId: scope,
     status: 'executed',
     createdAt: { $gte: startDate }
   });

@@ -4,7 +4,7 @@ const Card = require('../models/Card');
 const CardFinding = require('../models/CardFinding');
 const BoardHealthSnapshot = require('../models/BoardHealthSnapshot');
 const operationsLedgerService = require('./operationsLedgerService');
-const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
+const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId, workspacePopulate } = require('./workspaceScopeService');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -29,9 +29,7 @@ class OperatingLedgerAnalyzer {
     }
 
     const cards = await Card.find({ boardId, workspaceId, closed: false })
-      .populate('listId')
-      .populate('members')
-      .populate('comments');
+      .populate(workspacePopulate(workspaceId, 'listId members'));
 
     const detectedFindings = [];
     for (const card of cards) {

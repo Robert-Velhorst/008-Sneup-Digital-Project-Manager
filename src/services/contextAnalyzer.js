@@ -4,7 +4,7 @@ const List = require('../models/List');
 const Card = require('../models/Card');
 const Member = require('../models/Member');
 const Comment = require('../models/Comment');
-const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
+const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId, workspacePopulate } = require('./workspaceScopeService');
 
 const getRelationshipLimit = () => {
   const configured = Number.parseInt(process.env.RELATIONSHIP_ANALYSIS_LIMIT, 10);
@@ -26,40 +26,38 @@ const analyzeCardRelationships = async (options = {}) => {
     
     const limit = getRelationshipLimit();
     const populateRelationshipQuery = (query) => query
-      .populate('boardId')
-      .populate('listId')
-      .populate('members')
-      .populate('comments');
+      .populate(workspacePopulate(workspaceId, 'boardId members'));
+    const retainCardsWithLocalBoards = (cards) => cards.filter(card => card.boardId);
 
     let leftCards = [];
     let rightCards = [];
 
     if (options.cardId) {
       const card = await populateRelationshipQuery(Card.findOne({ _id: options.cardId, workspaceId }));
-      if (!card) return [];
+      if (!card?.boardId) return [];
       leftCards = [card];
-      rightCards = await populateRelationshipQuery(
+      rightCards = retainCardsWithLocalBoards(await populateRelationshipQuery(
         Card.find({ workspaceId, closed: false, _id: { $ne: card._id } })
           .sort({ riskLevel: -1, due: 1, lastActivity: -1 })
           .limit(limit)
-      );
+      ));
     } else if (options.boardId) {
-      leftCards = await populateRelationshipQuery(
+      leftCards = retainCardsWithLocalBoards(await populateRelationshipQuery(
         Card.find({ workspaceId, closed: false, boardId: options.boardId })
           .sort({ riskLevel: -1, due: 1, lastActivity: -1 })
           .limit(limit)
-      );
-      rightCards = await populateRelationshipQuery(
+      ));
+      rightCards = retainCardsWithLocalBoards(await populateRelationshipQuery(
         Card.find({ workspaceId, closed: false, boardId: { $ne: options.boardId } })
           .sort({ riskLevel: -1, due: 1, lastActivity: -1 })
           .limit(limit)
-      );
+      ));
     } else {
-      leftCards = await populateRelationshipQuery(
+      leftCards = retainCardsWithLocalBoards(await populateRelationshipQuery(
         Card.find({ workspaceId, closed: false })
           .sort({ riskLevel: -1, due: 1, lastActivity: -1 })
           .limit(limit)
-      );
+      ));
       rightCards = leftCards;
     }
     
@@ -270,20 +268,22 @@ const analyzeTeamPatterns = async (options = {}) => {
     const workspaceId = resolveWorkspaceId(options.workspaceId);
     
     const members = await Member.find({ workspaceId })
-      .populate('boards')
-      .populate('assignedCards');
+      .populate(workspacePopulate(workspaceId, 'boards assignedCards', {
+        nested: { assignedCards: 'boardId' }
+      }));
     
     const teamPatterns = [];
     
     for (const member of members) {
-      if (!member.assignedCards || member.assignedCards.length < 3) continue;
+      const assignedCards = (member.assignedCards || []).filter(card => card.boardId);
+      if (assignedCards.length < 3) continue;
       
       // Analyze card types
       const cardTypes = {};
       const boardActivity = {};
       
-      for (const card of member.assignedCards) {
-        const boardId = card.boardId.toString();
+      for (const card of assignedCards) {
+        const boardId = card.boardId._id.toString();
         boardActivity[boardId] = (boardActivity[boardId] || 0) + 1;
         
         for (const label of card.labels) {
@@ -301,7 +301,7 @@ const analyzeTeamPatterns = async (options = {}) => {
         .map(([type, count]) => ({
           type,
           count,
-          percentage: Math.round((count / member.assignedCards.length) * 100)
+          percentage: Math.round((count / assignedCards.length) * 100)
         }));
       
       // Get board focus
@@ -334,7 +334,7 @@ const analyzeTeamPatterns = async (options = {}) => {
         boardFocus,
         specialties,
         workloadLevel: member.workloadLevel,
-        totalAssignedCards: member.assignedCards.length
+        totalAssignedCards: assignedCards.length
       });
     }
     
@@ -353,13 +353,9 @@ const getCardContext = async (cardId, options = {}) => {
     const workspaceId = resolveWorkspaceId(options.workspaceId);
     
     const card = await Card.findOne({ _id: cardId, workspaceId })
-      .populate('boardId')
-      .populate('listId')
-      .populate('members')
-      .populate({
-        path: 'comments',
-        populate: { path: 'memberId' }
-      });
+      .populate(workspacePopulate(workspaceId, 'boardId listId members comments', {
+        nested: { comments: 'memberId' }
+      }));
     
     if (!card) {
       logger.warn(`Card not found: ${cardId}`);
@@ -367,32 +363,35 @@ const getCardContext = async (cardId, options = {}) => {
     }
     
     // Get relationships
-    const allRelationships = await analyzeCardRelationships({ cardId, workspaceId });
+    const allRelationships = card.boardId
+      ? await analyzeCardRelationships({ cardId, workspaceId })
+      : [];
     const relationships = allRelationships.filter(r => 
       r.card1.id.toString() === cardId.toString() || 
       r.card2.id.toString() === cardId.toString()
     );
     
     // Get workflow context
-    const lists = await List.find({ boardId: card.boardId._id, workspaceId, closed: false })
-      .sort({ position: 1 });
-    
-    const currentStageIndex = lists.findIndex(l => 
-      l._id.toString() === card.listId._id.toString()
-    );
+    const lists = card.boardId
+      ? await List.find({ boardId: card.boardId._id, workspaceId, closed: false }).sort({ position: 1 })
+      : [];
+
+    const currentStageIndex = card.listId
+      ? lists.findIndex(list => list._id.toString() === card.listId._id.toString())
+      : -1;
     
     const workflowContext = {
-      currentStage: {
+      currentStage: card.listId ? {
         id: card.listId._id,
         name: card.listId.name,
         index: currentStageIndex,
         totalStages: lists.length
-      },
+      } : null,
       previousStage: currentStageIndex > 0 ? {
         id: lists[currentStageIndex - 1]._id,
         name: lists[currentStageIndex - 1].name
       } : null,
-      nextStage: currentStageIndex < lists.length - 1 ? {
+      nextStage: currentStageIndex >= 0 && currentStageIndex < lists.length - 1 ? {
         id: lists[currentStageIndex + 1]._id,
         name: lists[currentStageIndex + 1].name
       } : null,
@@ -422,14 +421,14 @@ const getCardContext = async (cardId, options = {}) => {
         id: card._id,
         name: card.name,
         description: card.description,
-        board: {
+        board: card.boardId ? {
           id: card.boardId._id,
           name: card.boardId.name
-        },
-        list: {
+        } : null,
+        list: card.listId ? {
           id: card.listId._id,
           name: card.listId.name
-        },
+        } : null,
         members: card.members.map(m => ({
           id: m._id,
           username: m.username,
@@ -437,7 +436,7 @@ const getCardContext = async (cardId, options = {}) => {
         })),
         due: card.due,
         labels: card.labels,
-        comments: card.comments.map(c => ({
+        comments: (card.comments || []).map(c => ({
           id: c._id,
           text: c.text,
           createdAt: c.createdAt,
@@ -468,8 +467,9 @@ const getBoardContext = async (boardId, options = {}) => {
     logger.info(`Getting context for board: ${boardId}`);
     const workspaceId = resolveWorkspaceId(options.workspaceId);
     
-    const board = await Board.findOne({ _id: boardId, workspaceId })
-      .populate('members');
+    const boardQuery = { _id: boardId, workspaceId };
+    const board = await Board.findOne(boardQuery)
+      .populate(workspacePopulate(workspaceId, 'members'));
     
     if (!board) {
       logger.warn(`Board not found: ${boardId}`);

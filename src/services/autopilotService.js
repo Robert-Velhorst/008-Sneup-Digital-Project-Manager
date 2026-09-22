@@ -35,9 +35,9 @@ class AutopilotService {
           .lean(),
         Card.find({ workspaceId, closed: false })
           .select('_id trelloId name boardId listId members due dueComplete closed riskLevel riskFactors labels.name checklists.items.complete lastActivity updatedAt createdAt')
-          .populate({ path: 'boardId', select: '_id trelloId name url' })
-          .populate({ path: 'listId', select: '_id name' })
-          .populate({ path: 'members', select: '_id username fullName' })
+          .populate(require('./workspaceScopeService').workspacePopulate(workspaceId, 'boardId listId members', {
+            selectByPath: { boardId: '_id trelloId name url', listId: '_id name', members: '_id username fullName' }
+          }))
           .sort({ due: 1, riskLevel: -1 })
           .lean(),
         Member.find({ workspaceId })
@@ -46,8 +46,9 @@ class AutopilotService {
           .lean(),
         Intervention.find({ workspaceId, status: { $in: ['pending', 'failed'] } })
           .select('_id boardId cardId memberId type severity action status updatedAt createdAt')
-          .populate({ path: 'boardId', select: '_id name' })
-          .populate({ path: 'memberId', select: '_id username' })
+          .populate(require('./workspaceScopeService').workspacePopulate(workspaceId, 'boardId cardId memberId', {
+            selectByPath: { boardId: '_id name', cardId: '_id name', memberId: '_id username' }
+          }))
           .sort({ severity: -1, createdAt: 1 })
           .limit(25)
           .lean(),

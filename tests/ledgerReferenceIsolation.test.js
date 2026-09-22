@@ -37,4 +37,27 @@ describe('ledger reference isolation', () => {
       { path: 'cardId', match: { workspaceId: scope }, options: { maxTimeMS: 2400 }, select: 'name' }
     ]);
   });
+
+  test('scopes nested references and supports per-path projections', () => {
+    const scope = new mongoose.Types.ObjectId();
+    expect(workspacePopulate(scope, 'boardId comments', {
+      selectByPath: { boardId: 'name', comments: 'text createdAt' },
+      nested: { comments: 'memberId' }
+    })).toEqual([
+      { path: 'boardId', match: { workspaceId: scope }, options: { maxTimeMS: 5000 }, select: 'name' },
+      {
+        path: 'comments', match: { workspaceId: scope }, options: { maxTimeMS: 5000 }, select: 'text createdAt',
+        populate: [{ path: 'memberId', match: { workspaceId: scope }, options: { maxTimeMS: 5000 } }]
+      }
+    ]);
+  });
+
+  test('priority aging uses the card schema duration and list duration in hours', () => {
+    const priorityEngine = require('../src/services/priorityEngine');
+    expect(priorityEngine.calculatePriorityScore({
+      riskLevel: 'low',
+      timeInCurrentList: 5,
+      listId: { averageTimeInList: 2 }
+    })).toBe(20);
+  });
 });

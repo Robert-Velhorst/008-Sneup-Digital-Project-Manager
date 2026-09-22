@@ -297,7 +297,7 @@ class JobObservabilityService {
     if (filters.boardId) query.boardId = filters.boardId;
 
     return require('../models/JobRun').find(query)
-      .populate('boardId')
+      .populate(require('./workspaceScopeService').workspacePopulate(query.workspaceId, 'boardId'))
       .sort({ startedAt: -1 })
       .limit(filters.limit || DEFAULT_LIMIT);
   }
