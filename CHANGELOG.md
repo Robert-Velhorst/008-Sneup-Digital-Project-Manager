@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.3.74 - 2026-09-23
+
+### Notification policy ownership
+
+- Bind policy creation/edit, activation confirmation, external test-delivery confirmation, and inline pause actions to their opening workspace, connected control, and modal generation.
+- Reject stale dialog submissions before requests. Late success and failure results no longer close or replace a newer dialog; refreshes and notices are limited to the still-current workspace and UI owner.
+- Preserve activation and real test-delivery confirmation, existing single-flight behavior, server authorization, and audit evidence.
+
+### Verification
+
+- Eight new regression cases reproduce and cover stale form submissions, late policy save/activation/test results, and late inline-pause success/failure results. The approval UI suite passes 36 tests.
+- Full local CI and hosted installer, Mongo integration, and exact-commit evidence are recorded in the final verification report after publication.
+
 ## 2.3.73 - 2026-09-23
 
 ### Connector form ownership

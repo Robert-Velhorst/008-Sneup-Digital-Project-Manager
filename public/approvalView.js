@@ -494,13 +494,34 @@
     const browserWindow = window || document.defaultView;
     const pendingPolicyActions = new Set();
 
-    async function refreshAfterPolicyCommit(successTitle, successMessage, refreshFailureMessage) {
+    function capturePolicyDialog(form) {
+      const isContextCurrent = callbacks.captureWorkspaceContext();
+      const modalEpoch = state.modalEpoch || 0;
+      const isCurrent = () => isContextCurrent() && elements.modal.classList.contains('open')
+        && form.isConnected && elements.modalBody.contains(form)
+        && (state.modalEpoch || 0) === modalEpoch;
+      return { isContextCurrent, isCurrent };
+    }
+
+    function closePolicyDialogIfCurrent(owner) {
+      if (!owner.isCurrent()) return () => false;
+      callbacks.closeModal();
+      const closedEpoch = state.modalEpoch || 0;
+      return () => owner.isContextCurrent() && (state.modalEpoch || 0) === closedEpoch
+        && !elements.modal.classList.contains('open');
+    }
+
+    async function refreshAfterPolicyCommit(successTitle, successMessage, refreshFailureMessage, options = {}) {
+      const isContextCurrent = options.isContextCurrent || (() => true);
+      const canNotify = options.canNotify || isContextCurrent;
+      if (!isContextCurrent()) return;
+      let message = successMessage;
       try {
         await callbacks.loadOperationsLedger();
-        callbacks.openNotice(t(successTitle), t(successMessage));
       } catch (error) {
-        callbacks.openNotice(t(successTitle), t(refreshFailureMessage));
+        message = refreshFailureMessage;
       }
+      if (isContextCurrent() && canNotify()) callbacks.openNotice(t(successTitle), t(message));
     }
 
     function notificationPolicyDraft(form, eventTypeInputs) {
@@ -599,6 +620,7 @@
       elements.modal.classList.add('open');
       document.getElementById('cancelNotificationPolicy').addEventListener('click', callbacks.closeModal);
       const form = document.getElementById('notificationPolicyForm');
+      const owner = capturePolicyDialog(form);
       const channelInput = form.elements.channel;
       const eventTypeInputs = [...form.querySelectorAll('input[name="eventTypes"]')];
       const webhookDestination = document.getElementById('notificationWebhookDestination');
@@ -628,22 +650,24 @@
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const submitButton = form.querySelector('button[type="submit"]');
-        if (submitButton.disabled) return;
+        if (submitButton.disabled || !owner.isCurrent()) return;
         submitButton.disabled = true;
         submitButton.textContent = t('Saving...');
         try {
           await callbacks.saveNotificationPolicy(isEdit ? getId(policy.id || policy._id) : '', notificationPolicyDraft(form, eventTypeInputs));
         } catch (error) {
+          if (!owner.isCurrent()) return;
           submitButton.disabled = false;
           submitButton.textContent = t(isEdit ? 'Save changes' : 'Save paused policy');
           callbacks.openNotice(t('Policy not saved'), error.message);
           return;
         }
-        callbacks.closeModal();
+        const canNotify = closePolicyDialogIfCurrent(owner);
         await refreshAfterPolicyCommit(
           'Policy saved',
           isEdit ? 'The delivery policy changes are saved with audit evidence.' : 'The paused delivery policy is saved with audit evidence.',
-          'The policy change was saved, but the operations ledger could not refresh. Reopen Approvals to load the latest state.'
+          'The policy change was saved, but the operations ledger could not refresh. Reopen Approvals to load the latest state.',
+          { isContextCurrent: owner.isContextCurrent, canNotify }
         );
       });
       return true;
@@ -652,23 +676,32 @@
     async function updateNotificationPolicyStatus(policy, status, trigger, options = {}) {
       const policyId = getId(policy?.id || policy?._id);
       const actionKey = `${policyId}:${status}`;
-      if (!policyId || pendingPolicyActions.has(actionKey)) return false;
+      const isContextCurrent = options.isContextCurrent || options.isCurrent || (() => true);
+      const isCurrent = options.isCurrent || isContextCurrent;
+      const canNotifyOnCurrentUI = options.canNotify || isCurrent;
+      const canRestoreTrigger = options.canRestoreTrigger || isCurrent;
+      if (!policyId || pendingPolicyActions.has(actionKey) || !isCurrent()) return false;
       pendingPolicyActions.add(actionKey);
       if (trigger) trigger.disabled = true;
       try {
         await callbacks.setNotificationPolicyStatus(policyId, status);
       } catch (error) {
         pendingPolicyActions.delete(actionKey);
-        if (trigger) trigger.disabled = false;
-        callbacks.openNotice(t('Policy update blocked'), error.message);
+        if (trigger && canRestoreTrigger()) trigger.disabled = false;
+        if (isContextCurrent() && canNotifyOnCurrentUI()) callbacks.openNotice(t('Policy update blocked'), error.message);
         return false;
       }
       pendingPolicyActions.delete(actionKey);
-      if (options.closeOnCommit) callbacks.closeModal();
+      let canNotify = canNotifyOnCurrentUI;
+      if (options.closeOnCommit) {
+        canNotify = closePolicyDialogIfCurrent(options.dialogOwner);
+      }
+      if (!isContextCurrent()) return true;
       await refreshAfterPolicyCommit(
         status === 'active' ? 'Policy activated' : 'Policy paused',
         status === 'active' ? 'The delivery policy is active with audit evidence.' : 'The delivery policy is paused with audit evidence.',
-        'The policy change was saved, but the operations ledger could not refresh. Reopen Approvals to load the latest state.'
+        'The policy change was saved, but the operations ledger could not refresh. Reopen Approvals to load the latest state.',
+        { isContextCurrent, canNotify }
       );
       return true;
     }
@@ -689,16 +722,24 @@
       elements.modal.classList.add('open');
       document.getElementById('cancelNotificationActivation').addEventListener('click', callbacks.closeModal);
       const form = document.getElementById('activateNotificationPolicyForm');
+      const owner = capturePolicyDialog(form);
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const button = form.querySelector('button[type="submit"]');
-        if (button.disabled) return;
+        if (button.disabled || !owner.isCurrent()) return;
         button.disabled = true;
         button.textContent = t('Activating...');
-        const saved = await updateNotificationPolicyStatus(policy, 'active', button, { closeOnCommit: true });
+        const saved = await updateNotificationPolicyStatus(policy, 'active', button, {
+          closeOnCommit: true,
+          dialogOwner: owner,
+          isContextCurrent: owner.isContextCurrent,
+          isCurrent: owner.isCurrent
+        });
         if (!saved) {
-          button.disabled = false;
-          button.textContent = t('Activate policy');
+          if (owner.isCurrent()) {
+            button.disabled = false;
+            button.textContent = t('Activate policy');
+          }
         }
       });
       return true;
@@ -717,25 +758,28 @@
       elements.modal.classList.add('open');
       document.getElementById('cancelNotificationTest').addEventListener('click', callbacks.closeModal);
       const form = document.getElementById('notificationTestForm');
+      const owner = capturePolicyDialog(form);
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const button = form.querySelector('button[type="submit"]');
-        if (button.disabled) return;
+        if (button.disabled || !owner.isCurrent()) return;
         button.disabled = true;
         button.textContent = t('Sending...');
         try {
           await callbacks.sendNotificationPolicyTest(policyId);
         } catch (error) {
+          if (!owner.isCurrent()) return;
           button.disabled = false;
           button.textContent = t('Send test');
           callbacks.openNotice(t('Test delivery failed'), error.message);
           return;
         }
-        callbacks.closeModal();
+        const canNotify = closePolicyDialogIfCurrent(owner);
         await refreshAfterPolicyCommit(
           'Test delivered',
           'The external destination accepted the test alert.',
-          'The test was delivered, but the operations ledger could not refresh. Reopen Approvals to load the latest evidence.'
+          'The test was delivered, but the operations ledger could not refresh. Reopen Approvals to load the latest evidence.',
+          { isContextCurrent: owner.isContextCurrent, canNotify }
         );
       });
       return true;
@@ -846,11 +890,15 @@
       const ownsContext = callbacks.captureWorkspaceContext();
       const bind = (button, action) => {
         const root = roots.find(item => item.contains(button));
+        const modalEpoch = state.modalEpoch || 0;
+        const ownsControl = () => ownsContext() && root.contains(button);
+        const canAct = () => ownsControl() && !elements.modal.classList.contains('open')
+          && (state.modalEpoch || 0) === modalEpoch;
         button.addEventListener('click', async () => {
           if (!ownsContext() || !root.contains(button) || button.disabled) return;
           button.disabled = true;
-          try { await action(); } finally {
-            if (ownsContext() && root.contains(button)) button.disabled = false;
+          try { await action({ ownsControl, canAct, ownsContext }); } finally {
+            if (ownsControl()) button.disabled = false;
           }
         });
       };
@@ -877,9 +925,14 @@
         const policy = (state.ledger.notificationPolicies || []).find(item => getId(item.id || item._id) === button.dataset.notificationPolicyActivate);
         if (policy) openNotificationActivation(policy);
       }));
-      findButtons('[data-notification-policy-pause]').forEach(button => bind(button, () => {
+      findButtons('[data-notification-policy-pause]').forEach(button => bind(button, ({ ownsContext, canAct, ownsControl } = {}) => {
         const policy = (state.ledger.notificationPolicies || []).find(item => getId(item.id || item._id) === button.dataset.notificationPolicyPause);
-        if (policy) return updateNotificationPolicyStatus(policy, 'paused', button);
+        if (policy) return updateNotificationPolicyStatus(policy, 'paused', button, {
+          isContextCurrent: ownsContext,
+          isCurrent: ownsControl,
+          canNotify: canAct,
+          canRestoreTrigger: ownsControl
+        });
       }));
       findButtons('[data-notification-policy-test]').forEach(button => bind(button, () => {
         const policy = (state.ledger.notificationPolicies || []).find(item => getId(item.id || item._id) === button.dataset.notificationPolicyTest);

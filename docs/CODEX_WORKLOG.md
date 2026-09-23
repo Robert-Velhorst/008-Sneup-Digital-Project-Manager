@@ -1,5 +1,11 @@
 # Codex Worklog
 
+## 2026-09-23 notification policy dialog ownership continuation
+
+- Added red regressions for stale workspace submits and late completions across policy save, activation, and external test delivery. The initial six cases failed because stale forms still reached write callbacks and old completions closed replacement dialogs.
+- Bound those forms to the captured workspace/session, connected form, and modal epoch. Late results refresh only the originating workspace and notify only if the original dialog still owns the modal. The inline pause action now applies the same notification guard and preserves retry control state.
+- Eight new cases now pass in the 36-test approval UI suite. The external test-delivery confirmation and backend policy authorization are unchanged; no real delivery was sent.
+
 ## 2026-09-23 connector form mutation ownership continuation
 
 - Added a deferred-save regression for a connector selection form. Before the fix, the save completed after the dialog had been replaced and the old handler still called `closeModal()`; the exact assertion failed with one close call.

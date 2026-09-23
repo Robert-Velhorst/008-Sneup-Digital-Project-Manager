@@ -54,6 +54,7 @@ function createHarness(locale = 'nl') {
   i18n.registerMessages('nl', APPROVAL_NL_MESSAGES);
   const callbacks = makeCallbacks();
   const state = {
+    modalEpoch: 0,
     queueFilter: 'all',
     notificationJobHealth: [{ jobName: 'notifications.reconciliation_alerts', status: 'healthy', lastRunAt: '2026-08-09T09:00:00.000Z' }],
     ledger: {
@@ -116,6 +117,10 @@ function createHarness(locale = 'nl') {
     }
   };
   const elements = Object.fromEntries(elementIds.map(id => [id, dom.window.document.getElementById(id)]));
+  callbacks.closeModal.mockImplementation(() => {
+    state.modalEpoch += 1;
+    elements.modal.classList.remove('open');
+  });
   const controller = createController({
     document: dom.window.document,
     window: dom.window,
@@ -477,6 +482,89 @@ describe('demand-loaded approval view', () => {
     expect(harness.callbacks.closeModal).toHaveBeenCalledTimes(1);
     expect(harness.callbacks.loadOperationsLedger).toHaveBeenCalledTimes(1);
     expect(harness.callbacks.openNotice).toHaveBeenLastCalledWith('Policy activated', 'The delivery policy is active with audit evidence.');
+    harness.dom.window.close();
+  });
+
+  test.each(['save', 'activation', 'test'])('%s dialog cannot submit after its workspace changes', async flow => {
+    const harness = createHarness('en');
+    let current = true;
+    harness.callbacks.captureWorkspaceContext.mockImplementation(() => () => current);
+    const policy = { ...harness.state.ledger.notificationPolicies[0], status: 'paused' };
+    if (flow === 'save') harness.controller.openNotificationPolicyForm(policy);
+    if (flow === 'activation') harness.controller.openNotificationActivation(policy);
+    if (flow === 'test') harness.controller.openNotificationTest(policy);
+    const form = harness.dom.window.document.querySelector('form');
+    if (flow === 'activation') form.elements.confirmActivation.checked = true;
+    if (flow === 'test') form.elements.confirmDelivery.checked = true;
+    current = false;
+
+    form.dispatchEvent(new harness.dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(harness.callbacks.saveNotificationPolicy).not.toHaveBeenCalled();
+    expect(harness.callbacks.setNotificationPolicyStatus).not.toHaveBeenCalled();
+    expect(harness.callbacks.sendNotificationPolicyTest).not.toHaveBeenCalled();
+    expect(harness.callbacks.closeModal).not.toHaveBeenCalled();
+    expect(harness.callbacks.openNotice).not.toHaveBeenCalled();
+    harness.dom.window.close();
+  });
+
+  test.each(['save', 'activation', 'test'])('%s completion cannot take over a newer dialog', async flow => {
+    const harness = createHarness('en');
+    let resolveRequest;
+    const pending = new Promise(resolve => { resolveRequest = resolve; });
+    const policy = { ...harness.state.ledger.notificationPolicies[0], status: 'paused' };
+    if (flow === 'save') {
+      harness.callbacks.saveNotificationPolicy.mockReturnValue(pending);
+      harness.controller.openNotificationPolicyForm(policy);
+    }
+    if (flow === 'activation') {
+      harness.callbacks.setNotificationPolicyStatus.mockReturnValue(pending);
+      harness.controller.openNotificationActivation(policy);
+    }
+    if (flow === 'test') {
+      harness.callbacks.sendNotificationPolicyTest.mockReturnValue(pending);
+      harness.controller.openNotificationTest(policy);
+    }
+    const form = harness.dom.window.document.querySelector('form');
+    if (flow === 'activation') form.elements.confirmActivation.checked = true;
+    if (flow === 'test') form.elements.confirmDelivery.checked = true;
+    form.dispatchEvent(new harness.dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    await Promise.resolve();
+    harness.elements.modalBody.innerHTML = '<div id="newerDialog">New workspace dialog</div>';
+    harness.elements.modal.classList.add('open');
+    resolveRequest({ policy: { id: 'policy-1' }, status: 'delivered' });
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(harness.elements.modalBody.textContent).toContain('New workspace dialog');
+    expect(harness.callbacks.closeModal).not.toHaveBeenCalled();
+    expect(harness.callbacks.openNotice).not.toHaveBeenCalled();
+    harness.dom.window.close();
+  });
+
+  test.each(['success', 'failure'])('late policy-pause %s cannot take over a newer dialog', async result => {
+    const harness = createHarness('en');
+    let resolveRequest;
+    let rejectRequest;
+    const pending = new Promise((resolve, reject) => {
+      resolveRequest = resolve;
+      rejectRequest = reject;
+    });
+    harness.callbacks.setNotificationPolicyStatus.mockReturnValue(pending);
+    harness.controller.render();
+    const pauseButton = harness.elements.notificationPolicies.querySelector('[data-notification-policy-pause]');
+    pauseButton.click();
+    await Promise.resolve();
+    harness.elements.modalBody.innerHTML = '<div id="newerDialog">New workspace dialog</div>';
+    harness.elements.modal.classList.add('open');
+    if (result === 'success') resolveRequest({ policy: { id: 'policy-1' } });
+    else rejectRequest(new Error('Pause rejected'));
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(harness.elements.modalBody.textContent).toContain('New workspace dialog');
+    expect(harness.callbacks.closeModal).not.toHaveBeenCalled();
+    expect(harness.callbacks.openNotice).not.toHaveBeenCalled();
+    expect(pauseButton.disabled).toBe(false);
     harness.dom.window.close();
   });
 
