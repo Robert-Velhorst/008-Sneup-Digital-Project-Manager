@@ -1,5 +1,11 @@
 # Codex Worklog
 
+## 2026-09-23 connector modal ownership continuation
+
+- Reproduced stale account data and notices in inbound worker-response binding and connector account-selection modal loaders. Late results could reopen a modal after a workspace/session change, dialog dismissal, account removal, or a newer request.
+- Added workspace/session/latest-request, modal-content/epoch, and active-account guards; successful loads now use the current account object. Added 20 focused jsdom regressions.
+- Local `check:ci` passed lint, 180 route-authorization contracts, 160 Jest suites/1,570 tests, and five recommendation scenarios. The current Codex Security Deep Scan could not start because its read-only workers require a managed filesystem permission profile; the older local audit is historical, not current proof.
+
 ## 2026-09-23 detail-read ownership continuation
 
 - Reproduced stale-response handling gaps in recommendation evidence and work-graph detail reads: a prior workspace/session or dialog could receive late content/errors, and an older overlapping request could win.

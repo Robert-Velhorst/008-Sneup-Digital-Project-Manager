@@ -3934,15 +3934,22 @@ async function openWorkerResponseBindingsModal(accountId) {
   const account = state.accounts.find(item => item.id === accountId);
   if (!account) return;
 
+  const ownsRequest = beginWorkspaceRead('workerResponseBindings');
+  const modalContent = els.modalBody.firstChild;
+  const modalEpoch = state.modalEpoch || 0;
+  const isCurrent = () => ownsRequest() && state.accounts.some(item => item.id === accountId)
+    && els.modalBody.firstChild === modalContent && (state.modalEpoch || 0) === modalEpoch;
+
   try {
     const [bindingData, optionData, connectorView] = await Promise.all([
       fetchApi(`/api/connectors/accounts/${encodeURIComponent(accountId)}/inbound-worker-response-bindings`),
       loadWorkerResponseOptions(accountId),
       loadConnectorView()
     ]);
-    connectorView.openWorkerResponseBindings({ accountId, account, bindingData, optionData });
+    if (!isCurrent()) return;
+    connectorView.openWorkerResponseBindings({ accountId, account: state.accounts.find(item => item.id === accountId), bindingData, optionData });
   } catch (error) {
-    openNotice(t('Inbound worker responses'), error.message);
+    if (isCurrent()) openNotice(t('Inbound worker responses'), error.message);
   }
 }
 
@@ -3984,6 +3991,12 @@ async function openConnectorSelection(kind, accountId) {
   const account = state.accounts.find(item => item.id === accountId);
   if (!config || !account) return;
 
+  const ownsRequest = beginWorkspaceRead('connectorSelection');
+  const modalContent = els.modalBody.firstChild;
+  const modalEpoch = state.modalEpoch || 0;
+  const isCurrent = () => ownsRequest() && state.accounts.some(item => item.id === accountId)
+    && els.modalBody.firstChild === modalContent && (state.modalEpoch || 0) === modalEpoch;
+
   try {
     const [data, connectorView] = await Promise.all([
       config.loadSuffix
@@ -3991,9 +4004,10 @@ async function openConnectorSelection(kind, accountId) {
         : Promise.resolve({}),
       loadConnectorView()
     ]);
-    connectorView.openSelectionForm({ kind, accountId, account, data });
+    if (!isCurrent()) return;
+    connectorView.openSelectionForm({ kind, accountId, account: state.accounts.find(item => item.id === accountId), data });
   } catch (error) {
-    openNotice(t('Connector selection unavailable'), error.message);
+    if (isCurrent()) openNotice(t('Connector selection unavailable'), error.message);
   }
 }
 
