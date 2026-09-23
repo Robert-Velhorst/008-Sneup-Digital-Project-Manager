@@ -109,6 +109,10 @@ const createHarness = (locale = 'nl') => {
     'connectorCount', 'connectedCount', 'categoryList', 'connectorHeading',
     'connectorSafety', 'connectorGrid', 'connectorPagination', 'modal', 'modalTitle', 'modalBody'
   ].map(id => [id, dom.window.document.getElementById(id)]));
+  callbacks.closeModal.mockImplementation(() => {
+    state.modalEpoch = (state.modalEpoch || 0) + 1;
+    elements.modal.classList.remove('open');
+  });
   const controller = createController({
     document: dom.window.document,
     window: dom.window,
@@ -306,6 +310,92 @@ describe('demand-loaded connector view', () => {
     form.dispatchEvent(new harness.dom.window.Event('submit', { bubbles: true, cancelable: true }));
     await Promise.resolve();
     expect(harness.callbacks.saveConnectorSelection).toHaveBeenCalledTimes(1);
+    harness.dom.window.close();
+  });
+
+  test('does not close a newer dialog when a selection save completes after its context changes', async () => {
+    const harness = createHarness('nl');
+    const account = { id: 'account-1', metadata: { fields: { figmaTeamId: '12345' } } };
+    let resolveSave;
+    let contextIsCurrent = true;
+    harness.callbacks.saveConnectorSelection.mockImplementation(() => new Promise(resolve => {
+      resolveSave = resolve;
+    }));
+    harness.controller.openSelectionForm({
+      kind: 'figma_team',
+      accountId: account.id,
+      account,
+      isCurrent: () => contextIsCurrent
+    });
+
+    harness.dom.window.document.getElementById('connectorSelectionForm')
+      .dispatchEvent(new harness.dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    await Promise.resolve();
+    contextIsCurrent = false;
+    harness.elements.modalBody.innerHTML = '<div id="new-dialog">Current workspace dialog</div>';
+    harness.elements.modal.classList.add('open');
+    resolveSave({});
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(harness.elements.modalBody.textContent).toBe('Current workspace dialog');
+    expect(harness.callbacks.closeModal).not.toHaveBeenCalled();
+    expect(harness.callbacks.openNotice).not.toHaveBeenCalled();
+    expect(harness.callbacks.loadConnectors).not.toHaveBeenCalled();
+    harness.dom.window.close();
+  });
+
+  test('does not submit a selection form after its context changes', () => {
+    const harness = createHarness('nl');
+    const account = { id: 'account-1', metadata: { fields: { figmaTeamId: '12345' } } };
+    let contextIsCurrent = true;
+    harness.controller.openSelectionForm({
+      kind: 'figma_team',
+      accountId: account.id,
+      account,
+      isCurrent: () => contextIsCurrent
+    });
+    contextIsCurrent = false;
+
+    harness.dom.window.document.getElementById('connectorSelectionForm')
+      .dispatchEvent(new harness.dom.window.Event('submit', { bubbles: true, cancelable: true }));
+
+    expect(harness.callbacks.saveConnectorSelection).not.toHaveBeenCalled();
+    expect(harness.callbacks.closeModal).not.toHaveBeenCalled();
+    harness.dom.window.close();
+  });
+
+  test('does not close a newer dialog when worker-response mappings save after context changes', async () => {
+    const harness = createHarness('nl');
+    const account = { id: 'account-1', connectorId: 'webhook_generic' };
+    let resolveSave;
+    let contextIsCurrent = true;
+    harness.callbacks.saveWorkerResponseBindings.mockImplementation(() => new Promise(resolve => {
+      resolveSave = resolve;
+    }));
+    harness.controller.openWorkerResponseBindings({
+      accountId: account.id,
+      account,
+      bindingData: { bindings: [] },
+      optionData: { members: [] },
+      isCurrent: () => contextIsCurrent,
+      isContextCurrent: () => contextIsCurrent
+    });
+
+    harness.dom.window.document.getElementById('workerResponseBindingsForm')
+      .dispatchEvent(new harness.dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    await Promise.resolve();
+    contextIsCurrent = false;
+    harness.elements.modalBody.innerHTML = '<div id="new-dialog">Current workspace dialog</div>';
+    harness.elements.modal.classList.add('open');
+    resolveSave({ bindings: [] });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(harness.elements.modalBody.textContent).toBe('Current workspace dialog');
+    expect(harness.callbacks.closeModal).not.toHaveBeenCalled();
+    expect(harness.callbacks.openNotice).not.toHaveBeenCalled();
+    expect(harness.callbacks.loadConnectors).not.toHaveBeenCalled();
     harness.dom.window.close();
   });
 

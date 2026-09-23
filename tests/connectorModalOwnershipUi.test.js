@@ -37,9 +37,14 @@ function harness() {
     requests.push({ url, ...request });
     return request.promise;
   });
+  const openForm = jest.fn(() => {
+    els.modalBody.innerHTML = '<form id="connector-form"></form>';
+    els.modal.classList.add('open');
+    return true;
+  });
   const connectorView = {
-    openWorkerResponseBindings: jest.fn(),
-    openSelectionForm: jest.fn()
+    openWorkerResponseBindings: openForm,
+    openSelectionForm: openForm
   };
   const loadConnectorView = jest.fn().mockResolvedValue(connectorView);
   const loadWorkerResponseOptions = jest.fn(accountId => fetchApi(`/api/connectors/accounts/${accountId}/options`));
@@ -133,3 +138,19 @@ test.each(flows)('%s modal uses the refreshed account record', async flow => {
   expect(openCall(h, flow)).toHaveBeenCalledWith(expect.objectContaining({ account: h.state.accounts[0] }));
   h.dom.window.close();
 });
+
+test.each(flows.flatMap(flow => ['workspace', 'session', 'modal', 'account'].map(owner => [flow, owner])))
+  ('%s form ownership becomes stale after its %s changes', async (flow, owner) => {
+    const h = harness();
+    const pending = startRead(h, flow);
+    h.requests.forEach(request => request.resolve({}));
+    await pending;
+
+    const options = openCall(h, flow).mock.calls[0][0];
+    expect(options.isCurrent()).toBe(true);
+    expect(options.isContextCurrent()).toBe(true);
+    changeOwner(h, owner);
+    expect(options.isCurrent()).toBe(false);
+    expect(options.isContextCurrent()).toBe(owner === 'modal');
+    h.dom.window.close();
+  });

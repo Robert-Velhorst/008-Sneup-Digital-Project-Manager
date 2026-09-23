@@ -314,7 +314,27 @@
     const ep = (singular, pluralMessage, count, params) => escapeHtml(plural(singular, pluralMessage, count, params));
     const spanCount = (count, singular, pluralMessage) => `<span>${ep(singular, pluralMessage, count)}</span>`;
 
-    function openSelectionForm({ kind, accountId, account, data = {} } = {}) {
+    async function finishConnectorFormSave({ isCurrent, isContextCurrent, title, message }) {
+      if (!isContextCurrent()) return;
+      const shouldNotify = isCurrent();
+      if (shouldNotify) callbacks.closeModal();
+      const closedEpoch = state.modalEpoch || 0;
+      const canNotify = () => shouldNotify && isContextCurrent()
+        && (state.modalEpoch || 0) === closedEpoch && !elements.modal.classList.contains('open');
+
+      try {
+        await callbacks.loadConnectors();
+      } catch (error) {
+        if (canNotify()) {
+          callbacks.openNotice(title, t('The change was saved, but the connector list could not refresh. Reopen Connectors to load the latest state.'));
+        }
+        return;
+      }
+
+      if (canNotify()) callbacks.openNotice(title, message);
+    }
+
+    function openSelectionForm({ kind, accountId, account, data = {}, isCurrent = () => true, isContextCurrent = isCurrent } = {}) {
       const config = SELECTION_FORMS[kind];
       if (!config || !accountId || !account || !elements.modal || !elements.modalTitle || !elements.modalBody) return false;
 
@@ -361,33 +381,30 @@
       document.getElementById('cancelConnectorSelection').addEventListener('click', callbacks.closeModal);
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
-        if (submitButton.disabled) return;
+        if (submitButton.disabled || !isCurrent()) return;
         submitButton.disabled = true;
         submitButton.textContent = t('Saving...');
         const body = Object.fromEntries(new window.FormData(form).entries());
         try {
           await callbacks.saveConnectorSelection(kind, accountId, body);
         } catch (error) {
+          if (!isCurrent()) return;
           submitButton.disabled = false;
           submitButton.textContent = t(config.submitLabel);
           callbacks.openNotice(t(config.errorTitle), error.message);
           return;
         }
-        callbacks.closeModal();
-        try {
-          await callbacks.loadConnectors();
-          callbacks.openNotice(t(config.successTitle), t(config.successMessage));
-        } catch (error) {
-          callbacks.openNotice(
-            t(config.successTitle),
-            t('The change was saved, but the connector list could not refresh. Reopen Connectors to load the latest state.')
-          );
-        }
+        await finishConnectorFormSave({
+          isCurrent,
+          isContextCurrent,
+          title: t(config.successTitle),
+          message: t(config.successMessage)
+        });
       });
       return true;
     }
 
-    function openWorkerResponseBindings({ accountId, account, bindingData = {}, optionData = {} } = {}) {
+    function openWorkerResponseBindings({ accountId, account, bindingData = {}, optionData = {}, isCurrent = () => true, isContextCurrent = isCurrent } = {}) {
       if (!accountId || !account || !elements.modal || !elements.modalTitle || !elements.modalBody) return false;
 
       let bindings = Array.isArray(bindingData.bindings)
@@ -505,6 +522,7 @@
         renderCards();
       };
       const loadMembers = async () => {
+        if (!isCurrent()) return;
         const query = memberSearch.value.trim();
         const requestId = ++memberRequestId;
         memberOptionRequest?.abort();
@@ -515,13 +533,13 @@
         memberSelect.innerHTML = `<option value="" selected>${et('Loading members...')}</option>`;
         try {
           const data = await callbacks.loadWorkerResponseOptions(accountId, { query, signal: request.signal });
-          if (requestId !== memberRequestId || memberOptionRequest !== request) return;
+          if (!isCurrent() || requestId !== memberRequestId || memberOptionRequest !== request) return;
           members = Array.isArray(data.members) ? data.members.slice(0, 100) : [];
           members.forEach(member => memberNames.set(String(member.id), member.name));
           clearStatus();
           renderMembers();
         } catch (error) {
-          if (error.name === 'AbortError' || requestId !== memberRequestId || memberOptionRequest !== request) return;
+          if (error.name === 'AbortError' || !isCurrent() || requestId !== memberRequestId || memberOptionRequest !== request) return;
           members = [];
           renderMembers();
           setStatus('Response mapping members', error.message);
@@ -530,6 +548,7 @@
         }
       };
       const loadCards = async () => {
+        if (!isCurrent()) return;
         const memberId = memberSelect.value;
         cardOptionRequest?.abort();
         const requestId = ++cardRequestId;
@@ -547,12 +566,12 @@
             query: cardSearch.value.trim(),
             signal: request.signal
           });
-          if (requestId !== cardRequestId || cardOptionRequest !== request) return;
+          if (!isCurrent() || requestId !== cardRequestId || cardOptionRequest !== request) return;
           cards = Array.isArray(data.cards) ? data.cards.slice(0, 100) : [];
           clearStatus();
           renderCards();
         } catch (error) {
-          if (error.name === 'AbortError' || requestId !== cardRequestId || cardOptionRequest !== request) return;
+          if (error.name === 'AbortError' || !isCurrent() || requestId !== cardRequestId || cardOptionRequest !== request) return;
           cardSelect.disabled = true;
           cardSelect.innerHTML = `<option value="" selected>${et('Assigned cards unavailable')}</option>`;
           setStatus('Response mapping cards', error.message);
@@ -605,7 +624,7 @@
       });
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
-        if (submitButton.disabled) return;
+        if (submitButton.disabled || !isCurrent()) return;
         clearStatus();
         submitButton.disabled = true;
         submitButton.textContent = t('Saving...');
@@ -613,29 +632,24 @@
         try {
           result = await callbacks.saveWorkerResponseBindings(accountId, bindings);
         } catch (error) {
+          if (!isCurrent()) return;
           submitButton.disabled = false;
           submitButton.textContent = t('Save mappings');
           setStatus('Response mappings', error.message);
           return;
         }
+        if (!isContextCurrent()) return;
         bindings = Array.isArray(result.bindings) ? result.bindings : [];
-        callbacks.closeModal();
-        try {
-          await callbacks.loadConnectors();
-          callbacks.openNotice(
-            t('Response mappings saved'),
-            plural(
-              '{count} inbound worker response mapping saved with audit evidence.',
-              '{count} inbound worker response mappings saved with audit evidence.',
-              bindings.length
-            )
-          );
-        } catch (error) {
-          callbacks.openNotice(
-            t('Response mappings saved'),
-            t('The change was saved, but the connector list could not refresh. Reopen Connectors to load the latest state.')
-          );
-        }
+        await finishConnectorFormSave({
+          isCurrent,
+          isContextCurrent,
+          title: t('Response mappings saved'),
+          message: plural(
+            '{count} inbound worker response mapping saved with audit evidence.',
+            '{count} inbound worker response mappings saved with audit evidence.',
+            bindings.length
+          )
+        });
       });
       return true;
     }

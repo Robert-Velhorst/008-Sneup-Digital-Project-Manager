@@ -3947,7 +3947,24 @@ async function openWorkerResponseBindingsModal(accountId) {
       loadConnectorView()
     ]);
     if (!isCurrent()) return;
-    connectorView.openWorkerResponseBindings({ accountId, account: state.accounts.find(item => item.id === accountId), bindingData, optionData });
+    let formContent = null;
+    let formEpoch = null;
+    const isContextCurrent = () => ownsRequest() && state.accounts.some(item => item.id === accountId);
+    const isFormCurrent = () => isContextCurrent() && Boolean(formContent)
+      && els.modal.classList.contains('open') && els.modalBody.firstChild === formContent
+      && (state.modalEpoch || 0) === formEpoch;
+    const opened = connectorView.openWorkerResponseBindings({
+      accountId,
+      account: state.accounts.find(item => item.id === accountId),
+      bindingData,
+      optionData,
+      isCurrent: isFormCurrent,
+      isContextCurrent
+    });
+    if (opened) {
+      formContent = els.modalBody.firstChild;
+      formEpoch = state.modalEpoch || 0;
+    }
   } catch (error) {
     if (isCurrent()) openNotice(t('Inbound worker responses'), error.message);
   }
@@ -4005,7 +4022,24 @@ async function openConnectorSelection(kind, accountId) {
       loadConnectorView()
     ]);
     if (!isCurrent()) return;
-    connectorView.openSelectionForm({ kind, accountId, account: state.accounts.find(item => item.id === accountId), data });
+    let formContent = null;
+    let formEpoch = null;
+    const isContextCurrent = () => ownsRequest() && state.accounts.some(item => item.id === accountId);
+    const isFormCurrent = () => isContextCurrent() && Boolean(formContent)
+      && els.modal.classList.contains('open') && els.modalBody.firstChild === formContent
+      && (state.modalEpoch || 0) === formEpoch;
+    const opened = connectorView.openSelectionForm({
+      kind,
+      accountId,
+      account: state.accounts.find(item => item.id === accountId),
+      data,
+      isCurrent: isFormCurrent,
+      isContextCurrent
+    });
+    if (opened) {
+      formContent = els.modalBody.firstChild;
+      formEpoch = state.modalEpoch || 0;
+    }
   } catch (error) {
     if (isCurrent()) openNotice(t('Connector selection unavailable'), error.message);
   }

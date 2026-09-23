@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.3.73 - 2026-09-23
+
+### Connector form ownership
+
+- Bind connector account-selection and inbound worker-response mapping forms to the initiating workspace, session, account, and modal generation.
+- Reject stale submissions and ignore late results so they cannot close or replace a newer dialog. Delayed member/card lookups are discarded after their form loses ownership.
+- After a saved change, refresh connector state only while its context remains current and show completion only when no newer dialog has taken ownership.
+
+### Dependency security
+
+- Updated development/build-tool transitive `js-yaml` copies to 3.15.2 and 4.3.2 for [GHSA-2883-xcg3-v3hh](https://github.com/advisories/GHSA-2883-xcg3-v3hh). The vulnerable copies were under Jest/Istanbul and ESLint/electron-builder; the production dependency tree was not affected.
+- Full and production-only `npm audit` checks now report zero known vulnerabilities. This does not replace the unavailable current repository-wide security scan.
+
+### Verification
+
+- A deferred-save regression reproduced the stale-dialog close before the fix. Forty-four focused connector UI and ownership tests pass after the fix.
+- The local CI gate passes lint, all 180 route-authorization contracts, 160 Jest suites/1,581 tests, and all five recommendation-safety scenarios.
+- Full and production-only dependency audits both pass with zero known vulnerabilities after the patched lockfile update.
+- Hosted Windows installer, packaged-runtime, dependency-audit, and exact-commit CI evidence is recorded in the final verification report after the push.
+
 ## 2.3.42 - 2026-08-14
 
 ### Demand-loaded enhancement workspace

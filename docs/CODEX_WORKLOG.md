@@ -1,5 +1,19 @@
 # Codex Worklog
 
+## 2026-09-23 connector form mutation ownership continuation
+
+- Added a deferred-save regression for a connector selection form. Before the fix, the save completed after the dialog had been replaced and the old handler still called `closeModal()`; the exact assertion failed with one close call.
+- Bound account-selection and inbound worker-response forms to their initiating workspace/session, latest read, active account, modal content, and epoch. Stale forms cannot submit; late completions cannot close or overwrite a newer dialog; post-save refresh/notice work is suppressed when its owner is stale. Delayed member/card lookups now also ignore results after context loss.
+- Added 11 focused regressions across renderer and application-controller tests. The targeted connector suites pass 44 tests.
+- `npm.cmd run check:ci` passed lint, all 180 route-authorization contracts (174 guarded, six explicitly public, no issues), 160 Jest suites/1,581 tests, and recommendation evaluation (5/5, 100%).
+- No provider writes were made. Live provider/HAI/ngrok acceptance, signed clean-machine installation, production-scale resource evidence, and current repository-wide deep-scan coverage remain open.
+
+## 2026-09-23 development dependency advisory remediation
+
+- The full dependency audit identified GHSA-2883-xcg3-v3hh in transitive development/build-tool copies of `js-yaml` 3.15.1 and 4.3.1. The affected paths were Jest/Istanbul and ESLint/electron-builder; the production dependency audit was already clean, and the application does not directly load YAML.
+- Updated only the lockfile-resolved copies to patched 3.15.2 and 4.3.2. Full and production-only `npm audit --audit-level=moderate` checks now report zero known vulnerabilities. [GitHub advisory](https://github.com/advisories/GHSA-2883-xcg3-v3hh).
+- This advisory remediation does not establish a current comprehensive source scan: the Codex Security Deep Scan remains unavailable because its workers require a managed filesystem permission profile.
+
 ## 2026-09-23 connector modal ownership continuation
 
 - Reproduced stale account data and notices in inbound worker-response binding and connector account-selection modal loaders. Late results could reopen a modal after a workspace/session change, dialog dismissal, account removal, or a newer request.
