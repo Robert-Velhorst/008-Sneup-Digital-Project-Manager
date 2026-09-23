@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const { webcrypto } = require('node:crypto');
 const { JSDOM } = require('jsdom');
 const source = fs.readFileSync(path.join(__dirname, '../public/app.js'), 'utf8');
 const section = (start, end) => source.slice(source.indexOf(start), source.indexOf(end));
@@ -10,8 +11,10 @@ const deferred = () => {
   return { promise, resolve, reject };
 };
 
-function harness() {
+function harness({ sessionBroadcastChannel = null } = {}) {
   const dom = new JSDOM(fs.readFileSync(path.join(__dirname, '../public/index.html'), 'utf8'), { url: 'http://127.0.0.1/' });
+  Object.defineProperty(dom.window, 'crypto', { value: webcrypto, configurable: true });
+  dom.window.TextEncoder = TextEncoder;
   const document = dom.window.document;
   const els = Object.fromEntries([...document.querySelectorAll('[id]')].map(element => [element.id, element]));
   els.modal = els.connectorModal;
@@ -32,6 +35,7 @@ function harness() {
     listOrEmpty: (items, render) => items.map(render).join(''),
     fetchApi: jest.fn((url, options) => { const request = deferred(); requests.push({ url, options, ...request }); return request.promise; }),
     localStorage: storage, sessionStorage: storage, SESSION_TOKEN_KEY: 'session',
+    sessionBroadcastChannel,
     cancelReportDownloads: jest.fn(), updateApprovalCount: jest.fn(), renderWorkspaces: jest.fn(),
     workspaceViewController: {}, connectorViewController: null, enhancementViewController: null,
     reportViewController: null, forecastViewController: null, workSignalsViewController: null, approvalViewController: null,
@@ -46,7 +50,7 @@ function harness() {
     + section('async function openFeatureFlagHistory(', 'function openFeatureFlagEditor(')
     + section('async function openWorkspaceUserSessions(', 'function renderWorkSignals(')
     + section('function beginInvitationForm(', 'function severityClass(');
-  const api = new Function(...Object.keys(bindings), 'enhancementRequest', 'connectorSearchTimer', `${code}; return { acceptWorkspaceInvitation, openWorkspaceDeletion, reloadAfterInvitationAcceptance, beginInvitationForm, openWorkspaceUserSessions, openSessionRevocationConfirmation, apiFetch, openRevokedSessionNotice, downloadWorkspaceExport, openFeatureFlagHistory };`)(...Object.values(bindings), null, null);
+  const api = new Function(...Object.keys(bindings), 'enhancementRequest', 'connectorSearchTimer', `${code}; return { acceptWorkspaceInvitation, openWorkspaceDeletion, reloadAfterInvitationAcceptance, beginInvitationForm, openWorkspaceUserSessions, openSessionRevocationConfirmation, apiFetch, openRevokedSessionNotice, downloadWorkspaceExport, openFeatureFlagHistory, broadcastSessionEnded, handleSessionEndedBroadcast };`)(...Object.values(bindings), null, null);
   const submitDeletion = async () => {
     document.getElementById('workspaceDeletionForm').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
     await flush();
@@ -56,6 +60,53 @@ function harness() {
 const accepted = id => ({ workspace: { id }, sessionToken: 'new-session' });
 
 const rejectedSession = () => new Response('{}', { status: 401, headers: { 'X-Sneup-Authentication': 'required' } });
+
+test('confirmed revocation clears matching same-browser tabs without broadcasting the credential', async () => {
+  const channel = { postMessage: jest.fn() };
+  const sender = harness({ sessionBroadcastChannel: channel });
+  sender.bindings.fetch.mockResolvedValue(rejectedSession());
+  await expect(sender.apiFetch('/api/security/context')).rejects.toThrow('session');
+  for (let attempt = 0; attempt < 20 && !channel.postMessage.mock.calls.length; attempt++) {
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+
+  const [message] = channel.postMessage.mock.calls[0] || [];
+  expect(message).toEqual({ type: 'session-ended', fingerprint: expect.stringMatching(/^[a-f0-9]{64}$/) });
+  expect(JSON.stringify(message)).not.toContain('old-session');
+
+  const receiver = harness({ sessionBroadcastChannel: channel });
+  await receiver.handleSessionEndedBroadcast({ data: message }, channel);
+  expect(receiver.state.sessionToken).toBe('sneup_session_revoked');
+  expect(receiver.state.snapshot).toBeNull();
+  expect(receiver.notice).toHaveBeenCalledWith('Session ended', expect.anything(), { allowSignedOut: true });
+
+  const unrelated = harness({ sessionBroadcastChannel: channel });
+  unrelated.state.sessionToken = 'different-session';
+  await unrelated.handleSessionEndedBroadcast({ data: message }, channel);
+  expect(unrelated.state.sessionToken).toBe('different-session');
+  expect(unrelated.notice).not.toHaveBeenCalled();
+
+  sender.dom.window.close();
+  receiver.dom.window.close();
+  unrelated.dom.window.close();
+});
+
+test('completed workspace deletion notifies sibling tabs using the deleted session', async () => {
+  const channel = { postMessage: jest.fn() };
+  const h = harness({ sessionBroadcastChannel: channel });
+  h.openWorkspaceDeletion();
+  await h.submitDeletion();
+  h.requests[0].resolve({ receipt: { deletionId: 'synthetic-receipt', status: 'completed' } });
+  await flush();
+  for (let attempt = 0; attempt < 20 && !channel.postMessage.mock.calls.length; attempt++) {
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  expect(channel.postMessage).toHaveBeenCalledWith({
+    type: 'session-ended', fingerprint: expect.stringMatching(/^[a-f0-9]{64}$/)
+  });
+  expect(JSON.stringify(channel.postMessage.mock.calls)).not.toContain('old-session');
+  h.dom.window.close();
+});
 
 test('confirmed credential rejection clears workspace caches and blocks repeated requests', async () => {
   const h = harness();

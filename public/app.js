@@ -1364,6 +1364,42 @@ function apiErrorMessage(data, fallback) {
   return data?.message || fallback;
 }
 
+function fingerprintSessionToken(sessionToken) {
+  const subtle = window.crypto?.subtle;
+  if (typeof sessionToken !== 'string' || !sessionToken || sessionToken === 'sneup_session_revoked'
+    || !subtle || typeof subtle.digest !== 'function' || typeof TextEncoder === 'undefined') return Promise.resolve(null);
+  return subtle.digest('SHA-256', new TextEncoder().encode(sessionToken))
+    .then(digest => Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join(''));
+}
+
+function broadcastSessionEnded(sessionToken, channel = sessionBroadcastChannel) {
+  if (!channel) return;
+  void fingerprintSessionToken(sessionToken).then(fingerprint => {
+    if (fingerprint) channel.postMessage({ type: 'session-ended', fingerprint });
+  }).catch(() => {});
+}
+
+async function handleSessionEndedBroadcast(event, channel = sessionBroadcastChannel) {
+  const fingerprint = event?.data?.fingerprint;
+  if (event?.data?.type !== 'session-ended' || !/^[a-f0-9]{64}$/.test(fingerprint || '')) return;
+  const sessionToken = state.sessionToken;
+  if (!sessionToken || sessionToken === 'sneup_session_revoked') return;
+  const currentFingerprint = await fingerprintSessionToken(sessionToken).catch(() => null);
+  if (currentFingerprint === fingerprint && state.sessionToken === sessionToken) endWorkspaceSession(false, channel);
+}
+
+function createSessionBroadcastChannel() {
+  if (typeof window.BroadcastChannel !== 'function') return null;
+  try {
+    const channel = new window.BroadcastChannel('sneup-session-events');
+    channel.addEventListener('message', event => { void handleSessionEndedBroadcast(event, channel); });
+    window.addEventListener('pagehide', event => { if (!event.persisted) channel.close(); });
+    return channel;
+  } catch {
+    return null;
+  }
+}
+
 async function apiFetch(url, options) {
   const path = versionedApiUrl(url);
   const invitation = path === '/api/v1/workspaces/invitations/accept' && options?.method === 'POST';
@@ -1388,7 +1424,8 @@ async function apiFetch(url, options) {
   return response;
 }
 
-function endWorkspaceSession() {
+function endWorkspaceSession(broadcast = true, channel = sessionBroadcastChannel) {
+  const endedSessionToken = state.sessionToken;
   // Keep a non-secret marker so refresh cannot silently fall back to local owner access.
   adoptWorkspaceContext('', 'sneup_session_revoked');
   let storageUpdated = true;
@@ -1397,6 +1434,7 @@ function endWorkspaceSession() {
   } catch {
     storageUpdated = false;
   }
+  if (broadcast) broadcastSessionEnded(endedSessionToken, channel);
   openRevokedSessionNotice(storageUpdated);
 }
 
@@ -3597,6 +3635,7 @@ function openWorkspaceDeletion() {
         openNotice(t('Deletion result unconfirmed'), t('The server response did not confirm completed deletion. Check the workspace status before taking further action.'));
         return;
       }
+      broadcastSessionEnded(state.sessionToken);
       adoptWorkspaceContext('', '');
       let sessionCleared = true;
       try {
@@ -4486,6 +4525,7 @@ function escapeHtml(value) {
   }[char]));
 }
 
+const sessionBroadcastChannel = createSessionBroadcastChannel();
 const invitationToken = inviteTokenFromUrl();
 if (invitationToken) {
   openInviteAcceptance(invitationToken);
