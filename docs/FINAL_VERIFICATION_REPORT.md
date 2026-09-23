@@ -2,6 +2,14 @@
 
 This report is updated from executed commands at release time. A passing local suite proves repository behavior under tests; it does not prove live provider authorization or production deployment.
 
+## 2.3.73 connector modal ownership and dependency advisory (2026-09-23)
+
+- Connector account-selection and inbound worker-response mapping forms now bind submission and asynchronous completion to the initiating workspace, session, latest request, active account, and modal content/epoch. A deferred-save regression failed before the fix because its late completion closed a newer dialog. The final focused connector suites passed 44 tests; the full local gate passed lint, 180 route-authorization contracts, 160 suites/1,581 tests, and all five recommendation scenarios. No provider writes were made.
+- The full dependency audit identified [GHSA-2883-xcg3-v3hh](https://github.com/advisories/GHSA-2883-xcg3-v3hh) in development/build-tool transitive `js-yaml` 3.15.1 and 4.3.1 copies; the production dependency tree was clean. The lockfile now resolves patched 3.15.2 and 4.3.2. Full and production-only local audits each report zero vulnerabilities.
+- Exact-commit [GitHub Actions run 35806582393](https://github.com/Robert-Velhorst/008-Sneup-Digital-Project-Manager/actions/runs/35806582393) passed all jobs on `aa9aa81944ffc4526ead30e5017a34dc83284e25`: quality (lint, full Jest, recommendation evaluation, production audit), Mongo integration (HAI, ledger, reconciliation, backup/restore verifiers), and Windows installer build/package verification.
+- Windows CI built `Sneup-Setup-2.3.73.exe`, confirmed packaged product version 2.3.73, passed packaged-launch verification, and explicitly skipped signing. Artifact `sneup-windows-installer-unsigned` (ID `10728305381`) is a 109,531,053-byte archive with SHA-256 `8b1ef9163cdea22c73802425c0c26fa685c4c0c958d68c440e3a70bdd5c0ac03`. The installer itself was not downloaded for an independent file hash/signature inspection.
+- This is not a current comprehensive source scan: the Codex Security Deep Scan could not start because its workers require an unavailable managed filesystem permission profile. Live provider/ngrok/HAI acceptance, production deployment/restore ownership, signing, clean-machine installation, and production-scale resource evidence remain external gates.
+
 ## 2.3.72 workspace-scoped reference hydration (2026-09-23)
 
 - Extended the workspace-scoped population helper with per-path projections and nested reference descriptors. Applied workspace matches to primary board/card reads, context/team analysis, card NLP and communication analysis, operating-ledger analysis, mission control, conversational AI, priority views, intervention and team management, performance, job history, chat history, analytics, comments, conversations, and card/intervention/performance model helpers. Authentication principal population remains a separate identity-resolution path.

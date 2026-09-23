@@ -18,7 +18,7 @@
 - A deferred-save regression reproduced the stale-dialog close before the fix. Forty-four focused connector UI and ownership tests pass after the fix.
 - The local CI gate passes lint, all 180 route-authorization contracts, 160 Jest suites/1,581 tests, and all five recommendation-safety scenarios.
 - Full and production-only dependency audits both pass with zero known vulnerabilities after the patched lockfile update.
-- Hosted Windows installer, packaged-runtime, dependency-audit, and exact-commit CI evidence is recorded in the final verification report after the push.
+- Exact-commit GitHub Actions run [35806582393](https://github.com/Robert-Velhorst/008-Sneup-Digital-Project-Manager/actions/runs/35806582393) passed quality, Mongo integration/backup-restore, and Windows installer/package verification. It uploaded the unsigned 2.3.73 installer artifact; details are in the final verification report.
 
 ## 2.3.42 - 2026-08-14
 

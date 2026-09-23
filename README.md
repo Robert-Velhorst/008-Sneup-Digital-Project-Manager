@@ -75,6 +75,8 @@ The browser command center is the main human interface. It surfaces project stat
 
 Sneup includes a connector catalog and account-linking flow for OAuth, API key, personal access token, basic, manual, generic webhook, and generic REST connections. Credential-backed sync is available only where the repository has an implemented bounded read-only adapter.
 
+Account-selection and inbound worker-response forms are bound to their opening workspace, session, connected account, request, and dialog generation. A stale form cannot submit after its context changes, and delayed saves or member/card searches cannot close or overwrite a newer dialog. These browser checks complement the server's account, workspace, permission, and approval controls; they do not replace them.
+
 ### Work Signals and graph
 
 Provider-specific records are normalized into common work items, actors, containers, dependencies, evidence references, freshness data, and review outcomes. This lets Sneup compare work across tools without pretending every provider has the same model.
@@ -303,7 +305,7 @@ The installer is written to:
 release\Sneup-Setup-<version>.exe
 ```
 
-The local release line currently builds `Sneup-Setup-2.3.72.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
+The local release line currently builds `Sneup-Setup-2.3.73.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts.
 
 Verify the unpacked Windows app before distributing an installer:
 
