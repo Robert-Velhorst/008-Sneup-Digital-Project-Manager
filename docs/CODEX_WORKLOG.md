@@ -1,5 +1,11 @@
 # Codex Worklog
 
+## 2026-09-23 detail-read ownership continuation
+
+- Reproduced stale-response handling gaps in recommendation evidence and work-graph detail reads: a prior workspace/session or dialog could receive late content/errors, and an older overlapping request could win.
+- Bound completion presentation to the current workspace, session, latest request, and modal content/epoch; encoded item identifiers in both API paths. Added 16 focused jsdom regressions and refreshed the route contract assertion.
+- Local verification passed lint, all 180 route-authorization contracts (174 guarded, six explicitly public, no issues), 159 Jest suites/1,550 tests, and five recommendation scenarios. This does not close other detail/form flows or external production acceptance.
+
 ## 2026-08-08 governing prompt implementation
 
 - Verified the 124-page source PDF and extracted all 116 named phases.

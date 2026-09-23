@@ -1746,7 +1746,7 @@ describe('dashboard content security policy', () => {
     expect(html).toContain('id="forecastBoards"');
     expect(appJs).toContain("fetchApi('/api/work-signals?limit=100')");
     expect(appJs).toContain('data-recommendation-evidence');
-    expect(appJs).toContain('/api/recommendations/${recommendationId}/evidence');
+    expect(appJs).toContain('/api/recommendations/${encodeURIComponent(recommendationId)}/evidence');
     expect(appJs).toContain('PAYLOAD_REVIEW_FIELDS');
     expect(approvalViewJs).toContain('Review payload');
     expect(appJs).not.toContain('Edit payload JSON');

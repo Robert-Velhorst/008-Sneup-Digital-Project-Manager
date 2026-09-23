@@ -2801,11 +2801,18 @@ function renderProtectedPayloadSummary(payload = {}) {
 async function openRecommendationEvidence(recommendationId) {
   if (!recommendationId) return;
 
+  const ownsRequest = beginWorkspaceRead('recommendationEvidence');
+  const modalContent = els.modalBody.firstChild;
+  const modalEpoch = state.modalEpoch || 0;
+  const isCurrent = () => ownsRequest() && els.modalBody.firstChild === modalContent
+    && (state.modalEpoch || 0) === modalEpoch;
+
   try {
-    const data = await fetchApi(`/api/recommendations/${recommendationId}/evidence`);
+    const data = await fetchApi(`/api/recommendations/${encodeURIComponent(recommendationId)}/evidence`);
+    if (!isCurrent()) return;
     renderEvidenceModal(data.evidence);
   } catch (error) {
-    openNotice(t('Evidence unavailable'), error.message);
+    if (isCurrent()) openNotice(t('Evidence unavailable'), error.message);
   }
 }
 
@@ -3857,11 +3864,18 @@ function renderWorkSignals() {
 async function openGraphItemDetail(itemId) {
   if (!itemId) return;
 
+  const ownsRequest = beginWorkspaceRead('graphItemDetail');
+  const modalContent = els.modalBody.firstChild;
+  const modalEpoch = state.modalEpoch || 0;
+  const isCurrent = () => ownsRequest() && els.modalBody.firstChild === modalContent
+    && (state.modalEpoch || 0) === modalEpoch;
+
   try {
-    const data = await fetchApi(`/api/work-signals/graph/items/${itemId}`);
+    const data = await fetchApi(`/api/work-signals/graph/items/${encodeURIComponent(itemId)}`);
+    if (!isCurrent()) return;
     renderGraphItemDetailModal(data.detail);
   } catch (error) {
-    openNotice('Graph detail unavailable', error.message);
+    if (isCurrent()) openNotice('Graph detail unavailable', error.message);
   }
 }
 
