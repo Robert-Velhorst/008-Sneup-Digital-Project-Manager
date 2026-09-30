@@ -89,6 +89,7 @@ networks:
     ipam:
       config:
         - subnet: ${SNEUP_PROXY_SUBNET:-10.255.108.0/24}
+          ip_range: ${SNEUP_PROXY_DYNAMIC_RANGE:-10.255.108.128/25}
   data:
     internal: true
     ipam:

@@ -13,6 +13,7 @@ const configFile = path.join(temporary, 'compose.json');
 const environment = {
   SNEUP_DOMAIN: 'sneup.verify.invalid', SNEUP_IMAGE_TAG: 'hetzner-verification',
   SNEUP_PROXY_SUBNET: '10.255.108.0/24', SNEUP_PROXY_IP: '10.255.108.2',
+  SNEUP_PROXY_DYNAMIC_RANGE: '10.255.108.128/25',
   SNEUP_DATA_SUBNET: '10.255.109.0/24',
   TRELLO_API_KEY: '', TRELLO_API_TOKEN: '', TRELLO_WEBHOOK_SECRET: '', SNEUP_PROVIDER_WRITES_DISABLED: 'true'
 };
@@ -47,6 +48,9 @@ try {
   assert.equal(config.services.app.read_only, true);
   assert.equal(config.services.app.environment.SNEUP_NGROK_ENABLED, 'false');
   assert.equal(config.networks.data.internal, true);
+  assert.equal(config.networks.edge.ipam.config[0].ip_range, environment.SNEUP_PROXY_DYNAMIC_RANGE);
+  assert.equal(config.services.caddy.networks.edge.ipv4_address, environment.SNEUP_PROXY_IP);
+  assert.equal(config.services.app.environment.SNEUP_TRUSTED_PROXY_IPS, environment.SNEUP_PROXY_IP);
   docker(['run', '--rm', '--env', 'SNEUP_DOMAIN=sneup.verify.invalid', '--volume', `${path.join(root, 'deploy/hetzner/Caddyfile')}:/etc/caddy/Caddyfile:ro`, 'caddy:2', 'caddy', 'validate', '--config', '/etc/caddy/Caddyfile']);
   // Exercise the actual proxy over private HTTP, without public ports or ACME.
   delete config.services.caddy.ports;
@@ -79,6 +83,7 @@ try {
   assert.equal(container.Config.User, 'node');
   assert.equal(container.HostConfig.ReadonlyRootfs, true);
   assert.equal(container.HostConfig.Memory, 1073741824);
+  assert.notEqual(container.NetworkSettings.Networks[`${project}_edge`].IPAddress, environment.SNEUP_PROXY_IP);
   assert.equal(docker([...compose, 'exec', '-T', 'app', 'node', '-p', "require('./package.json').version"]).trim(), require('../package.json').version);
   const probe = `
     const assert = require('node:assert/strict');
