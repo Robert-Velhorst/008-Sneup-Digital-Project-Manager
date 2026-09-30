@@ -456,7 +456,8 @@ const revokeInvite = async ({ workspaceId, inviteId, actor }) => {
   }
 
   const beforeState = publicInvite(invite);
-  await invite.revoke(actor || 'sneup');
+  const revoked = await invite.revoke(actor || 'sneup');
+  if (!revoked) throw invitationError('Invitation was already accepted, revoked, or expired', 409);
   await recordAudit({
     workspaceId,
     entityType: 'workspace_invite',
@@ -466,9 +467,9 @@ const revokeInvite = async ({ workspaceId, inviteId, actor }) => {
     source: 'api',
     riskLevel: 'high',
     beforeState,
-    afterState: publicInvite(invite)
+    afterState: publicInvite(revoked)
   });
-  return invite;
+  return revoked;
 };
 
 const acceptInvite = async ({ rawToken, displayName }) => {
@@ -488,8 +489,9 @@ const acceptInvite = async ({ rawToken, displayName }) => {
   const now = new Date();
   if (!invite.isUsable(now)) {
     if (invite.status === 'pending' && invite.expiresAt <= now) {
-      invite.status = 'expired';
-      await invite.save();
+      await WorkspaceInvite.findOneAndUpdate({
+        _id: invite._id, workspaceId: invite.workspaceId, status: 'pending', expiresAt: { $lte: now }
+      }, { $set: { status: 'expired' } });
     }
     throw invitationError('Invitation is invalid or has expired');
   }

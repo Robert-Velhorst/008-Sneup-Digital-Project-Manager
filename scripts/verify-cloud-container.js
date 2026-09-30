@@ -145,8 +145,53 @@ try {
       const authenticatedBody = await authenticatedProxy.json();
       assert.equal(authenticatedBody.ok, true);
       assert.equal(authenticatedBody.data.workspace.id, workspace.data.data.workspace.id);
+      const workspaceId = authenticatedBody.data.workspace.id;
+      const proxyRequest = async (url, auth = {}, body) => {
+        const response = await fetch('http://sneup.verify.invalid:80/api/v1' + url, {
+          method: body === undefined ? 'GET' : 'POST',
+          headers: { ...auth, Origin: 'https://sneup.verify.invalid', 'Content-Type': 'application/json' },
+          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+          signal: AbortSignal.timeout(10000)
+        });
+        const data = await response.json();
+        assert.equal(data.ok, response.ok);
+        assert.equal(data.meta.apiVersion, 'v1');
+        return { status: response.status, data, authentication: response.headers.get('X-Sneup-Authentication') };
+      };
+      phase = 'Caddy owner invitation';
+      const invitation = await proxyRequest('/workspaces/' + workspaceId + '/invitations', headers, {
+        email: 'cloud-owner@example.invalid', displayName: 'Cloud fixture owner', role: 'owner', deliveryMode: 'manual'
+      });
+      assert.equal(invitation.status, 201);
+      const inviteUrl = new URL(invitation.data.data.inviteUrl);
+      assert.equal(inviteUrl.origin, 'https://sneup.verify.invalid');
+      assert.equal(invitation.data.data.delivery.status, 'not_sent');
+      const inviteToken = inviteUrl.searchParams.get('invite');
+      assert.ok(inviteToken);
+      phase = 'Caddy invitation acceptance';
+      const accepted = await proxyRequest('/workspaces/invitations/accept', {}, { token: inviteToken });
+      assert.equal(accepted.status, 200);
+      const onboarding = accepted.data.data;
+      assert.equal(onboarding.workspace.id, workspaceId);
+      assert.equal(onboarding.user.role, 'owner');
+      assert.equal(onboarding.user.status, 'active');
+      assert.ok(onboarding.sessionToken.startsWith('sneup_session_'));
+      const sessionAuth = { Authorization: 'Bearer ' + onboarding.sessionToken };
+      phase = 'Caddy session authorization';
+      assert.equal((await proxyRequest('/workspaces/current', sessionAuth)).status, 200);
+      assert.equal((await proxyRequest('/workspaces/invitations/accept', {}, { token: inviteToken })).status, 400);
+      assert.equal((await proxyRequest('/workspaces/current', sessionAuth)).status, 200);
+      phase = 'Caddy session self-revocation';
+      const revoked = await proxyRequest('/workspaces/' + workspaceId + '/users/' + onboarding.user.id
+        + '/sessions/' + onboarding.session.id + '/revoke', sessionAuth, {});
+      assert.equal(revoked.status, 200);
+      assert.equal(revoked.data.data.currentSessionRevoked, true);
+      const deniedSession = await proxyRequest('/workspaces/current', sessionAuth);
+      assert.equal(deniedSession.status, 401);
+      assert.equal(deniedSession.authentication, 'required');
       console.log(JSON.stringify({ liveDatabase: true, unauthenticatedDenied: true, forgedLocalhostDenied: true,
-        authenticatedWorkspace: true, haiManifest: true, providerWritesDisabled: true, realCaddyHttp: true }));
+        authenticatedWorkspace: true, haiManifest: true, providerWritesDisabled: true, realCaddyHttp: true,
+        invitationOnboarding: true, repeatedInvitationDenied: true, sessionSelfRevocation: true }));
     })().catch(error => {
       console.error('Cloud HTTP smoke failed', phase, error.code || error.name, error.message);
       process.exitCode = 1;

@@ -125,6 +125,8 @@ The next protected request after session expiry, revocation elsewhere, or user d
 
 Context-transition verification remains incomplete for other forms and detail views, especially same-session workspace changes. This is not a claim of complete application-wide request isolation. The safeguards discard stale browser results; they do not universally cancel server-side work or recover every interrupted invitation flow.
 
+Invitation acceptance, revocation, and expiry use conditional database transitions. If acceptance wins a race, a late revocation reports a conflict and cannot falsely mark the invite revoked while its session remains active. Revoke that session explicitly to remove accepted access. If revocation wins, acceptance cannot issue a session; expiry cannot overwrite the revocation. This does not guarantee recovery of every interrupted onboarding or invitation-reissue flow.
+
 The Data Integrity screen also highlights unconfirmed worker responses and quarantined worker webhooks after 15 minutes, plus broken active approval references. Expand **Technical evidence** to inspect the relevant record identifiers and expected state. These findings are read-only: the repair action changes only list-count and member-assignment caches, not approvals, worker outcomes, or provider delivery state.
 
 The overview is capped. Select an individual category and use **Next records** to continue through its records, including pages with no findings. The active-approval check verifies that the referenced approval belongs to the exact recommendation and workspace and records an approved decision; it does not certify approval expiry, payload freshness, or permission to execute. Recovery still requires operator investigation, not an automatic replay.
@@ -305,7 +307,7 @@ The installer is written to:
 release\Sneup-Setup-<version>.exe
 ```
 
-The local release line currently builds `Sneup-Setup-2.3.77.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts. Current verification and remaining acceptance gates are recorded in [the verification report](docs/FINAL_VERIFICATION_REPORT.md).
+The local release line currently builds `Sneup-Setup-2.3.78.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts. Current verification and remaining acceptance gates are recorded in [the verification report](docs/FINAL_VERIFICATION_REPORT.md).
 
 Verify the unpacked Windows app before distributing an installer:
 

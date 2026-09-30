@@ -74,6 +74,50 @@ describe('workspace invitation delivery retries', () => {
     };
   };
 
+  test('does not report or audit revocation when acceptance won after the pending read', async () => {
+    const invite = { _id: 'invite-1', workspaceId: 'workspace-1', status: 'pending', revoke: jest.fn().mockResolvedValue(null) };
+    const { service, operationsLedgerService } = loadService({ invite });
+    await expect(service.revokeInvite({ workspaceId: 'workspace-1', inviteId: 'invite-1', actor: 'admin' }))
+      .rejects.toMatchObject({ statusCode: 409 });
+    expect(operationsLedgerService.recordAudit).not.toHaveBeenCalled();
+  });
+
+  test('returns and audits only the persisted revocation winner', async () => {
+    const revoked = { _id: 'invite-1', workspaceId: 'workspace-1', status: 'revoked', revokedBy: 'admin' };
+    const invite = { ...revoked, status: 'pending', revoke: jest.fn().mockResolvedValue(revoked) };
+    const { service, operationsLedgerService } = loadService({ invite });
+    expect(await service.revokeInvite({ workspaceId: 'workspace-1', inviteId: 'invite-1', actor: 'admin' })).toBe(revoked);
+    expect(operationsLedgerService.recordAudit).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'workspace_invite_revoked', beforeState: expect.objectContaining({ status: 'pending' }),
+      afterState: expect.objectContaining({ status: 'revoked', revokedBy: 'admin' })
+    }));
+  });
+
+  test.each(['accepted', 'revoked', 'expired'])('rejects an already %s invitation without a write or success audit', async status => {
+    const invite = { _id: 'invite-1', workspaceId: 'workspace-1', status, revoke: jest.fn() };
+    const { service, operationsLedgerService } = loadService({ invite });
+    await expect(service.revokeInvite({ workspaceId: 'workspace-1', inviteId: 'invite-1' })).rejects.toMatchObject({ statusCode: 409 });
+    expect(invite.revoke).not.toHaveBeenCalled();
+    expect(operationsLedgerService.recordAudit).not.toHaveBeenCalled();
+  });
+
+  test('does not save an expired snapshot over a concurrent terminal state', async () => {
+    const invite = {
+      _id: 'invite-expired', workspaceId: 'workspace-1', status: 'pending',
+      expiresAt: new Date(Date.now() - 60000), matches: jest.fn(() => true),
+      isUsable: jest.fn(() => false), save: jest.fn()
+    };
+    const { service, WorkspaceInvite, SessionToken } = loadService({ invite });
+    WorkspaceInvite.findOne.mockReturnValueOnce({ select: jest.fn().mockResolvedValue(invite) });
+    WorkspaceInvite.findOneAndUpdate.mockResolvedValueOnce(null);
+    await expect(service.acceptInvite({ rawToken: 'sneup_invite_expired' })).rejects.toMatchObject({ statusCode: 400 });
+    expect(invite.save).not.toHaveBeenCalled();
+    expect(WorkspaceInvite.findOneAndUpdate).toHaveBeenCalledWith({
+      _id: 'invite-expired', workspaceId: 'workspace-1', status: 'pending', expiresAt: { $lte: expect.any(Date) }
+    }, { $set: { status: 'expired' } });
+    expect(SessionToken.create).not.toHaveBeenCalled();
+  });
+
   test('does not mint an onboarding session when the atomic invitation claim loses a race', async () => {
     const invite = {
       _id: 'invite-race',

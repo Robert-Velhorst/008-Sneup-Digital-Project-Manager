@@ -112,6 +112,10 @@ Content-Type: application/json
 
 Pending invitations can be listed and revoked by identity administrators. Invitation creation, revocation, and acceptance create high-risk audit events.
 
+Revocation atomically changes only a still-pending invitation in the authenticated workspace. A request that loses to acceptance, another revocation, or expiry returns HTTP 409 and creates no successful revocation audit. An already accepted invitation is not a session-revocation mechanism: use the user's session controls to remove existing access. Acceptance already claims the single-use pending record atomically; if revocation wins, no session is issued. Expiry marking also changes only a still-pending, still-expired record, preserving concurrent terminal states.
+
+`npm run verify:workspace-invitations` exercises these transitions against actual MongoDB and authenticated HTTP. Set `SNEUP_INVITE_VERIFICATION_MONGO_URI` to a disposable, empty database named `sneup_invite_verification_<16 lowercase hex characters>`. The verifier refuses other names and existing collections, never sends email or calls providers, and removes only the claimed synthetic database after model initialization settles. Never point verification at production. It covers deterministic race orderings, lifecycle/audit/session evidence, and ordinary expiry, not every invitation-reissue, role-update, crash-recovery, or browser flow.
+
 ## Invitation retention
 
 After an invitation reaches `accepted`, `revoked`, or `expired`, Sneup retains only its operational lifecycle evidence. The scheduled `identity.invitation_retention` job redacts the invite email, display name, token prefix, token hash, and delivery failure code after the configured retention period. It keeps the workspace/user relationship, role, status, timestamps, delivery mode/status, and one aggregate audit event containing only the redaction count and status distribution. The job processes at most `SNEUP_INVITE_RETENTION_BATCH_SIZE` records per workspace pass, so a large workspace is cleaned over successive runs rather than creating an unbounded database operation.

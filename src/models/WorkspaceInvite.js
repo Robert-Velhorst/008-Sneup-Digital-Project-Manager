@@ -127,11 +127,15 @@ workspaceInviteSchema.methods.isUsable = function(now = new Date()) {
   return this.status === 'pending' && this.expiresAt > now;
 };
 
-workspaceInviteSchema.methods.revoke = function(actor = 'system') {
-  this.status = 'revoked';
-  this.revokedAt = new Date();
-  this.revokedBy = actor;
-  return this.save();
+workspaceInviteSchema.methods.revoke = async function(actor = 'system') {
+  const revoked = await this.constructor.findOneAndUpdate({
+    _id: this._id, workspaceId: this.workspaceId, status: 'pending'
+  }, {
+    $set: { status: 'revoked', revokedAt: new Date(), revokedBy: actor }
+  }, { new: true });
+  if (!revoked) return null;
+  this.set(revoked.toObject());
+  return this;
 };
 
 workspaceInviteSchema.statics.statuses = INVITE_STATUSES;
