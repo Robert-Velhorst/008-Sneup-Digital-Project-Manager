@@ -2,7 +2,7 @@
 
 Sneup is a local-first, safety-first digital project manager. It reads work signals from the tools teams already use, turns them into a normalized project graph, detects risk and bottlenecks, prepares recommendations, and keeps consequential external actions behind explicit human approval.
 
-The repository contains the complete Sneup application: an Express/MongoDB backend, a browser command center, an Electron desktop shell, read-only connector adapters, approval and audit systems, HAI integration endpoints, ngrok-aware remote access support, and a Windows 11 installer build.
+The repository contains the complete Sneup application: an Express/MongoDB backend, a browser command center, an Electron desktop shell, read-only connector adapters, approval and audit systems, HAI integration endpoints, Hetzner Cloud deployment configuration, and a Windows 11 installer build. Repository implementation is not proof of a completed production deployment.
 
 ## Table of contents
 
@@ -51,7 +51,7 @@ In short: Sneup can observe broadly, reason locally, and recommend clearly. It d
 - Runs scheduled sync, analytics, intervention, notification, retention, performance, and health jobs with workspace-scoped leases.
 - Keeps external provider writes approval-gated and blocks them entirely in demo mode or when the emergency stop is enabled.
 - Stores connector credentials encrypted at rest and excludes secrets from ordinary API responses, support bundles, exports, and logs.
-- Provides local browser usage, Electron desktop usage, Windows installer packaging, and optional authenticated ngrok ingress.
+- Provides local browser usage, Electron desktop usage, Windows installer packaging, and a Hetzner Cloud container deployment behind an authenticated HTTPS reverse proxy.
 - Exposes HAI integration endpoints for bounded snapshots and approval-gated proposals.
 - Generates operator-facing diagnostics and support bundles that do not print secrets.
 
@@ -61,7 +61,7 @@ In short: Sneup can observe broadly, reason locally, and recommend clearly. It d
 - It does not bypass the Sneup approval ledger for consequential provider actions.
 - It does not automatically re-enable paused actions or expired approval payloads.
 - It does not silently switch a production live runtime into demo mode when MongoDB is unavailable.
-- It does not expose a remote ngrok tunnel without API-key enforcement and a strong API key.
+- It does not grant local-owner access through the cloud proxy. Cloud startup requires enforced authentication, independent strong secrets, and an explicit HTTPS origin; forwarded headers are trusted only from explicitly configured proxy IPs.
 - It does not store arbitrary webhook payloads, chat bodies, provider descriptions, document contents, or credential values as project evidence.
 - It does not treat unsigned Windows builds as production-trusted installers.
 
@@ -131,7 +131,7 @@ The overview is capped. Select an individual category and use **Next records** t
 
 ### Desktop and remote access
 
-The Electron shell runs the local command center as a desktop app. Optional ngrok support can expose the loopback server through an authenticated HTTPS origin when the environment is configured safely.
+The Electron shell runs the local command center as a desktop app. Hetzner Cloud is the current server deployment target. The supplied Compose path runs Caddy HTTPS, the non-root read-only Node application, and private authenticated MongoDB, without publishing app/database ports. See [Hetzner deployment](docs/HETZNER_DEPLOYMENT.md) for setup, bootstrap, firewall, health, backup, and rollback requirements. Legacy optional ngrok support remains in the code but is disabled and not required for this deployment.
 
 ## Connector coverage
 
@@ -305,7 +305,7 @@ The installer is written to:
 release\Sneup-Setup-<version>.exe
 ```
 
-The local release line currently builds `Sneup-Setup-2.3.76.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts. Current verification and remaining acceptance gates are recorded in [the verification report](docs/FINAL_VERIFICATION_REPORT.md).
+The local release line currently builds `Sneup-Setup-2.3.77.exe`. The generated installer is unsigned unless a publisher certificate is configured in the release environment. Treat unsigned installers as internal test artifacts. Current verification and remaining acceptance gates are recorded in [the verification report](docs/FINAL_VERIFICATION_REPORT.md).
 
 Verify the unpacked Windows app before distributing an installer:
 
@@ -326,7 +326,7 @@ The complete configuration template is `.env.example`. Important groups are:
 - Trello: `TRELLO_API_KEY`, `TRELLO_API_TOKEN`, webhook secret, board/card limits, sync concurrency.
 - Connector OAuth apps: provider-specific `*_CLIENT_ID` and `*_CLIENT_SECRET` variables.
 - Connector sync: per-provider timeouts, page sizes, total limits, cursor lookback windows, retry limits, and response-size limits.
-- ngrok: `SNEUP_NGROK_ENABLED`, `NGROK_AUTHTOKEN`, `SNEUP_NGROK_DOMAIN`, with API-key enforcement required.
+- Hetzner: `deploy/hetzner/.env.example` and [deployment guide](docs/HETZNER_DEPLOYMENT.md); exact proxy IPs use `SNEUP_TRUSTED_PROXY_IPS`. ngrok is explicitly disabled in this deployment. Its legacy optional settings are not needed.
 - Notifications and invitations: Resend sender/API key, notification schedules, invite retention.
 - AI: optional `OPENAI_API_KEY` and bounded model/context/output settings.
 - Retention and repair: workspace retention schedules, invitation retention, repair commands, verification database names.
@@ -535,7 +535,8 @@ Detailed evidence is intentionally kept in docs rather than repeated in the READ
 - `docs/OPERATOR_RUNBOOK.md`: startup, release checks, emergency stop, diagnostics, repair, retention, backup, restore, rollback, Windows build.
 - `docs/SECURITY.md`: security model, supported reporting scope, secret handling, provider-write posture.
 - `docs/MULTI_WORKSPACE_IDENTITY.md`: workspace selection, sessions, invitations, and identity migration.
-- `docs/CLOUD_AND_HAI.md`: Windows, ngrok, HAI, and shutdown flow.
+- `docs/HETZNER_DEPLOYMENT.md`: current cloud topology, private database, HTTPS, secrets, resource bounds, bootstrap, verification, backup, and rollback.
+- `docs/CLOUD_AND_HAI.md`: Windows, cloud, HAI, shutdown, and legacy compatibility.
 - `docs/IMPLEMENTATION_REPORT.md`: release implementation notes.
 - `docs/FEATURE_IMPROVEMENT_PLAN.md`: feature improvement backlog and rationale.
 - `docs/TASK_GRAPH.md`: normalized task graph context.
@@ -546,7 +547,7 @@ These items require owner-controlled accounts or infrastructure and are not clai
 
 - Live Trello acceptance with the owner's real boards and webhook configuration.
 - Live OAuth acceptance for every third-party connector the owner wants to activate.
-- Live ngrok ingress with the owner's token and optional reserved domain.
+- Live Hetzner domain/TLS/firewall and host deployment acceptance. No ngrok account is required.
 - Live HAI integration acceptance from the consuming HAI system.
 - Production MongoDB restore rehearsal and hosted deployment/canary/rollback.
 - Windows publisher signing and trusted update-channel configuration.

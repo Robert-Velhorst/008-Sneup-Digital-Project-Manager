@@ -1,0 +1,11 @@
+{$SNEUP_DOMAIN} {
+    reverse_proxy app:3000 {
+        # Replace rather than append client-controlled forwarding headers.
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host {host}
+        health_uri /ready
+        health_interval 30s
+        health_timeout 5s
+    }
+}

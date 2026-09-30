@@ -1,20 +1,22 @@
-# Windows, ngrok, and HAI operation
+# Windows, Hetzner Cloud, and HAI operation
+
+Hetzner Cloud replaces ngrok as the current cloud deployment target. Follow [the Hetzner deployment guide](HETZNER_DEPLOYMENT.md). The legacy tunnel details below describe retained compatibility code, not a required service or acceptance gate. No Hetzner host has been provisioned or changed by adding this configuration.
 
 ## Runtime paths
 
 Sneup supports the same application core in three forms:
 
-1. Windows 11 desktop through the current `Sneup-Setup-2.3.52.exe` release target.
+1. Windows 11 desktop through the current installer release target in the README.
 2. Local or server Node runtime through `npm start`.
-3. Authenticated ngrok ingress layered over either runtime.
+3. Hetzner Cloud with private containers and HTTPS through an explicitly trusted reverse proxy.
 
-The desktop and Node modes both bind the Sneup server to loopback by default. Enabling ngrok does not change that bind address.
+The desktop and default Node modes bind to loopback. The Hetzner container binds to its private container network, without publishing an app host port. Legacy optional ngrok does not change the default loopback bind.
 
 Packaged production live mode fails closed before opening the loopback listener when MongoDB is unavailable. Windows then offers an explicit restart into labelled, read-only demo mode or a clean exit; it never silently changes an operator-selected live process into demo mode.
 
 When multiple Sneup cloud processes share MongoDB, startup, scheduled, worker, API, and manual jobs acquire one expiring lease for the exact workspace and job. Active runs heartbeat that lease and release it only with their private token; another process records a skipped run instead of duplicating work. Process loss recovers through expiry. Webhook events remain independently concurrent because their delivery-level idempotency is separate.
 
-## ngrok setup
+## Legacy ngrok setup (not the current deployment)
 
 Configure these environment variables before startup:
 
@@ -74,7 +76,7 @@ npm.cmd run check:ci
 npm.cmd audit --audit-level=high
 ```
 
-Provider acceptance still requires a real MongoDB workspace, Trello credentials, an ngrok account token, and a separately issued HAI API token. Keep those credentials outside Git and release artifacts.
+Provider acceptance still requires a real MongoDB workspace, approved Trello credentials, the actual Hetzner domain/TLS/firewall deployment, and a separately issued HAI API token. No ngrok account token is needed. Keep credentials outside Git and release artifacts.
 
 To test the database-backed HAI snapshot/proposal path without provider accounts, use a new disposable database:
 

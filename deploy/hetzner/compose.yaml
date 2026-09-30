@@ -1,0 +1,102 @@
+services:
+  app:
+    build:
+      context: ../..
+    image: sneup:${SNEUP_IMAGE_TAG:-local}
+    init: true
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 1g
+    pids_limit: 256
+    stop_grace_period: 30s
+    tmpfs: ["/tmp:size=64m,mode=1777"]
+    volumes: [app_logs:/app/logs]
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+      SNEUP_DEMO_MODE: "false"
+      SNEUP_NGROK_ENABLED: "false"
+      SNEUP_REQUIRE_API_KEY: "true"
+      SNEUP_API_KEY: ${SNEUP_API_KEY:?Set an independent random API key}
+      SNEUP_PUBLIC_URL: https://${SNEUP_DOMAIN:?Set the public DNS domain}
+      SNEUP_ALLOWED_ORIGINS: https://${SNEUP_DOMAIN:?Set the public DNS domain}
+      SNEUP_TRUST_REQUEST_HOST: "false"
+      SNEUP_TRUSTED_PROXY_IPS: ${SNEUP_PROXY_IP:-10.255.108.2}
+      MONGODB_URI: mongodb://sneup:${SNEUP_MONGO_PASSWORD:?Use a random hexadecimal app password}@mongo:27017/sneup?authSource=sneup
+      SNEUP_API_TOKEN_PEPPER: ${SNEUP_API_TOKEN_PEPPER:?Set an independent random secret}
+      SNEUP_SESSION_TOKEN_PEPPER: ${SNEUP_SESSION_TOKEN_PEPPER:?Set an independent random secret}
+      SNEUP_INVITE_TOKEN_PEPPER: ${SNEUP_INVITE_TOKEN_PEPPER:?Set an independent random secret}
+      CONNECTOR_ENCRYPTION_KEY: ${CONNECTOR_ENCRYPTION_KEY:?Set an independent random secret}
+      CONNECTOR_STATE_SECRET: ${CONNECTOR_STATE_SECRET:?Set an independent random secret}
+      SNEUP_PROVIDER_WRITES_DISABLED: ${SNEUP_PROVIDER_WRITES_DISABLED:-true}
+      SNEUP_DEFAULT_WORKSPACE_ID: ${SNEUP_DEFAULT_WORKSPACE_ID:-default}
+      SNEUP_DEFAULT_WORKSPACE_NAME: ${SNEUP_DEFAULT_WORKSPACE_NAME:-Sneup Cloud Workspace}
+      TRELLO_API_KEY: ${TRELLO_API_KEY:-}
+      TRELLO_API_TOKEN: ${TRELLO_API_TOKEN:-}
+      TRELLO_WEBHOOK_SECRET: ${TRELLO_WEBHOOK_SECRET:-}
+      WEBHOOK_CALLBACK_URL: https://${SNEUP_DOMAIN:?Set the public DNS domain}/api/webhooks/trello
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks: [edge, data]
+
+  mongo:
+    image: mongo:7.0
+    restart: unless-stopped
+    mem_limit: 1g
+    pids_limit: 256
+    command: [mongod, --wiredTigerCacheSizeGB, "0.25", --bind_ip_all]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: sneup-root
+      MONGO_INITDB_ROOT_PASSWORD: ${SNEUP_MONGO_ROOT_PASSWORD:?Use an independent random root password}
+      MONGO_INITDB_DATABASE: sneup
+      SNEUP_MONGO_PASSWORD: ${SNEUP_MONGO_PASSWORD:?Use a random hexadecimal app password}
+    volumes:
+      - mongo_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/10-sneup.js:ro
+    healthcheck:
+      test: [CMD, mongosh, --quiet, --eval, "quit(db.adminCommand({ping:1}).ok ? 0 : 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks: [data]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    mem_limit: 256m
+    pids_limit: 128
+    ports: ["80:80", "443:443"]
+    environment:
+      SNEUP_DOMAIN: ${SNEUP_DOMAIN:?Set the public DNS domain}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      edge:
+        ipv4_address: ${SNEUP_PROXY_IP:-10.255.108.2}
+
+networks:
+  edge:
+    ipam:
+      config:
+        - subnet: ${SNEUP_PROXY_SUBNET:-10.255.108.0/24}
+  data:
+    internal: true
+    ipam:
+      config:
+        - subnet: ${SNEUP_DATA_SUBNET:-10.255.109.0/24}
+
+volumes:
+  app_logs:
+  mongo_data:
+  caddy_data:
+  caddy_config:

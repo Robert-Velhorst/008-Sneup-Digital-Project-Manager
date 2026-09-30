@@ -81,6 +81,19 @@ jobs:
           SNEUP_MONGODUMP_PATH: ${{ runner.temp }}/mongodump
           SNEUP_MONGORESTORE_PATH: ${{ runner.temp }}/mongorestore
 
+  cloud-container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: docker build --load --tag sneup:hetzner-verification .
+      - run: npm run verify:cloud-container
+
   windows-installer:
     runs-on: windows-latest
     timeout-minutes: 30

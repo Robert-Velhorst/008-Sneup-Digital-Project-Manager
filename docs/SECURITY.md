@@ -11,7 +11,8 @@ Sneup separates browser/API identity, workspace-scoped persistence, encrypted co
 ## Controls
 
 - CSP, Helmet, bounded JSON/form/webhook bodies, origin controls, request throttling, and capped in-memory rate-limit cardinality.
-- ngrok returns one validated root HTTPS origin, which is admitted dynamically without wildcard CORS; unsafe listeners close, concurrent starts share one tunnel, and tunnel-owned public/callback URLs are restored on shutdown.
+- Current Hetzner deployment uses a non-root read-only app behind Caddy, private authenticated MongoDB, exact public HTTPS/CORS configuration, and independent strong secrets. Forwarded headers are accepted only from configured exact proxy IPs with enforced authentication; forwarded localhost does not grant local-owner access. Configuration diagnostics can reject readiness. See [deployment boundaries and remaining acceptance](HETZNER_DEPLOYMENT.md).
+- Legacy optional ngrok returns one validated root HTTPS origin, which is admitted dynamically without wildcard CORS; unsafe listeners close, concurrent starts share one tunnel, and tunnel-owned public/callback URLs are restored on shutdown. It is disabled and not required in the current deployment.
 - Trello webhook state is observed only after the final callback exists. Missing, stale, or duplicate configuration creates an exact protected high-risk recommendation; startup never mutates Trello, and direct low-level card or webhook calls still enforce demo mode and the deployment emergency stop.
 - Role permissions and workspace ownership on API tokens, sessions, invitations, connectors, jobs, policies, recommendations, actions, and audit reads.
 - Independent 32+ character production peppers; separate connector encryption and OAuth-state secrets; placeholder and secret-reuse rejection.

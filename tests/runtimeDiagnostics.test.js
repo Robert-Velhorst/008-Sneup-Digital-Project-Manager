@@ -151,6 +151,17 @@ describe('redacted runtime diagnostics', () => {
 });
 
 describe('readiness state', () => {
+  test('doctor and readiness reject unsafe proxy trust without exposing values', () => {
+    const environment = { NODE_ENV: 'development', SNEUP_DEMO_MODE: 'true', SNEUP_TRUSTED_PROXY_IPS: 'true' };
+    expect(getRuntimeDiagnostics({ environment })).toMatchObject({ ready: false, secretsExposed: false });
+    expect(getRuntimeReadiness({ environment, initialized: true })).toMatchObject({ ready: false });
+  });
+  test('does not advertise readiness when configuration diagnostics fail', () => {
+    expect(getRuntimeReadiness({
+      environment: { NODE_ENV: 'development', SNEUP_DEMO_MODE: 'true', HOST: '0.0.0.0', SNEUP_REQUIRE_API_KEY: 'false' },
+      databaseState: 'connected', initialized: true
+    })).toMatchObject({ ready: false, status: 'not_ready', diagnostics: { status: 'error' } });
+  });
   test('serves demo mode as degraded and refuses an uninitialized live runtime', () => {
     expect(getRuntimeReadiness({
       environment: { NODE_ENV: 'development', SNEUP_DEMO_MODE: 'true' },

@@ -7,6 +7,7 @@ const {
 const { getProviderWriteSafetyStatus } = require('./providerWriteSafetyService');
 const { resolveTrelloTimeoutMs } = require('../utils/trelloConfiguration');
 const { getShutdownGraceMs } = require('../utils/runtimeShutdown');
+const { getTrustedProxyIps } = require('../utils/trustedProxyConfiguration');
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1', 'localhost']);
 
@@ -84,7 +85,11 @@ const getRuntimeDiagnostics = ({ environment = process.env, nodeVersion = proces
   const remotelyExposed = !LOOPBACK_HOSTS.has(host);
   const apiKeyRequired = String(environment.SNEUP_REQUIRE_API_KEY || '').toLowerCase() === 'true';
   const apiKeyConfigured = Boolean(String(environment.SNEUP_API_KEY || '').trim()) && !isPlaceholder(environment.SNEUP_API_KEY);
-  checks.push(remotelyExposed && (!apiKeyRequired || !apiKeyConfigured)
+  let proxyConfigurationValid = true;
+  try { getTrustedProxyIps(environment); } catch { proxyConfigurationValid = false; }
+  checks.push(!proxyConfigurationValid
+    ? diagnostic('remote_api_access', 'error', 'Trusted proxy IPs require explicit addresses and enforced strong API authentication')
+    : remotelyExposed && (!apiKeyRequired || !apiKeyConfigured)
     ? diagnostic('remote_api_access', 'error', 'A non-loopback host requires an enabled, non-placeholder API key')
     : diagnostic('remote_api_access', 'ok', remotelyExposed ? 'Remote API access is protected by an API key' : 'The HTTP server is bound to loopback'));
 
@@ -128,7 +133,7 @@ const getRuntimeReadiness = ({
   const diagnostics = getRuntimeDiagnostics({ environment });
   const demoMode = diagnostics.mode === 'demo';
   const databaseReady = databaseState === 'connected';
-  const serving = initialized && (demoMode || databaseReady);
+  const serving = initialized && diagnostics.ready && (demoMode || databaseReady);
   const degraded = serving && (!diagnostics.liveCriticalPathReady || diagnostics.providerWrites.enabled === false);
 
   return {

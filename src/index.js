@@ -20,6 +20,7 @@ const responseTimingService = require('./services/responseTimingService');
 const commandCenterAssetService = require('./services/commandCenterAssetService');
 const { requestContextMiddleware, versionedApiEnvelope } = require('./services/apiContractService');
 const { validateRuntimeSecurityConfiguration } = require('./utils/securityConfiguration');
+const { getTrustedProxyIps } = require('./utils/trustedProxyConfiguration');
 const { getRuntimeReadiness } = require('./services/runtimeDiagnosticsService');
 const ngrokTunnelService = require('./services/ngrokTunnelService');
 const { RequestLoggingService } = require('./services/requestLoggingService');
@@ -79,6 +80,8 @@ const webhookRoutes = createLazyRouter(() => require('./routes/webhooks'), 'webh
 
 // Initialize Express app
 const app = express();
+const trustedProxyIps = getTrustedProxyIps();
+app.set('trust proxy', trustedProxyIps.length ? trustedProxyIps : false);
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '127.0.0.1';
 let server;
@@ -200,7 +203,7 @@ const productMetadata = (req, res) => {
       'Cross-tool work signals',
       'Accountability reports',
       'HAI approval-gated integration',
-      'Authenticated ngrok ingress',
+      'Authenticated HTTPS reverse-proxy deployment',
       'Capacity-aware P50/P80 delivery forecasts',
       'Audited internal data integrity repair',
       'Owner-controlled bounded data retention'

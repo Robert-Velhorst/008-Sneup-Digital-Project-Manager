@@ -1,5 +1,13 @@
 # Final Verification Report
 
+## 2.3.77 Hetzner Cloud configuration (2026-10-01)
+
+- Hetzner Cloud replaces ngrok as the current deployment target. Added a production Docker image, private authenticated MongoDB, Caddy reverse proxy, strong independent secret/origin preflight, explicit trusted proxy IPs, resource bounds, and operator instructions. The deployment invokes the existing application lifecycle rather than a separate backend. Optional legacy tunnel code remains disabled in this deployment.
+- `npm run check:ci` passed lint, 180 route-authorization contracts, 162 Jest suites/1,666 tests, and five recommendation evaluations. Thirty additional cases cover unsafe cloud startup, trusted-proxy client rate buckets/authentication, and readiness configuration failures. The first full run caught an outdated product-metadata expectation; it was updated to the HTTPS reverse-proxy feature and the complete gate was rerun successfully. Final lint and both full/production dependency audits also pass.
+- The Docker image built and loaded locally with Node 24 and production-only dependencies. Initial disposable-container attempts encountered this shared machine's exhausted automatic address pools; both deployment networks now use explicit, independently configurable non-overlapping subnets. No existing networks were pruned or changed.
+- Real container acceptance and exact-commit hosted evidence are recorded separately after execution. Adding CI configuration or building an image alone does not prove runtime success.
+- No Hetzner server/domain/firewall, public ACME/TLS, live provider/HAI account, or production data was changed. Actual deployment, provider/HAI, restore/load/failover, full app-wide source/UI coverage, signing, and clean Windows 11 installation remain open. ngrok acceptance is no longer a current requirement.
+
 ## 2.3.76 dependency advisory remediation (2026-09-30)
 
 - Exact-commit 2.3.75 [run 36778483548](https://github.com/Robert-Velhorst/008-Sneup-Digital-Project-Manager/actions/runs/36778483548) passed Jest, lint, recommendation evaluation, Mongo integration/backup-restore, and Windows installer build/packaged launch, but its production dependency audit failed on Axios. That release is not an all-green security-verified release.

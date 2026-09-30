@@ -47,7 +47,7 @@ describe('browser root and API metadata wiring', () => {
       name: 'Sneup',
       features: expect.arrayContaining([
         'HAI approval-gated integration',
-        'Authenticated ngrok ingress'
+        'Authenticated HTTPS reverse-proxy deployment'
       ])
     });
   });

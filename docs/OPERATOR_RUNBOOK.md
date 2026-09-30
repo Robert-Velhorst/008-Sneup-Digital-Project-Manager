@@ -1,5 +1,9 @@
 # Operator Runbook
 
+## Current Cloud Target
+
+Use [Hetzner Cloud deployment](HETZNER_DEPLOYMENT.md) for the container, private database, HTTPS proxy, independent secrets, networking, bootstrap, and host operations. ngrok is disabled and not required. Inspect existing shared-host services before assigning ports, networks, or storage; the repository does not authorize provisioning or changing a live host.
+
 ## Start
 
 ```powershell
