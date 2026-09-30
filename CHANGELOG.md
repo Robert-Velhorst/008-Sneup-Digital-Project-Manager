@@ -9,6 +9,7 @@
 - Updated vulnerable build-tree brace-expansion copies to 1.1.21/2.1.7/5.0.12, fast-uri to 3.1.8, and Undici copies to 6.29.0/7.30.0 within their existing dependency ranges. Both full and production-only audits now report zero known vulnerabilities.
 - Hosted quality now explicitly verifies route authorization and audits the full dependency tree, including Electron, in addition to production-only dependencies. No security gate was bypassed.
 - The local full CI gate passed after dependency updates. A single demo startup smoke profile returned 200 from all seven endpoints, with 290.2 ms import, 64.8 MB import RSS, and 68.5 MB Overview RSS; Mongoose remained unloaded. These are local samples, not production-scale benchmarks or a claim of improvement.
+- Exact-commit [run 36780974289](https://github.com/Robert-Velhorst/008-Sneup-Digital-Project-Manager/actions/runs/36780974289) passed hosted quality, Mongo/backup-restore, and Windows installer/packaged-runtime checks using Electron 42.10.0. The unsigned installer artifact and verification limitations are recorded in the final verification report.
 
 ## 2.3.75 - 2026-09-30
 
