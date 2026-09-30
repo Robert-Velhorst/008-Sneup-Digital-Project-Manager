@@ -11,7 +11,7 @@
 - Fix readiness to reject failed configuration/security diagnostics even when initialization and MongoDB appear ready.
 - Add 30 regressions, a disposable real-container verification script, a hosted container job, and a detailed deployment/operations guide. The local full gate passed 162 suites/1,666 tests, 180 route-authorization contracts, lint, and five recommendation scenarios; full and production dependency audits report zero known vulnerabilities.
 - No paid resource, public DNS, Hetzner host, TLS certificate, real provider account, or external action was provisioned by this change. Live acceptance remains required; resource limits are not production-scale performance evidence.
-- Exact-source [run 36786263147](https://github.com/Robert-Velhorst/008-Sneup-Digital-Project-Manager/actions/runs/36786263147) passed quality, Mongo/backup-restore, actual cloud-container forwarding/authentication/shutdown, and unsigned Windows packaging/launch. Subsequent optional-configuration verification remains separately recorded by its workflow.
+- Exact-source [run 36786620393](https://github.com/Robert-Velhorst/008-Sneup-Digital-Project-Manager/actions/runs/36786620393) passed quality, Mongo/backup-restore, actual cloud-container forwarding/authentication/shutdown, optional account-setting isolation, and unsigned Windows packaging/launch. Artifact provenance, local Docker failures, and remaining external acceptance are in the final verification report.
 
 ## 2.3.76 - 2026-09-30
 
