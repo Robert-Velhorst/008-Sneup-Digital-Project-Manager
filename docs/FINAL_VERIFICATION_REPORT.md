@@ -1,11 +1,19 @@
 # Final Verification Report
 
+## 2.3.76 dependency advisory remediation (2026-09-30)
+
+- Exact-commit 2.3.75 [run 36778483548](https://github.com/Robert-Velhorst/008-Sneup-Digital-Project-Manager/actions/runs/36778483548) passed Jest, lint, recommendation evaluation, Mongo integration/backup-restore, and Windows installer build/packaged launch, but its production dependency audit failed on Axios. That release is not an all-green security-verified release.
+- Updated Axios 1.18.1 to 1.20.0 and Electron 42.8.1 to 42.10.0; both minimum declared ranges now require the patched versions. Updated vulnerable build dependencies brace-expansion, fast-uri, and Undici within compatible ranges. Reviewed the maintainer release/advisories; no demonstrated Sneup exploit is claimed.
+- `npm audit` and `npm audit --omit=dev --audit-level=high` both report zero known vulnerabilities. The complete local `npm run check:ci` gate passed after installation. Hosted quality now includes the route-authorization inventory and the full dependency audit, so desktop runtime advisories cannot disappear behind `--omit=dev`.
+- `npm run profile:startup` passed all seven HTTP requests in demo mode without providers, MongoDB, or ngrok. One sample: import 290.2 ms/64.8 MB RSS/254 modules, Overview 64 ms/68.5 MB RSS/267 modules; Mongoose stayed unloaded. This is not a production-scale comparison, and no measured resource/speed improvement is claimed.
+- Hosted exact-commit validation of the patched dependency tree remains pending. Live provider/ngrok/HAI, app-wide source and UI coverage, production-scale/failover, signing, and clean-machine Windows acceptance remain open.
+
 ## 2.3.75 workspace administration ownership (2026-09-30)
 
 - `npm run check:ci` passed lint, 180 route-authorization contracts (174 guarded, six explicitly public, no issues), 161 Jest suites/1,636 tests, and five recommendation scenarios. The new ownership suite adds 47 cases; the original red run failed 22 of 28 initial cases before the implementation.
 - After correcting the disabled-retention success wording, the two affected suites passed 59 tests. The form handlers were exercised in headless Chromium with synthetic DOM/API/refresh bindings: four forms rejected stale and duplicate submissions, preserved newer dialogs on late completion, and correctly reported disabled retention. No console errors occurred. Browser plugin not available; bundled Playwright was used without installing dependencies. This isolated fixture is not full-dashboard, database, or live-provider acceptance.
 - No model, endpoint, backend authorization, provider execution, polling, or schedule change was made. Post-commit refresh failure invalidates the workspace view and reports the acknowledged operation rather than encouraging accidental replay.
-- Hosted CI and Windows artifact evidence for this release remain unverified here. Full source scanning, other mutation/detail contexts, live provider/ngrok/HAI, production-scale/failover, signing, and clean-machine Windows acceptance remain open. The full goal is not complete.
+- Hosted run 36778483548 passed the Windows installer/package and Mongo checks, but failed the production Axios audit; see 2.3.76 remediation above. Full source scanning, other mutation/detail contexts, live provider/ngrok/HAI, production-scale/failover, signing, and clean-machine Windows acceptance remain open. The full goal is not complete.
 
 This report is updated from executed commands at release time. A passing local suite proves repository behavior under tests; it does not prove live provider authorization or production deployment.
 

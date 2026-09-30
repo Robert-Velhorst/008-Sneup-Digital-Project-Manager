@@ -20,9 +20,11 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm run lint
+      - run: npm run check:route-authorization
       - run: npm test -- --runInBand
       - run: npm run evaluate:recommendations
       - run: npm audit --omit=dev --audit-level=high
+      - run: npm audit --audit-level=high
 
   mongo-integration:
     runs-on: ubuntu-latest

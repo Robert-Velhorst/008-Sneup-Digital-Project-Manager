@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.3.76 - 2026-09-30
+
+### Runtime and build dependency security
+
+- Updated Axios from 1.18.1 to 1.20.0 for the [maintainer's runtime security fixes](https://github.com/axios/axios/releases/tag/v1.20.0). The production audit in the 2.3.75 workflow failed on current Axios advisories despite passing tests.
+- Updated Electron from 42.8.1 to 42.10.0, including the [sandboxed preload-cache fix](https://github.com/electron/electron/security/advisories/GHSA-qmv3-fv6v-rmhq). Electron is a devDependency for packaging but is the shipped desktop runtime, not merely test tooling.
+- Updated vulnerable build-tree brace-expansion copies to 1.1.21/2.1.7/5.0.12, fast-uri to 3.1.8, and Undici copies to 6.29.0/7.30.0 within their existing dependency ranges. Both full and production-only audits now report zero known vulnerabilities.
+- Hosted quality now explicitly verifies route authorization and audits the full dependency tree, including Electron, in addition to production-only dependencies. No security gate was bypassed.
+- The local full CI gate passed after dependency updates. A single demo startup smoke profile returned 200 from all seven endpoints, with 290.2 ms import, 64.8 MB import RSS, and 68.5 MB Overview RSS; Mongoose remained unloaded. These are local samples, not production-scale benchmarks or a claim of improvement.
+
 ## 2.3.75 - 2026-09-30
 
 ### Workspace administration form ownership
