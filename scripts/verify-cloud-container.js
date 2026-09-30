@@ -9,9 +9,11 @@ const root = path.resolve(__dirname, '..');
 const project = `sneup-cloud-verification-${crypto.randomBytes(8).toString('hex')}`;
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'sneup-cloud-verification-'));
 const envFile = path.join(temporary, '.env');
+const appEnvFile = path.join(temporary, 'app.env');
 const configFile = path.join(temporary, 'compose.json');
 const environment = {
   SNEUP_DOMAIN: 'sneup.verify.invalid', SNEUP_IMAGE_TAG: 'hetzner-verification',
+  SNEUP_APP_ENV_FILE: appEnvFile,
   SNEUP_PROXY_SUBNET: '10.255.108.0/24', SNEUP_PROXY_IP: '10.255.108.2',
   SNEUP_PROXY_DYNAMIC_RANGE: '10.255.108.128/25',
   SNEUP_DATA_SUBNET: '10.255.109.0/24',
@@ -23,6 +25,7 @@ for (const name of ['SNEUP_API_KEY', 'SNEUP_API_TOKEN_PEPPER', 'SNEUP_SESSION_TO
   environment[name] = crypto.randomBytes(32).toString('hex');
 }
 fs.writeFileSync(envFile, Object.entries(environment).map(([key, value]) => `${key}=${value}`).join('\n'), { mode: 0o600 });
+fs.writeFileSync(appEnvFile, 'SNEUP_CLOUD_OPTIONAL_ENV_PROBE=owned-fixture\nSNEUP_REQUIRE_API_KEY=false\n', { mode: 0o600 });
 let compose = ['compose', '--project-name', project, '--env-file', envFile, '-f', path.join(root, 'deploy/hetzner/compose.yaml')];
 const redact = value => {
   let detail = String(value);
@@ -47,6 +50,9 @@ try {
   assert.equal(config.services.mongo.ports, undefined);
   assert.equal(config.services.app.read_only, true);
   assert.equal(config.services.app.environment.SNEUP_NGROK_ENABLED, 'false');
+  assert.equal(config.services.app.environment.SNEUP_REQUIRE_API_KEY, 'true');
+  assert.equal(config.services.app.environment.SNEUP_CLOUD_OPTIONAL_ENV_PROBE, 'owned-fixture');
+  assert.equal(config.services.app.environment.SNEUP_MONGO_ROOT_PASSWORD, undefined);
   assert.equal(config.networks.data.internal, true);
   assert.equal(config.networks.edge.ipam.config[0].ip_range, environment.SNEUP_PROXY_DYNAMIC_RANGE);
   assert.equal(config.services.caddy.networks.edge.ipv4_address, environment.SNEUP_PROXY_IP);
@@ -82,6 +88,8 @@ try {
   const container = JSON.parse(docker(['inspect', appId]))[0];
   assert.equal(container.Config.Labels['com.docker.compose.project'], project);
   assert.equal(container.Config.User, 'node');
+  assert.ok(container.Config.Env.includes('SNEUP_CLOUD_OPTIONAL_ENV_PROBE=owned-fixture'));
+  assert.ok(!container.Config.Env.some(value => value.includes(environment.SNEUP_MONGO_ROOT_PASSWORD)));
   assert.equal(container.HostConfig.ReadonlyRootfs, true);
   assert.equal(container.HostConfig.Memory, 1073741824);
   assert.notEqual(container.NetworkSettings.Networks[`${project}_edge`].IPAddress, environment.SNEUP_PROXY_IP);
@@ -162,6 +170,7 @@ try {
   }
   docker([...compose, 'down', '--volumes', '--remove-orphans']);
   fs.unlinkSync(envFile);
+  fs.unlinkSync(appEnvFile);
   if (fs.existsSync(configFile)) fs.unlinkSync(configFile);
   fs.rmdirSync(temporary);
 }

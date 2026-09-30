@@ -326,7 +326,7 @@ The complete configuration template is `.env.example`. Important groups are:
 - Trello: `TRELLO_API_KEY`, `TRELLO_API_TOKEN`, webhook secret, board/card limits, sync concurrency.
 - Connector OAuth apps: provider-specific `*_CLIENT_ID` and `*_CLIENT_SECRET` variables.
 - Connector sync: per-provider timeouts, page sizes, total limits, cursor lookback windows, retry limits, and response-size limits.
-- Hetzner: `deploy/hetzner/.env.example` and [deployment guide](docs/HETZNER_DEPLOYMENT.md); exact proxy IPs use `SNEUP_TRUSTED_PROXY_IPS`. ngrok is explicitly disabled in this deployment. Its legacy optional settings are not needed.
+- Hetzner: `deploy/hetzner/.env.example` and [deployment guide](docs/HETZNER_DEPLOYMENT.md); exact proxy IPs use `SNEUP_TRUSTED_PROXY_IPS`. Optional connector/client settings go in a separate ignored app-only environment file, not the database-root configuration. ngrok is explicitly disabled in this deployment. Its legacy optional settings are not needed.
 - Notifications and invitations: Resend sender/API key, notification schedules, invite retention.
 - AI: optional `OPENAI_API_KEY` and bounded model/context/output settings.
 - Retention and repair: workspace retention schedules, invitation retention, repair commands, verification database names.

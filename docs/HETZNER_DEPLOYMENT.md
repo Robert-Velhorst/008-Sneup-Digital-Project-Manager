@@ -31,6 +31,8 @@ Set `SNEUP_DOMAIN` to the actual domain, without a scheme, port, path, or traili
 
 Trello credentials are optional for initial setup. With no Trello credentials, the live database and administration path can run, but the critical Trello path is not ready. Do not supply example Trello credentials. Keep `SNEUP_PROVIDER_WRITES_DISABLED=true` until the operator has verified accounts, scopes, callbacks, backups, and pending approvals. Disabling this emergency stop never bypasses per-action approval.
 
+For other connector OAuth client settings, notification delivery, optional model settings, or runtime tuning, copy `deploy/hetzner/app.env.example` to ignored `deploy/hetzner/app.env`, restrict it to mode 0600, and set `SNEUP_APP_ENV_FILE=./app.env` in the deployment `.env`. Use the repository-root `.env.example` as the supported setting reference, adding only the settings actually needed. Never put the database root credential or unrelated host secrets in the app file. Core Compose authentication, storage, bind, tunnel, origin, and emergency-stop settings override that file; Trello credentials remain in the deployment `.env`. Restart/recreate the app to apply changes. Optional paid model or notification configuration requires the owner's separate authorization; no account is connected by copying a template.
+
 ```sh
 docker compose --project-name sneup --env-file deploy/hetzner/.env -f deploy/hetzner/compose.yaml config --quiet
 docker compose --project-name sneup --env-file deploy/hetzner/.env -f deploy/hetzner/compose.yaml build app

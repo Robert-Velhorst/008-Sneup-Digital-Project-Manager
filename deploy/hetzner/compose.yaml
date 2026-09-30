@@ -13,6 +13,7 @@ services:
     stop_grace_period: 30s
     tmpfs: ["/tmp:size=64m,mode=1777"]
     volumes: [app_logs:/app/logs]
+    env_file: ["${SNEUP_APP_ENV_FILE:-./app.env.example}"]
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0

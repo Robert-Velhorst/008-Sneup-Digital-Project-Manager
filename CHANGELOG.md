@@ -6,10 +6,12 @@
 
 - Replace ngrok as the current cloud target with a dedicated Docker/Compose path: Caddy HTTPS, a non-root read-only Sneup runtime, and authenticated private MongoDB with a restricted application user. Preserve optional legacy ngrok compatibility, disabled in this deployment.
 - Add explicit configurable proxy/database subnets, resource bounds, persistent storage, health checks, and the existing graceful shutdown lifecycle. Refuse insecure or inconsistent cloud authentication, secrets, origin, storage, and tunnel settings before startup.
+- Keep fixed proxy addresses outside automatic allocation ranges. Optional account/client settings use a separate app-only environment file; mandatory cloud security settings override it, and the database root credential is not passed to the app.
 - Trust forwarded headers only from explicitly configured proxy IPs, with enforced strong authentication. Preserve per-client rate limits without permitting forwarded-localhost owner bypass. Reject wildcard and numeric hop-count trust.
 - Fix readiness to reject failed configuration/security diagnostics even when initialization and MongoDB appear ready.
 - Add 30 regressions, a disposable real-container verification script, a hosted container job, and a detailed deployment/operations guide. The local full gate passed 162 suites/1,666 tests, 180 route-authorization contracts, lint, and five recommendation scenarios; full and production dependency audits report zero known vulnerabilities.
 - No paid resource, public DNS, Hetzner host, TLS certificate, real provider account, or external action was provisioned by this change. Live acceptance remains required; resource limits are not production-scale performance evidence.
+- Exact-source [run 36786263147](https://github.com/Robert-Velhorst/008-Sneup-Digital-Project-Manager/actions/runs/36786263147) passed quality, Mongo/backup-restore, actual cloud-container forwarding/authentication/shutdown, and unsigned Windows packaging/launch. Subsequent optional-configuration verification remains separately recorded by its workflow.
 
 ## 2.3.76 - 2026-09-30
 
