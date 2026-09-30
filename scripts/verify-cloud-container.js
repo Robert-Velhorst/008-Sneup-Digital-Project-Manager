@@ -55,6 +55,7 @@ try {
   // Exercise the actual proxy over private HTTP, without public ports or ACME.
   delete config.services.caddy.ports;
   config.services.caddy.environment.SNEUP_DOMAIN = 'http://sneup.verify.invalid:80';
+  config.services.caddy.networks.edge.aliases = ['sneup.verify.invalid'];
   fs.writeFileSync(configFile, JSON.stringify(config), { mode: 0o600 });
   compose = ['compose', '--project-name', project, '-f', configFile];
   process.stdout.write('Starting owned MongoDB, app, and private Caddy fixture...\n');
@@ -87,6 +88,7 @@ try {
   assert.equal(docker([...compose, 'exec', '-T', 'app', 'node', '-p', "require('./package.json').version"]).trim(), require('../package.json').version);
   const probe = `
     const assert = require('node:assert/strict');
+    let phase = 'readiness';
     async function read(url, headers = {}) {
       const response = await fetch('http://127.0.0.1:3000' + url, { headers });
       return { status: response.status, data: await response.json() };
@@ -97,33 +99,50 @@ try {
       assert.equal(ready.data.mode, 'live');
       assert.equal(ready.data.database, 'connected');
       assert.equal(ready.data.providerWrites.mode, 'emergency_stop');
+      phase = 'direct unauthenticated';
+      assert.equal(process.env.SNEUP_REQUIRE_API_KEY, 'true');
       assert.equal((await read('/api/v1/workspaces/current')).status, 401);
+      phase = 'direct forged localhost';
       assert.equal((await read('/api/v1/workspaces/current', { 'X-Forwarded-For': '127.0.0.1' })).status, 401);
+      phase = 'direct authenticated workspace';
       const headers = { 'X-Sneup-Api-Key': process.env.SNEUP_API_KEY };
       const workspace = await read('/api/v1/workspaces/current', headers);
       assert.equal(workspace.status, 200);
       assert.ok(workspace.data.data.workspace.id);
+      phase = 'HAI manifest';
       const manifest = await read('/api/v1/integrations/hai/manifest', headers);
       assert.equal(manifest.status, 200);
+      phase = 'Caddy readiness';
       let proxyReady = false;
       for (let count = 0; count < 20 && !proxyReady; count++) {
         try {
-          proxyReady = (await fetch('http://caddy:80/ready', { headers: { Host: 'sneup.verify.invalid' } })).status === 200;
+          const response = await fetch('http://sneup.verify.invalid:80/ready');
+          const body = await response.json();
+          proxyReady = response.status === 200 && body.ready === true && body.database === 'connected';
         } catch {}
         if (!proxyReady) await new Promise(resolve => setTimeout(resolve, 500));
       }
       assert.ok(proxyReady);
-      const unauthenticatedProxy = await fetch('http://caddy:80/api/v1/workspaces/current', {
-        headers: { Host: 'sneup.verify.invalid', 'X-Forwarded-For': '127.0.0.1' }
+      phase = 'Caddy unauthenticated';
+      const unauthenticatedProxy = await fetch('http://sneup.verify.invalid:80/api/v1/workspaces/current', {
+        headers: { 'X-Forwarded-For': '127.0.0.1' }
       });
       assert.equal(unauthenticatedProxy.status, 401);
-      const authenticatedProxy = await fetch('http://caddy:80/api/v1/workspaces/current', {
-        headers: { ...headers, Host: 'sneup.verify.invalid', Origin: 'https://sneup.verify.invalid' }
+      assert.equal((await unauthenticatedProxy.json()).error.code, 'UNAUTHORIZED');
+      phase = 'Caddy authenticated';
+      const authenticatedProxy = await fetch('http://sneup.verify.invalid:80/api/v1/workspaces/current', {
+        headers: { ...headers, Origin: 'https://sneup.verify.invalid' }
       });
       assert.equal(authenticatedProxy.status, 200);
+      const authenticatedBody = await authenticatedProxy.json();
+      assert.equal(authenticatedBody.ok, true);
+      assert.equal(authenticatedBody.data.workspace.id, workspace.data.data.workspace.id);
       console.log(JSON.stringify({ liveDatabase: true, unauthenticatedDenied: true, forgedLocalhostDenied: true,
         authenticatedWorkspace: true, haiManifest: true, providerWritesDisabled: true, realCaddyHttp: true }));
-    })().catch(() => { console.error('Cloud HTTP smoke failed'); process.exitCode = 1; });
+    })().catch(error => {
+      console.error('Cloud HTTP smoke failed', phase, error.code || error.name, error.message);
+      process.exitCode = 1;
+    });
   `;
   const evidence = JSON.parse(docker([...compose, 'exec', '-T', 'app', 'node', '-e', probe]).trim());
   docker([...compose, 'stop', '--timeout', '30', 'app']);
