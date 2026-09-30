@@ -213,7 +213,7 @@ Sneup is intentionally conservative around external systems.
 - Backend: Express, Mongoose, MongoDB, scheduled workers, structured logging, security middleware.
 - Desktop: Electron and electron-builder.
 - Data and analysis: normalized work graph models, analytics services, NLP helpers, recommendation evaluation, reporting, PDF generation.
-- Integrations: OAuth2, API key, personal access token, generic REST, generic HMAC webhook, Trello API, ngrok.
+- Integrations: OAuth2, API key, personal access token, generic REST, generic HMAC webhook, and Trello API. Cloud hosting targets Hetzner with an HTTPS reverse proxy; ngrok is disabled legacy compatibility only.
 - Testing: Jest, ESLint, focused verifier scripts, packaged Windows runtime verification, GitHub Actions.
 
 ## Run Sneup locally

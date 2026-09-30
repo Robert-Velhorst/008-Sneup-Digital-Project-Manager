@@ -44,6 +44,8 @@ The cloud entrypoint refuses insecure secrets, reused API authority, demo mode, 
 
 For initial owner onboarding, use the existing protected administration API from inside the host/container with the configured service API key: read `GET /api/v1/workspaces/current`, then create an owner invitation through `POST /api/v1/workspaces/{workspaceId}/invitations`. The request body requires the owner's email, display name, and `role: "owner"`; email delivery is a separate explicit action. Open the returned one-time HTTPS link privately. Do not put the service API key in URLs or distribute it to browser users. Subsequent users use workspace-scoped sessions/invitations; HAI uses a separately issued least-privilege token.
 
+When using the service key through the remote proxy, explicitly select the returned workspace ID with `X-Sneup-Workspace-Id` for administration requests. Without selection, the default workspace key can differ from the persisted workspace ID and administration correctly returns HTTP 403. Database user sessions cannot use this header to escape their assigned workspace. Successful invitation acceptance returns HTTP 201 with its single-use session token.
+
 All callback/invitation URLs use the configured domain: Trello `/api/webhooks/trello`, connector-specific OAuth paths, and HAI `/api/v1/integrations/hai`. Register approved OAuth redirect URLs at the providers; the repository cannot do this without account authorization. Trello webhook drift still creates approval-gated recommendations rather than silently changing the provider.
 
 ## Operations And Recovery

@@ -6,9 +6,9 @@
 
 - Make invitation revocation a workspace-scoped atomic pending-to-revoked transition. If acceptance, expiry, or another revocation wins, return HTTP 409 without overwriting its state or recording a false successful revocation.
 - Make expired-invitation acceptance mark only a still-pending, still-expired record. A stale request can no longer replace a concurrent revocation with expiry. Existing single-use acceptance and session authorization remain enforced.
-- Add ten lifecycle regressions and six verification-database safety cases. A dedicated real-MongoDB/HTTP verifier checks deterministic acceptance/revocation race orderings, audit counts, session issuance, repeated revocation, and expiry without calling providers. It refuses unowned or nonempty databases and removes only its owned fixture database.
+- Add ten lifecycle regressions, an actual-model audit-payload regression, and six verification-database safety cases. Correct the acceptance audit source to the supported API value so the database can persist it. A dedicated real-MongoDB/HTTP verifier checks deterministic acceptance/revocation race orderings, audit counts, session issuance, repeated revocation, and expiry without calling providers. It refuses unowned or nonempty databases and removes only its owned fixture database.
 - Extend the private Caddy container verifier with real manual owner onboarding, one-time acceptance, authenticated session access, self-revocation, and subsequent access denial. The fixture uses the configured HTTPS invitation origin but private HTTP transport; it does not establish live TLS or actual Hetzner deployment.
-- Local focused verification passed 22 tests; full and production dependency audits report zero known vulnerabilities. Hosted results and remaining acceptance limits are recorded separately in the verification report. No live account, email, server, or production database was changed.
+- Local focused verification passed 23 tests; full and production dependency audits report zero known vulnerabilities. Hosted results and remaining acceptance limits are recorded separately in the verification report. No live account, email, server, or production database was changed.
 
 ## 2.3.77 - 2026-10-01
 

@@ -158,10 +158,16 @@ try {
         assert.equal(data.meta.apiVersion, 'v1');
         return { status: response.status, data, authentication: response.headers.get('X-Sneup-Authentication') };
       };
-      phase = 'Caddy owner invitation';
-      const invitation = await proxyRequest('/workspaces/' + workspaceId + '/invitations', headers, {
+      const invitationBody = {
         email: 'cloud-owner@example.invalid', displayName: 'Cloud fixture owner', role: 'owner', deliveryMode: 'manual'
-      });
+      };
+      phase = 'Caddy explicit workspace selection';
+      const invitationPath = '/workspaces/' + workspaceId + '/invitations';
+      assert.equal((await proxyRequest(invitationPath, headers, invitationBody)).status, 403);
+      phase = 'Caddy owner invitation';
+      const invitation = await proxyRequest(invitationPath, {
+        ...headers, 'X-Sneup-Workspace-Id': workspaceId
+      }, invitationBody);
       assert.equal(invitation.status, 201);
       const inviteUrl = new URL(invitation.data.data.inviteUrl);
       assert.equal(inviteUrl.origin, 'https://sneup.verify.invalid');
@@ -170,7 +176,7 @@ try {
       assert.ok(inviteToken);
       phase = 'Caddy invitation acceptance';
       const accepted = await proxyRequest('/workspaces/invitations/accept', {}, { token: inviteToken });
-      assert.equal(accepted.status, 200);
+      assert.equal(accepted.status, 201);
       const onboarding = accepted.data.data;
       assert.equal(onboarding.workspace.id, workspaceId);
       assert.equal(onboarding.user.role, 'owner');
@@ -191,7 +197,7 @@ try {
       assert.equal(deniedSession.authentication, 'required');
       console.log(JSON.stringify({ liveDatabase: true, unauthenticatedDenied: true, forgedLocalhostDenied: true,
         authenticatedWorkspace: true, haiManifest: true, providerWritesDisabled: true, realCaddyHttp: true,
-        invitationOnboarding: true, repeatedInvitationDenied: true, sessionSelfRevocation: true }));
+        explicitWorkspaceSelection: true, invitationOnboarding: true, repeatedInvitationDenied: true, sessionSelfRevocation: true }));
     })().catch(error => {
       console.error('Cloud HTTP smoke failed', phase, error.code || error.name, error.message);
       process.exitCode = 1;

@@ -565,7 +565,7 @@ const acceptInvite = async ({ rawToken, displayName }) => {
     entityId: accepted._id,
     action: 'workspace_invite_accepted',
     actor: String(user._id),
-    source: 'invite_acceptance',
+    source: 'api',
     riskLevel: 'high',
     afterState: {
       invite: publicInvite(accepted),

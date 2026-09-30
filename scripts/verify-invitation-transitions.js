@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const { Types } = require('mongoose');
 const WorkspaceInvite = require('../src/models/WorkspaceInvite');
 const SessionToken = require('../src/models/SessionToken');
 const User = require('../src/models/User');
@@ -49,7 +50,7 @@ const verifyInvitationTransitions = async ({ request, workspaceId, adminToken })
   };
   const accept = invite => request('/workspaces/invitations/accept', null, { method: 'POST', body: { token: invite.raw } });
   const revoke = invite => request(`/workspaces/${workspaceId}/invitations/${invite.invite.id}/revoke`, adminToken, { method: 'POST', body: {} });
-  const auditCount = (invite, action) => AuditEvent.countDocuments({ workspaceId, entityId: invite.invite.id, action });
+  const auditCount = (invite, action) => AuditEvent.countDocuments({ workspaceId, entityId: new Types.ObjectId(invite.invite.id), action });
   const sessions = invite => SessionToken.countDocuments({ workspaceId, userId: invite.user.id });
   let checks = 0;
 
@@ -60,7 +61,7 @@ const verifyInvitationTransitions = async ({ request, workspaceId, adminToken })
     pendingRevocation = revoke(accepted);
     await staleRevoker.entered();
     const onboarding = await accept(accepted);
-    assert.equal(onboarding.status, 200);
+    assert.equal(onboarding.status, 201);
     staleRevoker.release();
     assert.equal((await pendingRevocation).status, 409);
     assert.equal((await WorkspaceInvite.findById(accepted.invite.id)).status, 'accepted');

@@ -143,6 +143,26 @@ describe('workspace invitation delivery retries', () => {
     expect(session.revoke).not.toHaveBeenCalled();
   });
 
+  test('acceptance emits an audit payload accepted by the actual audit model', async () => {
+    const invite = {
+      _id: 'invite-accepted', workspaceId: 'workspace-1', userId: 'user-1', status: 'pending',
+      expiresAt: new Date(Date.now() + 60000), matches: jest.fn(() => true), isUsable: jest.fn(() => true)
+    };
+    const user = { _id: 'user-1', workspaceId: 'workspace-1', role: 'viewer', status: 'invited', save: jest.fn() };
+    const workspace = { _id: 'workspace-1', name: 'Workspace One', slug: 'workspace-one' };
+    const session = { _id: 'session-1', name: 'Onboarding', expiresAt: new Date(Date.now() + 60000) };
+    const { service, WorkspaceInvite, operationsLedgerService } = loadService({ invite, user, workspace, session });
+    WorkspaceInvite.findOne.mockReturnValueOnce({ select: jest.fn().mockResolvedValue(invite) });
+    WorkspaceInvite.findOneAndUpdate.mockResolvedValueOnce({ ...invite, status: 'accepted', acceptedAt: new Date() });
+
+    await service.acceptInvite({ rawToken: 'sneup_invite_accepted' });
+    const payload = operationsLedgerService.recordAudit.mock.calls[0][0];
+    expect(payload).toMatchObject({ action: 'workspace_invite_accepted', source: 'api', actor: 'user-1' });
+    const AuditEvent = jest.requireActual('../src/models/AuditEvent');
+    const { Types } = jest.requireActual('mongoose');
+    expect(new AuditEvent({ ...payload, workspaceId: new Types.ObjectId() }).validateSync()).toBeUndefined();
+  });
+
   test('restores a claimed invitation when onboarding session persistence fails', async () => {
     const invite = {
       _id: 'invite-session-failure',
