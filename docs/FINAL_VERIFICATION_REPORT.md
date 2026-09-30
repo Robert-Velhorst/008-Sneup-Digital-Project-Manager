@@ -1,5 +1,12 @@
 # Final Verification Report
 
+## 2.3.75 workspace administration ownership (2026-09-30)
+
+- `npm run check:ci` passed lint, 180 route-authorization contracts (174 guarded, six explicitly public, no issues), 161 Jest suites/1,636 tests, and five recommendation scenarios. The new ownership suite adds 47 cases; the original red run failed 22 of 28 initial cases before the implementation.
+- After correcting the disabled-retention success wording, the two affected suites passed 59 tests. The form handlers were exercised in headless Chromium with synthetic DOM/API/refresh bindings: four forms rejected stale and duplicate submissions, preserved newer dialogs on late completion, and correctly reported disabled retention. No console errors occurred. Browser plugin not available; bundled Playwright was used without installing dependencies. This isolated fixture is not full-dashboard, database, or live-provider acceptance.
+- No model, endpoint, backend authorization, provider execution, polling, or schedule change was made. Post-commit refresh failure invalidates the workspace view and reports the acknowledged operation rather than encouraging accidental replay.
+- Hosted CI and Windows artifact evidence for this release remain unverified here. Full source scanning, other mutation/detail contexts, live provider/ngrok/HAI, production-scale/failover, signing, and clean-machine Windows acceptance remain open. The full goal is not complete.
+
 This report is updated from executed commands at release time. A passing local suite proves repository behavior under tests; it does not prove live provider authorization or production deployment.
 
 ## 2.3.74 notification policy dialog ownership (2026-09-23)

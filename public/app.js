@@ -1548,6 +1548,13 @@ function captureWorkspaceContext() {
     && epoch === (state.workspaceEpoch || 0);
 }
 
+function captureWorkspaceModalForm(form) {
+  const ownsContext = captureWorkspaceContext();
+  const modalEpoch = state.modalEpoch || 0;
+  return () => ownsContext() && modalEpoch === (state.modalEpoch || 0)
+    && els.modal.classList.contains('open') && els.modalBody.contains(form);
+}
+
 function ledgerPendingKey(recordKey) {
   return JSON.stringify([state.activeWorkspaceId || '', recordKey]);
 }
@@ -1894,6 +1901,7 @@ async function loadRetentionReport(options = {}) {
     state.retentionReport = null;
     state.retentionError = error.message;
     if (options.announce) openNotice('Retention scan failed', error.message);
+    if (options.throwOnError) throw error;
   } finally {
     if (isCurrent.ownsRequest()) els.retentionScanButton.disabled = false;
     if (isCurrent() && options.render !== false) renderRetentionReport();
@@ -3280,29 +3288,42 @@ function openRetentionPolicy() {
     </form>`;
   els.modal.classList.add('open');
   const form = document.getElementById('retentionPolicyForm');
+  const isCurrent = captureWorkspaceModalForm(form);
   formPersistence?.enhanceForm(form);
   document.getElementById('cancelRetentionPolicy').addEventListener('click', closeModal);
   form.addEventListener('submit', async event => {
     event.preventDefault();
     const submit = event.currentTarget.querySelector('[type="submit"]');
+    if (!isCurrent() || submit.disabled) return;
     submit.disabled = true;
+    let saved = false;
     try {
       await fetchApi('/api/data-retention/policy', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          enabled: document.getElementById('retentionEnabled').checked,
-          operationalDays: Number(document.getElementById('retentionOperationalDays').value),
-          performanceDays: Number(document.getElementById('retentionPerformanceDays').value),
-          notificationDays: Number(document.getElementById('retentionNotificationDays').value),
-          credentialDays: Number(document.getElementById('retentionCredentialDays').value)
+          enabled: form.elements.enabled.checked,
+          operationalDays: Number(form.elements.operationalDays.value),
+          performanceDays: Number(form.elements.performanceDays.value),
+          notificationDays: Number(form.elements.notificationDays.value),
+          credentialDays: Number(form.elements.credentialDays.value)
         })
       });
+      saved = true;
+      if (!isCurrent()) return;
       formPersistence?.markSaved(form);
+      await loadRetentionReport({ throwOnError: true });
+      if (!isCurrent()) return;
       closeModal();
-      await loadRetentionReport();
-      openNotice(t('Retention policy saved'), t('The workspace retention policy is active with the reviewed limits.'));
+      openNotice(t('Retention policy saved'), t('The workspace retention policy was saved with the reviewed limits.'));
     } catch (error) {
+      if (!isCurrent()) return;
+      if (saved) {
+        state.loadedViews.delete('workspaces');
+        closeModal();
+        openNotice(t('Retention policy saved'), t('The policy was saved, but retention data could not be refreshed. Reopen Workspaces to load the latest state.'));
+        return;
+      }
       submit.disabled = false;
       openNotice(t('Policy update failed'), error.message);
     }
@@ -3320,26 +3341,40 @@ function openRetentionApply() {
       <div class="toolbar modal-actions"><button class="button" id="cancelRetentionApply" type="button">${et('Cancel')}</button><button class="button danger" type="submit">${et('Prune due records')}</button></div>
     </form>`;
   els.modal.classList.add('open');
+  const form = document.getElementById('retentionApplyForm');
+  const isCurrent = captureWorkspaceModalForm(form);
   document.getElementById('cancelRetentionApply').addEventListener('click', closeModal);
-  document.getElementById('retentionApplyForm').addEventListener('submit', async event => {
+  form.addEventListener('submit', async event => {
     event.preventDefault();
     const submit = event.currentTarget.querySelector('[type="submit"]');
+    if (!isCurrent() || submit.disabled) return;
     submit.disabled = true;
+    let applied = false;
     try {
       const data = await fetchApi('/api/data-retention/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           confirm: 'prune-expired-history',
-          workspaceConfirmation: document.getElementById('retentionWorkspaceConfirmation').value,
+          workspaceConfirmation: form.querySelector('#retentionWorkspaceConfirmation').value,
           limit: report.limit,
           categories: report.categories.filter(item => item.due > 0).map(item => item.key)
         })
       });
+      applied = true;
+      if (!isCurrent()) return;
+      await loadRetentionReport({ throwOnError: true });
+      if (!isCurrent()) return;
       closeModal();
-      await loadRetentionReport();
       openNotice(t('Retention complete'), t('{count} old record(s) removed with audit evidence.', { count: data.result.deleted }));
     } catch (error) {
+      if (!isCurrent()) return;
+      if (applied) {
+        state.loadedViews.delete('workspaces');
+        closeModal();
+        openNotice(t('Retention complete'), t('History was pruned, but retention data could not be refreshed. Reopen Workspaces to load the latest state.'));
+        return;
+      }
       submit.disabled = false;
       openNotice(t('Retention failed'), error.message);
     }
@@ -3406,6 +3441,7 @@ function openFeatureFlagEditor(key) {
   `;
   els.modal.classList.add('open');
   const form = document.getElementById('featureFlagForm');
+  const isCurrent = captureWorkspaceModalForm(form);
   formPersistence?.enhanceForm(form);
   const rollout = document.getElementById('featureFlagRollout');
   const rolloutValue = document.getElementById('featureFlagRolloutValue');
@@ -3418,6 +3454,7 @@ function openFeatureFlagEditor(key) {
     event.preventDefault();
     const form = event.currentTarget;
     const submitButton = form.querySelector('button[type="submit"]');
+    if (!isCurrent() || submitButton.disabled) return;
     const values = new FormData(form);
     submitButton.disabled = true;
     submitButton.textContent = t('Saving...');
@@ -3432,11 +3469,13 @@ function openFeatureFlagEditor(key) {
           expectedRevision: flag.revision
         })
       });
+      if (!isCurrent()) return;
       state.featureFlags = state.featureFlags.map(item => item.key === flag.key ? result.flag : item);
       formPersistence?.markSaved(form);
       closeModal();
       renderWorkspaces();
     } catch (error) {
+      if (!isCurrent()) return;
       submitButton.disabled = false;
       submitButton.textContent = t('Save rollout');
       openNotice(t('Rollout update blocked'), error.message);
@@ -3489,23 +3528,37 @@ function openPolicyRuleEditor(actionType) {
   const opened = workspaceViewController?.openPolicyRuleForm(actionType);
   if (!opened) return;
   const { form, kind, submitLabel, blockedTitle, triggers, risks } = opened;
+  const isCurrent = captureWorkspaceModalForm(form);
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const submitButton = form.querySelector('button[type="submit"]');
+    if (!isCurrent() || submitButton.disabled) return;
     const values = new FormData(form);
     submitButton.disabled = true;
     submitButton.textContent = t('Saving...');
+    let saved = false;
     try {
       await fetchApi(`/api/policy-rules/${encodeURIComponent(actionType)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildPolicyRuleUpdateBody(kind, values, { triggers, risks }))
       });
+      saved = true;
+      if (!isCurrent()) return;
       formPersistence?.markSaved(form);
+      await loadWorkspaceAdmin({ throwOnError: true });
+      if (!isCurrent()) return;
+      if (state.policyRuleError) throw new Error(state.policyRuleError);
       closeModal();
-      await loadWorkspaceAdmin();
     } catch (error) {
+      if (!isCurrent()) return;
+      if (saved) {
+        state.loadedViews.delete('workspaces');
+        closeModal();
+        openNotice(t('Policy saved'), t('The policy was saved, but Workspace administration could not refresh. Reopen Workspaces to load the latest state.'));
+        return;
+      }
       submitButton.disabled = false;
       submitButton.textContent = t(submitLabel);
       openNotice(t(blockedTitle), error.message);

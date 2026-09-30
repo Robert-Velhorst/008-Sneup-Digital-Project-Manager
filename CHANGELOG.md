@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.3.75 - 2026-09-30
+
+### Workspace administration form ownership
+
+- Bind retention policy, confirmed retention pruning, feature rollout, and workflow policy forms to their opening workspace, session, modal content, and generation. Reject stale and duplicate submissions before requests; ignore late results after ownership changes.
+- Keep successful retention and policy mutations distinct from a failed subsequent refresh. Invalidate the workspace view for retry rather than presenting an acknowledged save or pruning operation as failed.
+- Report a saved retention policy accurately even when retention is disabled. Preserve backend authorization, audit, exact-confirmation, and approval boundaries.
+
+### Verification
+
+- Added 47 regressions covering context changes, closed/replaced dialogs, late responses, duplicate submissions, refresh failures, and current-context behavior.
+- The local CI gate passed lint, 180 route-authorization contracts, 161 Jest suites/1,636 tests, and five recommendation evaluations. After the retention wording correction, the two directly affected suites passed 59 tests.
+- An isolated Chromium fixture exercised actual form handlers with synthetic DOM/API/refresh bindings. Duplicate/stale requests, late-response ownership, and disabled-retention copy passed without console errors. This is not complete-dashboard or live-backend acceptance.
+- Hosted checks for this release require separate verification. The complete production, app-wide audit, live provider/ngrok/HAI, production-scale resource, and signed clean-machine Windows requirements remain open.
+
 ## 2.3.74 - 2026-09-23
 
 ### Notification policy ownership
