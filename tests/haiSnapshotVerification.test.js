@@ -1,4 +1,4 @@
-const { cleanupVerificationDatabase } = require('../scripts/verify-hai-snapshot');
+const { cleanupVerificationDatabase, initializeVerificationModels } = require('../scripts/verify-hai-snapshot');
 
 const fixture = () => ({
   models: {},
@@ -8,6 +8,46 @@ const fixture = () => ({
     db: { listCollections: jest.fn(() => ({ toArray: async () => [] })) }
   },
   disconnect: jest.fn().mockResolvedValue(undefined)
+});
+
+test('initializes every loaded fixture model before proceeding to reads', async () => {
+  const client = fixture();
+  let finish;
+  client.models.Health = { init: jest.fn(() => new Promise(resolve => { finish = resolve; })) };
+  client.models.Audit = { init: jest.fn().mockResolvedValue(undefined) };
+  let completed = false;
+  const pending = initializeVerificationModels(client).then(() => { completed = true; });
+  try {
+    await Promise.resolve();
+    expect(completed).toBe(false);
+    expect(client.models.Health.init).toHaveBeenCalledTimes(1);
+    expect(client.models.Audit.init).toHaveBeenCalledTimes(1);
+  } finally {
+    finish?.();
+    await pending;
+  }
+  expect(completed).toBe(true);
+});
+
+test('fails fixture setup on an index error instead of claiming ready', async () => {
+  const client = fixture();
+  client.models.Failed = { init: () => Promise.reject(new Error('Index build failed')) };
+  await expect(initializeVerificationModels(client)).rejects.toThrow('Index build failed');
+  expect(client.connection.dropDatabase).not.toHaveBeenCalled();
+});
+
+test('bounds fixture initialization independently of production read deadlines', async () => {
+  jest.useFakeTimers();
+  const client = fixture();
+  client.models.Stuck = { init: () => new Promise(() => {}) };
+  const pending = initializeVerificationModels(client, { timeoutMs: 100 }).catch(error => error);
+  try {
+    await jest.advanceTimersByTimeAsync(100);
+    expect(await pending).toMatchObject({ code: 'SNEUP_VERIFICATION_INITIALIZATION_TIMEOUT' });
+    expect(client.connection.dropDatabase).not.toHaveBeenCalled();
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 test('settles every model initialization, including failures, before dropping and confirming cleanup', async () => {

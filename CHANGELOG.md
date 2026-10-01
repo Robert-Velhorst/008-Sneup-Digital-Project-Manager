@@ -10,6 +10,7 @@
 - Extend the private Caddy container verifier with real manual owner onboarding, one-time acceptance, authenticated session access, self-revocation, and subsequent access denial. The fixture uses the configured HTTPS invitation origin but private HTTP transport; it does not establish live TLS or actual Hetzner deployment.
 - Local focused verification passed 23 tests; full and production dependency audits report zero known vulnerabilities. Hosted results and remaining acceptance limits are recorded separately in the verification report. No live account, email, server, or production database was changed.
 - Corrected exact-source [run 36789346626](https://github.com/Robert-Velhorst/008-Sneup-Digital-Project-Manager/actions/runs/36789346626) passed all four hosted jobs, including 27 actual-MongoDB/HTTP invitation assertions, cloud-proxy onboarding and session revocation, and unsigned Windows packaging/launch. Ubuntu passed 1,673 tests and the ten platform-specific verifier cases passed separately on Windows. The earlier failed hosted run and artifact provenance are retained in the verification report.
+- A later documentation-only run exposed a cold-schema HAI fixture failure. Separate owned-database model initialization from timed reads in the HAI and invitation verifiers, with a bounded 30-second setup phase and three new regressions. Preserve production query deadlines, database ownership/cleanup, and full snapshot assertions; do not retry partial results into a passing test.
 
 ## 2.3.77 - 2026-10-01
 

@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const { once } = require('node:events');
 const mongoose = require('mongoose');
-const { cleanupVerificationDatabase } = require('./verify-hai-snapshot');
+const { cleanupVerificationDatabase, initializeVerificationModels } = require('./verify-hai-snapshot');
 const { closeHttpServer } = require('../src/utils/runtimeShutdown');
 
 const run = async () => {
@@ -32,7 +32,7 @@ const run = async () => {
     const { verifyInvitationTransitions } = require('./verify-invitation-transitions');
     require('../src/routes/workspaces');
     // Match completed startup schema initialization before issuing fixture reads.
-    await Promise.all(Object.values(mongoose.models).map(model => model.init()));
+    await initializeVerificationModels(mongoose);
     const workspace = await Workspace.create({ name: 'Invitation fixture', slug: 'invitation-fixture' });
     const admin = await User.create({ workspaceId: workspace._id, displayName: 'Fixture owner', role: 'owner', email: 'owner@example.invalid' });
     const raw = SessionToken.generateRawToken();

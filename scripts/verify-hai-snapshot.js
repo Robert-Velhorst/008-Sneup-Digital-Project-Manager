@@ -2,6 +2,14 @@ const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
 const { withTimeout } = require('../src/utils/runtimeShutdown');
 
+const initializeVerificationModels = (client, options = {}) => withTimeout(Promise.all(
+  Object.values(client.models).map(model => Promise.resolve().then(() => model.init()))
+), {
+  timeoutMs: options.timeoutMs ?? 30000,
+  code: 'SNEUP_VERIFICATION_INITIALIZATION_TIMEOUT',
+  message: 'Verification schema initialization did not finish before its deadline'
+});
+
 const cleanupVerificationDatabase = async (client, ownsDatabase, options = {}) => {
   try {
     if (ownsDatabase) {
@@ -54,7 +62,9 @@ const run = async () => {
     const TrelloActionAttempt = require('../src/models/TrelloActionAttempt');
     const { HaiIntegrationService } = require('../src/services/haiIntegrationService');
     const service = new HaiIntegrationService();
-    await Promise.all([Workspace, Board, List, Card, Recommendation, DecisionQueueItem].map(model => model.init()));
+    // Build the ledger's demand-loaded indexes before timing authenticated reads.
+    require('../src/services/operationsLedgerService');
+    await initializeVerificationModels(mongoose);
 
     const workspace = await Workspace.create({ name: 'HAI verification', slug: 'hai-verification' });
     const otherWorkspace = await Workspace.create({ name: 'Isolated workspace', slug: 'hai-isolated' });
@@ -124,4 +134,4 @@ if (require.main === module) run().catch(error => {
   process.exitCode = 1;
 });
 
-module.exports = { cleanupVerificationDatabase };
+module.exports = { cleanupVerificationDatabase, initializeVerificationModels };

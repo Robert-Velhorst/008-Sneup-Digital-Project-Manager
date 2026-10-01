@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const { once } = require('node:events');
 const mongoose = require('mongoose');
-const { cleanupVerificationDatabase } = require('./verify-hai-snapshot');
+const { cleanupVerificationDatabase, initializeVerificationModels } = require('./verify-hai-snapshot');
 const { closeHttpServer } = require('../src/utils/runtimeShutdown');
 
 const run = async () => {
@@ -36,7 +36,8 @@ const run = async () => {
     const Card = require('../src/models/Card');
     const Approval = require('../src/models/Approval');
     const TrelloActionAttempt = require('../src/models/TrelloActionAttempt');
-    await Promise.all([Workspace, User, ApiToken, SessionToken, Recommendation, Board, List, Card].map(model => model.init()));
+    require('../src/services/operationsLedgerService');
+    await initializeVerificationModels(mongoose);
     const workspace = await Workspace.create({ name: 'HAI HTTP verification', slug: 'hai-http' });
     const other = await Workspace.create({ name: 'Other workspace', slug: 'hai-other' });
     const user = await User.create({ workspaceId: workspace._id, displayName: 'Verification user', role: 'manager', email: 'verification@example.invalid' });
