@@ -10,7 +10,7 @@
     "desktop": "electron .",
     "build:installer": "electron-builder --win nsis --x64 --publish never",
     "dist:win": "npm run build:installer",
-    "dev": "nodemon src/index.js",
+    "dev": "node --watch src/index.js",
     "migrate:workspace": "node scripts/migrate-workspace-scope.js",
     "repair:data": "node scripts/repair-data-integrity.js",
     "evaluate:recommendations": "node scripts/evaluate-recommendations.js",
@@ -81,9 +81,8 @@
     "electron-builder": "^26.8.1",
     "eslint": "^8.54.0",
     "espree": "^9.6.1",
-    "jest": "^29.7.0",
-    "jsdom": "26.1.0",
-    "nodemon": "^3.0.1"
+    "jest": "^30.5.2",
+    "jsdom": "26.1.0"
   },
   "engines": {
     "node": ">=22.0.0"
