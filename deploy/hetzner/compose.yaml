@@ -45,7 +45,7 @@ services:
     networks: [edge, data]
 
   mongo:
-    image: mongo:7.0
+    image: mongo:${SNEUP_MONGO_IMAGE_TAG:-9.0.4}
     restart: unless-stopped
     mem_limit: 1g
     pids_limit: 256
