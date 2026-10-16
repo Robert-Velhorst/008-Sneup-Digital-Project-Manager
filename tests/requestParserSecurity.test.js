@@ -60,7 +60,8 @@ describe('configured Sneup request parsers', () => {
 
   beforeAll(async () => {
     // Reuse the application's configured parsers without adding a test endpoint to Sneup.
-    const formParser = app._router.stack.find(layer => layer.name === 'urlencodedParser');
+    const router = app.router || app._router;
+    const formParser = router.stack.find(layer => layer.name === 'urlencodedParser');
     expect(formParser).toBeDefined();
     const probe = express();
     probe.set('query parser', app.get('query parser fn'));
