@@ -80,6 +80,7 @@ const webhookRoutes = createLazyRouter(() => require('./routes/webhooks'), 'webh
 
 // Initialize Express app
 const app = express();
+app.set('query parser', 'extended');
 const trustedProxyIps = getTrustedProxyIps();
 app.set('trust proxy', trustedProxyIps.length ? trustedProxyIps : false);
 const PORT = process.env.PORT || 3000;
