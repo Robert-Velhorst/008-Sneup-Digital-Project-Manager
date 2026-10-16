@@ -3,7 +3,7 @@ describe('Trello client resource and partial-write safety', () => {
 
   afterEach(() => {
     process.env = { ...originalEnvironment };
-    jest.dontMock('trello.js');
+    jest.dontMock('../src/services/trelloSdkClient');
     jest.resetModules();
   });
 
@@ -15,32 +15,33 @@ describe('Trello client resource and partial-write safety', () => {
       TRELLO_API_TOKEN: 'token',
       SNEUP_TRELLO_TIMEOUT_MS: '23000'
     })).toEqual({
-      key: 'key',
-      token: 'token',
-      baseRequestConfig: {
-        timeout: 23000,
-        maxContentLength: 16 * 1024 * 1024,
-        maxBodyLength: 256 * 1024,
-        maxRedirects: 0
-      }
+      apiKey: 'key',
+      apiToken: 'token',
+      timeoutMs: 23000,
+      maxContentLength: 16 * 1024 * 1024,
+      maxBodyLength: 256 * 1024,
+      maxRedirects: 0
     });
   });
 
-  test('passes the bounded transport configuration into the live Trello client', () => {
+  test('passes the bounded transport configuration into the live Trello client', async () => {
     jest.resetModules();
-    const TrelloClient = jest.fn(() => ({}));
-    jest.doMock('trello.js', () => ({ TrelloClient }));
+    const createTrelloSdkClient = jest.fn(async () => ({}));
+    jest.doMock('../src/services/trelloSdkClient', () => ({ createTrelloSdkClient }));
     process.env.TRELLO_API_KEY = 'key';
     process.env.TRELLO_API_TOKEN = 'token';
     process.env.SNEUP_TRELLO_TIMEOUT_MS = '17000';
 
     const { initTrelloClient } = require('../src/services/trelloClient');
-    initTrelloClient();
+    await initTrelloClient();
 
-    expect(TrelloClient).toHaveBeenCalledWith(expect.objectContaining({
-      key: 'key',
-      token: 'token',
-      baseRequestConfig: expect.objectContaining({ timeout: 17000, maxRedirects: 0 })
+    expect(createTrelloSdkClient).toHaveBeenCalledWith(expect.objectContaining({
+      apiKey: 'key',
+      apiToken: 'token',
+      timeoutMs: 17000,
+      maxContentLength: 16 * 1024 * 1024,
+      maxBodyLength: 256 * 1024,
+      maxRedirects: 0
     }));
   });
 
@@ -61,11 +62,11 @@ describe('Trello client resource and partial-write safety', () => {
     const createChecklistCheckItems = jest.fn()
       .mockResolvedValueOnce({ id: 'item-1' })
       .mockRejectedValueOnce(Object.assign(new Error('Provider unavailable'), { response: { status: 503 } }));
-    const TrelloClient = jest.fn(() => ({
+    const createTrelloSdkClient = jest.fn(async () => ({
       cards: { createCardChecklist },
       checklists: { createChecklistCheckItems }
     }));
-    jest.doMock('trello.js', () => ({ TrelloClient }));
+    jest.doMock('../src/services/trelloSdkClient', () => ({ createTrelloSdkClient }));
     process.env.TRELLO_API_KEY = 'key';
     process.env.TRELLO_API_TOKEN = 'token';
 
@@ -80,8 +81,8 @@ describe('Trello client resource and partial-write safety', () => {
   });
 
   test('blocks every low-level Trello mutator while the provider emergency stop is active', async () => {
-    const TrelloClient = jest.fn(() => ({}));
-    jest.doMock('trello.js', () => ({ TrelloClient }));
+    const createTrelloSdkClient = jest.fn(async () => ({}));
+    jest.doMock('../src/services/trelloSdkClient', () => ({ createTrelloSdkClient }));
     process.env.TRELLO_API_KEY = 'key';
     process.env.TRELLO_API_TOKEN = 'token';
     process.env.SNEUP_PROVIDER_WRITES_DISABLED = 'true';
@@ -102,6 +103,6 @@ describe('Trello client resource and partial-write safety', () => {
     for (const operation of operations) {
       await expect(operation()).rejects.toMatchObject({ code: 'SNEUP_PROVIDER_WRITES_DISABLED' });
     }
-    expect(TrelloClient).not.toHaveBeenCalled();
+    expect(createTrelloSdkClient).not.toHaveBeenCalled();
   });
 });

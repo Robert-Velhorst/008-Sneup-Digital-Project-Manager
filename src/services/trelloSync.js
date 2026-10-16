@@ -179,7 +179,7 @@ const initSync = async () => {
     const workspaceId = normalizeWorkspaceObjectId(getDefaultWorkspaceObjectId());
     
     // Initialize Trello client
-    trelloClient.initTrelloClient();
+    await trelloClient.initTrelloClient();
     
     // Perform initial full sync
     await jobObservabilityService.trackJob({
