@@ -1,44 +1,46 @@
-const { TrelloClient } = require('trello.js');
 const logger = require('../utils/logger');
 const { buildTrelloClientOptions } = require('../utils/trelloConfiguration');
 const { assertProviderWritesEnabled } = require('./providerWriteSafetyService');
+const { createTrelloSdkClient } = require('./trelloSdkClient');
 
-let trelloClient = null;
+let trelloClientPromise = null;
 
 // Initialize Trello client
 const initTrelloClient = () => {
+  if (trelloClientPromise) return trelloClientPromise;
+
   try {
-    const apiKey = process.env.TRELLO_API_KEY;
-    const apiToken = process.env.TRELLO_API_TOKEN;
-    
-    if (!apiKey || !apiToken) {
+    const options = buildTrelloClientOptions(process.env);
+    if (!options.apiKey || !options.apiToken) {
       throw new Error('Trello API credentials not found in environment variables');
     }
-    
-    trelloClient = new TrelloClient(buildTrelloClientOptions(process.env));
-    
-    logger.info('Trello client initialized successfully');
-    return trelloClient;
+
+    trelloClientPromise = createTrelloSdkClient(options)
+      .then((client) => {
+        logger.info('Trello client initialized successfully');
+        return client;
+      })
+      .catch((error) => {
+        trelloClientPromise = null;
+        logger.error('Failed to initialize Trello client:', error);
+        throw error;
+      });
+    return trelloClientPromise;
   } catch (error) {
     logger.error('Failed to initialize Trello client:', error);
-    throw error;
+    return Promise.reject(error);
   }
 };
 
 // Get Trello client instance
-const getTrelloClient = () => {
-  if (!trelloClient) {
-    return initTrelloClient();
-  }
-  return trelloClient;
-};
+const getTrelloClient = () => trelloClientPromise || initTrelloClient();
 
 // Board API methods
 const boardApi = {
   // Get all boards for the authenticated user
   async getBoards() {
     try {
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       const member = await client.members.getMember({ id: 'me' });
       const boards = await client.members.getMemberBoards({ id: member.id });
       logger.info(`Retrieved ${boards.length} boards from Trello`);
@@ -52,7 +54,7 @@ const boardApi = {
   // Get a specific board
   async getBoard(boardId) {
     try {
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       const board = await client.boards.getBoard({ id: boardId });
       return board;
     } catch (error) {
@@ -64,7 +66,7 @@ const boardApi = {
   // Get lists for a board
   async getLists(boardId) {
     try {
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       const lists = await client.boards.getBoardLists({ id: boardId });
       return lists;
     } catch (error) {
@@ -76,7 +78,7 @@ const boardApi = {
   // Get cards for a board
   async getCards(boardId) {
     try {
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       const cards = await client.boards.getBoardCards({
         id: boardId,
         attachments: 'true',
@@ -95,7 +97,7 @@ const boardApi = {
   // Get members for a board
   async getMembers(boardId) {
     try {
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       const members = await client.boards.getBoardMembers({ id: boardId });
       return members;
     } catch (error) {
@@ -110,7 +112,7 @@ const listApi = {
   // Get a specific list
   async getList(listId) {
     try {
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       const list = await client.lists.getList({ id: listId });
       return list;
     } catch (error) {
@@ -122,7 +124,7 @@ const listApi = {
   // Get cards in a list
   async getCards(listId) {
     try {
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       const cards = await client.lists.getListCards({ id: listId });
       return cards;
     } catch (error) {
@@ -137,7 +139,7 @@ const cardApi = {
   // Get a specific card
   async getCard(cardId) {
     try {
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       const card = await client.cards.getCard({
         id: cardId,
         attachments: 'true',
@@ -156,7 +158,7 @@ const cardApi = {
   // Get comments (actions) for a card
   async getComments(cardId) {
     try {
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       const actions = await client.cards.getCardActions({
         id: cardId,
         filter: 'commentCard'
@@ -172,7 +174,7 @@ const cardApi = {
   async addComment(cardId, text) {
     try {
       assertProviderWritesEnabled();
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       const comment = await client.cards.createCardComment({
         id: cardId,
         text
@@ -189,7 +191,7 @@ const cardApi = {
   async updateCard(cardId, updates) {
     try {
       assertProviderWritesEnabled();
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       const card = await client.cards.updateCard({
         id: cardId,
         ...updates
@@ -206,7 +208,7 @@ const cardApi = {
   async moveCard(cardId, listId) {
     try {
       assertProviderWritesEnabled();
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       const card = await client.cards.updateCard({
         id: cardId,
         idList: listId
@@ -223,7 +225,7 @@ const cardApi = {
   async addMember(cardId, memberId) {
     try {
       assertProviderWritesEnabled();
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       await client.cards.createCardMember({
         id: cardId,
         value: memberId
@@ -239,7 +241,7 @@ const cardApi = {
   async removeMember(cardId, memberId) {
     try {
       assertProviderWritesEnabled();
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       await client.cards.deleteCardMember({
         id: cardId,
         idMember: memberId
@@ -255,7 +257,7 @@ const cardApi = {
   async addLabel(cardId, name, color = 'red') {
     try {
       assertProviderWritesEnabled();
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       const label = await client.cards.createCardLabel({
         id: cardId,
         name,
@@ -273,7 +275,7 @@ const cardApi = {
   async addChecklist(cardId, name, checkItems = []) {
     try {
       assertProviderWritesEnabled();
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       const checklist = await client.cards.createCardChecklist({
         id: cardId,
         name
@@ -316,7 +318,7 @@ const memberApi = {
   // Get authenticated member
   async getMe() {
     try {
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       const member = await client.members.getMember({ id: 'me' });
       return member;
     } catch (error) {
@@ -328,7 +330,7 @@ const memberApi = {
   // Get a specific member
   async getMember(memberId) {
     try {
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       const member = await client.members.getMember({ id: memberId });
       return member;
     } catch (error) {
@@ -344,7 +346,7 @@ const webhookApi = {
   async createWebhook(callbackUrl, idModel, description = 'Sneup webhook') {
     try {
       assertProviderWritesEnabled();
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       const webhook = await client.webhooks.createWebhook({
         callbackURL: callbackUrl,
         idModel,
@@ -361,7 +363,7 @@ const webhookApi = {
   // Get all webhooks
   async getWebhooks() {
     try {
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       const token = process.env.TRELLO_API_TOKEN;
       const webhooks = await client.tokens.getTokenWebhooks({ token });
       return webhooks;
@@ -375,7 +377,7 @@ const webhookApi = {
   async deleteWebhook(webhookId) {
     try {
       assertProviderWritesEnabled();
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       await client.webhooks.deleteWebhook({ id: webhookId });
       logger.info(`Deleted webhook ${webhookId}`);
     } catch (error) {
@@ -388,7 +390,7 @@ const webhookApi = {
   async updateWebhook(webhookId, updates) {
     try {
       assertProviderWritesEnabled();
-      const client = getTrelloClient();
+      const client = await getTrelloClient();
       const webhook = await client.webhooks.updateWebhook({
         id: webhookId,
         ...updates

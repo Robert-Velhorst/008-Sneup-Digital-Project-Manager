@@ -22,14 +22,12 @@ const resolveTrelloTimeoutMs = (value) => {
 };
 
 const buildTrelloClientOptions = (env = process.env) => ({
-  key: env.TRELLO_API_KEY,
-  token: env.TRELLO_API_TOKEN,
-  baseRequestConfig: {
-    timeout: resolveTrelloTimeoutMs(env.SNEUP_TRELLO_TIMEOUT_MS),
-    maxContentLength: MAX_TRELLO_RESPONSE_BYTES,
-    maxBodyLength: MAX_TRELLO_REQUEST_BYTES,
-    maxRedirects: 0
-  }
+  apiKey: env.TRELLO_API_KEY,
+  apiToken: env.TRELLO_API_TOKEN,
+  timeoutMs: resolveTrelloTimeoutMs(env.SNEUP_TRELLO_TIMEOUT_MS),
+  maxContentLength: MAX_TRELLO_RESPONSE_BYTES,
+  maxBodyLength: MAX_TRELLO_REQUEST_BYTES,
+  maxRedirects: 0
 });
 
 module.exports = {

@@ -42,7 +42,7 @@
     "profile:startup": "node scripts/profile-startup.js",
     "profile:portfolio-scale": "node scripts/profile-portfolio-scale.js",
     "check:ci": "npm run lint && npm run check:route-authorization && npm test -- --runInBand && npm run evaluate:recommendations",
-    "test": "jest",
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "lint": "eslint src/**/*.js scripts/*.js desktop/*.js"
   },
   "keywords": [
@@ -61,31 +61,36 @@
     "axios": "^1.20.0",
     "body-parser": "^2.3.0",
     "compression": "^1.8.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.8",
+    "express": "^5.3.0",
     "helmet": "^8.3.0",
     "mongoose": "^9.11.2",
-    "natural": "^8.0.1",
+    "natural": "^8.1.1",
     "node-schedule": "^2.1.1",
-    "openai": "^4.20.0",
+    "openai": "^7.35.0",
     "pdfkit": "^0.20.2",
-    "trello.js": "^1.2.8",
-    "winston": "^3.11.0"
+    "trello.js": "^2.3.0",
+    "winston": "^3.19.0"
   },
   "overrides": {
-    "qs": "6.16.0"
+    "qs": "6.16.0",
+    "global-agent": "4.1.3",
+    "@istanbuljs/load-nyc-config": {
+      "js-yaml": "4.3.2"
+    }
   },
   "devDependencies": {
-    "electron": "^42.10.0",
-    "electron-builder": "^26.8.1",
-    "eslint": "^8.54.0",
-    "espree": "^9.6.1",
+    "electron": "^44.8.0",
+    "electron-builder": "^26.15.3",
+    "eslint": "^10.13.0",
+    "espree": "^11.2.0",
+    "globals": "^17.13.0",
     "jest": "^30.5.2",
-    "jsdom": "26.1.0"
+    "jsdom": "^30.1.3"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=26.12.0"
   },
   "build": {
     "appId": "online.noodzakelijk.sneup",

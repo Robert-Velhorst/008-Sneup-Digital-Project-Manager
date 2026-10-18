@@ -6,7 +6,7 @@ const { createController, DYNAMIC_OPERATOR_MESSAGES, NL_MESSAGES: WORKSPACE_NL_M
 
 const rootDir = path.join(__dirname, '..');
 const moduleSource = fs.readFileSync(path.join(rootDir, 'public', 'workspaceView.js'), 'utf8');
-const appSource = fs.readFileSync(path.join(rootDir, 'public', 'app.js'), 'utf8');
+const appSource = fs.readFileSync(path.join(rootDir, 'public', 'app.js'), 'utf8').replace(/\r\n/g, '\n');
 const htmlSource = fs.readFileSync(path.join(rootDir, 'public', 'index.html'), 'utf8');
 
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({
