@@ -2319,6 +2319,19 @@ describe('connector registry', () => {
     }
   });
 
+  test('rejects malformed OAuth state types with a client error', () => {
+    for (const state of [['.', 'tampered'], { nested: 'tampered' }]) {
+      let error;
+      try {
+        accountConnectorService.verifyState(state);
+      } catch (caught) {
+        error = caught;
+      }
+
+      expect(error).toMatchObject({ statusCode: 400, message: 'Missing or invalid OAuth state' });
+    }
+  });
+
   test('does not request Linear write scopes for read-only connector ingestion', () => {
     const linear = getConnectors().find(connector => connector.id === 'linear');
 
