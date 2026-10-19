@@ -1,6 +1,6 @@
 # Hetzner Cloud Deployment
 
-Hetzner Cloud is the current cloud target. ngrok is not required or enabled in this deployment. Existing optional ngrok code is retained for backwards compatibility, not as a production requirement.
+Hetzner Cloud is the only supported server deployment target. The application has no tunnel service or third-party public ingress integration.
 
 ## Topology
 
@@ -40,7 +40,7 @@ docker compose --project-name sneup --env-file deploy/hetzner/.env -f deploy/het
 curl --fail https://YOUR-ACTUAL-DOMAIN/ready
 ```
 
-The cloud entrypoint refuses insecure secrets, reused API authority, demo mode, ngrok, missing MongoDB, untrusted request-host callbacks, or a non-HTTPS/mismatched public origin. It invokes the existing startup, migrations, schedules, and shutdown path; it does not introduce a parallel backend. The container readiness check uses `/ready`, which fails for configuration errors or disconnected live storage. Caddy checks the same endpoint. A deliberately paused provider-write path reports degraded readiness rather than enabling external writes.
+The cloud entrypoint refuses insecure secrets, reused API authority, demo mode, missing MongoDB, untrusted request-host callbacks, or a non-HTTPS/mismatched public origin. It invokes the existing startup, migrations, schedules, and shutdown path; it does not introduce a parallel backend. The container readiness check uses `/ready`, which fails for configuration errors or disconnected live storage. Caddy checks the same endpoint. A deliberately paused provider-write path reports degraded readiness rather than enabling external writes.
 
 For initial owner onboarding, use the existing protected administration API from inside the host/container with the configured service API key: read `GET /api/v1/workspaces/current`, then create an owner invitation through `POST /api/v1/workspaces/{workspaceId}/invitations`. The request body requires the owner's email, display name, and `role: "owner"`; email delivery is a separate explicit action. Open the returned one-time HTTPS link privately. Do not put the service API key in URLs or distribute it to browser users. Subsequent users use workspace-scoped sessions/invitations; HAI uses a separately issued least-privilege token.
 

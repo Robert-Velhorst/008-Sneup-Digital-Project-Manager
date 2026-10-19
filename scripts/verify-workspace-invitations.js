@@ -11,7 +11,7 @@ const run = async () => {
   assert.match(databaseName, /^sneup_invite_verification_[a-f0-9]{16}$/, 'An owned invitation verification database is required');
   Object.assign(process.env, {
     NODE_ENV: 'test', SNEUP_DEMO_MODE: 'false', SNEUP_PROVIDER_WRITES_DISABLED: 'true',
-    SNEUP_NGROK_ENABLED: 'false', SNEUP_REQUIRE_API_KEY: 'true', SNEUP_TRUSTED_PROXY_IPS: '',
+    SNEUP_REQUIRE_API_KEY: 'true', SNEUP_TRUSTED_PROXY_IPS: '',
     SNEUP_PUBLIC_URL: 'https://sneup.verify.invalid', SNEUP_ALLOWED_ORIGINS: 'https://sneup.verify.invalid'
   });
   for (const name of ['SNEUP_API_KEY', 'SNEUP_API_TOKEN_PEPPER', 'SNEUP_SESSION_TOKEN_PEPPER', 'SNEUP_INVITE_TOKEN_PEPPER']) {

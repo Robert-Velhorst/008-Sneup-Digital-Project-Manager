@@ -49,7 +49,6 @@ try {
   assert.equal(config.services.app.ports, undefined);
   assert.equal(config.services.mongo.ports, undefined);
   assert.equal(config.services.app.read_only, true);
-  assert.equal(config.services.app.environment.SNEUP_NGROK_ENABLED, 'false');
   assert.equal(config.services.app.environment.SNEUP_REQUIRE_API_KEY, 'true');
   assert.equal(config.services.app.environment.SNEUP_CLOUD_OPTIONAL_ENV_PROBE, 'owned-fixture');
   assert.equal(config.services.app.environment.SNEUP_MONGO_ROOT_PASSWORD, undefined);

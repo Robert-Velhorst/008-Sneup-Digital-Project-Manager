@@ -244,9 +244,9 @@ describe('request security boundaries', () => {
         });
       })).rejects.toThrow('Origin is not allowed');
 
-      process.env.SNEUP_PUBLIC_URL = 'https://dynamic-sneup.ngrok.app/onboarding';
+      process.env.SNEUP_PUBLIC_URL = 'https://dynamic-sneup.example.test/onboarding';
       await expect(new Promise((resolve, reject) => {
-        requestSecurity.corsOptions.origin('https://dynamic-sneup.ngrok.app', (error, allowed) => {
+        requestSecurity.corsOptions.origin('https://dynamic-sneup.example.test', (error, allowed) => {
           if (error) return reject(error);
           return resolve(allowed);
         });

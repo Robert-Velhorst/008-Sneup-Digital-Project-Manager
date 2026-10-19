@@ -2,7 +2,7 @@
 
 ## Current Cloud Target
 
-Use [Hetzner Cloud deployment](HETZNER_DEPLOYMENT.md) for the container, private database, HTTPS proxy, independent secrets, networking, bootstrap, and host operations. ngrok is disabled and not required. Inspect existing shared-host services before assigning ports, networks, or storage; the repository does not authorize provisioning or changing a live host.
+Use [Hetzner Cloud deployment](HETZNER_DEPLOYMENT.md) for the container, private database, HTTPS proxy, independent secrets, networking, bootstrap, and host operations. Inspect existing shared-host services before assigning ports, networks, or storage; the repository does not authorize provisioning or changing a live host.
 
 ## Start
 
@@ -156,7 +156,7 @@ Successful bodies are streamed into a buffer capped at 5 MiB, require the expect
 
 Build with `npm.cmd run build:installer`. The output is `release/Sneup-Setup-<version>.exe`. Treat unsigned builds as test artifacts; production distribution requires publisher signing and a verified update channel.
 
-Normal desktop close, settings restart, and recovery-to-demo restart share the backend cleanup path. Sneup stops scheduling work, drains active jobs and HTTP requests, closes ngrok, and disconnects MongoDB before allowing a successful quit or queuing a relaunch. Repeated close/restart requests share one operation; a second launch cannot reopen a closing window.
+Normal desktop close, settings restart, and recovery-to-demo restart share the backend cleanup path. Sneup stops scheduling work, drains active jobs and HTTP requests, closes the HTTP server, and disconnects MongoDB before allowing a successful quit or queuing a relaunch. Repeated close/restart requests share one operation; a second launch cannot reopen a closing window.
 
 Packaged verification requires a confirmed main-process exit code of `0`, no remaining descendants, and a released port after the close request. A nonzero or unavailable exit code fails verification even if the app disappears. The report includes `mainExitCode`; retain failure reports when investigating intermittent shutdown delays.
 

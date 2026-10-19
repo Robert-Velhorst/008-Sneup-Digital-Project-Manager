@@ -13,7 +13,6 @@ const configureEnvironment = (values) => {
     ...originalEnvironment,
     PORT: '0',
     HOST: '127.0.0.1',
-    SNEUP_NGROK_ENABLED: 'false',
     TRELLO_API_KEY: '',
     TRELLO_API_TOKEN: '',
     ...values
@@ -30,10 +29,6 @@ const loadAppWithDatabaseFailure = () => {
     isDatabaseConnected: jest.fn().mockReturnValue(false),
     getDatabaseStatus: jest.fn().mockReturnValue({ state: 'disconnected' })
   };
-  const tunnel = {
-    start: jest.fn().mockResolvedValue(null),
-    stop: jest.fn().mockResolvedValue(undefined)
-  };
   const logger = {
     info: jest.fn(),
     warn: jest.fn(),
@@ -41,7 +36,6 @@ const loadAppWithDatabaseFailure = () => {
   };
 
   jest.doMock('../src/utils/database', () => database);
-  jest.doMock('../src/services/ngrokTunnelService', () => tunnel);
   jest.doMock('../src/utils/logger', () => logger);
   jest.doMock('../src/utils/processHandlers', () => ({ registerProcessHandlers: jest.fn() }));
 
@@ -49,8 +43,7 @@ const loadAppWithDatabaseFailure = () => {
     app: require('../src/index'),
     connectionError,
     database,
-    logger,
-    tunnel
+    logger
   };
 };
 
@@ -58,7 +51,6 @@ describe('database startup policy', () => {
   afterEach(() => {
     process.env = { ...originalEnvironment };
     jest.dontMock('../src/utils/database');
-    jest.dontMock('../src/services/ngrokTunnelService');
     jest.dontMock('../src/utils/logger');
     jest.dontMock('../src/utils/processHandlers');
     jest.resetModules();
@@ -91,7 +83,7 @@ describe('database startup policy', () => {
       SNEUP_SESSION_TOKEN_PEPPER: strong('session'),
       SNEUP_INVITE_TOKEN_PEPPER: strong('invite')
     });
-    const { app, database, logger, tunnel } = loadAppWithDatabaseFailure();
+    const { app, database, logger } = loadAppWithDatabaseFailure();
 
     await expect(app.initApp()).rejects.toMatchObject({
       code: 'SNEUP_LIVE_DATABASE_UNAVAILABLE',
@@ -102,7 +94,6 @@ describe('database startup policy', () => {
     expect(process.env.SNEUP_DEMO_MODE).toBe('false');
     expect(app.getServer()).toBeUndefined();
     expect(app.getStartupState()).toMatchObject({ initialized: false, phase: 'failed' });
-    expect(tunnel.stop).toHaveBeenCalledTimes(1);
     expect(logger.error).toHaveBeenCalledWith(
       'MongoDB is unavailable in production live mode. Refusing demo fallback.',
       { code: 'ECONNREFUSED' }
@@ -111,7 +102,7 @@ describe('database startup policy', () => {
 
   test('development fallback remains visibly demo and shuts down cleanly', async () => {
     configureEnvironment({ NODE_ENV: 'development', SNEUP_DEMO_MODE: 'false' });
-    const { app, database, tunnel } = loadAppWithDatabaseFailure();
+    const { app, database } = loadAppWithDatabaseFailure();
 
     const server = await app.initApp();
 
@@ -120,7 +111,6 @@ describe('database startup policy', () => {
     expect(server.listening).toBe(true);
     await app.shutdown();
     expect(app.getServer()).toBeUndefined();
-    expect(tunnel.stop).toHaveBeenCalledTimes(1);
   });
 
   test('explicit production demo mode starts without attempting MongoDB', async () => {
@@ -142,12 +132,11 @@ describe('database startup policy', () => {
       SNEUP_DEMO_MODE: 'true',
       SNEUP_SHUTDOWN_GRACE_MS: 'forever'
     });
-    const { app, database, tunnel } = loadAppWithDatabaseFailure();
+    const { app, database } = loadAppWithDatabaseFailure();
 
     await expect(app.initApp()).rejects.toMatchObject({ code: 'SNEUP_SHUTDOWN_CONFIGURATION' });
     expect(database.connectDatabase).not.toHaveBeenCalled();
     expect(app.getServer()).toBeUndefined();
     expect(app.getStartupState()).toEqual({ initialized: false, phase: 'failed' });
-    expect(tunnel.stop).not.toHaveBeenCalled();
   });
 });

@@ -57,7 +57,6 @@
   "author": "Noodzakelijk Online",
   "license": "MIT",
   "dependencies": {
-    "@ngrok/ngrok": "^1.7.0",
     "axios": "^1.20.0",
     "body-parser": "^2.3.0",
     "compression": "^1.8.2",

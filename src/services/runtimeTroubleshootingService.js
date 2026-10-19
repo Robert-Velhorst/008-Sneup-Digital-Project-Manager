@@ -29,10 +29,6 @@ const CHECK_GUIDANCE = Object.freeze({
     title: 'Remote API protection',
     action: 'Keep the server on loopback, or require API authentication with a unique non-placeholder key.'
   },
-  ngrok_ingress: {
-    title: 'Cloud tunnel',
-    action: 'Configure the ngrok token, require API authentication, and use a unique API key of at least 32 characters.'
-  },
   provider_write_safety: {
     title: 'Provider-write safety',
     action: 'Review the emergency stop and approval policy before allowing any approved Trello action to execute.'

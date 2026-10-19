@@ -446,23 +446,6 @@ const enhancements = [
     ]
   },
   {
-    id: 'ENH-030',
-    priority: 'P0',
-    area: 'security',
-    title: 'Keep authenticated ngrok browser ingress lifecycle-safe',
-    evidence: 'Sneup validates the ngrok listener as one root HTTPS origin before publishing it, closes an unsafe listener, shares concurrent startup calls, and automatically admits the discovered origin through the existing CORS boundary. Tunnel-owned public and Trello callback URLs are refreshed after an ephemeral restart and restored on close without replacing an operator-owned callback. API authentication, invitation acceptance, workspace sessions, loopback binding, and approval-gated provider writes remain unchanged.',
-    impact: 'Makes the documented remote browser and invitation workflow actually usable without broadening origin trust or leaving stale cloud callback URLs after shutdown.',
-    effort: 'S',
-    status: 'done',
-    nextStep: 'Run authorized reserved-domain and ephemeral-domain acceptance through an owner ngrok account before exposing a production workspace.',
-    acceptanceCriteria: [
-      'The discovered ngrok origin passes the real command-center CORS preflight without manual duplicate configuration.',
-      'An invalid, credential-bearing, non-root, or non-HTTPS tunnel URL is closed and never published.',
-      'Concurrent startup calls create one tunnel and a restarted ephemeral tunnel receives fresh owned callback URLs.',
-      'Shutdown restores prior environment configuration and does not overwrite a callback changed by the operator.'
-    ]
-  },
-  {
     id: 'ENH-031',
     priority: 'P0',
     area: 'operations',
@@ -550,24 +533,6 @@ const enhancements = [
       'Recommendation-linked responses resolve only that recommendation follow-up.',
       'Terminal follow-ups cannot be overwritten by stale manual actions.',
       'Response and follow-up integrity checks perform no provider write.'
-    ]
-  },
-  {
-    id: 'ENH-036',
-    priority: 'P0',
-    area: 'security',
-    title: 'Make Trello webhook configuration approval-gated and ngrok-aware',
-    evidence: 'Startup now waits for the local listener and ngrok callback before observing Trello webhook state. Missing, stale, and duplicate webhooks become deduplicated Robert-owned recommendations with exact protected payloads; create, update, and delete run only through approval, attempt, ambiguity, and audit handling. The provider emergency stop is also enforced inside every low-level Trello card and webhook mutator. A guarded real-Mongo verifier proves repeated reconciliation creates no duplicate decisions, no action attempt, and no provider write.',
-    impact: 'Restores real-time ngrok readiness without allowing startup or a direct client call to silently change Trello provider configuration.',
-    effort: 'L',
-    status: 'done',
-    nextStep: 'Capture owner-authorized live Trello and ngrok acceptance for one create, one callback rotation, and one duplicate cleanup decision.',
-    acceptanceCriteria: [
-      'Webhook observation starts only after the final ngrok-managed callback URL exists.',
-      'Missing, stale, and duplicate provider state creates exact approval-gated recommendations instead of direct writes.',
-      'Repeated reconciliation reuses existing non-executed decisions.',
-      'Every Trello mutator enforces demo mode and the provider emergency stop at the client boundary.',
-      'Webhook reconciliation records internal evidence and performs no provider write.'
     ]
   },
   {

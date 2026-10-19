@@ -1,7 +1,6 @@
 const http = require('http');
 
 process.env.SNEUP_DEMO_MODE = 'true';
-process.env.SNEUP_NGROK_ENABLED = 'false';
 
 const request = (port, requestPath) => new Promise((resolve, reject) => {
   const startedAt = performance.now();

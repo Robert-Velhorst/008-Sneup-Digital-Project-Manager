@@ -487,7 +487,7 @@
     'Check whether this runtime is a safe local demo or a fully configured live workspace, and see exact remediation for missing prerequisites.': 'Controleer of deze runtime een veilige lokale demo of een volledig ingestelde livewerkruimte is en bekijk de exacte oplossing voor ontbrekende vereisten.',
     'Open Set up and review all eight redacted runtime checks.': 'Open Instellen en beoordeel alle acht geredigeerde runtimecontroles.',
     'Use demo mode to explore locally without provider accounts or database writes.': 'Gebruik de demomodus om lokaal te verkennen zonder provideraccounts of databaseschrijfacties.',
-    'For live mode, configure the database, purpose-separated secrets, Trello access, and optional ngrok settings outside the browser.': 'Configureer voor de livemodus buiten de browser de database, doelgescheiden geheimen, Trello-toegang en optionele ngrok-instellingen.',
+    'For live mode, configure the database, purpose-separated secrets, and Trello access in the protected runtime environment.': 'Configureer voor de livemodus de database, doelgescheiden geheimen en Trello-toegang in de beveiligde runtime-omgeving.',
     'Create a redacted support file from the Windows app when diagnostics need to be shared.': 'Maak in de Windows-app een geredigeerd ondersteuningsbestand wanneer diagnostiek gedeeld moet worden.',
     'Sneup never asks for production secrets in the setup screen.': 'Sneup vraagt in het instelscherm nooit om productiegeheimen.',
     'Remote access fails closed when its authentication or tunnel configuration is weak.': 'Externe toegang faalt gesloten wanneer authenticatie of tunnelconfiguratie zwak is.',

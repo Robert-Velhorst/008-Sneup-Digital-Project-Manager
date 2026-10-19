@@ -22,7 +22,6 @@ const { requestContextMiddleware, versionedApiEnvelope } = require('./services/a
 const { validateRuntimeSecurityConfiguration } = require('./utils/securityConfiguration');
 const { getTrustedProxyIps } = require('./utils/trustedProxyConfiguration');
 const { getRuntimeReadiness } = require('./services/runtimeDiagnosticsService');
-const ngrokTunnelService = require('./services/ngrokTunnelService');
 const { RequestLoggingService } = require('./services/requestLoggingService');
 const {
   DATABASE_FAILURE_MODES,
@@ -358,8 +357,6 @@ const initializeApp = async () => {
       server.once('error', reject);
     });
     assertStartupActive();
-    await ngrokTunnelService.start({ host: HOST, port: PORT });
-    assertStartupActive();
     if (databaseConnected && hasTrelloCredentials) {
       try {
         await getTrelloSync().reconcileTrelloWebhooks();
@@ -474,7 +471,6 @@ const shutdown = async () => {
       () => waitForScheduledJobs({ timeoutMs: graceMs }),
       { hasOwnTimeout: true }
     ));
-    drains.push(stopComponent('ngrok ingress', () => ngrokTunnelService.stop()));
     drains.push(stopComponent(
       'HTTP server',
       () => closeServer({ timeoutMs: graceMs }),

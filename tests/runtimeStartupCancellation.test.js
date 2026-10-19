@@ -24,7 +24,7 @@ describe('startup interrupted by runtime shutdown', () => {
   const loadRuntime = (pauseAt) => {
     process.env = {
       ...originalEnvironment,
-      NODE_ENV: 'development', SNEUP_DEMO_MODE: 'false', SNEUP_NGROK_ENABLED: 'false',
+      NODE_ENV: 'development', SNEUP_DEMO_MODE: 'false',
       HOST: '127.0.0.1', PORT: '0', TRELLO_API_KEY: 'test-key', TRELLO_API_TOKEN: 'test-token',
       SNEUP_SHUTDOWN_GRACE_MS: '1000'
     };
@@ -71,7 +71,6 @@ describe('startup interrupted by runtime shutdown', () => {
         init: () => events.push(`${name}-start`), stop: step(`${name}-stop`), run: step('deletion')
       });
     }
-    mock('../src/services/ngrokTunnelService', { start: step('tunnel'), stop: step('tunnel-stop') });
     return { app: require('../src/index'), entered, gate, events, database };
   };
 
@@ -79,7 +78,7 @@ describe('startup interrupted by runtime shutdown', () => {
     ['connect', 'inspect'], ['inspect', 'backfill'], ['backfill', 'policy-index'],
     ['policy-index', 'job-index'], ['job-index', 'flag-index'], ['flag-index', 'provider-index'],
     ['provider-index', 'trello'], ['trello', 'deletion'], ['deletion', 'analytics-start'],
-    ['tunnel', 'reconcile'], ['reconcile', null]
+    ['analytics-start', 'reconcile'], ['reconcile', null]
   ])('stopping during %s cannot advance to the next startup phase', async (phase, nextPhase) => {
     const { app, entered, gate, events, database } = loadRuntime(phase);
     const startup = app.initApp().then(value => ({ value }), error => ({ error }));
@@ -125,14 +124,13 @@ describe('startup interrupted by runtime shutdown', () => {
       expect(servers[0]).toBe(servers[1]);
       expect(events.filter(event => event === 'connect')).toHaveLength(1);
       expect(await app.initApp()).toBe(servers[0]);
-      expect(events.filter(event => event === 'tunnel')).toHaveLength(1);
     } finally {
       await app.shutdown();
       await Promise.all(listeners.map(server => new Promise(resolve => server.close(resolve))));
     }
   });
 
-  test.each(['connect', 'tunnel'])('a stalled %s fails shutdown within its bound and late acquisition is still cleaned', async phase => {
+  test.each(['connect'])('a stalled %s fails shutdown within its bound and late acquisition is still cleaned', async phase => {
     const { app, entered, gate, events, database } = loadRuntime(phase);
     process.env.SNEUP_SHUTDOWN_GRACE_MS = '100';
     const startup = app.initApp().catch(error => error);
@@ -165,7 +163,6 @@ describe('startup interrupted by runtime shutdown', () => {
     expect(await startup).toMatchObject({ code: 'SNEUP_STARTUP_CANCELLED' });
     await stopping;
     expect(process.env.SNEUP_DEMO_MODE).toBe('false');
-    expect(events).not.toContain('tunnel');
     expect(app.getServer()).toBeUndefined();
   });
 
@@ -235,7 +232,7 @@ describe('startup interrupted by runtime shutdown', () => {
     }
   });
 
-  test('stopping while the real local listener binds prevents tunnel startup and releases the port', async () => {
+  test('stopping while the real local listener binds releases the port', async () => {
     const { app, events } = loadRuntime('unused');
     process.env.SNEUP_DEMO_MODE = 'true';
     const startup = app.initApp().catch(error => error);
@@ -245,7 +242,6 @@ describe('startup interrupted by runtime shutdown', () => {
     await stopping;
     expect(listener.listening).toBe(false);
     expect(app.getServer()).toBeUndefined();
-    expect(events).not.toContain('tunnel');
   });
 
   test('a stopped runtime cannot be reinitialized by a late caller', async () => {

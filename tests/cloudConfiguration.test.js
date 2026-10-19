@@ -5,7 +5,7 @@ const { getTrustedProxyIps } = require('../src/utils/trustedProxyConfiguration')
 const { createApiRateLimiter, requireApiAccess } = require('../src/utils/requestSecurity');
 
 const environment = () => ({
-  NODE_ENV: 'production', SNEUP_DEMO_MODE: 'false', SNEUP_NGROK_ENABLED: 'false',
+  NODE_ENV: 'production', SNEUP_DEMO_MODE: 'false',
   SNEUP_REQUIRE_API_KEY: 'true', SNEUP_API_KEY: 'a'.repeat(64),
   SNEUP_API_TOKEN_PEPPER: 'b'.repeat(64), SNEUP_SESSION_TOKEN_PEPPER: 'c'.repeat(64),
   SNEUP_INVITE_TOKEN_PEPPER: 'd'.repeat(64), CONNECTOR_ENCRYPTION_KEY: 'e'.repeat(64),
@@ -20,8 +20,8 @@ describe('Hetzner cloud startup contract', () => {
   });
 
   test.each([
-    ['NODE_ENV', 'development'], ['SNEUP_DEMO_MODE', 'true'], ['SNEUP_NGROK_ENABLED', 'true'],
-    ['SNEUP_NGROK_ENABLED', ''], ['SNEUP_REQUIRE_API_KEY', 'false'], ['SNEUP_API_KEY', 'short'],
+    ['NODE_ENV', 'development'], ['SNEUP_DEMO_MODE', 'true'],
+    ['SNEUP_REQUIRE_API_KEY', 'false'], ['SNEUP_API_KEY', 'short'],
     ['SNEUP_API_KEY', 'replace_with_a_placeholder_which_is_more_than_32_characters'],
     ['SNEUP_API_KEY', 'b'.repeat(64)], ['SNEUP_TRUST_REQUEST_HOST', 'true'],
     ['SNEUP_ALLOWED_ORIGINS', '*'], ['MONGODB_URI', ''], ['CONNECTOR_ENCRYPTION_KEY', ''],
