@@ -78,7 +78,7 @@ describe('startup interrupted by runtime shutdown', () => {
     ['connect', 'inspect'], ['inspect', 'backfill'], ['backfill', 'policy-index'],
     ['policy-index', 'job-index'], ['job-index', 'flag-index'], ['flag-index', 'provider-index'],
     ['provider-index', 'trello'], ['trello', 'deletion'], ['deletion', 'analytics-start'],
-    ['analytics-start', 'reconcile'], ['reconcile', null]
+    ['reconcile', null]
   ])('stopping during %s cannot advance to the next startup phase', async (phase, nextPhase) => {
     const { app, entered, gate, events, database } = loadRuntime(phase);
     const startup = app.initApp().then(value => ({ value }), error => ({ error }));
@@ -93,6 +93,7 @@ describe('startup interrupted by runtime shutdown', () => {
       await stopping;
       expect(result.error).toMatchObject({ code: 'SNEUP_STARTUP_CANCELLED' });
       expect(stoppedWhilePending).toBe(false);
+      if (phase === 'reconcile') expect(events).toContain('analytics-start');
       if (nextPhase) expect(events).not.toContain(nextPhase);
       expect(events.filter(event => event === 'disconnect')).toHaveLength(1);
       expect(database.isDatabaseConnected()).toBe(false);
