@@ -2102,7 +2102,7 @@ class AccountConnectorService {
   }
 
   verifyState(state) {
-    if (!state || !state.includes('.')) {
+    if (typeof state !== 'string' || !state.includes('.')) {
       const error = new Error('Missing or invalid OAuth state');
       error.statusCode = 400;
       throw error;
