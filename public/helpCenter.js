@@ -144,7 +144,7 @@
       steps: [
         'Open Set up and review all eight redacted runtime checks.',
         'Use demo mode to explore locally without provider accounts or database writes.',
-        'For live mode, configure the database, purpose-separated secrets, Trello access, and optional ngrok settings outside the browser.',
+        'For live mode, configure the database, purpose-separated secrets, and Trello access in the protected runtime environment.',
         'Create a redacted support file from the Windows app when diagnostics need to be shared.'
       ],
       notes: [

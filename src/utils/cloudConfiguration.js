@@ -16,9 +16,6 @@ const validateCloudEnvironment = (environment = process.env) => {
   if (release.checkedSecrets.some(name => environment[name] === environment.SNEUP_API_KEY)) {
     fail('The cloud API key must be independent of token peppers and connector secrets.');
   }
-  if (String(environment.SNEUP_NGROK_ENABLED || '').toLowerCase() !== 'false') {
-    fail('Hetzner deployment requires SNEUP_NGROK_ENABLED=false.');
-  }
   if (environment.SNEUP_TRUST_REQUEST_HOST === 'true') fail('Cloud callbacks must not trust a request Host header.');
   let url;
   try { url = new URL(environment.SNEUP_PUBLIC_URL); } catch { fail('Cloud deployment requires an explicit public HTTPS origin.'); }

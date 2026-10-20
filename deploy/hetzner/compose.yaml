@@ -19,7 +19,6 @@ services:
       HOST: 0.0.0.0
       PORT: "3000"
       SNEUP_DEMO_MODE: "false"
-      SNEUP_NGROK_ENABLED: "false"
       SNEUP_REQUIRE_API_KEY: "true"
       SNEUP_API_KEY: ${SNEUP_API_KEY:?Set an independent random API key}
       SNEUP_PUBLIC_URL: https://${SNEUP_DOMAIN:?Set the public DNS domain}

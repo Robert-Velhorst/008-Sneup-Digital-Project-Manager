@@ -133,7 +133,7 @@ The overview is capped. Select an individual category and use **Next records** t
 
 ### Desktop and remote access
 
-The Electron shell runs the local command center as a desktop app. Hetzner Cloud is the current server deployment target. The supplied Compose path runs Caddy HTTPS, the non-root read-only Node application, and private authenticated MongoDB, without publishing app/database ports. See [Hetzner deployment](docs/HETZNER_DEPLOYMENT.md) for setup, bootstrap, firewall, health, backup, and rollback requirements. Legacy optional ngrok support remains in the code but is disabled and not required for this deployment.
+The Electron shell runs the local command center as a desktop app. Hetzner Cloud is the current server deployment target. The supplied Compose path runs Caddy HTTPS, the non-root read-only Node application, and private authenticated MongoDB, without publishing app/database ports. See [Hetzner deployment](docs/HETZNER_DEPLOYMENT.md) for setup, bootstrap, firewall, health, backup, and rollback requirements. Ngrok support has been removed; Hetzner is the only documented server deployment target.
 
 ## Connector coverage
 
@@ -213,7 +213,7 @@ Sneup is intentionally conservative around external systems.
 - Backend: Express, Mongoose, MongoDB, scheduled workers, structured logging, security middleware.
 - Desktop: Electron and electron-builder.
 - Data and analysis: normalized work graph models, analytics services, NLP helpers, recommendation evaluation, reporting, PDF generation.
-- Integrations: OAuth2, API key, personal access token, generic REST, generic HMAC webhook, and Trello API. Cloud hosting targets Hetzner with an HTTPS reverse proxy; ngrok is disabled legacy compatibility only.
+- Integrations: OAuth2, API key, personal access token, generic REST, generic HMAC webhook, and Trello API. Cloud hosting targets Hetzner with an HTTPS reverse proxy.
 - Testing: Jest, ESLint, focused verifier scripts, packaged Windows runtime verification, GitHub Actions.
 
 ## Run Sneup locally
@@ -328,7 +328,7 @@ The complete configuration template is `.env.example`. Important groups are:
 - Trello: `TRELLO_API_KEY`, `TRELLO_API_TOKEN`, webhook secret, board/card limits, sync concurrency.
 - Connector OAuth apps: provider-specific `*_CLIENT_ID` and `*_CLIENT_SECRET` variables.
 - Connector sync: per-provider timeouts, page sizes, total limits, cursor lookback windows, retry limits, and response-size limits.
-- Hetzner: `deploy/hetzner/.env.example` and [deployment guide](docs/HETZNER_DEPLOYMENT.md); exact proxy IPs use `SNEUP_TRUSTED_PROXY_IPS`. Optional connector/client settings go in a separate ignored app-only environment file, not the database-root configuration. ngrok is explicitly disabled in this deployment. Its legacy optional settings are not needed.
+- Hetzner: `deploy/hetzner/.env.example` and [deployment guide](docs/HETZNER_DEPLOYMENT.md); exact proxy IPs use `SNEUP_TRUSTED_PROXY_IPS`. Optional connector/client settings go in a separate ignored app-only environment file, not the database-root configuration.
 - Notifications and invitations: Resend sender/API key, notification schedules, invite retention.
 - AI: optional `OPENAI_API_KEY` and bounded model/context/output settings.
 - Retention and repair: workspace retention schedules, invitation retention, repair commands, verification database names.
@@ -517,7 +517,6 @@ The repository is maintained with explicit evidence rather than assumption. Curr
 - Real MongoDB safety profiles for review concurrency, follow-up integrity, data retention, repair, Trello webhook reconciliation, connector lifecycle, connector recovery, and portfolio scale.
 - Browser command-center checks.
 - HAI contract checks.
-- ngrok safety checks.
 - Windows installer build and packaged app runtime checks.
 - GitHub Actions quality and Windows packaging/runtime jobs.
 - Independent installer artifact download and hash verification for released builds.
@@ -549,7 +548,7 @@ These items require owner-controlled accounts or infrastructure and are not clai
 
 - Live Trello acceptance with the owner's real boards and webhook configuration.
 - Live OAuth acceptance for every third-party connector the owner wants to activate.
-- Live Hetzner domain/TLS/firewall and host deployment acceptance. No ngrok account is required.
+- Live Hetzner domain/TLS/firewall and host deployment acceptance.
 - Live HAI integration acceptance from the consuming HAI system.
 - Production MongoDB restore rehearsal and hosted deployment/canary/rollback.
 - Windows publisher signing and trusted update-channel configuration.

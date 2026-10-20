@@ -74,7 +74,7 @@ function Invoke-RestMethod {
   switch -Wildcard ($Uri) {
     '*/health' { return @{ status = 'ok' } }
     '*/api' { return @{ version = $version } }
-    '*/diagnostics' { return @{ data = @{ diagnostics = @{ status = 'ok'; mode = 'demo'; checks = @(1..9); secretsExposed = $false } } } }
+    '*/diagnostics' { return @{ data = @{ diagnostics = @{ status = 'ok'; mode = 'demo'; checks = @(1..8); secretsExposed = $false } } } }
     '*/manifest' { return @{ manifest = @{ safety = @{ providerWrites = 'never_direct' } } } }
     default { throw 'Unexpected fixture request' }
   }

@@ -24,8 +24,7 @@ describe('runtime troubleshooting contract', () => {
       secretsExposed: false
     });
     expect(report.checks).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 'trello_credentials', title: 'Trello connection', status: 'error' }),
-      expect.objectContaining({ id: 'ngrok_ingress', title: 'Cloud tunnel', status: 'ok', action: null })
+      expect.objectContaining({ id: 'trello_credentials', title: 'Trello connection', status: 'error' })
     ]));
     expect(JSON.stringify(report)).not.toContain(environment.TRELLO_API_KEY);
   });
