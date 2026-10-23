@@ -3,7 +3,7 @@ const { getRuntimeDiagnostics } = require('./runtimeDiagnosticsService');
 const CHECK_GUIDANCE = Object.freeze({
   node_runtime: {
     title: 'Application runtime',
-    action: 'Install Node.js 22 or newer for a server deployment, or reinstall the current Sneup desktop release.'
+    action: 'For the server, install Node.js 26.12.1 or newer within 26.x. Desktop builds need a patched bundled runtime; installing Node.js separately does not update that runtime.'
   },
   runtime_mode: {
     title: 'Workspace mode',

@@ -20,14 +20,14 @@ describe('support bundle service', () => {
         now: new Date('2026-08-09T12:34:56.789Z'),
         platform: 'win32',
         architecture: 'x64',
-        nodeVersion: '24.6.0'
+        nodeVersion: '26.12.1'
       });
       const raw = await fs.readFile(result.filePath, 'utf8');
       const parsed = JSON.parse(raw);
 
       expect(result.fileName).toBe('sneup-support-2026-08-09T12-34-56-789Z.json');
       expect(parsed).toMatchObject({
-        runtime: { platform: 'win32', architecture: 'x64', node: '24.6.0' },
+        runtime: { platform: 'win32', architecture: 'x64', node: '26.12.1' },
         secretsExposed: false,
         excluded: expect.arrayContaining(['credentials', 'logs', 'user data'])
       });

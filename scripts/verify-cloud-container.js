@@ -56,7 +56,11 @@ try {
   assert.equal(config.networks.edge.ipam.config[0].ip_range, environment.SNEUP_PROXY_DYNAMIC_RANGE);
   assert.equal(config.services.caddy.networks.edge.ipv4_address, environment.SNEUP_PROXY_IP);
   assert.equal(config.services.app.environment.SNEUP_TRUSTED_PROXY_IPS, environment.SNEUP_PROXY_IP);
-  docker(['run', '--rm', '--env', 'SNEUP_DOMAIN=sneup.verify.invalid', '--volume', `${path.join(root, 'deploy/hetzner/Caddyfile')}:/etc/caddy/Caddyfile:ro`, 'caddy:2', 'caddy', 'validate', '--config', '/etc/caddy/Caddyfile']);
+  assert.match(config.services.caddy.image, /^caddy:\d+\.\d+\.\d+-alpine@sha256:[a-f0-9]{64}$/);
+  docker(['run', '--rm', '--network', 'none', '--read-only', '--tmpfs', '/data', '--tmpfs', '/config',
+    '--cap-drop', 'ALL', '--cap-add', 'NET_BIND_SERVICE', '--env', 'SNEUP_DOMAIN=sneup.verify.invalid',
+    '--volume', `${path.join(root, 'deploy/hetzner/Caddyfile')}:/etc/caddy/Caddyfile:ro`,
+    config.services.caddy.image, 'caddy', 'validate', '--config', '/etc/caddy/Caddyfile']);
   // Exercise the actual proxy over private HTTP, without public ports or ACME.
   delete config.services.caddy.ports;
   config.services.caddy.environment.SNEUP_DOMAIN = 'http://sneup.verify.invalid:80';
