@@ -1,9 +1,9 @@
-FROM node:26.12.0-bookworm-slim AS dependencies
+FROM node:26.12.1-bookworm-slim@sha256:28147155d47dc31abe0a46e0d12b59b2fb3d0a2dcc5dc65fce76a074180b16fe AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
-FROM node:26.12.0-bookworm-slim AS runtime
+FROM node:26.12.1-bookworm-slim@sha256:28147155d47dc31abe0a46e0d12b59b2fb3d0a2dcc5dc65fce76a074180b16fe AS runtime
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 SNEUP_LOG_DIR=/app/logs
 WORKDIR /app
 COPY --from=dependencies --chown=node:node /app/node_modules ./node_modules
