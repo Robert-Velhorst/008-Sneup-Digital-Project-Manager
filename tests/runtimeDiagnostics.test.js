@@ -39,7 +39,7 @@ describe('redacted runtime diagnostics', () => {
       NODE_ENV: 'development',
       SNEUP_DEMO_MODE: 'true',
       HOST: '127.0.0.1'
-    }, nodeVersion: '24.6.0' });
+    }, nodeVersion: '26.12.1' });
 
     expect(report).toMatchObject({
       ready: true,
@@ -61,7 +61,7 @@ describe('redacted runtime diagnostics', () => {
     expect(report.checks).toContainEqual(expect.objectContaining({
       id: 'node_runtime',
       status: 'error',
-      summary: expect.stringContaining('Node.js 22 or newer')
+      summary: expect.stringContaining('patched Node.js 24.22.1+')
     }));
   });
 

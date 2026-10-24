@@ -10,7 +10,7 @@ describe('runtime troubleshooting contract', () => {
       HOST: '127.0.0.1',
       TRELLO_API_KEY: 'private-key-without-token'
     };
-    const report = getRuntimeTroubleshooting({ environment, nodeVersion: '24.6.0' });
+    const report = getRuntimeTroubleshooting({ environment, nodeVersion: '26.12.1' });
 
     expect(report).toMatchObject({
       status: 'error',
@@ -42,7 +42,7 @@ describe('runtime troubleshooting contract', () => {
       SNEUP_INVITE_TOKEN_PEPPER: strong('invite'),
       CONNECTOR_ENCRYPTION_KEY: strong('encryption'),
       CONNECTOR_STATE_SECRET: strong('state')
-    }, nodeVersion: '24.6.0' });
+    }, nodeVersion: '26.12.1' });
 
     expect(report).toMatchObject({ status: 'ok', ready: true, liveCriticalPathReady: true, nextAction: null });
     expect(report.checks.every(check => check.status === 'ok' && check.action === null)).toBe(true);
@@ -53,7 +53,7 @@ describe('runtime troubleshooting contract', () => {
       NODE_ENV: 'development',
       SNEUP_DEMO_MODE: 'true',
       SNEUP_SHUTDOWN_GRACE_MS: 'forever'
-    }, nodeVersion: '24.6.0' });
+    }, nodeVersion: '26.12.1' });
 
     expect(report.nextAction).toEqual({
       checkId: 'runtime_shutdown',
