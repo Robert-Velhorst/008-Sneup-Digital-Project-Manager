@@ -1,5 +1,27 @@
 # Stable dependency and runtime review - 2026-10-23
 
+## 24 October follow-up
+
+New public stable metadata advances Mongoose to 9.11.4, Natural to 8.2.3 and
+electron-builder to 26.18.0. Electron 45.0.0 remains the current stable release.
+The lock also selects current stable fast-uri 4.2.3 through an explicit override.
+Its former 3.1.8 resolution has URI normalization advisories; patched 3.1.9 is
+available, but the requested current stable target is 4.2.3.
+
+This is a major override beyond AJV's declared major 3 dependency. Upstream
+major 4 removes deprecated type declarations and fixes escaping; this project
+has no direct TypeScript fast-uri imports. Existing application, recommendation,
+schema, packaging and cloud checks must qualify the change. No assertion,
+runtime floor, audit rule, fuse policy or desktop release gate is relaxed.
+See the [upstream major release](https://github.com/fastify/fast-uri/releases/tag/v4.0.0).
+
+The refreshed candidate lock audits with zero known vulnerabilities. No local
+application suite, desktop execution, provider call or deployment was performed
+for this follow-up. Earlier verification below belongs to its dated head and
+does not qualify the new dependency graph. The embedded Node mismatch remains
+an unresolved release blocker until actual packaged-runtime evidence meets the
+established baseline; a newer installer builder does not itself fix that Node.
+
 ## Changes
 
 All 25 direct/override declarations were checked against current stable npm metadata and pinned exactly. Existing declarations advance body-parser to 2.4.0, dotenv to 18.0.9, Mongoose to 9.11.3, Natural to 8.2.1, OpenAI SDK to 7.43.0, Electron to 45.0.0, qs to 6.16.1 and the scoped js-yaml override to 5.5.0. The explicit verifier dependency @electron/fuses 2.1.3 is added. Other declared versions already match current stable metadata. The real scoped js-yaml load API parsed the coverage-style YAML fixture correctly.
