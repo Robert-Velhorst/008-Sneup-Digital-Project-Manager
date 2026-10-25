@@ -1,6 +1,7 @@
 FROM node:26.12.1-trixie-slim@sha256:36793bcbb160a6a16cede1e62b93f84e26b78a972a8a4c0b879c1c12f22761ec AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
+COPY third_party/node-schedule-cron-parser5.tgz ./third_party/node-schedule-cron-parser5.tgz
 RUN npm install --global npm@12.2.1 && npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 FROM node:26.12.1-trixie-slim@sha256:36793bcbb160a6a16cede1e62b93f84e26b78a972a8a4c0b879c1c12f22761ec AS runtime
