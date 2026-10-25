@@ -32,17 +32,27 @@ jobs:
           node --version > "$RUNNER_TEMP/airtap-evidence/node-version.txt"
           npm --version > "$RUNNER_TEMP/airtap-evidence/npm-version.txt"
           python3 - <<'PY'
-          import hashlib, json, os, re, tarfile, urllib.parse, urllib.request
+          import hashlib, json, os, re, subprocess, tarfile, urllib.parse, urllib.request
           from concurrent.futures import ThreadPoolExecutor
           from pathlib import Path, PurePosixPath
           evidence = Path(os.environ['RUNNER_TEMP']) / 'airtap-evidence'
           target = Path(os.environ['RUNNER_TEMP']) / 'airtap-upstream'
-          target.mkdir()
           source = Path('third_party/airtap-5.0.0-upstream.tgz')
           provenance = json.loads(Path('third_party/airtap-source-provenance.json').read_text())
           assert hashlib.sha256(source.read_bytes()).hexdigest() == provenance['canonical_complete_source_archive_sha256']
+          assert provenance['upstream_repository'] == 'airtap/airtap'
+          assert provenance['upstream_commit'] == '96ed561f2415bb5f92496cc782ef54448e1ac517'
+          subprocess.run(['git', 'clone', '--no-checkout', 'https://github.com/airtap/airtap.git', str(target)], check=True)
+          subprocess.run(['git', '-C', str(target), 'checkout', '--detach', provenance['upstream_commit']], check=True)
+          actual_commit = subprocess.check_output(['git', '-C', str(target), 'rev-parse', 'HEAD']).decode().strip()
+          assert actual_commit == provenance['upstream_commit']
+          (evidence / 'upstream-checked-out-commit.txt').write_text(actual_commit + '\n')
+          (evidence / 'upstream-tags.txt').write_bytes(subprocess.check_output(['git', '-C', str(target), 'tag', '--list']))
           expected = json.loads(Path('third_party/airtap-original-source-sha256.json').read_text())
           assert expected == provenance['complete_upstream_source_payload_sha256'] and len(expected) == 55
+          tracked = subprocess.check_output(['git', '-C', str(target), 'ls-files', '-z']).decode().split('\0')
+          assert set(tracked) - {''} == set(expected)
+          assert all(hashlib.sha256((target / p).read_bytes()).hexdigest() == h for p, h in expected.items())
           written = {}
           with tarfile.open(source) as archive:
               for member in archive.getmembers():
