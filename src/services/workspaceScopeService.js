@@ -28,7 +28,7 @@ const slugifyWorkspaceKey = (value) => {
   const slug = String(value || 'default')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/^-|-$/g, '');
   return slug || 'default';
 };
 
