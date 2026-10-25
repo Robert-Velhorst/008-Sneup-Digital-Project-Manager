@@ -1,0 +1,40 @@
+name: Prepare ordinary body-parser lock refresh
+on:
+  push:
+    branches: [audit/sneup-body-parser-lock-20261025]
+permissions:
+  contents: read
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '26.12.1'
+      - name: Record original source and resolve through the existing dependency range
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          mkdir -p "$RUNNER_TEMP/lock-evidence"
+          git rev-parse HEAD > "$RUNNER_TEMP/lock-evidence/tested-head.txt"
+          git ls-files -z | xargs -0 sha256sum > "$RUNNER_TEMP/lock-evidence/source-sha256.txt"
+          cp package.json "$RUNNER_TEMP/lock-evidence/package-before.json"
+          cp package-lock.json "$RUNNER_TEMP/lock-evidence/lock-before.json"
+          node --version > "$RUNNER_TEMP/lock-evidence/node-version.txt"
+          npm --version > "$RUNNER_TEMP/lock-evidence/npm-version.txt"
+          npm update body-parser --package-lock-only --ignore-scripts --no-audit
+          cmp package.json "$RUNNER_TEMP/lock-evidence/package-before.json"
+          cp package.json package-lock.json "$RUNNER_TEMP/lock-evidence/"
+          git diff --name-only > "$RUNNER_TEMP/lock-evidence/changed-paths.txt"
+          test "$(cat "$RUNNER_TEMP/lock-evidence/changed-paths.txt")" = package-lock.json
+          npm audit --json > "$RUNNER_TEMP/lock-evidence/audit.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: ordinary-body-parser-lock
+          path: ${{ runner.temp }}/lock-evidence/
+          if-no-files-found: error
