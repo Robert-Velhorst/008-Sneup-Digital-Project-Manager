@@ -7,7 +7,14 @@ const { isProduction } = require('../utils/securityConfiguration');
 const logger = require('../utils/logger');
 
 const USER_ROLES = ['viewer', 'operator', 'manager', 'admin', 'owner', 'service'];
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const isValidInvitationEmail = (email) => {
+  // Keep the existing shape rule, using a single pass over each component.
+  const at = email.indexOf('@');
+  if (at < 1 || at !== email.lastIndexOf('@') || /\s/.test(email)) return false;
+  const domain = email.slice(at + 1);
+  const dot = domain.indexOf('.', 1);
+  return dot > 0 && dot < domain.length - 1;
+};
 const MAX_EMAIL_DELIVERY_TIMEOUT_MS = 15000;
 const TERMINAL_INVITE_STATUSES = ['accepted', 'revoked', 'expired'];
 const DEFAULT_INVITE_RETENTION_DAYS = 90;
@@ -32,7 +39,7 @@ const assertEmailDeliveryConfigured = (environment = process.env) => {
 
 const validateInviteInput = ({ email, displayName, role }) => {
   const normalizedEmail = normalizeEmail(email);
-  if (!EMAIL_PATTERN.test(normalizedEmail)) {
+  if (!isValidInvitationEmail(normalizedEmail)) {
     throw invitationError('A valid invitation email is required');
   }
 
