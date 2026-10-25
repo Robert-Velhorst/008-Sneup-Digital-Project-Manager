@@ -136,8 +136,16 @@ parse.expandKeys = config => {
     let m = /(\S+) "(.*)"/.exec(key);
     if (!m) continue;
     let prop = m[1];
-    config[prop] = config[prop] || {};
-    config[prop][m[2]] = config[key];
+    // A section name is data, including names inherited from Object.prototype.
+    // Never expand a subsection through an inherited object or a prototype setter.
+    if (!Object.prototype.hasOwnProperty.call(config, prop) || !config[prop]) {
+      Object.defineProperty(config, prop, {
+        value: {}, enumerable: true, configurable: true, writable: true
+      });
+    }
+    Object.defineProperty(config[prop], m[2], {
+      value: config[key], enumerable: true, configurable: true, writable: true
+    });
     delete config[key];
   }
   return config;
