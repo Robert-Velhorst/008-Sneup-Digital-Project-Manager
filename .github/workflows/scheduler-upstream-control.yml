@@ -1,0 +1,75 @@
+name: Unmodified upstream scheduler diagnostic control
+on:
+  push:
+    branches: [audit/sneup-scheduler-upstream-control-20261025]
+permissions:
+  contents: read
+jobs:
+  upstream-control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '26.12.1'
+      - name: Reconstruct the exact original source and change only diagnostic build declarations
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/scheduler-control" "$RUNNER_TEMP/control-evidence"
+          git rev-parse HEAD > "$RUNNER_TEMP/control-evidence/tested-head.txt"
+          printf '%s  %s\n' 5b5f244d4754b3d6f4cd72e14901d510f5af0446b4324ad5f8f7be2627900103 third_party/node-schedule-2.1.2-upstream.tgz | sha256sum --check
+          tar -xzf third_party/node-schedule-2.1.2-upstream.tgz --strip-components=1 -C "$RUNNER_TEMP/scheduler-control"
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          control = Path(os.environ['RUNNER_TEMP']) / 'scheduler-control'
+          evidence = Path(os.environ['RUNNER_TEMP']) / 'control-evidence'
+          provenance = json.loads(Path('third_party/node-schedule-port-provenance.json').read_text())
+          expected = provenance['original_source_file_sha256']
+          assert len(expected) == 35
+          for path, sha in expected.items():
+              assert hashlib.sha256((control / path).read_bytes()).hexdigest() == sha, path
+          original = json.loads((control / 'package.json').read_text())
+          assert original['dependencies']['cron-parser'] == '^4.2.0'
+          (evidence / 'original-manifest.json').write_text(json.dumps(original, indent=2) + '\n')
+          candidate = json.loads(Path('third_party/node-schedule/package.json').read_text())
+          original['devDependencies'] = candidate['devDependencies']
+          (control / 'package.json').write_text(json.dumps(original, indent=2) + '\n')
+          (evidence / 'control-source-sha256.json').write_text(json.dumps(expected, indent=2) + '\n')
+          (evidence / 'purpose.txt').write_text('Diagnostic original-source control only. The proposed parser5 target is unchanged; the control graph is not a deployment target or a qualification substitute.\n')
+          PY
+      - name: Install the same current stable direct test-tool declarations
+        id: install
+        working-directory: ${{ runner.temp }}/scheduler-control
+        run: |
+          npm install --ignore-scripts --no-audit
+          cp package.json package-lock.json "$RUNNER_TEMP/control-evidence/"
+          node -p "JSON.stringify({node:process.version,scheduler:require('./package.json').version,parser:require('cron-parser/package.json').version,sinon:require('sinon/package.json').version,tape:require('tape/package.json').version})" > "$RUNNER_TEMP/control-evidence/actual-identities.json"
+      - name: Original upstream cases on the unchanged upstream runtime
+        if: always() && steps.install.outcome == 'success'
+        working-directory: ${{ runner.temp }}/scheduler-control
+        run: |
+          set -euo pipefail
+          npm test 2>&1 | tee "$RUNNER_TEMP/control-evidence/original-control-suite.log"
+      - name: Verify every original case helper and runtime source remains unchanged
+        if: always() && steps.install.outcome == 'success'
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          control = Path(os.environ['RUNNER_TEMP']) / 'scheduler-control'
+          evidence = Path(os.environ['RUNNER_TEMP']) / 'control-evidence'
+          expected = json.loads((evidence / 'control-source-sha256.json').read_text())
+          for path, sha in expected.items():
+              if path != 'package.json':
+                  assert hashlib.sha256((control / path).read_bytes()).hexdigest() == sha, path
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: unmodified-upstream-scheduler-control
+          path: ${{ runner.temp }}/control-evidence/
+          if-no-files-found: error
