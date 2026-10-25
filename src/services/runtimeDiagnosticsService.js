@@ -13,7 +13,7 @@ const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1', 'localhost']);
 
 const diagnostic = (id, status, summary) => ({ id, status, summary });
 
-const nodeMajor = (version = process.versions.node) => Number.parseInt(String(version).split('.')[0], 10);
+const { supportedNodeRuntime } = require('../utils/nodeRuntimePolicy');
 
 const getRuntimeDiagnostics = ({ environment = process.env, nodeVersion = process.versions.node } = {}) => {
   const checks = [];
@@ -38,9 +38,9 @@ const getRuntimeDiagnostics = ({ environment = process.env, nodeVersion = proces
     shutdownConfigurationValid = false;
   }
 
-  checks.push(nodeMajor(nodeVersion) >= 22
+  checks.push(supportedNodeRuntime(nodeVersion)
     ? diagnostic('node_runtime', 'ok', `Node.js ${nodeVersion} satisfies the supported runtime`)
-    : diagnostic('node_runtime', 'error', `Node.js ${nodeVersion} is unsupported; Node.js 22 or newer is required`));
+    : diagnostic('node_runtime', 'error', `Node.js ${nodeVersion} is unsupported; patched Node.js 24.22.1+ (24.x) or 26.12.1+ (26.x) is required`));
 
   checks.push(diagnostic('runtime_mode', 'ok', demoMode
     ? 'Demo mode is active and external writes remain unavailable'
