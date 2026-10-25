@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { optionalModelReference, requiredModelReference } = require('../utils/modelReference');
+const { optionalModelReference } = require('../utils/modelReference');
 const { isDeepStrictEqual } = require('node:util');
 const Recommendation = require('../models/Recommendation');
 const Approval = require('../models/Approval');
@@ -3449,9 +3449,7 @@ class OperationsLedgerService {
     this.requireDatabase();
     const workspaceId = this.resolveWorkspaceId(body.workspaceId);
     const requestedInterventionId = optionalModelReference(body.interventionId, 'interventionId');
-    const requestedMemberId = requestedInterventionId
-      ? requiredModelReference(body.memberId, 'memberId')
-      : optionalModelReference(body.memberId, 'memberId');
+    const requestedMemberId = optionalModelReference(body.memberId, 'memberId');
     const responseText = normalizeWorkerResponseText(body.responseText);
     const responseType = body.responseType || 'other';
     if (requestedInterventionId && !INTERVENTION_RESPONSE_TYPES.has(responseType)) {
@@ -3477,9 +3475,9 @@ class OperationsLedgerService {
     // Bind the claim and recovery to the model-cast context that was actually saved,
     // rather than rereading caller-owned values after the asynchronous create.
     const interventionId = optionalModelReference(response.interventionId, 'interventionId');
-    const memberId = interventionId
-      ? requiredModelReference(response.memberId, 'memberId')
-      : optionalModelReference(response.memberId, 'memberId');
+    // An unassigned intervention is valid. Keep an explicit null selector so an
+    // absent response member cannot become an unrestricted assignment match.
+    const memberId = optionalModelReference(response.memberId, 'memberId') ?? null;
     if (interventionId) {
       const responseState = {
         workerResponseId: response._id,
