@@ -32,6 +32,9 @@ jobs:
         run: |
           set -euo pipefail
           test "$RUNNER_ENVIRONMENT" = github-hosted
+          # Keep checkout bytes stable and establish the real global Git config
+          # expected by the original configuration-location case.
+          git config --global core.autocrlf false
           mkdir -p "$RUNNER_TEMP/gitconfig-${VARIANT}-evidence"
           git rev-parse HEAD > "$RUNNER_TEMP/gitconfig-${VARIANT}-evidence/tested-head.txt"
           git ls-files -z | xargs -0 sha256sum > "$RUNNER_TEMP/gitconfig-${VARIANT}-evidence/tracked-source-sha256.txt"

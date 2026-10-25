@@ -661,7 +661,7 @@
     ],
     "main": "index.js",
     "engines": {
-      "node": ">=8"
+      "node": ">=26.12.1 <27"
     },
     "scripts": {
       "test": "mocha"
@@ -709,12 +709,14 @@
       "upstreamGitManifestVersion": "2.0.3",
       "upstreamCommit": "60d1e75fe796ba4149bfceeb63b983503b21003c",
       "unmodifiedPublisherRelease": false,
-      "description": "Private prototype-safe config-section expansion candidate. Original upstream cases/scripts/fixtures preserved; no advisory suppression or application integration."
+      "description": "Private own-property-safe expansion and current INI plain-record API compatibility candidate. Original source cases/scripts/fixtures remain unchanged; no upstream advisory clearance or application integration."
     }
   },
   "only_original_implementation_and_manifest_changed": true,
   "original_case_helper_fixture_script_changes": false,
   "advisory_exclusion_or_identity_relabeling_to_hide_findings": false,
   "application_dependency_integration": false,
-  "source_patch_runtime_or_release_acceptance": false
+  "source_patch_runtime_or_release_acceptance": false,
+  "plain_record_API_compatibility": "Reify current INI data recursively through Object.fromEntries, preserving own data properties without prototype setters. No key/value filtering or original-case rewrite.",
+  "hosted_global_Git_context": "Set real core.autocrlf=false on the disposable worker, preserving exact checkout bytes and providing the existing global configuration expected by the original path-discovery case."
 }

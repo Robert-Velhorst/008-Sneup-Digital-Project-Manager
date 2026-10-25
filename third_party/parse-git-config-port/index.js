@@ -151,6 +151,14 @@ parse.expandKeys = config => {
   return config;
 };
 
+function plainConfigRecord(value) {
+  if (Array.isArray(value)) return value.map(plainConfigRecord);
+  if (!value || typeof value !== 'object') return value;
+  // Preserve the public plain-record API with current INI versions. FromEntries
+  // defines own data properties, including a literal __proto__ key, without setters.
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, plainConfigRecord(item)]));
+}
+
 function parseIni(str, options) {
   let opts = Object.assign({}, options);
 
@@ -158,7 +166,7 @@ function parseIni(str, options) {
     return $1 && $2 ? `[${$1} "${$2.split('.').join('\\.')}"]` : m;
   });
 
-  let config = ini.parse(str);
+  let config = plainConfigRecord(ini.parse(str));
   if (opts.expandKeys === true) {
     return parse.expandKeys(config);
   }

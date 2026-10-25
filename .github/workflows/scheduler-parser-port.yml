@@ -28,6 +28,15 @@ jobs:
           cp package.json package-lock.json "$RUNNER_TEMP/scheduler-port-evidence/"
       - run: npm ci --ignore-scripts
         id: app-install
+      - name: Install discovered original parser cases with their declared SDK dependencies
+        if: always() && steps.app-install.outcome == 'success'
+        working-directory: third_party/parse-git-config-port
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          git config --global core.autocrlf false
+          npm install --package-lock=true --package-lock-only --ignore-scripts --no-audit
+          npm ci --package-lock=true --ignore-scripts --no-audit
       - name: Verify actual installed source and parser identities
         if: always() && steps.app-install.outcome == 'success'
         run: |
