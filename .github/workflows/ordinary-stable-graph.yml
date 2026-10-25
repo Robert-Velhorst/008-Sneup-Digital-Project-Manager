@@ -1,0 +1,61 @@
+name: Complete ordinary stable dependency graph
+on:
+  push:
+    branches: [audit/sneup-ordinary-stable-graph-20261025]
+permissions:
+  contents: read
+jobs:
+  ordinary-graph:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '26.12.1'
+      - name: Resolve all direct stable targets without dependency overrides
+        id: resolve
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          mkdir -p "$RUNNER_TEMP/ordinary-graph-evidence"
+          git rev-parse HEAD > "$RUNNER_TEMP/ordinary-graph-evidence/tested-head.txt"
+          git ls-files -z | xargs -0 sha256sum > "$RUNNER_TEMP/ordinary-graph-evidence/source-sha256.txt"
+          node --version > "$RUNNER_TEMP/ordinary-graph-evidence/node-version.txt"
+          npm --version > "$RUNNER_TEMP/ordinary-graph-evidence/npm-version.txt"
+          python3 .github/scripts/ordinary-stable-graph.py targets
+          npm install --package-lock-only --ignore-scripts --no-audit
+          cp package.json package-lock.json "$RUNNER_TEMP/ordinary-graph-evidence/"
+          git diff --name-only > "$RUNNER_TEMP/ordinary-graph-evidence/changed-paths.txt"
+          printf 'package-lock.json\npackage.json\n' > "$RUNNER_TEMP/expected-paths.txt"
+          cmp "$RUNNER_TEMP/ordinary-graph-evidence/changed-paths.txt" "$RUNNER_TEMP/expected-paths.txt"
+      - run: npm ci --ignore-scripts
+      - run: npm run lint
+      - run: npm run check:route-authorization
+      - run: npm test -- --runInBand
+      - run: npm run evaluate:recommendations
+      - name: Require the original production audit
+        run: npm audit --omit=dev --audit-level=moderate --json > "$RUNNER_TEMP/ordinary-graph-evidence/production-audit.json"
+      - name: Require the original all-dependency audit
+        run: npm audit --audit-level=moderate --json > "$RUNNER_TEMP/ordinary-graph-evidence/all-audit.json"
+      - name: Catalog every resolved dependency against the public registry
+        if: always() && steps.resolve.outcome == 'success'
+        run: python3 .github/scripts/ordinary-stable-graph.py catalog
+      - name: Require a complete stable and current dependency graph
+        if: always() && steps.resolve.outcome == 'success'
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          evidence = Path(os.environ['RUNNER_TEMP']) / 'ordinary-graph-evidence'
+          graph = json.loads((evidence / 'complete-graph-catalog.json').read_text())
+          assert graph['full_stable_graph_is_latest'], 'Full graph is not stable/current; retain all gaps without overrides or exclusions'
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: complete-ordinary-stable-graph
+          path: ${{ runner.temp }}/ordinary-graph-evidence/
+          if-no-files-found: error
