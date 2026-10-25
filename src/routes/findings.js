@@ -1,3 +1,4 @@
+const { optionalQueryString } = require('../utils/queryFilters');
 const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
@@ -16,12 +17,12 @@ router.get('/', requirePermission('audit:read'), async (req, res) => {
   try {
     operationsLedgerService.requireDatabase();
     const query = scopeQuery(req);
-    if (req.query.boardId) query.boardId = req.query.boardId;
-    if (req.query.cardId) query.cardId = req.query.cardId;
-    if (req.query.status) query.status = req.query.status;
-    if (req.query.severity) query.severity = req.query.severity;
-    if (req.query.waitingOn) query.waitingOn = req.query.waitingOn;
-    if (req.query.findingType) query.findingType = req.query.findingType;
+    if (optionalQueryString(req.query.boardId, 'boardId')) query.boardId = optionalQueryString(req.query.boardId, 'boardId');
+    if (optionalQueryString(req.query.cardId, 'cardId')) query.cardId = optionalQueryString(req.query.cardId, 'cardId');
+    if (optionalQueryString(req.query.status, 'status')) query.status = optionalQueryString(req.query.status, 'status');
+    if (optionalQueryString(req.query.severity, 'severity')) query.severity = optionalQueryString(req.query.severity, 'severity');
+    if (optionalQueryString(req.query.waitingOn, 'waitingOn')) query.waitingOn = optionalQueryString(req.query.waitingOn, 'waitingOn');
+    if (optionalQueryString(req.query.findingType, 'findingType')) query.findingType = optionalQueryString(req.query.findingType, 'findingType');
 
     const findings = await CardFinding.find(query)
       .sort({ severity: -1, signalScore: -1, lastObservedAt: -1 })
@@ -39,8 +40,8 @@ router.get('/board-health', requirePermission('audit:read'), async (req, res) =>
   try {
     operationsLedgerService.requireDatabase();
     const query = scopeQuery(req);
-    if (req.query.boardId) query.boardId = req.query.boardId;
-    if (req.query.healthStatus) query.healthStatus = req.query.healthStatus;
+    if (optionalQueryString(req.query.boardId, 'boardId')) query.boardId = optionalQueryString(req.query.boardId, 'boardId');
+    if (optionalQueryString(req.query.healthStatus, 'healthStatus')) query.healthStatus = optionalQueryString(req.query.healthStatus, 'healthStatus');
 
     const snapshots = await BoardHealthSnapshot.find(query)
       .sort({ generatedAt: -1 })
