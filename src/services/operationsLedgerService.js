@@ -3469,10 +3469,13 @@ class OperationsLedgerService {
       source: normalizeWorkerResponseSource(body.source)
     });
 
-    if (body.interventionId) {
+    // Bind the claim and recovery to the model-cast context that was actually saved,
+    // rather than rereading caller-owned values after the asynchronous create.
+    const { interventionId, memberId } = response;
+    if (interventionId) {
       const responseState = {
         workerResponseId: response._id,
-        memberId: body.memberId,
+        memberId,
         respondedAt: response.receivedAt || new Date(),
         responseType
       };
@@ -3482,18 +3485,18 @@ class OperationsLedgerService {
       let intervention;
       try {
         intervention = await Intervention.findOneAndUpdate({
-          _id: body.interventionId,
+          _id: interventionId,
           workspaceId,
           status: 'executed',
           type: { $in: RESPONSE_ELIGIBLE_INTERVENTION_TYPES },
-          memberId: body.memberId,
+          memberId,
           'response.respondedAt': { $exists: false }
         }, interventionUpdate, { new: true, runValidators: true });
       } catch {
         intervention = await this.recoverLedgerCommit(Intervention, {
-          _id: body.interventionId,
+          _id: interventionId,
           workspaceId,
-          memberId: body.memberId,
+          memberId,
           'response.workerResponseId': response._id
         });
       }
