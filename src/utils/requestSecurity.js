@@ -166,7 +166,9 @@ const extractApiKey = (req) => {
   if (explicit) return explicit;
 
   const authorization = req.get('authorization') || '';
-  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  // A credential starts with a non-whitespace character, so the separator and
+  // credential cannot consume the same whitespace and trigger backtracking.
+  const match = authorization.match(/^Bearer\s+(\S.*)$/i);
   return match ? match[1] : null;
 };
 
