@@ -117,6 +117,11 @@ app.use(helmet({
 }));
 app.use(cors(corsOptions));
 app.use(compression());
+// Observe rejected attempts as well as requests admitted to the body parsers.
+app.use(new RequestLoggingService(logger).middleware());
+// Count API attempts before body parsing, including malformed/compressed bodies
+// that would otherwise fail before reaching the limiter.
+app.use(apiRateLimit);
 // Generic inbound webhooks are bounded before the application-wide JSON parser
 // can allocate its larger body limit. Their JSON is decoded only after HMAC verification.
 app.use('/api/webhooks/generic', express.raw({
@@ -149,8 +154,6 @@ app.use(express.static(path.join(__dirname, '../public'), {
   setHeaders: commandCenterAssetService.staticHeaders
 }));
 
-app.use(new RequestLoggingService(logger).middleware());
-app.use(apiRateLimit);
 app.use(requireApiAccess);
 app.use(responseTimingService.middleware());
 

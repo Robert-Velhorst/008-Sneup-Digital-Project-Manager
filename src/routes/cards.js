@@ -1,4 +1,5 @@
 const express = require('express');
+const { optionalQueryString } = require('../utils/queryFilters');
 const router = express.Router();
 const logger = require('../utils/logger');
 const operationsLedgerService = require('../services/operationsLedgerService');
@@ -50,7 +51,7 @@ router.get('/:cardId/findings', requirePermission('audit:read'), async (req, res
     operationsLedgerService.requireDatabase();
     const query = scopeQuery(req, {
       cardId: req.params.cardId,
-      status: req.query.status || 'open'
+      status: optionalQueryString(req.query.status, 'status') || 'open'
     });
     const findings = await CardFinding.find(query)
       .sort({ severity: -1, signalScore: -1, lastObservedAt: -1 })

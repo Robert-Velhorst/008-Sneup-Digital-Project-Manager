@@ -7,3 +7,5 @@
 !public/**
 !scripts/
 !scripts/**
+!third_party/
+!third_party/node-schedule-cron-parser5.tgz
