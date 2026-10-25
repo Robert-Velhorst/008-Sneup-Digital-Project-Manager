@@ -1,3 +1,4 @@
+const { optionalQueryString } = require('../utils/queryFilters');
 const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
@@ -25,9 +26,9 @@ router.get('/', requirePermission('follow-ups:manage'), async (req, res) => {
   try {
     const followUps = await operationsLedgerService.listFollowUps({
       ...workspaceOptions(req),
-      status: req.query.status,
-      boardId: req.query.boardId,
-      cardId: req.query.cardId,
+      status: optionalQueryString(req.query.status, 'status'),
+      boardId: optionalQueryString(req.query.boardId, 'boardId'),
+      cardId: optionalQueryString(req.query.cardId, 'cardId'),
       limit: clampInteger(req.query.limit, 100, 1, 250)
     });
 
@@ -43,8 +44,8 @@ router.get('/due', requirePermission('follow-ups:manage'), async (req, res) => {
     const followUps = await operationsLedgerService.listFollowUps({
       ...workspaceOptions(req),
       dueOnly: true,
-      boardId: req.query.boardId,
-      cardId: req.query.cardId,
+      boardId: optionalQueryString(req.query.boardId, 'boardId'),
+      cardId: optionalQueryString(req.query.cardId, 'cardId'),
       limit: clampInteger(req.query.limit, 100, 1, 250)
     });
 

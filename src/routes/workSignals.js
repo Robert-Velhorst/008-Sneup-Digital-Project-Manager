@@ -1,3 +1,4 @@
+const { optionalQueryString } = require('../utils/queryFilters');
 const express = require('express');
 const connectorSyncService = require('../services/connectorSyncService');
 const operationsLedgerService = require('../services/operationsLedgerService');
@@ -37,10 +38,10 @@ router.get('/', requirePermission('audit:read'), async (req, res) => {
   try {
     const result = await workSignalService.listSignals({
       ...requestOptions(req),
-      provider: req.query.provider,
-      status: req.query.status,
-      sourceType: req.query.sourceType,
-      priority: req.query.priority,
+      provider: optionalQueryString(req.query.provider, 'provider'),
+      status: optionalQueryString(req.query.status, 'status'),
+      sourceType: optionalQueryString(req.query.sourceType, 'sourceType'),
+      priority: optionalQueryString(req.query.priority, 'priority'),
       limit: req.query.limit
     });
 

@@ -1,3 +1,4 @@
+const { optionalQueryString } = require('../utils/queryFilters');
 const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
@@ -9,11 +10,11 @@ router.get('/', requirePermission('audit:read'), async (req, res) => {
   try {
     const auditEvents = await operationsLedgerService.listAuditEvents({
       workspaceId: getRequestWorkspaceObjectId(req),
-      entityType: req.query.entityType,
-      entityId: req.query.entityId,
-      action: req.query.action,
-      boardId: req.query.boardId,
-      cardId: req.query.cardId,
+      entityType: optionalQueryString(req.query.entityType, 'entityType'),
+      entityId: optionalQueryString(req.query.entityId, 'entityId'),
+      action: optionalQueryString(req.query.action, 'action'),
+      boardId: optionalQueryString(req.query.boardId, 'boardId'),
+      cardId: optionalQueryString(req.query.cardId, 'cardId'),
       limit: clampInteger(req.query.limit, 100, 1, 250)
     });
 
