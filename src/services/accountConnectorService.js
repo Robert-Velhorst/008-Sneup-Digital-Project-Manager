@@ -6,6 +6,7 @@ const AuditEvent = require('../models/AuditEvent');
 const { CATEGORIES, getCategories, getConnector, getConnectors } = require('./connectorRegistry');
 const { buildConnectorSafetyProfile, summarizeConnectorSafety } = require('./connectorSafetyProfile');
 const { copyWorkSignalSyncCounts } = require('../utils/workSignalSyncMetadata');
+const { sanitizeConnectorReturnTo } = require('../utils/connectorReturnTo');
 const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
 
 const STATE_TTL_MS = 10 * 60 * 1000;
@@ -657,7 +658,7 @@ class AccountConnectorService {
 
     return {
       account: this.sanitizeAccount(account),
-      returnTo: state.returnTo || '/?connectors=1'
+      returnTo: this.sanitizeReturnTo(state.returnTo)
     };
   }
 
@@ -2057,10 +2058,7 @@ class AccountConnectorService {
   }
 
   sanitizeReturnTo(returnTo) {
-    if (typeof returnTo === 'string' && returnTo.startsWith('/') && !returnTo.startsWith('//')) {
-      return returnTo;
-    }
-    return '/?connectors=1';
+    return sanitizeConnectorReturnTo(returnTo);
   }
 
   createState(payload) {
