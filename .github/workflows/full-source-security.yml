@@ -1,4 +1,4 @@
-name: Complete Sneup source security
+name: Complete scheduler compatibility source security
 
 on:
   pull_request:
@@ -25,38 +25,64 @@ jobs:
         run: |
           set -euo pipefail
           test "$RUNNER_ENVIRONMENT" = github-hosted
-          mkdir -p "$RUNNER_TEMP/sneup-codeql/evidence"
-          git rev-parse HEAD > "$RUNNER_TEMP/sneup-codeql/evidence/tested-head.txt"
-          printf '%s\n' "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/sneup-codeql/evidence/source-root.txt"
-          git rev-parse HEAD^{tree} > "$RUNNER_TEMP/sneup-codeql/evidence/tested-tree.txt"
-          git ls-files -z | xargs -0 sha256sum > "$RUNNER_TEMP/sneup-codeql/evidence/source-sha256.txt"
-          curl --fail --location --retry 3 --output "$RUNNER_TEMP/sneup-codeql/bundle.tar.zst" \
+          mkdir -p "$RUNNER_TEMP/scheduler-codeql/evidence"
+          git rev-parse HEAD > "$RUNNER_TEMP/scheduler-codeql/evidence/tested-head.txt"
+          printf '%s\n' "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/scheduler-codeql/evidence/source-root.txt"
+          git rev-parse HEAD^{tree} > "$RUNNER_TEMP/scheduler-codeql/evidence/tested-tree.txt"
+          git ls-files -z | xargs -0 sha256sum > "$RUNNER_TEMP/scheduler-codeql/evidence/source-sha256.txt"
+          python3 - <<'PY'
+          import hashlib, json, os, tarfile
+          from pathlib import Path, PurePosixPath
+          target = Path('third_party/cron-parser-reference')
+          assert not target.exists()
+          source = Path('third_party/cron-parser-5.10.2-upstream.tgz')
+          assert hashlib.sha256(source.read_bytes()).hexdigest() == 'fb4be44acdaa3a41d786b1e1be4744dcc891e3828152ca5c988d08b8f1e23016'
+          expected = json.loads(Path('third_party/cron-parser-original-source-sha256.json').read_text())
+          written = {}
+          with tarfile.open(source) as archive:
+              for member in archive.getmembers():
+                  if member.isdir():
+                      continue
+                  assert member.isfile()
+                  relative = member.name.split('/', 1)[1]
+                  assert relative in expected and '..' not in PurePosixPath(relative).parts
+                  data = archive.extractfile(member).read()
+                  assert hashlib.sha256(data).hexdigest() == expected[relative]
+                  destination = target / relative
+                  destination.parent.mkdir(parents=True, exist_ok=True)
+                  destination.write_bytes(data)
+                  written[str(destination)] = expected[relative]
+          assert set(written) == {str(target / p) for p in expected}
+          evidence = Path(os.environ['RUNNER_TEMP']) / 'scheduler-codeql/evidence'
+          (evidence / 'referenced-upstream-source-sha256.json').write_text(json.dumps(written, indent=2) + '\n')
+          PY
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/scheduler-codeql/bundle.tar.zst" \
             "https://github.com/github/codeql-action/releases/download/codeql-bundle-v${CODEQL_VERSION}/codeql-bundle-javascript-linux64.tar.zst"
-          printf '%s  %s\n' "$CODEQL_BUNDLE_SHA256" "$RUNNER_TEMP/sneup-codeql/bundle.tar.zst" | sha256sum --check
-          tar --zstd -xf "$RUNNER_TEMP/sneup-codeql/bundle.tar.zst" -C "$RUNNER_TEMP/sneup-codeql"
-          "$RUNNER_TEMP/sneup-codeql/codeql/codeql" version --format=json > "$RUNNER_TEMP/sneup-codeql/evidence/cli-version.json"
+          printf '%s  %s\n' "$CODEQL_BUNDLE_SHA256" "$RUNNER_TEMP/scheduler-codeql/bundle.tar.zst" | sha256sum --check
+          tar --zstd -xf "$RUNNER_TEMP/scheduler-codeql/bundle.tar.zst" -C "$RUNNER_TEMP/scheduler-codeql"
+          "$RUNNER_TEMP/scheduler-codeql/codeql/codeql" version --format=json > "$RUNNER_TEMP/scheduler-codeql/evidence/cli-version.json"
       - name: Create a fresh database from the complete source tree
         run: |
           set -euo pipefail
           # Preserve the root walk and explicitly include every tracked file, including hidden directories.
-          export LGTM_INDEX_INCLUDE="$(printf '.\n'; git -c core.quotePath=false ls-files)"
-          "$RUNNER_TEMP/sneup-codeql/codeql/codeql" database create "$RUNNER_TEMP/sneup-codeql/database" \
+          export LGTM_INDEX_INCLUDE="$(printf '.\n'; git -c core.quotePath=false ls-files; python3 -c 'import json,os;from pathlib import Path;p=Path(os.environ["RUNNER_TEMP"])/"scheduler-codeql/evidence/referenced-upstream-source-sha256.json";print("\n".join(json.loads(p.read_text())))')"
+          "$RUNNER_TEMP/scheduler-codeql/codeql/codeql" database create "$RUNNER_TEMP/scheduler-codeql/database" \
             --language=javascript-typescript --build-mode=none --source-root="$GITHUB_WORKSPACE" \
-            --threads=2 --ram=6000 2>&1 | tee "$RUNNER_TEMP/sneup-codeql/evidence/create.log"
-          cp "$RUNNER_TEMP/sneup-codeql/database/src.zip" "$RUNNER_TEMP/sneup-codeql/evidence/extracted-source.zip"
+            --threads=2 --ram=6000 2>&1 | tee "$RUNNER_TEMP/scheduler-codeql/evidence/create.log"
+          cp "$RUNNER_TEMP/scheduler-codeql/database/src.zip" "$RUNNER_TEMP/scheduler-codeql/evidence/extracted-source.zip"
       - name: Analyze the complete standard security suite without PR diff extensions
         run: |
           set -euo pipefail
-          "$RUNNER_TEMP/sneup-codeql/codeql/codeql" database analyze "$RUNNER_TEMP/sneup-codeql/database" \
+          "$RUNNER_TEMP/scheduler-codeql/codeql/codeql" database analyze "$RUNNER_TEMP/scheduler-codeql/database" \
             codeql/javascript-queries:codeql-suites/javascript-code-scanning.qls \
-            --format=sarifv2.1.0 --output="$RUNNER_TEMP/sneup-codeql/evidence/full-source.sarif" \
-            --threads=2 --ram=6000 2>&1 | tee "$RUNNER_TEMP/sneup-codeql/evidence/analyze.log"
+            --format=sarifv2.1.0 --output="$RUNNER_TEMP/scheduler-codeql/evidence/full-source.sarif" \
+            --threads=2 --ram=6000 2>&1 | tee "$RUNNER_TEMP/scheduler-codeql/evidence/analyze.log"
       - name: Require the full suite and zero findings at every severity
         run: |
           python3 - <<'PY'
           import json, os, hashlib, zipfile
           from pathlib import Path
-          folder = Path(os.environ['RUNNER_TEMP']) / 'sneup-codeql/evidence'
+          folder = Path(os.environ['RUNNER_TEMP']) / 'scheduler-codeql/evidence'
           sarif = json.loads((folder / 'full-source.sarif').read_text())
           assert sarif['version'] == '2.1.0' and len(sarif['runs']) == 1
           run = sarif['runs'][0]
@@ -64,12 +90,19 @@ jobs:
           assert not any('pr-diff-range' in item.get('name', '') for item in components)
           rules = {rule['id'] for item in components for rule in item.get('rules', [])}
           assert len(rules) >= 87
-          assert {'js/polynomial-redos', 'js/missing-rate-limiting', 'js/sql-injection'} <= rules
+          assert {'js/missing-rate-limiting', 'js/insufficient-password-hash', 'js/request-forgery'} <= rules
           expected = {}
           for line in (folder / 'source-sha256.txt').read_text().splitlines():
               digest, path = line.split('  ', 1)
               if path.endswith(('.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.cts')):
                   expected[path] = digest
+          tracked_js_count = len(expected)
+          referenced = json.loads((folder / 'referenced-upstream-source-sha256.json').read_text())
+          for path, digest in referenced.items():
+              if path.endswith(('.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.cts')):
+                  assert path not in expected
+                  expected[path] = digest
+          referenced_js_count = len(expected) - tracked_js_count
           source_root = (folder / 'source-root.txt').read_text().strip()
           assert source_root == os.environ['GITHUB_WORKSPACE']
           assert Path(source_root).resolve() == Path.cwd().resolve()
@@ -88,7 +121,9 @@ jobs:
           findings = run.get('results', [])
           summary = {'scope': 'complete source; no PR diff restriction', 'rules': sorted(rules),
                      'finding_count': len(findings), 'all_results_retained': True,
-                     'every_tracked_JS_TS_extracted_with_matching_hash': len(expected),
+                     'every_tracked_JS_TS_extracted_with_matching_hash': tracked_js_count,
+                     'every_referenced_SDK_JS_TS_extracted_with_matching_hash': referenced_js_count,
+                     'all_required_JS_TS_extracted_with_matching_hash': len(expected),
                      'zero_findings_required_at_every_severity': True}
           (folder / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
           print(json.dumps(summary))
@@ -99,7 +134,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: complete-source-codeql
-          path: ${{ runner.temp }}/sneup-codeql/evidence/
+          path: ${{ runner.temp }}/scheduler-codeql/evidence/
           if-no-files-found: error
 
   current-runtime:
@@ -114,6 +149,7 @@ jobs:
         with:
           node-version: '26.12.1'
           cache: npm
+      - run: npm install --global npm@12.2.1
       - run: npm ci --ignore-scripts
       - run: npm run lint
       - run: npm run check:route-authorization
