@@ -30,7 +30,8 @@ router.post('/message', requirePermission('chat:write'), async (req, res) => {
       });
     }
 
-    if (!/^[a-f\d]{24}$/i.test(String(memberId)) || (cardId && !/^[a-f\d]{24}$/i.test(String(cardId)))) {
+    if (typeof memberId !== 'string' || !/^[a-f\d]{24}$/i.test(memberId)
+      || (cardId && (typeof cardId !== 'string' || !/^[a-f\d]{24}$/i.test(cardId)))) {
       return res.status(400).json({
         success: false,
         error: 'Invalid memberId or cardId'
