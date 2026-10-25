@@ -26,11 +26,26 @@ jobs:
           cp package-lock.json "$RUNNER_TEMP/lock-evidence/lock-before.json"
           node --version > "$RUNNER_TEMP/lock-evidence/node-version.txt"
           npm --version > "$RUNNER_TEMP/lock-evidence/npm-version.txt"
-          npm update body-parser --package-lock-only --ignore-scripts --no-audit
-          cmp package.json "$RUNNER_TEMP/lock-evidence/package-before.json"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('package.json')
+          original = json.loads(path.read_text())
+          assert original['overrides'].pop('qs') == '6.16.0'
+          path.write_text(json.dumps(original, indent=2) + '\n')
+          PY
+          npm update body-parser qs --package-lock-only --ignore-scripts --no-audit
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          original = json.loads((Path(os.environ['RUNNER_TEMP']) / 'lock-evidence/package-before.json').read_text())
+          del original['overrides']['qs']
+          assert json.loads(Path('package.json').read_text()) == original
+          PY
           cp package.json package-lock.json "$RUNNER_TEMP/lock-evidence/"
           git diff --name-only > "$RUNNER_TEMP/lock-evidence/changed-paths.txt"
-          test "$(cat "$RUNNER_TEMP/lock-evidence/changed-paths.txt")" = package-lock.json
+          printf 'package-lock.json\npackage.json\n' > "$RUNNER_TEMP/expected-paths.txt"
+          cmp "$RUNNER_TEMP/lock-evidence/changed-paths.txt" "$RUNNER_TEMP/expected-paths.txt"
           npm audit --json > "$RUNNER_TEMP/lock-evidence/audit.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
