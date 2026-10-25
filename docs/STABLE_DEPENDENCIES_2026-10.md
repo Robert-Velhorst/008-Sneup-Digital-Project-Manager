@@ -1,5 +1,14 @@
 # Stable dependency and runtime review - 2026-10-23
 
+## 25 October ordinary-resolution correction
+
+The current candidate removes every dependency override and uses ordinary npm resolution. All22 direct dependency declarations were checked against official stable latest registry tags; node-schedule advances from2.1.1 to2.1.2. No override or prerelease was added. The older override-based evidence below is historical and does not establish acceptance of this graph.
+
+A disposable GitHub-hosted worker retained all application sources, original cases, helpers and gates from the prior frozen draft. Its candidate passed lint, route authorization,1680 tests with10 existing skips, recommendation evaluation, and both production/all-dependency moderate-severity audits. Its full graph gate failed: of822 resolutions,227 were already confirmed different from stable latest tags,2 were prereleases, and227 resolution paths (189 unique package names) still lacked registry data because of HTTP429 responses. These counts can overlap; none is waived. The serialized metadata follow-up and current PR checks must be assessed separately.
+
+Electron45.0.0 still requires actual packaged-runtime qualification; the earlier binary reported embedded Node24.22.0 below the established baseline. No runtime floor, original test or release gate was changed. This source/lock correction does not deploy or migrate operator data. Full transitive/SDK/vendor and live acceptance remain open.
+
+
 ## 24 October follow-up
 
 New public stable metadata advances Mongoose to 9.11.4, Natural to 8.2.3 and
