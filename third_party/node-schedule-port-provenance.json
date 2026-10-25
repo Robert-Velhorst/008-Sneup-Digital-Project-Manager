@@ -60,8 +60,8 @@
     "test/start-end-test.js": "9e1241a45df2bd460bd209bc58b4ef63f53cdfff22b889554e102b44afd0a7cb",
     "test/utils/timerUtils.js": "340cc8e01205535c556626cfb7a0e9c3b9d47b42fac4afdc8b039ee5aff81d10"
   },
-  "private_local_package_tar_sha256": "94785afc40fa1bf6e51b1a2b8578bb956120e35a290e432f5c32bd43694350f2",
-  "private_local_package_tar_size": 22548,
+  "private_local_package_tar_sha256": "523f3852b5381b4b976db19f4a057e9151bd7572ec64c0f6e94161498be5739d",
+  "private_local_package_tar_size": 22545,
   "upstream_version_is_not_a_new_public_release": true,
   "direct_stable_build_and_runtime_targets": {
     "@changesets/cli": {

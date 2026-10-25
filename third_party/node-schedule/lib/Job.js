@@ -218,7 +218,7 @@ Job.prototype.schedule = function(spec) {
     if (inv !== null) {
       success = self.trackInvocation(inv);
     }
-  } catch (err) {
+  } catch {
     const type = typeof spec;
     if ((type === 'string') || (type === 'number')) {
       spec = new Date(spec);

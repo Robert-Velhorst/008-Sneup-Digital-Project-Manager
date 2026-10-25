@@ -1,7 +1,5 @@
 name: Original scheduler and application compatibility
 on:
-  push:
-    branches: [fix/sneup-scheduler-parser-port-20261025]
   pull_request:
 permissions:
   contents: read
@@ -16,7 +14,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: '26.12.1'
-      - name: Preserve source and resolve ordinary local-package dependencies
+      - name: Preserve source and frozen ordinary dependency declarations
         id: resolve
         run: |
           set -euo pipefail
@@ -26,7 +24,6 @@ jobs:
           git ls-files -z | xargs -0 sha256sum > "$RUNNER_TEMP/scheduler-port-evidence/source-before-sha256.txt"
           node --version > "$RUNNER_TEMP/scheduler-port-evidence/node-version.txt"
           npm --version > "$RUNNER_TEMP/scheduler-port-evidence/npm-version.txt"
-          npm install --package-lock-only --ignore-scripts --no-audit
           cp package.json package-lock.json "$RUNNER_TEMP/scheduler-port-evidence/"
       - run: npm ci --ignore-scripts
         id: app-install
@@ -43,7 +40,8 @@ jobs:
           const parser = JSON.parse(fs.readFileSync(path.join(parserRoot, 'package.json')));
           const sdk = JSON.parse(fs.readFileSync('node_modules/node-schedule/package.json'));
           if (sdk.version !== '2.1.2' || !sdk.private || sdk['x-noodzakelijk-compatibility-port'].publicUpstreamRelease !== false || parser.version !== '5.10.2') throw new Error('Actual source port or parser differs');
-          fs.writeFileSync(path.join(process.env.RUNNER_TEMP, 'scheduler-port-evidence/installed-identities.json'), JSON.stringify({node: process.version, sdk: sdk.version, privateLocalPort: true, parser: parser.version, parserRoot}, null, 2));
+          const sdkFiles = fs.readdirSync('node_modules/node-schedule', {recursive: true}).sort();
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP, 'scheduler-port-evidence/installed-identities.json'), JSON.stringify({node: process.version, sdk: sdk.version, privateLocalPort: true, parser: parser.version, parserRoot, sdkFiles}, null, 2));
           JS
           python3 - <<'PY'
           import hashlib, json, os, tarfile
@@ -53,18 +51,22 @@ jobs:
           tar_path = Path('third_party/node-schedule-cron-parser5.tgz')
           assert hashlib.sha256(tar_path.read_bytes()).hexdigest() == provenance['private_local_package_tar_sha256']
           verified = {}
+          path_map = {}
           with tarfile.open(tar_path) as archive:
               for member in archive.getmembers():
                   assert member.isfile()
                   relative = member.name.removeprefix('package/')
                   source = archive.extractfile(member).read()
                   assert source == (Path('third_party/node-schedule') / relative).read_bytes()
-                  actual = (Path('node_modules/node-schedule') / relative).read_bytes()
+                  installed_relative = '.npmignore' if relative == '.gitignore' else relative
+                  actual = (Path('node_modules/node-schedule') / installed_relative).read_bytes()
                   assert actual == source, relative
                   verified[relative] = hashlib.sha256(actual).hexdigest()
+                  path_map[relative] = installed_relative
           assert set(provenance['original_source_file_sha256']) <= set(verified)
           assert all(verified[p] == h for p, h in provenance['original_vendor_case_helper_fixture_blobs_unchanged'].items())
           (folder / 'actual-installed-source-sha256.json').write_text(json.dumps(verified, indent=2) + '\n')
+          (folder / 'actual-installed-source-path-map.json').write_text(json.dumps(path_map, indent=2) + '\n')
           PY
       - name: Original application lint
         if: always() && steps.app-install.outcome == 'success'
@@ -90,7 +92,7 @@ jobs:
         id: vendor-install
         working-directory: third_party/node-schedule
         run: |
-          npm install --ignore-scripts --no-audit
+          npm ci --ignore-scripts --no-audit
           cp package-lock.json "$RUNNER_TEMP/scheduler-port-evidence/vendor-package-lock.json"
       - name: Original upstream scheduler suite without case or helper changes
         if: always() && steps.vendor-install.outcome == 'success'
