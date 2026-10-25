@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { optionalModelReference, requiredModelReference } = require('../utils/modelReference');
 const { isDeepStrictEqual } = require('node:util');
 const Recommendation = require('../models/Recommendation');
 const Approval = require('../models/Approval');
@@ -3447,9 +3448,13 @@ class OperationsLedgerService {
   async recordWorkerResponse(body = {}) {
     this.requireDatabase();
     const workspaceId = this.resolveWorkspaceId(body.workspaceId);
+    const requestedInterventionId = optionalModelReference(body.interventionId, 'interventionId');
+    const requestedMemberId = requestedInterventionId
+      ? requiredModelReference(body.memberId, 'memberId')
+      : optionalModelReference(body.memberId, 'memberId');
     const responseText = normalizeWorkerResponseText(body.responseText);
     const responseType = body.responseType || 'other';
-    if (body.interventionId && !INTERVENTION_RESPONSE_TYPES.has(responseType)) {
+    if (requestedInterventionId && !INTERVENTION_RESPONSE_TYPES.has(responseType)) {
       const error = new Error('An intervention response type must be acknowledged, completed, blocked, needs help, or ignored');
       error.statusCode = 400;
       throw error;
@@ -3457,13 +3462,13 @@ class OperationsLedgerService {
     const response = await WorkerResponse.create({
       workspaceId,
       recommendationId: body.recommendationId,
-      interventionId: body.interventionId,
+      interventionId: requestedInterventionId,
       boardId: body.boardId,
       cardId: body.cardId,
-      memberId: body.memberId,
+      memberId: requestedMemberId,
       responseText,
       responseType,
-      claimState: body.interventionId ? 'pending' : 'confirmed',
+      claimState: requestedInterventionId ? 'pending' : 'confirmed',
       effects: { status: 'pending', auditId: new mongoose.Types.ObjectId(), followUpAuditId: new mongoose.Types.ObjectId(),
         actor: body.actor || 'worker', nextAttemptAt: new Date(Date.now() + 5 * 60 * 1000) },
       source: normalizeWorkerResponseSource(body.source)
@@ -3471,7 +3476,10 @@ class OperationsLedgerService {
 
     // Bind the claim and recovery to the model-cast context that was actually saved,
     // rather than rereading caller-owned values after the asynchronous create.
-    const { interventionId, memberId } = response;
+    const interventionId = optionalModelReference(response.interventionId, 'interventionId');
+    const memberId = interventionId
+      ? requiredModelReference(response.memberId, 'memberId')
+      : optionalModelReference(response.memberId, 'memberId');
     if (interventionId) {
       const responseState = {
         workerResponseId: response._id,
@@ -3534,17 +3542,19 @@ class OperationsLedgerService {
   async recordChatWorkerResponse(body = {}) {
     this.requireDatabase();
     const workspaceId = this.resolveWorkspaceId(body.workspaceId);
+    const memberId = optionalModelReference(body.memberId, 'memberId');
+    const cardId = optionalModelReference(body.cardId, 'cardId');
     const responseType = body.responseType;
     const responseText = normalizeWorkerResponseText(body.responseText);
 
-    if (!body.memberId || !body.cardId || !CHAT_RESPONSE_TYPES.has(responseType) || !responseText) {
+    if (!memberId || !cardId || !CHAT_RESPONSE_TYPES.has(responseType) || !responseText) {
       return { recorded: false, reason: 'missing_exact_chat_response_context' };
     }
 
     const intervention = await Intervention.findOne({
       workspaceId,
-      memberId: body.memberId,
-      cardId: body.cardId,
+      memberId,
+      cardId,
       type: { $in: ['comment', 'follow_up', 'escalate'] },
       status: 'executed',
       'response.respondedAt': { $exists: false }
