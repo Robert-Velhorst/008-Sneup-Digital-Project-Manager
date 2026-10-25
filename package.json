@@ -66,7 +66,7 @@
     "helmet": "8.3.0",
     "mongoose": "9.11.4",
     "natural": "8.2.3",
-    "node-schedule": "2.1.2",
+    "node-schedule": "file:third_party/node-schedule-cron-parser5.tgz",
     "openai": "7.43.0",
     "pdfkit": "0.20.2",
     "trello.js": "2.3.0",

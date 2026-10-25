@@ -1,0 +1,181 @@
+name: Original scheduler and application compatibility
+on:
+  push:
+    branches: [fix/sneup-scheduler-parser-port-20261025]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  compatibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '26.12.1'
+      - name: Preserve source and resolve ordinary local-package dependencies
+        id: resolve
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          mkdir -p "$RUNNER_TEMP/scheduler-port-evidence"
+          git rev-parse HEAD > "$RUNNER_TEMP/scheduler-port-evidence/tested-head.txt"
+          git ls-files -z | xargs -0 sha256sum > "$RUNNER_TEMP/scheduler-port-evidence/source-before-sha256.txt"
+          node --version > "$RUNNER_TEMP/scheduler-port-evidence/node-version.txt"
+          npm --version > "$RUNNER_TEMP/scheduler-port-evidence/npm-version.txt"
+          npm install --package-lock-only --ignore-scripts --no-audit
+          cp package.json package-lock.json "$RUNNER_TEMP/scheduler-port-evidence/"
+      - run: npm ci --ignore-scripts
+        id: app-install
+      - name: Verify actual installed source and parser identities
+        if: always() && steps.app-install.outcome == 'success'
+        run: |
+          node - <<'JS'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const { createRequire } = require('node:module');
+          const req = createRequire(path.resolve('node_modules/node-schedule/package.json'));
+          const parserEntry = req.resolve('cron-parser');
+          const parserRoot = path.dirname(path.dirname(parserEntry));
+          const parser = JSON.parse(fs.readFileSync(path.join(parserRoot, 'package.json')));
+          const sdk = JSON.parse(fs.readFileSync('node_modules/node-schedule/package.json'));
+          if (sdk.version !== '2.1.2' || !sdk.private || sdk['x-noodzakelijk-compatibility-port'].publicUpstreamRelease !== false || parser.version !== '5.10.2') throw new Error('Actual source port or parser differs');
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP, 'scheduler-port-evidence/installed-identities.json'), JSON.stringify({node: process.version, sdk: sdk.version, privateLocalPort: true, parser: parser.version, parserRoot}, null, 2));
+          JS
+          python3 - <<'PY'
+          import hashlib, json, os, tarfile
+          from pathlib import Path
+          folder = Path(os.environ['RUNNER_TEMP']) / 'scheduler-port-evidence'
+          provenance = json.loads(Path('third_party/node-schedule-port-provenance.json').read_text())
+          tar_path = Path('third_party/node-schedule-cron-parser5.tgz')
+          assert hashlib.sha256(tar_path.read_bytes()).hexdigest() == provenance['private_local_package_tar_sha256']
+          verified = {}
+          with tarfile.open(tar_path) as archive:
+              for member in archive.getmembers():
+                  assert member.isfile()
+                  relative = member.name.removeprefix('package/')
+                  source = archive.extractfile(member).read()
+                  assert source == (Path('third_party/node-schedule') / relative).read_bytes()
+                  actual = (Path('node_modules/node-schedule') / relative).read_bytes()
+                  assert actual == source, relative
+                  verified[relative] = hashlib.sha256(actual).hexdigest()
+          assert set(provenance['original_source_file_sha256']) <= set(verified)
+          assert all(verified[p] == h for p, h in provenance['original_vendor_case_helper_fixture_blobs_unchanged'].items())
+          (folder / 'actual-installed-source-sha256.json').write_text(json.dumps(verified, indent=2) + '\n')
+          PY
+      - name: Original application lint
+        if: always() && steps.app-install.outcome == 'success'
+        run: npm run lint
+      - name: Original route authorization
+        if: always() && steps.app-install.outcome == 'success'
+        run: npm run check:route-authorization
+      - name: Original complete application suite
+        if: always() && steps.app-install.outcome == 'success'
+        run: |
+          set -euo pipefail
+          npm test -- --runInBand 2>&1 | tee "$RUNNER_TEMP/scheduler-port-evidence/original-application-suite.log"
+      - name: Original recommendation evaluation
+        if: always() && steps.app-install.outcome == 'success'
+        run: npm run evaluate:recommendations
+      - name: Original production and all-dependency audit floors
+        if: always() && steps.app-install.outcome == 'success'
+        run: |
+          npm audit --omit=dev --audit-level=moderate --json > "$RUNNER_TEMP/scheduler-port-evidence/production-audit.json"
+          npm audit --audit-level=moderate --json > "$RUNNER_TEMP/scheduler-port-evidence/all-audit.json"
+      - name: Install the upstream suite with current stable build declarations
+        if: always() && steps.resolve.outcome == 'success'
+        id: vendor-install
+        working-directory: third_party/node-schedule
+        run: |
+          npm install --ignore-scripts --no-audit
+          cp package-lock.json "$RUNNER_TEMP/scheduler-port-evidence/vendor-package-lock.json"
+      - name: Original upstream scheduler suite without case or helper changes
+        if: always() && steps.vendor-install.outcome == 'success'
+        working-directory: third_party/node-schedule
+        run: |
+          set -euo pipefail
+          npm test 2>&1 | tee "$RUNNER_TEMP/scheduler-port-evidence/original-upstream-suite.log"
+      - name: Original upstream lint command on current stable tooling
+        if: always() && steps.vendor-install.outcome == 'success'
+        working-directory: third_party/node-schedule
+        run: |
+          set -euo pipefail
+          npm run lint 2>&1 | tee "$RUNNER_TEMP/scheduler-port-evidence/upstream-lint.log"
+      - name: Require the upstream development dependency audit
+        if: always() && steps.vendor-install.outcome == 'success'
+        working-directory: third_party/node-schedule
+        run: npm audit --audit-level=moderate --json > "$RUNNER_TEMP/scheduler-port-evidence/vendor-audit.json"
+      - name: Retain exact changed paths and recheck every original upstream case
+        if: always() && steps.resolve.outcome == 'success'
+        run: |
+          git diff --name-only > "$RUNNER_TEMP/scheduler-port-evidence/changed-tracked-paths.txt"
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          provenance = json.loads(Path('third_party/node-schedule-port-provenance.json').read_text())
+          for path, sha in provenance['original_vendor_case_helper_fixture_blobs_unchanged'].items():
+              assert hashlib.sha256((Path('third_party/node-schedule') / path).read_bytes()).hexdigest() == sha, path
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: original-scheduler-parser-port-evidence
+          path: ${{ runner.temp }}/scheduler-port-evidence/
+          if-no-files-found: error
+
+  original-parser:
+    name: Original parser source, compiler, types and coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '26.12.1'
+      - name: Verify and expand the complete frozen upstream parser source
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          mkdir -p "$RUNNER_TEMP/parser-upstream" "$RUNNER_TEMP/parser-evidence"
+          git rev-parse HEAD > "$RUNNER_TEMP/parser-evidence/tested-head.txt"
+          printf '%s  %s\n' fb4be44acdaa3a41d786b1e1be4744dcc891e3828152ca5c988d08b8f1e23016 third_party/cron-parser-5.10.2-upstream.tgz | sha256sum --check
+          tar -xzf third_party/cron-parser-5.10.2-upstream.tgz --strip-components=1 -C "$RUNNER_TEMP/parser-upstream"
+          cd "$RUNNER_TEMP/parser-upstream"
+          find . -type f -print0 | sort -z | xargs -0 sha256sum > "$RUNNER_TEMP/parser-evidence/original-source-sha256.txt"
+          cp package.json "$RUNNER_TEMP/parser-evidence/package-before.json"
+      - name: Install ordinary upstream declarations without lifecycle scripts
+        id: parser-install
+        working-directory: ${{ runner.temp }}/parser-upstream
+        run: |
+          npm install --ignore-scripts --no-audit
+          cp package.json package-lock.json "$RUNNER_TEMP/parser-evidence/"
+      - name: Run every original compiler, type and coverage gate
+        if: always() && steps.parser-install.outcome == 'success'
+        working-directory: ${{ runner.temp }}/parser-upstream
+        run: |
+          set -euo pipefail
+          npm test 2>&1 | tee "$RUNNER_TEMP/parser-evidence/original-full-parser-suite.log"
+      - name: Preserve every original source and case payload
+        if: always() && steps.parser-install.outcome == 'success'
+        working-directory: ${{ runner.temp }}/parser-upstream
+        run: |
+          python3 - <<'PY'
+          import hashlib, os
+          from pathlib import Path
+          original = Path(os.environ['RUNNER_TEMP']) / 'parser-evidence/original-source-sha256.txt'
+          for line in original.read_text().splitlines():
+              digest, path = line.split('  ', 1)
+              if path not in {'./package-lock.json'}:
+                  assert hashlib.sha256(Path(path).read_bytes()).hexdigest() == digest, path
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: original-parser-source-and-suite-evidence
+          path: ${{ runner.temp }}/parser-evidence/
+          if-no-files-found: error
