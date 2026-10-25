@@ -1,0 +1,191 @@
+name: Original Airtap source with current stable dependencies
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  original-airtap:
+    name: Complete Airtap source and original commands
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '26.12.1'
+      - run: npm install --global npm@12.2.1
+      - name: Verify every original source and case and select all public stable declarations
+        id: declarations
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          mkdir -p "$RUNNER_TEMP/airtap-evidence"
+          git rev-parse HEAD > "$RUNNER_TEMP/airtap-evidence/tested-head.txt"
+          git ls-files -z | xargs -0 sha256sum > "$RUNNER_TEMP/airtap-evidence/tracked-source-sha256.txt"
+          node --version > "$RUNNER_TEMP/airtap-evidence/node-version.txt"
+          npm --version > "$RUNNER_TEMP/airtap-evidence/npm-version.txt"
+          python3 - <<'PY'
+          import hashlib, json, os, re, tarfile, urllib.parse, urllib.request
+          from concurrent.futures import ThreadPoolExecutor
+          from pathlib import Path, PurePosixPath
+          evidence = Path(os.environ['RUNNER_TEMP']) / 'airtap-evidence'
+          target = Path(os.environ['RUNNER_TEMP']) / 'airtap-upstream'
+          target.mkdir()
+          source = Path('third_party/airtap-5.0.0-upstream.tgz')
+          provenance = json.loads(Path('third_party/airtap-source-provenance.json').read_text())
+          assert hashlib.sha256(source.read_bytes()).hexdigest() == provenance['canonical_complete_source_archive_sha256']
+          expected = json.loads(Path('third_party/airtap-original-source-sha256.json').read_text())
+          assert expected == provenance['complete_upstream_source_payload_sha256'] and len(expected) == 55
+          written = {}
+          with tarfile.open(source) as archive:
+              for member in archive.getmembers():
+                  assert member.isfile()
+                  relative = member.name.split('/', 1)[1]
+                  assert relative in expected and '..' not in PurePosixPath(relative).parts
+                  data = archive.extractfile(member).read()
+                  assert hashlib.sha256(data).hexdigest() == expected[relative]
+                  destination = target / relative
+                  destination.parent.mkdir(parents=True, exist_ok=True)
+                  destination.write_bytes(data)
+                  destination.chmod(member.mode)
+                  written[relative] = expected[relative]
+          assert written == expected
+          (evidence / 'original-source-sha256.json').write_text(json.dumps(expected, indent=2) + '\n')
+          (evidence / 'original-complete-source.tgz').write_bytes(source.read_bytes())
+          before = json.loads((target / 'package.json').read_text())
+          (evidence / 'package-before.json').write_text(json.dumps(before, indent=2) + '\n')
+          names = sorted({name for section in ['dependencies', 'devDependencies', 'optionalDependencies'] for name in before.get(section, {})})
+          def query(name):
+              url = 'https://registry.npmjs.org/' + urllib.parse.quote(name, safe='')
+              request = urllib.request.Request(url, headers={'Accept': 'application/vnd.npm.install-v1+json'})
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  raw = response.read()
+              metadata = json.loads(raw)
+              assert metadata['name'] == name
+              versions = [v for v in metadata['versions'] if re.fullmatch(r'(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)', v)]
+              assert versions
+              highest = max(versions, key=lambda v: tuple(map(int, v.split('.'))))
+              return name, {'target': highest, 'public_stable_versions': versions,
+                  'latest_tag': metadata.get('dist-tags', {}).get('latest'), 'official_registry_url': url,
+                  'registry_payload_sha256': hashlib.sha256(raw).hexdigest(),
+                  'target_metadata': metadata['versions'][highest]}
+          with ThreadPoolExecutor(max_workers=8) as pool:
+              catalog = dict(pool.map(query, names))
+          assert set(catalog) == set(names)
+          (evidence / 'stable-declaration-catalog.json').write_text(json.dumps(catalog, indent=2) + '\n')
+          for section in ['dependencies', 'devDependencies', 'optionalDependencies']:
+              for name in before.get(section, {}):
+                  before[section][name] = catalog[name]['target']
+          (target / 'package.json').write_text(json.dumps(before, indent=2) + '\n')
+          (evidence / 'target-package.json').write_bytes((target / 'package.json').read_bytes())
+          print(json.dumps({name: row['target'] for name, row in catalog.items()}))
+          PY
+      - name: Resolve and install normally without lifecycle scripts or forced peers
+        id: install
+        working-directory: ${{ runner.temp }}/airtap-upstream
+        run: |
+          set -euo pipefail
+          npm install --package-lock-only --ignore-scripts --no-audit 2>&1 | tee "$RUNNER_TEMP/airtap-evidence/resolution.log"
+          cp package-lock.json "$RUNNER_TEMP/airtap-evidence/package-lock.json"
+          npm ci --ignore-scripts --no-audit 2>&1 | tee "$RUNNER_TEMP/airtap-evidence/installation.log"
+      - name: Run the complete original npm test command
+        id: original
+        if: always() && steps.install.outcome == 'success'
+        working-directory: ${{ runner.temp }}/airtap-upstream
+        run: |
+          set -euo pipefail
+          npm test 2>&1 | tee "$RUNNER_TEMP/airtap-evidence/original-npm-test.log"
+      - name: Run the unchanged original unit command independently of lint outcomes
+        id: units
+        if: always() && steps.install.outcome == 'success'
+        working-directory: ${{ runner.temp }}/airtap-upstream
+        run: |
+          set -euo pipefail
+          npm run test:unit 2>&1 | tee "$RUNNER_TEMP/airtap-evidence/original-unit-command.log"
+      - name: Retain and require every production and development audit severity
+        id: audit
+        if: always() && steps.install.outcome == 'success'
+        working-directory: ${{ runner.temp }}/airtap-upstream
+        run: npm audit --audit-level=low --json > "$RUNNER_TEMP/airtap-evidence/all-audit.json"
+      - name: Require every lock resolution to be its highest public stable version
+        id: graph
+        if: always() && steps.install.outcome == 'success'
+        working-directory: ${{ runner.temp }}/airtap-upstream
+        run: |
+          python3 - <<'PY'
+          import json, os, re, urllib.parse, urllib.request
+          from concurrent.futures import ThreadPoolExecutor
+          from pathlib import Path
+          evidence = Path(os.environ['RUNNER_TEMP']) / 'airtap-evidence'
+          lock = json.loads(Path('package-lock.json').read_text())
+          entries = [(path, item) for path, item in lock['packages'].items() if path]
+          names = sorted({item.get('name') or path.rsplit('node_modules/', 1)[1] for path, item in entries})
+          def query(name):
+              url = 'https://registry.npmjs.org/' + urllib.parse.quote(name, safe='')
+              try:
+                  request = urllib.request.Request(url, headers={'Accept': 'application/vnd.npm.install-v1+json'})
+                  with urllib.request.urlopen(request, timeout=60) as response:
+                      metadata = json.load(response)
+                  assert metadata['name'] == name
+                  versions = [v for v in metadata['versions'] if re.fullmatch(r'(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)', v)]
+                  return name, {'highest_public_stable': max(versions, key=lambda v: tuple(map(int, v.split('.')))), 'official_registry_url': url}
+              except Exception as error:
+                  return name, {'unknown': str(error), 'official_registry_url': url}
+          with ThreadPoolExecutor(max_workers=8) as pool:
+              catalog = dict(pool.map(query, names))
+          rows = []
+          for path, item in entries:
+              name = item.get('name') or path.rsplit('node_modules/', 1)[1]
+              current = item.get('version')
+              target = catalog[name].get('highest_public_stable')
+              rows.append({'path': path, 'name': name, 'resolved': current, 'target': target,
+                  'highest_stable': current == target if target else False, 'registry': catalog[name]})
+          result = {'entries': rows, 'noncurrent_or_unknown': [r for r in rows if not r['highest_stable']]}
+          (evidence / 'complete-stable-graph.json').write_text(json.dumps(result, indent=2) + '\n')
+          print(json.dumps({'lock_entries': len(rows), 'noncurrent_or_unknown': len(result['noncurrent_or_unknown'])}))
+          assert not result['noncurrent_or_unknown'], 'The complete graph remains unqualified; no older-version fallback or override is accepted'
+          PY
+      - name: Preserve every original case and require every original gate
+        if: always() && steps.declarations.outcome == 'success'
+        env:
+          ORIGINAL: ${{ steps.original.outcome }}
+          UNITS: ${{ steps.units.outcome }}
+          AUDIT: ${{ steps.audit.outcome }}
+          GRAPH: ${{ steps.graph.outcome }}
+          INSTALL: ${{ steps.install.outcome }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, zipfile
+          from pathlib import Path
+          evidence = Path(os.environ['RUNNER_TEMP']) / 'airtap-evidence'
+          source = Path(os.environ['RUNNER_TEMP']) / 'airtap-upstream'
+          expected = json.loads((evidence / 'original-source-sha256.json').read_text())
+          before = json.loads((evidence / 'package-before.json').read_text())
+          current = json.loads((source / 'package.json').read_text())
+          declarations = {'dependencies', 'devDependencies', 'optionalDependencies'}
+          assert all(before.get(k) == current.get(k) for k in set(before) | set(current) if k not in declarations)
+          for path, digest in expected.items():
+              if path != 'package.json':
+                  assert hashlib.sha256((source / path).read_bytes()).hexdigest() == digest, path
+          (evidence / 'original-source-case-script-preservation-confirmed.txt').write_text('All54 original non-manifest payloads and original manifest scripts/settings preserved.\n')
+          with zipfile.ZipFile(evidence / 'candidate-source.zip', 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+              for path in expected:
+                  archive.write(source / path, path)
+          outcomes = {key: os.environ[key] for key in ['INSTALL', 'ORIGINAL', 'UNITS', 'AUDIT', 'GRAPH']}
+          (evidence / 'original-gate-outcomes.json').write_text(json.dumps(outcomes, indent=2) + '\n')
+          assert all(value == 'success' for value in outcomes.values()), 'Original SDK gates remain mandatory; this candidate is not consumed by the application'
+          PY
+      - name: Retain complete original source, stable targets and every failed gate
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: original-airtap-stable-source-evidence
+          path: ${{ runner.temp }}/airtap-evidence/
+          if-no-files-found: error

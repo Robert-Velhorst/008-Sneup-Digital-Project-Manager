@@ -53,6 +53,28 @@ jobs:
                   destination.write_bytes(data)
                   written[str(destination)] = expected[relative]
           assert set(written) == {str(target / p) for p in expected}
+          target = Path('third_party/airtap-reference')
+          assert not target.exists()
+          source = Path('third_party/airtap-5.0.0-upstream.tgz')
+          provenance = json.loads(Path('third_party/airtap-source-provenance.json').read_text())
+          assert hashlib.sha256(source.read_bytes()).hexdigest() == provenance['canonical_complete_source_archive_sha256']
+          expected = json.loads(Path('third_party/airtap-original-source-sha256.json').read_text())
+          assert expected == provenance['complete_upstream_source_payload_sha256'] and len(expected) == 55
+          added = {}
+          with tarfile.open(source) as archive:
+              for member in archive.getmembers():
+                  assert member.isfile()
+                  relative = member.name.split('/', 1)[1]
+                  assert relative in expected and '..' not in PurePosixPath(relative).parts
+                  data = archive.extractfile(member).read()
+                  assert hashlib.sha256(data).hexdigest() == expected[relative]
+                  destination = target / relative
+                  destination.parent.mkdir(parents=True, exist_ok=True)
+                  destination.write_bytes(data)
+                  added[str(destination)] = expected[relative]
+          assert set(added) == {str(target / p) for p in expected}
+          assert not set(added) & set(written)
+          written.update(added)
           evidence = Path(os.environ['RUNNER_TEMP']) / 'scheduler-codeql/evidence'
           (evidence / 'referenced-upstream-source-sha256.json').write_text(json.dumps(written, indent=2) + '\n')
           PY
