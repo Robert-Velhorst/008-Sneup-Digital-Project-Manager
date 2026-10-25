@@ -3806,6 +3806,12 @@ class OperationsLedgerService {
       throw error;
     }
 
+    const payload = command.payload && typeof command.payload === 'object' ? command.payload : {};
+    // These values can become database selectors and provider targets.
+    for (const field of ['trelloId', 'memberTrelloId']) {
+      if (payload[field]) this.requireAutopilotTrelloId(payload[field], field);
+    }
+
     return {
       id: String(command.id || `${type}-${Date.now()}`),
       type,
@@ -3817,7 +3823,7 @@ class OperationsLedgerService {
       reason: command.reason || 'Autopilot recommended review.',
       automatable: command.automatable === true,
       minutesSaved: Number(command.minutesSaved) || 0,
-      payload: command.payload && typeof command.payload === 'object' ? command.payload : {},
+      payload,
       sourceEvidence: Array.isArray(command.sourceEvidence) ? command.sourceEvidence : []
     };
   }
@@ -3836,12 +3842,14 @@ class OperationsLedgerService {
   async findCardFromCommand(command, options = {}) {
     const payload = command.payload || {};
     const workspaceId = this.resolveWorkspaceId(options.workspaceId);
-    if (this.objectIdOrNull(payload.cardId)) {
-      const card = await Card.findOne({ _id: payload.cardId, workspaceId });
+    const cardId = this.objectIdOrNull(payload.cardId);
+    if (cardId) {
+      const card = await Card.findOne({ _id: cardId, workspaceId });
       if (card) return card;
     }
     if (payload.trelloId) {
-      return Card.findOne({ trelloId: payload.trelloId, workspaceId });
+      const trelloId = this.requireAutopilotTrelloId(payload.trelloId, 'trelloId');
+      return Card.findOne({ trelloId, workspaceId });
     }
     return null;
   }
@@ -3849,14 +3857,25 @@ class OperationsLedgerService {
   async findMemberFromCommand(command, options = {}) {
     const payload = command.payload || {};
     const workspaceId = this.resolveWorkspaceId(options.workspaceId);
-    if (this.objectIdOrNull(payload.memberId)) {
-      const member = await Member.findOne({ _id: payload.memberId, workspaceId });
+    const memberId = this.objectIdOrNull(payload.memberId);
+    if (memberId) {
+      const member = await Member.findOne({ _id: memberId, workspaceId });
       if (member) return member;
     }
     if (payload.memberTrelloId) {
-      return Member.findOne({ trelloId: payload.memberTrelloId, workspaceId });
+      const trelloId = this.requireAutopilotTrelloId(payload.memberTrelloId, 'memberTrelloId');
+      return Member.findOne({ trelloId, workspaceId });
     }
     return null;
+  }
+
+  requireAutopilotTrelloId(value, field) {
+    if (typeof value !== 'string' || !value) {
+      const error = new Error(`${field} must be a non-empty string`);
+      error.statusCode = 400;
+      throw error;
+    }
+    return value;
   }
 
   objectIdOrNull(value) {
