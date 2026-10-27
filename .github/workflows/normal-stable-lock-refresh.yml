@@ -96,7 +96,21 @@ jobs:
           (evidence/'actual-package-lock.json').write_bytes(Path('package-lock.json').read_bytes())
           lock=json.loads(Path('package-lock.json').read_text())
           prereleases=[{'path':name,'version':p['version']} for name,p in lock.get('packages',{}).items() if isinstance(p.get('version'),str) and re.match(r'^\d+\.\d+\.\d+-',p['version'])]
-          (evidence/'source-and-lock-after.json').write_text(json.dumps({'head':source['head'],'tree':source['tree'],'all_other_payloads_unchanged':preserved,'prerelease_lock_rows':prereleases,'lock_package_rows':len(lock['packages']),'no_source_case_helper_fixture_or_selector_changes':True,'complete_qualification':False},indent=2)+'\n')
+          before=json.loads((evidence/'lock-before.json').read_text())
+          def highest_installed(packages):
+              result={}
+              for path,row in packages.items():
+                  version=row.get('version','')
+                  match=re.fullmatch(r'(\d+)\.(\d+)\.(\d+)(?:\+.*)?',version)
+                  if not path or not match:continue
+                  name=row.get('name') or path.rsplit('node_modules/',1)[-1]
+                  numeric=tuple(map(int,match.groups()))
+                  if name not in result or numeric>result[name][0]:result[name]=(numeric,version)
+              return result
+          old=highest_installed(before['packages']);new=highest_installed(lock['packages'])
+          lowered=[{'name':name,'before':old[name][1],'after':new[name][1]} for name in sorted(old.keys() & new.keys()) if new[name][0]<old[name][0]]
+          (evidence/'source-and-lock-after.json').write_text(json.dumps({'head':source['head'],'tree':source['tree'],'all_other_payloads_unchanged':preserved,'prerelease_lock_rows':prereleases,'lowered_component_versions':lowered,'lock_package_rows':len(lock['packages']),'no_source_case_helper_fixture_or_selector_changes':True,'complete_qualification':False},indent=2)+'\n')
+          assert not lowered,'Normal update lowers installed components; graph is unqualified'
           assert not prereleases,'Prerelease lock rows remain; no stable-only qualification'
           PY
       - name: Retain resolver output and all source/catalog/audit evidence even on failure
