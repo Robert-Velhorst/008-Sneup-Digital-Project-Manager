@@ -1,5 +1,7 @@
 const axios = require('axios');
 const accountConnectorService = require('./accountConnectorService');
+const { graphApiUrl, graphRequestUrl } = require('./microsoftGraphRequestBoundary');
+const READ_ROUTES = ['/me/events', '/me/todo/lists', '/me/drive/root/children', /^\/me\/todo\/lists\/[^/?#\\]+\/tasks$/];
 
 const clampInteger = (value, fallback, minimum, maximum) => {
   const parsed = Number.parseInt(value, 10);
@@ -21,7 +23,7 @@ class Microsoft365WorkSignalClient {
 
   getConfig() {
     return {
-      apiUrl: String(process.env.SNEUP_MICROSOFT_GRAPH_API_URL || 'https://graph.microsoft.com/v1.0').replace(/\/$/, ''),
+      apiUrl: graphApiUrl(process.env.SNEUP_MICROSOFT_GRAPH_API_URL || 'https://graph.microsoft.com/v1.0'),
       timeout: clampInteger(process.env.SNEUP_MICROSOFT_TIMEOUT_MS, 15000, 1000, 60000),
       maxEvents: clampInteger(process.env.SNEUP_MICROSOFT_MAX_EVENTS, 250, 1, 1000),
       maxTaskLists: clampInteger(process.env.SNEUP_MICROSOFT_MAX_TASK_LISTS, 25, 1, 100),
@@ -44,13 +46,15 @@ class Microsoft365WorkSignalClient {
   }
 
   request(path, token, config, params = {}) {
-    return this.http.get(`${config.apiUrl}${path}`, {
+    return this.http.get(graphRequestUrl(path, config.apiUrl, READ_ROUTES), {
       params,
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`
       },
-      timeout: config.timeout
+      timeout: config.timeout,
+      maxRedirects: 0,
+      proxy: false
     });
   }
 

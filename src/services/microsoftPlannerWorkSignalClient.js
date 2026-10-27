@@ -1,5 +1,7 @@
 const axios = require('axios');
 const accountConnectorService = require('./accountConnectorService');
+const { graphApiUrl, graphRequestUrl } = require('./microsoftGraphRequestBoundary');
+const READ_ROUTES = ['/me/planner/tasks'];
 
 const DEFAULT_API_URL = 'https://graph.microsoft.com/v1.0';
 const clampInteger = (value, fallback, minimum, maximum) => {
@@ -23,7 +25,7 @@ class MicrosoftPlannerWorkSignalClient {
 
   getConfig() {
     return {
-      apiUrl: String(process.env.SNEUP_MICROSOFT_GRAPH_API_URL || DEFAULT_API_URL).replace(/\/$/, ''),
+      apiUrl: graphApiUrl(process.env.SNEUP_MICROSOFT_GRAPH_API_URL || DEFAULT_API_URL),
       timeout: clampInteger(process.env.SNEUP_PLANNER_TIMEOUT_MS, 15000, 1000, 60000),
       maxTasks: clampInteger(process.env.SNEUP_PLANNER_MAX_TASKS, 1000, 1, 5000),
       pageSize: clampInteger(process.env.SNEUP_PLANNER_PAGE_SIZE, 100, 1, 100),
@@ -39,16 +41,13 @@ class MicrosoftPlannerWorkSignalClient {
   }
 
   request(url, token, config, params) {
-    return this.http.get(url, { ...(params ? { params } : {}), headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }, timeout: config.timeout, maxRedirects: 0, proxy: false });
+    return this.http.get(graphRequestUrl(url, config.apiUrl, READ_ROUTES), { ...(params ? { params } : {}), headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }, timeout: config.timeout, maxRedirects: 0, proxy: false });
   }
 
   validateNextUrl(raw, config) {
-    let url; let base;
-    try { url = new URL(raw); base = new URL(config.apiUrl); } catch { url = null; }
-    if (!url || !base || url.origin !== base.origin || url.pathname !== `${base.pathname}/me/planner/tasks` || url.username || url.password) {
+    try { return graphRequestUrl(raw, config.apiUrl, READ_ROUTES, true); } catch {
       const error = new Error('Microsoft Planner returned an untrusted pagination URL.'); error.statusCode = 502; throw error;
     }
-    return url.toString();
   }
 
   isWithinCursor(task, cursorDate, config) {
