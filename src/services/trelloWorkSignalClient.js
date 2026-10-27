@@ -27,13 +27,26 @@ class TrelloWorkSignalClient {
 
   getConfig() {
     return {
-      apiUrl: String(process.env.SNEUP_TRELLO_API_URL || DEFAULT_API_URL).replace(/\/$/, ''),
+      apiUrl: this.getApiUrl(process.env.SNEUP_TRELLO_API_URL || DEFAULT_API_URL),
       timeout: clampInteger(process.env.SNEUP_TRELLO_TIMEOUT_MS, 15000, 1000, 60000),
       maxBoards: clampInteger(process.env.SNEUP_TRELLO_MAX_BOARDS, DEFAULT_MAX_BOARDS, 1, 100),
       maxCardsPerBoard: clampInteger(process.env.SNEUP_TRELLO_MAX_CARDS_PER_BOARD, DEFAULT_MAX_CARDS_PER_BOARD, 1, 1000),
       maxTotalCards: clampInteger(process.env.SNEUP_TRELLO_MAX_TOTAL_CARDS, DEFAULT_MAX_TOTAL_CARDS, 1, 10000),
       cursorLookbackMs: clampInteger(process.env.SNEUP_TRELLO_CURSOR_LOOKBACK_MS, DEFAULT_CURSOR_LOOKBACK_MS, 0, 3600000)
     };
+  }
+
+  getApiUrl(raw) {
+    let url;
+    try { url = new URL(String(raw).trim()); } catch { /* Reject below. */ }
+    if (!url || url.protocol !== 'https:' || url.hostname !== 'api.trello.com' || url.port ||
+        url.username || url.password || url.search || url.hash ||
+        !['/1', '/1/'].includes(url.pathname)) {
+      const error = new Error('Trello API URL must be https://api.trello.com/1.');
+      error.statusCode = 400;
+      throw error;
+    }
+    return DEFAULT_API_URL;
   }
 
   getCredentials(account) {
@@ -49,13 +62,21 @@ class TrelloWorkSignalClient {
   }
 
   request(path, credentials, config, params = {}) {
-    return this.http.get(`${config.apiUrl}${path}`, {
+    this.getApiUrl(config.apiUrl);
+    if (path !== '/members/me/boards' && !/^\/boards\/[A-Za-z0-9_-]+\/cards$/.test(path)) {
+      const error = new Error('Trello work-signal request path is invalid.');
+      error.statusCode = 400;
+      throw error;
+    }
+    return this.http.get(`${DEFAULT_API_URL}${path}`, {
       params: {
         ...params,
         key: credentials.apiKey,
         token: credentials.apiToken
       },
-      timeout: config.timeout
+      timeout: config.timeout,
+      maxRedirects: 0,
+      proxy: false
     });
   }
 
