@@ -17,4 +17,6 @@ const scalarQueryId = (value) => {
   return scalarQueryString(value);
 };
 
-module.exports = { scalarQueryString, scalarQueryId };
+const optionalScalarQueryString = value => value === undefined ? undefined : scalarQueryString(value);
+
+module.exports = { scalarQueryString, scalarQueryId, optionalScalarQueryString };

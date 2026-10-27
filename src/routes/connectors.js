@@ -1,4 +1,5 @@
 const express = require('express');
+const { optionalQueryString } = require('../utils/queryFilters');
 const router = express.Router();
 const logger = require('../utils/logger');
 const accountConnectorService = require('../services/accountConnectorService');
@@ -155,7 +156,7 @@ router.get('/accounts/:accountId/inbound-worker-response-options', requirePermis
     const options = await genericWebhookService.getWorkerResponseBindingOptions({
       accountId: req.params.accountId,
       workspaceId: getRequestWorkspaceObjectId(req),
-      memberId: req.query.memberId,
+      memberId: optionalQueryString(req.query.memberId, 'memberId'),
       query: req.query.query,
       limit: req.query.limit
     });

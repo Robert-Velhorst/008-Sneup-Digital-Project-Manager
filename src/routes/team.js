@@ -151,7 +151,7 @@ router.post('/recommendation/execute', requirePermission('approvals:decide'), as
       recommendation.fromMember?.id,
       recommendation.toMember?.id
     ];
-    if (requiredIds.some(id => !id || !/^[a-f\d]{24}$/i.test(String(id)))) {
+    if (requiredIds.some(id => typeof id !== 'string' || !/^[a-f\d]{24}$/i.test(id))) {
       return res.status(400).json({
         success: false,
         error: 'Recommendation contains invalid identifiers'

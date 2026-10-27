@@ -11,6 +11,7 @@ RUN apt-get update \
 FROM current-system AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
+COPY third_party/node-schedule-cron-parser5.tgz ./third_party/node-schedule-cron-parser5.tgz
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 FROM current-system AS runtime

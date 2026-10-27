@@ -1,3 +1,4 @@
+const { optionalQueryString } = require('../utils/queryFilters');
 const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
@@ -31,10 +32,10 @@ router.get('/', requirePermission('recommendations:review'), async (req, res) =>
   try {
     const recommendations = await operationsLedgerService.listRecommendations({
       ...workspaceOptions(req),
-      status: req.query.status,
-      boardId: req.query.boardId,
-      cardId: req.query.cardId,
-      ownerType: req.query.ownerType,
+      status: optionalQueryString(req.query.status, 'status'),
+      boardId: optionalQueryString(req.query.boardId, 'boardId'),
+      cardId: optionalQueryString(req.query.cardId, 'cardId'),
+      ownerType: optionalQueryString(req.query.ownerType, 'ownerType'),
       limit: clampInteger(req.query.limit, 100, 1, 250)
     });
 

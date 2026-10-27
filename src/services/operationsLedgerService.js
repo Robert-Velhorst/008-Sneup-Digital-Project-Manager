@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { optionalModelReference } = require('../utils/modelReference');
 const { isDeepStrictEqual } = require('node:util');
 const Recommendation = require('../models/Recommendation');
 const Approval = require('../models/Approval');
@@ -3447,9 +3448,11 @@ class OperationsLedgerService {
   async recordWorkerResponse(body = {}) {
     this.requireDatabase();
     const workspaceId = this.resolveWorkspaceId(body.workspaceId);
+    const requestedInterventionId = optionalModelReference(body.interventionId, 'interventionId');
+    const requestedMemberId = optionalModelReference(body.memberId, 'memberId');
     const responseText = normalizeWorkerResponseText(body.responseText);
     const responseType = body.responseType || 'other';
-    if (body.interventionId && !INTERVENTION_RESPONSE_TYPES.has(responseType)) {
+    if (requestedInterventionId && !INTERVENTION_RESPONSE_TYPES.has(responseType)) {
       const error = new Error('An intervention response type must be acknowledged, completed, blocked, needs help, or ignored');
       error.statusCode = 400;
       throw error;
@@ -3457,22 +3460,28 @@ class OperationsLedgerService {
     const response = await WorkerResponse.create({
       workspaceId,
       recommendationId: body.recommendationId,
-      interventionId: body.interventionId,
+      interventionId: requestedInterventionId,
       boardId: body.boardId,
       cardId: body.cardId,
-      memberId: body.memberId,
+      memberId: requestedMemberId,
       responseText,
       responseType,
-      claimState: body.interventionId ? 'pending' : 'confirmed',
+      claimState: requestedInterventionId ? 'pending' : 'confirmed',
       effects: { status: 'pending', auditId: new mongoose.Types.ObjectId(), followUpAuditId: new mongoose.Types.ObjectId(),
         actor: body.actor || 'worker', nextAttemptAt: new Date(Date.now() + 5 * 60 * 1000) },
       source: normalizeWorkerResponseSource(body.source)
     });
 
-    if (body.interventionId) {
+    // Bind the claim and recovery to the model-cast context that was actually saved,
+    // rather than rereading caller-owned values after the asynchronous create.
+    const interventionId = optionalModelReference(response.interventionId, 'interventionId');
+    // An unassigned intervention is valid. Keep an explicit null selector so an
+    // absent response member cannot become an unrestricted assignment match.
+    const memberId = optionalModelReference(response.memberId, 'memberId') ?? null;
+    if (interventionId) {
       const responseState = {
         workerResponseId: response._id,
-        memberId: body.memberId,
+        memberId,
         respondedAt: response.receivedAt || new Date(),
         responseType
       };
@@ -3482,18 +3491,18 @@ class OperationsLedgerService {
       let intervention;
       try {
         intervention = await Intervention.findOneAndUpdate({
-          _id: body.interventionId,
+          _id: interventionId,
           workspaceId,
           status: 'executed',
           type: { $in: RESPONSE_ELIGIBLE_INTERVENTION_TYPES },
-          memberId: body.memberId,
+          memberId,
           'response.respondedAt': { $exists: false }
         }, interventionUpdate, { new: true, runValidators: true });
       } catch {
         intervention = await this.recoverLedgerCommit(Intervention, {
-          _id: body.interventionId,
+          _id: interventionId,
           workspaceId,
-          memberId: body.memberId,
+          memberId,
           'response.workerResponseId': response._id
         });
       }
@@ -3531,17 +3540,19 @@ class OperationsLedgerService {
   async recordChatWorkerResponse(body = {}) {
     this.requireDatabase();
     const workspaceId = this.resolveWorkspaceId(body.workspaceId);
+    const memberId = optionalModelReference(body.memberId, 'memberId');
+    const cardId = optionalModelReference(body.cardId, 'cardId');
     const responseType = body.responseType;
     const responseText = normalizeWorkerResponseText(body.responseText);
 
-    if (!body.memberId || !body.cardId || !CHAT_RESPONSE_TYPES.has(responseType) || !responseText) {
+    if (!memberId || !cardId || !CHAT_RESPONSE_TYPES.has(responseType) || !responseText) {
       return { recorded: false, reason: 'missing_exact_chat_response_context' };
     }
 
     const intervention = await Intervention.findOne({
       workspaceId,
-      memberId: body.memberId,
-      cardId: body.cardId,
+      memberId,
+      cardId,
       type: { $in: ['comment', 'follow_up', 'escalate'] },
       status: 'executed',
       'response.respondedAt': { $exists: false }
@@ -3806,6 +3817,12 @@ class OperationsLedgerService {
       throw error;
     }
 
+    const payload = command.payload && typeof command.payload === 'object' ? command.payload : {};
+    // These values can become database selectors and provider targets.
+    for (const field of ['trelloId', 'memberTrelloId']) {
+      if (payload[field]) this.requireAutopilotTrelloId(payload[field], field);
+    }
+
     return {
       id: String(command.id || `${type}-${Date.now()}`),
       type,
@@ -3817,7 +3834,7 @@ class OperationsLedgerService {
       reason: command.reason || 'Autopilot recommended review.',
       automatable: command.automatable === true,
       minutesSaved: Number(command.minutesSaved) || 0,
-      payload: command.payload && typeof command.payload === 'object' ? command.payload : {},
+      payload,
       sourceEvidence: Array.isArray(command.sourceEvidence) ? command.sourceEvidence : []
     };
   }
@@ -3836,12 +3853,14 @@ class OperationsLedgerService {
   async findCardFromCommand(command, options = {}) {
     const payload = command.payload || {};
     const workspaceId = this.resolveWorkspaceId(options.workspaceId);
-    if (this.objectIdOrNull(payload.cardId)) {
-      const card = await Card.findOne({ _id: payload.cardId, workspaceId });
+    const cardId = this.objectIdOrNull(payload.cardId);
+    if (cardId) {
+      const card = await Card.findOne({ _id: cardId, workspaceId });
       if (card) return card;
     }
     if (payload.trelloId) {
-      return Card.findOne({ trelloId: payload.trelloId, workspaceId });
+      const trelloId = this.requireAutopilotTrelloId(payload.trelloId, 'trelloId');
+      return Card.findOne({ trelloId, workspaceId });
     }
     return null;
   }
@@ -3849,14 +3868,25 @@ class OperationsLedgerService {
   async findMemberFromCommand(command, options = {}) {
     const payload = command.payload || {};
     const workspaceId = this.resolveWorkspaceId(options.workspaceId);
-    if (this.objectIdOrNull(payload.memberId)) {
-      const member = await Member.findOne({ _id: payload.memberId, workspaceId });
+    const memberId = this.objectIdOrNull(payload.memberId);
+    if (memberId) {
+      const member = await Member.findOne({ _id: memberId, workspaceId });
       if (member) return member;
     }
     if (payload.memberTrelloId) {
-      return Member.findOne({ trelloId: payload.memberTrelloId, workspaceId });
+      const trelloId = this.requireAutopilotTrelloId(payload.memberTrelloId, 'memberTrelloId');
+      return Member.findOne({ trelloId, workspaceId });
     }
     return null;
+  }
+
+  requireAutopilotTrelloId(value, field) {
+    if (typeof value !== 'string' || !value) {
+      const error = new Error(`${field} must be a non-empty string`);
+      error.statusCode = 400;
+      throw error;
+    }
+    return value;
   }
 
   objectIdOrNull(value) {

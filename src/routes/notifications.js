@@ -1,3 +1,4 @@
+const { optionalScalarQueryString } = require('../utils/scalarQueryFilter');
 const express = require('express');
 const router = express.Router();
 const notificationService = require('../services/notificationService');
@@ -31,8 +32,8 @@ router.get('/deliveries', requirePermission('audit:read'), async (req, res) => {
   try {
     const deliveries = await notificationService.listDeliveries({
       ...options(req),
-      status: req.query.status,
-      policyId: req.query.policyId,
+      status: optionalScalarQueryString(req.query.status),
+      policyId: optionalScalarQueryString(req.query.policyId),
       limit: clampInteger(req.query.limit, 100, 1, 250)
     });
     res.json({ success: true, count: deliveries.length, deliveries });

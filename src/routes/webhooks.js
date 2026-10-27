@@ -31,7 +31,7 @@ router.post('/trello', verifyTrelloWebhook, async (req, res) => {
   try {
     const event = req.body;
 
-    if (!event || !event.action || !event.model || !event.model.id) {
+    if (!event || !event.action || !event.model || typeof event.model.id !== 'string' || !event.model.id) {
       return res.status(400).json({
         success: false,
         error: 'Invalid Trello webhook payload'

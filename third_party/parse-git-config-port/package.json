@@ -1,0 +1,72 @@
+{
+  "name": "parse-git-config",
+  "description": "Parse `.git/config` into a JavaScript object. sync or async.",
+  "version": "3.0.0",
+  "homepage": "https://github.com/jonschlinkert/parse-git-config",
+  "author": "Jon Schlinkert (https://github.com/jonschlinkert)",
+  "contributors": [
+    "j. suárez (http://suarez.systems)",
+    "Jon Schlinkert (http://twitter.com/jonschlinkert)",
+    "Sam Holmes (https://samholmes.net)"
+  ],
+  "repository": "jonschlinkert/parse-git-config",
+  "bugs": {
+    "url": "https://github.com/jonschlinkert/parse-git-config/issues"
+  },
+  "license": "MIT",
+  "files": [
+    "index.js"
+  ],
+  "main": "index.js",
+  "engines": {
+    "node": ">=26.12.1 <27"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "dependencies": {
+    "git-config-path": "2.0.0",
+    "ini": "7.0.0"
+  },
+  "devDependencies": {
+    "gulp-format-md": "2.0.0",
+    "mocha": "12.0.3"
+  },
+  "keywords": [
+    "config",
+    "git",
+    "parse"
+  ],
+  "verb": {
+    "run": true,
+    "toc": false,
+    "layout": "default",
+    "tasks": [
+      "readme"
+    ],
+    "plugins": [
+      "gulp-format-md"
+    ],
+    "related": {
+      "list": [
+        "git-user-name",
+        "git-username",
+        "parse-author",
+        "parse-authors",
+        "parse-github-url",
+        "parse-gitignore"
+      ]
+    },
+    "lint": {
+      "reflinks": true
+    }
+  },
+  "private": true,
+  "x-noodzakelijk-source-port": {
+    "publicUpstreamVersion": "3.0.0",
+    "upstreamGitManifestVersion": "2.0.3",
+    "upstreamCommit": "60d1e75fe796ba4149bfceeb63b983503b21003c",
+    "unmodifiedPublisherRelease": false,
+    "description": "Private own-property-safe expansion and current INI plain-record API compatibility candidate. Original source cases/scripts/fixtures remain unchanged; no upstream advisory clearance or application integration."
+  }
+}
