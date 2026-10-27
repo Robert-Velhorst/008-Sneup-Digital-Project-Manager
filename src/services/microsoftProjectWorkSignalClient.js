@@ -1,8 +1,9 @@
 const axios = require('axios');
 const accountConnectorService = require('./accountConnectorService');
+const { graphApiUrl, graphRequestUrl } = require('./microsoftGraphRequestBoundary');
+const READ_ROUTES = ['/me/planner/plans', /^\/planner\/plans\/[A-Za-z0-9_-]{1,200}\/tasks$/];
 
 const GRAPH_API_URL = 'https://graph.microsoft.com/v1.0';
-const GRAPH_HOSTS = new Set(['graph.microsoft.com', 'graph.microsoft.us', 'dod-graph.microsoft.us', 'microsoftgraph.chinacloudapi.cn']);
 const safeId = value => /^[A-Za-z0-9_-]{1,200}$/.test(String(value || ''));
 const clamp = (value, fallback, minimum, maximum) => {
   const parsed = Number.parseInt(value, 10);
@@ -52,12 +53,9 @@ class MicrosoftProjectWorkSignalClient {
   }
 
   getConfig() {
-    const raw = String(process.env.SNEUP_MICROSOFT_PROJECT_GRAPH_API_URL || GRAPH_API_URL).trim();
-    let apiUrl;
-    try { apiUrl = new URL(raw); } catch { apiUrl = null; }
-    if (!apiUrl || apiUrl.protocol !== 'https:' || !GRAPH_HOSTS.has(apiUrl.hostname.toLowerCase()) || apiUrl.port || apiUrl.pathname !== '/v1.0' || apiUrl.search || apiUrl.hash || apiUrl.username || apiUrl.password) throw error('Microsoft Project Graph API URL must be an approved Microsoft Graph v1.0 HTTPS endpoint.', 500);
+    const apiUrl = graphApiUrl(process.env.SNEUP_MICROSOFT_PROJECT_GRAPH_API_URL || GRAPH_API_URL, 500);
     return {
-      apiUrl: apiUrl.toString().replace(/\/$/, ''),
+      apiUrl,
       timeout: clamp(process.env.SNEUP_MICROSOFT_PROJECT_TIMEOUT_MS, 15000, 1000, 60000),
       maxProjects: clamp(process.env.SNEUP_MICROSOFT_PROJECT_MAX_PROJECTS, 50, 1, 250),
       maxTasks: clamp(process.env.SNEUP_MICROSOFT_PROJECT_MAX_TASKS, 2500, 1, 5000),
@@ -75,7 +73,7 @@ class MicrosoftProjectWorkSignalClient {
   }
 
   request(url, token, config, params) {
-    return this.http.get(url, {
+    return this.http.get(graphRequestUrl(url, config.apiUrl, READ_ROUTES), {
       ...(params ? { params } : {}),
       headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
       timeout: config.timeout,
@@ -87,11 +85,9 @@ class MicrosoftProjectWorkSignalClient {
   }
 
   validateNextUrl(raw, config, expectedPath) {
-    let url;
-    let base;
-    try { url = new URL(raw); base = new URL(config.apiUrl); } catch { url = null; }
-    if (!url || !base || url.origin !== base.origin || url.pathname !== expectedPath || url.username || url.password || url.hash) throw error('Microsoft Project returned an untrusted pagination URL.');
-    return url.toString();
+    try { return graphRequestUrl(raw, config.apiUrl, [expectedPath], true); } catch {
+      throw error('Microsoft Project returned an untrusted pagination URL.');
+    }
   }
 
   async listPages({ initialPath, params, token, config, limit, label, transform }) {

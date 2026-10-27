@@ -1,4 +1,5 @@
 const logger = require('../utils/logger');
+const { optionalModelReference } = require('../utils/modelReference');
 const { safeExternalSourceUrl } = require('../utils/externalSourceUrl');
 const Conversation = require('../models/Conversation');
 const Member = require('../models/Member');
@@ -200,6 +201,7 @@ Remember: You're here to help workers succeed while ensuring projects stay on tr
 
   // Get context for generating response
   async getResponseContext(member, cardId = null, options = {}) {
+    const targetCardId = optionalModelReference(cardId, 'cardId');
     const workspaceId = normalizeWorkspaceObjectId(options.workspaceId || member.workspaceId || getDefaultWorkspaceObjectId());
     const context = {
       member: {
@@ -238,8 +240,8 @@ Remember: You're here to help workers succeed while ensuring projects stay on tr
     }));
 
     // Get specific card if provided
-    if (cardId) {
-      const card = await Card.findOne({ _id: cardId, workspaceId })
+    if (targetCardId) {
+      const card = await Card.findOne({ _id: targetCardId, workspaceId })
         .populate(workspacePopulate(workspaceId, 'boardId listId members'));
       if (card) {
         context.currentCard = {

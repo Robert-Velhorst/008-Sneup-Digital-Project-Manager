@@ -1,4 +1,5 @@
 const express = require('express');
+const { optionalQueryString } = require('../utils/queryFilters');
 const router = express.Router();
 const logger = require('../utils/logger');
 const accountConnectorService = require('../services/accountConnectorService');
@@ -6,6 +7,7 @@ const connectorSyncService = require('../services/connectorSyncService');
 const genericWebhookService = require('../services/genericWebhookService');
 const { getRequestWorkspaceObjectId } = require('../services/workspaceScopeService');
 const { hasPermission, requirePermission, validateObjectIdParam } = require('../utils/requestSecurity');
+const { buildConnectorReturnPath } = require('../utils/connectorReturnPath');
 
 router.param('accountId', validateObjectIdParam('accountId'));
 
@@ -154,7 +156,7 @@ router.get('/accounts/:accountId/inbound-worker-response-options', requirePermis
     const options = await genericWebhookService.getWorkerResponseBindingOptions({
       accountId: req.params.accountId,
       workspaceId: getRequestWorkspaceObjectId(req),
-      memberId: req.query.memberId,
+      memberId: optionalQueryString(req.query.memberId, 'memberId'),
       query: req.query.query,
       limit: req.query.limit
     });
@@ -440,8 +442,7 @@ router.get('/:connectorId/callback', async (req, res) => {
     const result = await accountConnectorService.completeOAuth(req.params.connectorId, req.query, {
       baseUrl: getBaseUrl(req)
     });
-    const separator = result.returnTo.includes('?') ? '&' : '?';
-    res.redirect(`${result.returnTo}${separator}connector=${encodeURIComponent(result.account.connectorId)}&status=connected`);
+    res.redirect(buildConnectorReturnPath(result.returnTo, result.account.connectorId));
   } catch (error) {
     logger.error('OAuth connector callback failed:', error);
     res.status(error.statusCode || 500).send(`

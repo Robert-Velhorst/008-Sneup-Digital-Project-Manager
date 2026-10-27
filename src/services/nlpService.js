@@ -6,6 +6,7 @@ const TfIdf = require('natural/lib/natural/tfidf/tfidf');
 const SentimentAnalyzer = require('natural/lib/natural/sentiment/SentimentAnalyzer');
 const PorterStemmer = require('natural/lib/natural/stemmers/porter_stemmer');
 const logger = require('../utils/logger');
+const { requiredModelReference } = require('../utils/modelReference');
 const Card = require('../models/Card');
 const Comment = require('../models/Comment');
 const Member = require('../models/Member');
@@ -24,11 +25,12 @@ const analyzer = new SentimentAnalyzer('English', PorterStemmer, 'afinn');
 // Analyze card content
 const analyzeCardContent = async (cardId, options = {}) => {
   try {
-    logger.info(`Analyzing content for card: ${cardId}`);
+    const cardReference = requiredModelReference(cardId, 'cardId');
+    logger.info(`Analyzing content for card: ${cardReference}`);
     const workspaceId = normalizeWorkspaceObjectId(options.workspaceId || getDefaultWorkspaceObjectId());
     
     // Get card with comments
-    const card = await Card.findOne({ _id: cardId, workspaceId })
+    const card = await Card.findOne({ _id: cardReference, workspaceId })
       .populate(workspacePopulate(workspaceId, 'comments', { nested: { comments: 'memberId' } }));
     
     if (!card) {
@@ -80,7 +82,7 @@ const analyzeCardContent = async (cardId, options = {}) => {
       commentAnalyses
     };
   } catch (error) {
-    logger.error(`Failed to analyze card content ${cardId}:`, error);
+    logger.error('Failed to analyze card content:', error);
     return null;
   }
 };
@@ -344,11 +346,12 @@ const analyzeCommunicationPatterns = async (options = {}) => {
 // Analyze member language patterns
 const analyzeMemberLanguagePatterns = async (memberId, options = {}) => {
   try {
-    logger.info(`Analyzing language patterns for member: ${memberId}`);
+    const memberReference = requiredModelReference(memberId, 'memberId');
+    logger.info(`Analyzing language patterns for member: ${memberReference}`);
     const workspaceId = normalizeWorkspaceObjectId(options.workspaceId || getDefaultWorkspaceObjectId());
     
     // Get all comments by this member
-    const comments = await Comment.find({ memberId, workspaceId });
+    const comments = await Comment.find({ memberId: memberReference, workspaceId });
     
     if (comments.length === 0) {
       return null;
@@ -372,13 +375,13 @@ const analyzeMemberLanguagePatterns = async (memberId, options = {}) => {
     );
     
     // Count word frequency
-    const wordCounts = {};
+    const wordCounts = new Map();
     for (const token of filteredTokens) {
-      wordCounts[token] = (wordCounts[token] || 0) + 1;
+      wordCounts.set(token, (wordCounts.get(token) || 0) + 1);
     }
     
     // Get frequent words
-    const frequentWords = Object.entries(wordCounts)
+    const frequentWords = Object.entries(Object.fromEntries(wordCounts))
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10)
       .map(([word, count]) => ({ word, count }));
@@ -403,7 +406,7 @@ const analyzeMemberLanguagePatterns = async (memberId, options = {}) => {
     const usesMentions = commentTexts.some(text => text.includes('@'));
     
     // Update member's communication style
-    const member = await Member.findOne({ _id: memberId, workspaceId });
+    const member = await Member.findOne({ _id: memberReference, workspaceId });
     if (member) {
       member.communicationStyle = {
         formality: calculateFormality(fullText),
@@ -414,7 +417,7 @@ const analyzeMemberLanguagePatterns = async (memberId, options = {}) => {
     }
     
     return {
-      memberId,
+      memberId: memberReference,
       commentCount: comments.length,
       frequentWords,
       averageSentiment,
@@ -425,7 +428,7 @@ const analyzeMemberLanguagePatterns = async (memberId, options = {}) => {
       }
     };
   } catch (error) {
-    logger.error(`Failed to analyze language patterns for member ${memberId}:`, error);
+    logger.error('Failed to analyze language patterns for member:', error);
     return null;
   }
 };

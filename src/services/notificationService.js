@@ -12,6 +12,7 @@ const reportingService = require('./reportingService');
 const { normalizeWorkspaceObjectId } = require('./workspaceScopeService');
 const { safeExternalSourceUrl } = require('../utils/externalSourceUrl');
 const logger = require('../utils/logger');
+const { scalarQueryString, scalarQueryId } = require('../utils/scalarQueryFilter');
 
 const MAX_POLICY_LIMIT = 100;
 const MAX_DELIVERY_LIMIT = 250;
@@ -274,8 +275,8 @@ class NotificationService {
   async listDeliveries(options = {}) {
     this.requireDatabase();
     const query = { workspaceId: this.resolveWorkspaceId(options.workspaceId) };
-    if (options.status) query.status = options.status;
-    if (options.policyId) query.policyId = options.policyId;
+    if (options.status) query.status = scalarQueryString(options.status);
+    if (options.policyId) query.policyId = scalarQueryId(options.policyId);
     const deliveryQuery = NotificationDelivery.find(query)
       .sort({ createdAt: -1 })
       .limit(Math.min(Number(options.limit) || MAX_DELIVERY_LIMIT, MAX_DELIVERY_LIMIT));

@@ -1,0 +1,9 @@
+# Jira OAuth request policy
+
+This connector uses Jira Cloud OAuth 2.0 (3LO): discover authorized sites at `https://api.atlassian.com/oauth/token/accessible-resources`, select the authorized cloud ID, then POST the existing bounded JQL search to `https://api.atlassian.com/ex/jira/{cloudId}/rest/api/3/search/jql`. Account-site discovery and work-signal discovery share the same authority check. Credentials never follow a site response's display URL.
+
+`SNEUP_JIRA_API_URL` accepts only that public HTTPS authority, with an optional root slash or explicit default TLS port. Alternate authorities, tenant domains, custom ports, userinfo, query strings, fragments and API prefixes fail before HTTP. This setting is not a Jira Data Center or arbitrary proxy integration. Such integrations require a separately designed authentication and deployment policy; reusing cloud bearer tokens on another host is not supported.
+
+Cloud IDs are encoded as one path segment; empty values, dot segments, controls, whitespace and backslashes fail. Requests disable redirects and proxy discovery while retaining TLS verification, site authorization/ambiguity handling, scopes, selected fields, caps, opaque pagination and cursor behavior. No account credentials, deployment settings or live provider data are changed by this source patch.
+
+Primary references: [Atlassian OAuth 2.0 (3LO)](https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/) and [Jira Cloud v3 issue search](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-search/), reviewed 27 October 2026. Existing v3 enhanced search is retained; full SDK, runtime, provider acceptance and real-data migration remain separate requirements. Tests use mock transports on owned hosted workers; they do not establish live OAuth acceptance.

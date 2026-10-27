@@ -1,0 +1,147 @@
+name: Private scheduler registry source package evidence
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  package-and-cases:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '26.12.1'
+      - run: npm install --global npm@12.2.1
+      - name: Bind every source payload and package only the reviewed production change
+        id: inputs
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          python3 - <<'PY'
+          from pathlib import Path, PurePosixPath
+          import copy,gzip,hashlib,io,json,os,subprocess,tarfile
+          evidence=Path(os.environ['RUNNER_TEMP'])/'scheduler-registry-package'
+          evidence.mkdir()
+          source={}
+          for row in subprocess.check_output(['git','ls-tree','-r','-z','HEAD']).split(b'\0'):
+              if not row:continue
+              meta,name=row.split(b'\t',1);mode,kind,blob=meta.decode().split();name=name.decode()
+              assert kind=='blob' and mode in {'100644','100755'}
+              data=Path(name).read_bytes()
+              assert hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()==blob,name
+              source[name]={'blob':blob,'sha256':hashlib.sha256(data).hexdigest()}
+          head=subprocess.check_output(['git','rev-parse','HEAD']).decode().strip()
+          tree=subprocess.check_output(['git','rev-parse','HEAD^{tree}']).decode().strip()
+          (evidence/'source-before.json').write_text(json.dumps({'head':head,'tree':tree,'payloads':source},indent=2)+'\n')
+          (evidence/'package-before.json').write_bytes(Path('package.json').read_bytes())
+          (evidence/'lock-before.json').write_bytes(Path('package-lock.json').read_bytes())
+          provenance_path=Path('third_party/node-schedule-port-provenance.json')
+          provenance=json.loads(provenance_path.read_text())
+          (evidence/'provenance-before.json').write_bytes(provenance_path.read_bytes())
+          package=Path('third_party/node-schedule-cron-parser5.tgz')
+          original=package.read_bytes()
+          assert hashlib.sha256(original).hexdigest()==provenance['private_local_package_tar_sha256']
+          result=io.BytesIO();changed=[];payloads={}
+          with gzip.GzipFile(fileobj=result,mode='wb',filename='',mtime=0) as compressed:
+              with tarfile.open(fileobj=compressed,mode='w',format=tarfile.PAX_FORMAT) as output:
+                  with tarfile.open(fileobj=io.BytesIO(original),mode='r:gz') as archive:
+                      for member in archive:
+                          assert member.isfile() and member.name.startswith('package/')
+                          relative=member.name[len('package/'):]
+                          assert relative and not PurePosixPath(relative).is_absolute() and '..' not in PurePosixPath(relative).parts
+                          assert relative not in payloads
+                          before=archive.extractfile(member).read()
+                          current=(Path('third_party/node-schedule')/relative).read_bytes()
+                          if before!=current:changed.append(relative)
+                          assert relative=='lib/Job.js' or before==current,relative
+                          if relative.startswith('test/'):
+                              assert hashlib.sha256(current).hexdigest()==provenance['original_vendor_case_helper_fixture_blobs_unchanged'][relative]
+                          info=copy.copy(member);info.size=len(current)
+                          output.addfile(info,io.BytesIO(current))
+                          payloads[relative]=hashlib.sha256(current).hexdigest()
+          assert set(changed)<= {'lib/Job.js'}
+          assert set(provenance['original_source_file_sha256'])<=set(payloads)
+          assert all(payloads[p]==checksum for p,checksum in provenance['original_vendor_case_helper_fixture_blobs_unchanged'].items())
+          generated=result.getvalue();package.write_bytes(generated)
+          provenance['private_local_package_tar_sha256']=hashlib.sha256(generated).hexdigest()
+          provenance['private_local_package_tar_size']=len(generated)
+          provenance['registry_security_patch']={'description':'Register arbitrary string job names as own data properties; preserve ordinary registry prototype and all original cases.','private_runtime_path':'lib/Job.js','all_original_case_helper_fixture_payloads_unchanged':True,'public_upstream_release':False}
+          provenance_path.write_text(json.dumps(provenance,indent=2)+'\n')
+          (evidence/'generated-package.tgz').write_bytes(generated)
+          (evidence/'generated-provenance.json').write_bytes(provenance_path.read_bytes())
+          (evidence/'generated-package-payloads.json').write_text(json.dumps({'head':head,'changed_package_member_paths':changed,'all_generated_payloads':payloads,'sha256':hashlib.sha256(generated).hexdigest(),'all_original_vendor_cases_unchanged':True,'complete_SDK_runtime_and_live_acceptance':False},indent=2)+'\n')
+          PY
+      - name: Refresh the local source package through the normal installer
+        id: resolve
+        run: npm install --package-lock-only --ignore-scripts --no-audit ./third_party/node-schedule-cron-parser5.tgz
+      - name: Verify the unchanged manifest contract and install the generated complete lock
+        id: install
+        if: ${{ !cancelled() && steps.resolve.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,os
+          evidence=Path(os.environ['RUNNER_TEMP'])/'scheduler-registry-package'
+          assert json.loads(Path('package.json').read_text())==json.loads((evidence/'package-before.json').read_text())
+          Path('package.json').write_bytes((evidence/'package-before.json').read_bytes())
+          PY
+          npm ci --ignore-scripts --no-audit
+      - name: Verify actual installed source package payloads
+        id: installed
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json,os
+          evidence=Path(os.environ['RUNNER_TEMP'])/'scheduler-registry-package'
+          payloads=json.loads((evidence/'generated-package-payloads.json').read_text())['all_generated_payloads']
+          verified={}
+          for name,checksum in payloads.items():
+              installed='.npmignore' if name=='.gitignore' else name
+              data=(Path('node_modules/node-schedule')/installed).read_bytes()
+              assert hashlib.sha256(data).hexdigest()==checksum,name
+              verified[name]=checksum
+          (evidence/'actual-installed-payloads.json').write_text(json.dumps(verified,indent=2)+'\n')
+          PY
+      - name: Run every new registry API case against the actual installed package
+        if: ${{ !cancelled() && steps.installed.outcome == 'success' }}
+        run: npm test -- --runInBand tests/schedulerRegistryNames.test.js --json --outputFile="$RUNNER_TEMP/scheduler-registry-package/registry-cases.json"
+      - name: Retain the complete unfiltered dependency audit
+        if: ${{ !cancelled() && steps.installed.outcome == 'success' }}
+        run: npm audit --json > "$RUNNER_TEMP/scheduler-registry-package/audit.json"
+      - name: Reconcile every other source payload and retain exact generated lock
+        if: ${{ !cancelled() && steps.inputs.outcome == 'success' }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json,os
+          evidence=Path(os.environ['RUNNER_TEMP'])/'scheduler-registry-package'
+          source=json.loads((evidence/'source-before.json').read_text())
+          allowed={'package-lock.json','third_party/node-schedule-cron-parser5.tgz','third_party/node-schedule-port-provenance.json'}
+          preserved={}
+          for name,row in source['payloads'].items():
+              if name in allowed:continue
+              assert hashlib.sha256(Path(name).read_bytes()).hexdigest()==row['sha256'],name
+              preserved[name]=row
+          assert Path('package.json').read_bytes()==(evidence/'package-before.json').read_bytes()
+          (evidence/'actual-generated-lock.json').write_bytes(Path('package-lock.json').read_bytes())
+          (evidence/'source-after.json').write_text(json.dumps({'head':source['head'],'tree':source['tree'],'all_other_payloads_unchanged':preserved,'only_generated_paths_allowed':sorted(allowed),'complete_qualification':False},indent=2)+'\n')
+          PY
+      - name: Retain all source, package, installed-case and audit evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: scheduler-registry-source-package-evidence
+          path: ${{ runner.temp }}/scheduler-registry-package/
+          if-no-files-found: error
+          retention-days: 7

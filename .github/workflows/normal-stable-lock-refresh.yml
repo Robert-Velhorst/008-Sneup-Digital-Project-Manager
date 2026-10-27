@@ -1,0 +1,123 @@
+name: Normal current stable dependency refresh evidence
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  normal-resolution:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '26.12.1'
+      - run: npm install --global npm@12.2.1
+      - name: Bind complete source and choose public stable direct declarations
+        id: inputs
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          python3 - <<'PY'
+          from pathlib import Path
+          from concurrent.futures import ThreadPoolExecutor
+          from datetime import datetime, timezone
+          import hashlib,json,os,re,subprocess,urllib.request,urllib.parse
+          evidence=Path(os.environ['RUNNER_TEMP'])/'sneup-normal-stable-refresh'
+          evidence.mkdir()
+          source={}
+          for row in subprocess.check_output(['git','ls-tree','-r','-z','HEAD']).split(b'\0'):
+              if not row:continue
+              meta,name=row.split(b'\t',1);mode,kind,blob=meta.decode().split();name=name.decode()
+              assert kind=='blob' and mode in {'100644','100755'}
+              data=Path(name).read_bytes()
+              assert hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()==blob,name
+              source[name]={'blob':blob,'sha256':hashlib.sha256(data).hexdigest()}
+          (evidence/'source-before.json').write_text(json.dumps({'head':subprocess.check_output(['git','rev-parse','HEAD']).decode().strip(),'tree':subprocess.check_output(['git','rev-parse','HEAD^{tree}']).decode().strip(),'payloads':source},indent=2)+'\n')
+          before=json.loads(Path('package.json').read_text())
+          (evidence/'package-before.json').write_bytes(Path('package.json').read_bytes())
+          (evidence/'lock-before.json').write_bytes(Path('package-lock.json').read_bytes())
+          declarations=[(name,version,section) for section in ['dependencies','devDependencies'] for name,version in before[section].items()]
+          def inspect(item):
+              name,version,section=item
+              url='https://registry.npmjs.org/'+urllib.parse.quote(name,safe='')
+              request=urllib.request.Request(url,headers={'Accept':'application/vnd.npm.install-v1+json'})
+              with urllib.request.urlopen(request,timeout=60) as response:metadata=json.load(response)
+              assert metadata['name']==name
+              candidates=[v for v,p in metadata['versions'].items() if re.fullmatch(r'\d+\.\d+\.\d+',v) and not p.get('deprecated')]
+              target=max(candidates,key=lambda v:tuple(map(int,v.split('.'))))
+              public=metadata['versions'][target]
+              return {'name':name,'section':section,'before':version,'highest_public_nondeprecated_stable':target,'local_source_port_preserved':version.startswith('file:'),'public_target_integrity':public['dist'].get('integrity'),'engines':public.get('engines'),'source':url}
+          with ThreadPoolExecutor(max_workers=3) as pool:catalog=list(pool.map(inspect,declarations))
+          after=json.loads(json.dumps(before))
+          for item in catalog:
+              if not item['local_source_port_preserved']:after[item['section']][item['name']]=item['highest_public_nondeprecated_stable']
+          for key in before:
+              if key not in {'dependencies','devDependencies'}:assert before[key]==after[key]
+          assert not after.get('overrides') and not before.get('overrides')
+          Path('package.json').write_text(json.dumps(after,indent=2)+'\n')
+          (evidence/'package-target.json').write_bytes(Path('package.json').read_bytes())
+          (evidence/'direct-public-targets.json').write_text(json.dumps({'captured_at':datetime.now(timezone.utc).isoformat(),'all_direct_namespaces':len(catalog),'catalog':catalog,'local_source_port_currency_qualified':False,'all_transitive_native_SDK_data_and_live_acceptance_qualified':False},indent=2)+'\n')
+          PY
+      - name: Generate the complete lock normally without overrides or peer bypasses
+        id: resolve
+        run: npm update --package-lock-only --ignore-scripts --no-audit
+      - name: Install the normally generated complete lock
+        if: ${{ !cancelled() && steps.resolve.outcome == 'success' }}
+        run: npm ci --ignore-scripts --no-audit
+      - name: Retain the unfiltered full dependency audit
+        if: ${{ !cancelled() && steps.resolve.outcome == 'success' }}
+        run: npm audit --json > "$RUNNER_TEMP/sneup-normal-stable-refresh/audit.json"
+      - name: Verify source preservation and retain actual generated graph
+        if: ${{ !cancelled() && steps.inputs.outcome == 'success' }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json,os,re,subprocess
+          evidence=Path(os.environ['RUNNER_TEMP'])/'sneup-normal-stable-refresh'
+          source=json.loads((evidence/'source-before.json').read_text())
+          assert subprocess.check_output(['git','rev-parse','HEAD']).decode().strip()==source['head']
+          preserved={}
+          for name,row in source['payloads'].items():
+              if name in {'package.json','package-lock.json'}:continue
+              data=Path(name).read_bytes()
+              assert hashlib.sha256(data).hexdigest()==row['sha256'],name
+              preserved[name]=row
+          assert Path('package.json').read_bytes()==(evidence/'package-target.json').read_bytes()
+          (evidence/'actual-package.json').write_bytes(Path('package.json').read_bytes())
+          (evidence/'actual-package-lock.json').write_bytes(Path('package-lock.json').read_bytes())
+          lock=json.loads(Path('package-lock.json').read_text())
+          prereleases=[{'path':name,'version':p['version']} for name,p in lock.get('packages',{}).items() if isinstance(p.get('version'),str) and re.match(r'^\d+\.\d+\.\d+-',p['version'])]
+          before=json.loads((evidence/'lock-before.json').read_text())
+          def highest_installed(packages):
+              result={}
+              for path,row in packages.items():
+                  version=row.get('version','')
+                  match=re.fullmatch(r'(\d+)\.(\d+)\.(\d+)(?:\+.*)?',version)
+                  if not path or not match:continue
+                  name=row.get('name') or path.rsplit('node_modules/',1)[-1]
+                  numeric=tuple(map(int,match.groups()))
+                  if name not in result or numeric>result[name][0]:result[name]=(numeric,version)
+              return result
+          old=highest_installed(before['packages']);new=highest_installed(lock['packages'])
+          lowered=[{'name':name,'before':old[name][1],'after':new[name][1]} for name in sorted(old.keys() & new.keys()) if new[name][0]<old[name][0]]
+          (evidence/'source-and-lock-after.json').write_text(json.dumps({'head':source['head'],'tree':source['tree'],'all_other_payloads_unchanged':preserved,'prerelease_lock_rows':prereleases,'lowered_component_versions':lowered,'lock_package_rows':len(lock['packages']),'no_source_case_helper_fixture_or_selector_changes':True,'complete_qualification':False},indent=2)+'\n')
+          assert not lowered,'Normal update lowers installed components; graph is unqualified'
+          assert not prereleases,'Prerelease lock rows remain; no stable-only qualification'
+          PY
+      - name: Retain resolver output and all source/catalog/audit evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sneup-normal-current-stable-resolution
+          path: ${{ runner.temp }}/sneup-normal-stable-refresh/
+          if-no-files-found: error
+          retention-days: 7

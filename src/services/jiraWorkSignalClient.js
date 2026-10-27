@@ -1,5 +1,6 @@
 const axios = require('axios');
 const accountConnectorService = require('./accountConnectorService');
+const { jiraApiUrl, jiraResourcesUrl, jiraIssueSearchUrl } = require('./jiraRequestBoundary');
 
 const DEFAULT_API_URL = 'https://api.atlassian.com';
 const DEFAULT_MAX_ISSUES = 1000;
@@ -28,7 +29,7 @@ class JiraWorkSignalClient {
 
   getConfig() {
     return {
-      apiUrl: String(process.env.SNEUP_JIRA_API_URL || DEFAULT_API_URL).replace(/\/$/, ''),
+      apiUrl: jiraApiUrl(process.env.SNEUP_JIRA_API_URL || DEFAULT_API_URL),
       timeout: clampInteger(process.env.SNEUP_JIRA_TIMEOUT_MS, 15000, 1000, 60000),
       maxIssues: clampInteger(process.env.SNEUP_JIRA_MAX_ISSUES, DEFAULT_MAX_ISSUES, 1, 5000),
       pageSize: clampInteger(process.env.SNEUP_JIRA_PAGE_SIZE, DEFAULT_PAGE_SIZE, 1, 100),
@@ -52,12 +53,14 @@ class JiraWorkSignalClient {
   }
 
   async listAccessibleResources(token, config) {
-    const response = await this.http.get(`${config.apiUrl}/oauth/token/accessible-resources`, {
+    const response = await this.http.get(jiraResourcesUrl(config.apiUrl), {
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`
       },
-      timeout: config.timeout
+      timeout: config.timeout,
+      maxRedirects: 0,
+      proxy: false
     });
 
     return (Array.isArray(response.data) ? response.data : [])
@@ -103,7 +106,7 @@ class JiraWorkSignalClient {
     do {
       const remaining = config.maxIssues - issues.length;
       const response = await this.http.post(
-        `${config.apiUrl}/ex/jira/${encodeURIComponent(resource.id)}/rest/api/3/search/jql`,
+        jiraIssueSearchUrl(config.apiUrl, resource.id),
         {
           jql,
           fields: [
@@ -119,7 +122,9 @@ class JiraWorkSignalClient {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`
           },
-          timeout: config.timeout
+          timeout: config.timeout,
+          maxRedirects: 0,
+          proxy: false
         }
       );
 

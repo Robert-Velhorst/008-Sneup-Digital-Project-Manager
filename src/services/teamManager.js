@@ -1,4 +1,5 @@
 const logger = require('../utils/logger');
+const { requiredModelReference } = require('../utils/modelReference');
 const Board = require('../models/Board');
 const Card = require('../models/Card');
 const Member = require('../models/Member');
@@ -354,22 +355,25 @@ const executeRecommendation = async (recommendation, options = {}) => {
     const workspaceId = resolveWorkspaceId(options.workspaceId);
     
     if (recommendation.type === 'reassign') {
-      const card = await Card.findOne({ _id: recommendation.cardId, workspaceId });
+      const cardId = requiredModelReference(recommendation.cardId, 'cardId');
+      const fromMemberRef = requiredModelReference(recommendation.fromMember?.id, 'fromMemberId');
+      const toMemberRef = requiredModelReference(recommendation.toMember?.id, 'toMemberId');
+      const card = await Card.findOne({ _id: cardId, workspaceId });
       if (!card) {
         logger.warn(`Card not found: ${recommendation.cardId}`);
         return { success: false, error: 'Card not found' };
       }
       
       const [fromMember, toMember] = await Member.find({
-        _id: { $in: [recommendation.fromMember.id, recommendation.toMember.id] },
+        _id: { $in: [fromMemberRef, toMemberRef] },
         workspaceId
       })
         .then((members) => {
           const byId = new Map();
           members.forEach((member) => byId.set(toMemberId(member._id), member));
           return [
-            byId.get(toMemberId(recommendation.fromMember.id)) || null,
-            byId.get(toMemberId(recommendation.toMember.id)) || null
+            byId.get(toMemberId(fromMemberRef)) || null,
+            byId.get(toMemberId(toMemberRef)) || null
           ];
         });
 

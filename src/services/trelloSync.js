@@ -23,6 +23,15 @@ const boardSyncQueues = new Map();
 const memberSyncQueues = new Map();
 let syncJobs = {};
 
+const requireTrelloBoardId = (value) => {
+  if (typeof value !== 'string' || !value) {
+    const error = new Error('Trello board ID must be a non-empty string');
+    error.statusCode = 400;
+    throw error;
+  }
+  return value;
+};
+
 const mapTrelloAttachments = (attachments = []) => attachments.map(attachment => ({
   id: attachment.id,
   name: attachment.name,
@@ -293,15 +302,16 @@ const syncAllBoards = async (options = {}) => {
 // Sync a specific board
 const syncBoardNow = async (boardId, options = {}) => {
   try {
+    const trelloBoardId = requireTrelloBoardId(boardId);
     logger.info(`Syncing board: ${boardId}`);
     const workspaceId = normalizeWorkspaceObjectId(options.workspaceId || getDefaultWorkspaceObjectId());
     
     // Get board data from Trello
-    const trelloBoard = await trelloClient.boardApi.getBoard(boardId);
+    const trelloBoard = await trelloClient.boardApi.getBoard(trelloBoardId);
     
     // Find or create board in database
     let board = await Board.findOne({
-      trelloId: boardId,
+      trelloId: trelloBoardId,
       $or: [
         { workspaceId },
         { workspaceId: { $exists: false } },
@@ -356,10 +366,11 @@ const syncBoardNow = async (boardId, options = {}) => {
 };
 
 const syncBoard = async (boardId, options = {}) => {
+  const trelloBoardId = requireTrelloBoardId(boardId);
   const workspaceId = normalizeWorkspaceObjectId(options.workspaceId || getDefaultWorkspaceObjectId());
-  const key = `${workspaceId}:${String(boardId)}`;
+  const key = `${workspaceId}:${trelloBoardId}`;
   const syncOneBoard = options.syncBoardNow || syncBoardNow;
-  return runSerialized(boardSyncQueues, key, () => syncOneBoard(boardId, { ...options, workspaceId }));
+  return runSerialized(boardSyncQueues, key, () => syncOneBoard(trelloBoardId, { ...options, workspaceId }));
 };
 
 // Sync lists for a board
@@ -863,6 +874,7 @@ const reconcileTrelloWebhooks = async (workspaceId = normalizeWorkspaceObjectId(
 
 // Handle webhook events
 const handleWebhookEvent = async (event) => {
+  const boardId = requireTrelloBoardId(event?.model?.id);
   const workspaceId = normalizeWorkspaceObjectId(getDefaultWorkspaceObjectId());
   return jobObservabilityService.trackJob({
     jobName: 'trello.webhook_event',
@@ -871,14 +883,11 @@ const handleWebhookEvent = async (event) => {
     workspaceId,
     metadata: {
       actionType: event?.action?.type,
-      modelId: event?.model?.id
+      modelId: boardId
     }
   }, async () => {
   try {
     logger.info(`Received webhook event: ${event.action.type}`);
-    
-    // Determine the board affected by this event
-    const boardId = event.model.id;
     
     // Find the board in database
     const board = await Board.findOne({ trelloId: boardId, workspaceId });

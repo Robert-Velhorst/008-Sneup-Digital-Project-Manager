@@ -1,5 +1,6 @@
 const axios = require('axios');
 const accountConnectorService = require('./accountConnectorService');
+const { providerApiUrl } = require('./fixedProviderApiBoundary');
 
 const DEFAULT_API_URL = 'https://api.notion.com/v1';
 const DEFAULT_VERSION = '2026-03-11';
@@ -24,7 +25,7 @@ class NotionWorkSignalClient {
 
   getConfig() {
     return {
-      apiUrl: String(process.env.SNEUP_NOTION_API_URL || DEFAULT_API_URL).replace(/\/$/, ''),
+      apiUrl: providerApiUrl(process.env.SNEUP_NOTION_API_URL || DEFAULT_API_URL, 'Notion'),
       version: String(process.env.SNEUP_NOTION_VERSION || DEFAULT_VERSION).trim() || DEFAULT_VERSION,
       timeout: clampInteger(process.env.SNEUP_NOTION_TIMEOUT_MS, 15000, 1000, 60000),
       maxResults: clampInteger(process.env.SNEUP_NOTION_MAX_RESULTS, 500, 1, 2000),
@@ -45,7 +46,7 @@ class NotionWorkSignalClient {
   }
 
   request(cursor, pageSize, token, config) {
-    return this.http.post(`${config.apiUrl}/search`, {
+    return this.http.post(`${providerApiUrl(config.apiUrl, 'Notion')}/search`, {
       page_size: pageSize,
       ...(cursor ? { start_cursor: cursor } : {}),
       sort: { direction: 'descending', timestamp: 'last_edited_time' }
@@ -56,7 +57,9 @@ class NotionWorkSignalClient {
         'Content-Type': 'application/json',
         'Notion-Version': config.version
       },
-      timeout: config.timeout
+      timeout: config.timeout,
+      maxRedirects: 0,
+      proxy: false
     });
   }
 

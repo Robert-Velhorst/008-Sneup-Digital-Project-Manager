@@ -1,5 +1,7 @@
 const axios = require('axios');
 const accountConnectorService = require('./accountConnectorService');
+const { graphApiUrl, graphRequestUrl } = require('./microsoftGraphRequestBoundary');
+const READ_ROUTES = ['/me/mailFolders/inbox/messages'];
 
 const clamp = (value, fallback, minimum, maximum) => { const parsed = Number.parseInt(value, 10); return Number.isFinite(parsed) ? Math.max(minimum, Math.min(maximum, parsed)) : fallback; };
 const compact = value => Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined && item !== null && item !== ''));
@@ -19,19 +21,17 @@ const message = item => {
 class OutlookWorkSignalClient {
   constructor(options = {}) { this.http = options.http || axios; this.accountConnectorService = options.accountConnectorService || accountConnectorService; }
 
-  getConfig() { return { apiUrl: String(process.env.SNEUP_MICROSOFT_GRAPH_API_URL || 'https://graph.microsoft.com/v1.0').replace(/\/$/, ''), timeout: clamp(process.env.SNEUP_OUTLOOK_TIMEOUT_MS, 15000, 1000, 60000), maxMessages: clamp(process.env.SNEUP_OUTLOOK_MAX_MESSAGES, 250, 1, 2000), pageSize: clamp(process.env.SNEUP_OUTLOOK_PAGE_SIZE, 100, 1, 1000) }; }
+  getConfig() { return { apiUrl: graphApiUrl(process.env.SNEUP_MICROSOFT_GRAPH_API_URL || 'https://graph.microsoft.com/v1.0'), timeout: clamp(process.env.SNEUP_OUTLOOK_TIMEOUT_MS, 15000, 1000, 60000), maxMessages: clamp(process.env.SNEUP_OUTLOOK_MAX_MESSAGES, 250, 1, 2000), pageSize: clamp(process.env.SNEUP_OUTLOOK_PAGE_SIZE, 100, 1, 1000) }; }
 
   getAccessToken(account) { const credentials = this.accountConnectorService.getAccountCredentials(account); const token = credentials.accessToken || credentials.token; if (!token) { const error = new Error('Outlook OAuth access token is missing. Reconnect this account to continue syncing.'); error.statusCode = 503; throw error; } return token; }
 
-  request(path, token, params, config) { return this.http.get(`${config.apiUrl}${path}`, { params, headers: { Accept: 'application/json', Authorization: `Bearer ${token}`, 'User-Agent': 'Sneup Digital Project Manager (support@noodzakelijk.online)' }, timeout: config.timeout, maxRedirects: 0, proxy: false }); }
+  request(path, token, params, config) { return this.http.get(graphRequestUrl(path, config.apiUrl, READ_ROUTES), { params, headers: { Accept: 'application/json', Authorization: `Bearer ${token}`, 'User-Agent': 'Sneup Digital Project Manager (support@noodzakelijk.online)' }, timeout: config.timeout, maxRedirects: 0, proxy: false }); }
 
   nextToken(nextLink, config) {
     if (!nextLink) return null;
     if (typeof nextLink !== 'string' || nextLink.length > 4096) throw invalidResponse('Outlook returned an invalid inbox pagination link. Reconnect this account before syncing again.');
     let next;
-    try { next = new URL(nextLink); } catch { throw invalidResponse('Outlook returned an invalid inbox pagination link. Reconnect this account before syncing again.'); }
-    const expected = new URL(`${config.apiUrl}/me/mailFolders/inbox/messages`);
-    if (next.origin !== expected.origin || next.pathname !== expected.pathname) throw invalidResponse('Outlook returned an unexpected inbox pagination location. Reconnect this account before syncing again.');
+    try { next = new URL(graphRequestUrl(nextLink, config.apiUrl, READ_ROUTES, true)); } catch { throw invalidResponse('Outlook returned an unexpected inbox pagination location. Reconnect this account before syncing again.'); }
     const token = next.searchParams.get('$skiptoken');
     if (!validPageToken(token)) throw invalidResponse('Outlook returned an invalid inbox pagination token. Reconnect this account before syncing again.');
     return token;

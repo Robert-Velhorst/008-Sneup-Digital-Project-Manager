@@ -1,5 +1,6 @@
 const axios = require('axios');
 const accountConnectorService = require('./accountConnectorService');
+const { providerApiUrl } = require('./fixedProviderApiBoundary');
 
 const DEFAULT_API_URL = 'https://api.monday.com/v2';
 const DEFAULT_API_VERSION = '2025-10';
@@ -77,7 +78,7 @@ class MondayWorkSignalClient {
 
   getConfig() {
     return {
-      apiUrl: String(process.env.SNEUP_MONDAY_API_URL || DEFAULT_API_URL).replace(/\/$/, ''),
+      apiUrl: providerApiUrl(process.env.SNEUP_MONDAY_API_URL || DEFAULT_API_URL, 'Monday'),
       apiVersion: String(process.env.SNEUP_MONDAY_API_VERSION || DEFAULT_API_VERSION).trim() || DEFAULT_API_VERSION,
       timeout: clampInteger(process.env.SNEUP_MONDAY_TIMEOUT_MS, 15000, 1000, 60000),
       maxBoards: clampInteger(process.env.SNEUP_MONDAY_MAX_BOARDS, 25, 1, 100),
@@ -99,14 +100,16 @@ class MondayWorkSignalClient {
   }
 
   async request(query, variables, token, config) {
-    const response = await this.http.post(config.apiUrl, { query, variables }, {
+    const response = await this.http.post(providerApiUrl(config.apiUrl, 'Monday'), { query, variables }, {
       headers: {
         Accept: 'application/json',
         Authorization: token,
         'Content-Type': 'application/json',
         'API-Version': config.apiVersion
       },
-      timeout: config.timeout
+      timeout: config.timeout,
+      maxRedirects: 0,
+      proxy: false
     });
     const errors = Array.isArray(response.data?.errors) ? response.data.errors : [];
     if (errors.length > 0) {

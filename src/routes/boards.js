@@ -1,4 +1,5 @@
 const express = require('express');
+const { optionalQueryString } = require('../utils/queryFilters');
 const router = express.Router();
 const logger = require('../utils/logger');
 const Board = require('../models/Board');
@@ -148,8 +149,8 @@ router.get('/:boardId/decision-queue', requirePermission('decision-queue:manage'
     const items = await operationsLedgerService.listDecisionQueue({
       boardId: req.params.boardId,
       workspaceId: getRequestWorkspaceObjectId(req),
-      status: req.query.status || 'open',
-      ownerType: req.query.ownerType,
+      status: optionalQueryString(req.query.status, 'status') || 'open',
+      ownerType: optionalQueryString(req.query.ownerType, 'ownerType'),
       limit: clampInteger(req.query.limit, 100, 1, 250)
     });
 
@@ -193,7 +194,7 @@ router.get('/:boardId/findings', requirePermission('audit:read'), async (req, re
     operationsLedgerService.requireDatabase();
     const query = scopeQuery(req, {
       boardId: req.params.boardId,
-      status: req.query.status || 'open'
+      status: optionalQueryString(req.query.status, 'status') || 'open'
     });
     const findings = await CardFinding.find(query)
       .sort({ severity: -1, signalScore: -1, lastObservedAt: -1 })

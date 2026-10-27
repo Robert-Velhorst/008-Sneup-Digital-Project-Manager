@@ -1,7 +1,7 @@
 const axios = require('axios');
 const accountConnectorService = require('./accountConnectorService');
+const { configuredCodeHostApi, codeHostRequestUrl, githubApiVersion } = require('./codeHostRequestBoundary');
 
-const DEFAULT_API_URL = 'https://api.github.com';
 const DEFAULT_MAX_REPOSITORIES = 20;
 const DEFAULT_MAX_ITEMS_PER_REPOSITORY = 200;
 const DEFAULT_MAX_TOTAL_ITEMS = 1000;
@@ -30,7 +30,8 @@ class GitHubWorkSignalClient {
 
   getConfig() {
     return {
-      apiUrl: String(process.env.SNEUP_GITHUB_API_URL || DEFAULT_API_URL).replace(/\/$/, ''),
+      apiUrl: configuredCodeHostApi('GitHub'),
+      apiVersion: githubApiVersion(),
       timeout: clampInteger(process.env.SNEUP_GITHUB_TIMEOUT_MS, 15000, 1000, 60000),
       maxRepositories: clampInteger(process.env.SNEUP_GITHUB_MAX_REPOSITORIES, DEFAULT_MAX_REPOSITORIES, 1, 100),
       maxItemsPerRepository: clampInteger(process.env.SNEUP_GITHUB_MAX_ITEMS_PER_REPOSITORY, DEFAULT_MAX_ITEMS_PER_REPOSITORY, 1, 1000),
@@ -51,14 +52,16 @@ class GitHubWorkSignalClient {
   }
 
   request(path, token, config, params = {}) {
-    return this.http.get(`${config.apiUrl}${path}`, {
+    return this.http.get(codeHostRequestUrl(path, config.apiUrl, 'GitHub'), {
       params,
       timeout: config.timeout,
+      maxRedirects: 0,
+      proxy: false,
       headers: {
         Accept: 'application/vnd.github+json',
         Authorization: `Bearer ${token}`,
         'User-Agent': 'Sneup-Digital-Project-Manager',
-        'X-GitHub-Api-Version': '2022-11-28'
+        'X-GitHub-Api-Version': githubApiVersion(config.apiVersion)
       }
     });
   }

@@ -94,22 +94,30 @@ class WrikeWorkSignalClient {
       error.statusCode = 400;
       throw error;
     }
-    if (url.protocol !== 'https:' || !ALLOWED_API_HOSTS.has(url.hostname) || url.pathname.replace(/\/$/, '') !== '/api/v4' || url.search || url.hash || url.username || url.password) {
+    if (url.protocol !== 'https:' || !ALLOWED_API_HOSTS.has(url.hostname) || url.port || url.pathname.replace(/\/$/, '') !== '/api/v4' || url.search || url.hash || url.username || url.password) {
       const error = new Error('Wrike API URL must be https://www.wrike.com/api/v4 or https://app-eu.wrike.com/api/v4.');
       error.statusCode = 400;
       throw error;
     }
-    return url.toString().replace(/\/$/, '');
+    return url.hostname === 'app-eu.wrike.com' ? 'https://app-eu.wrike.com/api/v4' : DEFAULT_API_URL;
   }
 
   request(config, path, token, params = {}) {
-    return this.http.get(`${config.apiUrl}${path}`, {
+    const base = this.getApiUrl({ metadata: { fields: { apiUrl: config.apiUrl } } });
+    if (!['/folders', '/tasks'].includes(path)) {
+      const error = new Error('Wrike work-signal request path is invalid.');
+      error.statusCode = 400;
+      throw error;
+    }
+    return this.http.get(`${base}${path}`, {
       params,
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`
       },
-      timeout: config.timeout
+      timeout: config.timeout,
+      maxRedirects: 0,
+      proxy: false
     });
   }
 

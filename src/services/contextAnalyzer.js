@@ -279,23 +279,23 @@ const analyzeTeamPatterns = async (options = {}) => {
       if (assignedCards.length < 3) continue;
       
       // Analyze card types
-      const cardTypes = {};
-      const boardActivity = {};
+      const cardTypes = new Map();
+      const boardActivity = new Map();
       
       for (const card of assignedCards) {
         const boardId = card.boardId._id.toString();
-        boardActivity[boardId] = (boardActivity[boardId] || 0) + 1;
+        boardActivity.set(boardId, (boardActivity.get(boardId) || 0) + 1);
         
         for (const label of card.labels) {
           if (label.name) {
             const labelName = label.name.toLowerCase();
-            cardTypes[labelName] = (cardTypes[labelName] || 0) + 1;
+            cardTypes.set(labelName, (cardTypes.get(labelName) || 0) + 1);
           }
         }
       }
       
       // Get common card types
-      const commonCardTypes = Object.entries(cardTypes)
+      const commonCardTypes = Array.from(cardTypes)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 3)
         .map(([type, count]) => ({
@@ -305,7 +305,7 @@ const analyzeTeamPatterns = async (options = {}) => {
         }));
       
       // Get board focus
-      const boardFocus = Object.entries(boardActivity)
+      const boardFocus = Array.from(boardActivity)
         .sort((a, b) => b[1] - a[1])
         .map(([boardId, count]) => {
           const board = member.boards.find(b => b._id.toString() === boardId);

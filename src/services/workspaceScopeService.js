@@ -27,9 +27,12 @@ const getDefaultWorkspaceName = () => Workspace.defaultWorkspaceName();
 const slugifyWorkspaceKey = (value) => {
   const slug = String(value || 'default')
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  return slug || 'default';
+    .replace(/[^a-z0-9]+/g, '-');
+  let start = 0;
+  let end = slug.length;
+  while (start < end && slug.charCodeAt(start) === 45) start += 1;
+  while (end > start && slug.charCodeAt(end - 1) === 45) end -= 1;
+  return slug.slice(start, end) || 'default';
 };
 
 const objectIdFromWorkspaceKey = (value) => {

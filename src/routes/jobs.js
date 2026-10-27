@@ -1,3 +1,4 @@
+const { optionalScalarQueryString } = require('../utils/scalarQueryFilter');
 const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
@@ -175,8 +176,8 @@ router.get('/', requirePermission('audit:read'), async (req, res) => {
     const dashboard = await jobObservabilityService.getDashboard({
       workspaceId: requestWorkspaceId(req),
       limit: clampInteger(req.query.limit, 250, 1, 500),
-      jobType: req.query.jobType,
-      status: req.query.status
+      jobType: optionalScalarQueryString(req.query.jobType),
+      status: optionalScalarQueryString(req.query.status)
     });
 
     res.json({
@@ -185,9 +186,9 @@ router.get('/', requirePermission('audit:read'), async (req, res) => {
     });
   } catch (error) {
     logger.error('Failed to get job dashboard:', error);
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
-      error: 'Failed to get job dashboard'
+      error: error.statusCode ? error.message : 'Failed to get job dashboard'
     });
   }
 });
@@ -218,10 +219,10 @@ router.get('/runs', requirePermission('audit:read'), async (req, res) => {
     const runs = await jobObservabilityService.listRuns({
       workspaceId: requestWorkspaceId(req),
       limit: clampInteger(req.query.limit, 100, 1, 500),
-      jobName: req.query.jobName,
-      jobType: req.query.jobType,
-      status: req.query.status,
-      boardId: req.query.boardId
+      jobName: optionalScalarQueryString(req.query.jobName),
+      jobType: optionalScalarQueryString(req.query.jobType),
+      status: optionalScalarQueryString(req.query.status),
+      boardId: optionalScalarQueryString(req.query.boardId)
     });
 
     res.json({
@@ -231,9 +232,9 @@ router.get('/runs', requirePermission('audit:read'), async (req, res) => {
     });
   } catch (error) {
     logger.error('Failed to list job runs:', error);
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
-      error: 'Failed to list job runs'
+      error: error.statusCode ? error.message : 'Failed to list job runs'
     });
   }
 });

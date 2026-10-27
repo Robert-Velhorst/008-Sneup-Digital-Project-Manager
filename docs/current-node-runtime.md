@@ -1,0 +1,9 @@
+# Current Node runtime candidate
+
+The candidate uses public stable Node 26.12.1 in all four application CI jobs. Both Docker stages use the official `26.12.1-trixie-slim` image pinned to multi-platform index digest `sha256:36793bcbb160a6a16cede1e62b93f84e26b78a972a8a4c0b879c1c12f22761ec`. Official Node image metadata identifies Trixie as its default Debian distribution. The application manifest and root lock entry require Node >=26.12.1; dependency constraints, resolved package versions and integrity records are unchanged by that engine-only edit.
+
+Hosted CI runs the original case suite and existing MongoDB, container and Windows checks. An added isolated container probe asserts the actual Node version, nonroot UID and Debian 13/Trixie distribution, then retains native component versions and the built image ID. It has no network and does not invoke the application or contact providers. Existing container integration runs separately on its owned private fixture. No project code, package manager, container or SDK executes locally during preparation.
+
+This does not qualify every bundled component as its independently latest release, a complete original vendor SDK, an image vulnerability scan, the Electron bundled runtime, or live Hetzner acceptance. Development advisories and complete-source findings remain open and counted. Changing the container OS does not migrate the actual MongoDB data or alter the server; deployment and restore acceptance require separate work.
+
+Publisher references reviewed 27 October 2026: [Node 26.12.1](https://github.com/nodejs/node/releases/tag/v26.12.1), [official Node image configuration](https://github.com/nodejs/docker-node/blob/main/versions.json). The public registry manifest body was hashed independently before pinning its digest. No mutable image tag substitutes for the digest in this candidate.

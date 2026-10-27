@@ -1,3 +1,4 @@
+const { optionalQueryString } = require('../utils/queryFilters');
 const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
@@ -30,9 +31,9 @@ const listQueue = async (req, res, ownerType) => {
   try {
     const items = await operationsLedgerService.listDecisionQueue({
       ...workspaceOptions(req),
-      ownerType: ownerType || req.query.ownerType,
-      status: req.query.status || 'open',
-      boardId: req.query.boardId,
+      ownerType: ownerType || optionalQueryString(req.query.ownerType, 'ownerType'),
+      status: optionalQueryString(req.query.status, 'status') || 'open',
+      boardId: optionalQueryString(req.query.boardId, 'boardId'),
       limit: clampInteger(req.query.limit, 100, 1, 250)
     });
 

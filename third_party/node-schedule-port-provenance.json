@@ -1,0 +1,168 @@
+{
+  "upstream": {
+    "package": "node-schedule",
+    "version": "2.1.2",
+    "commit": "6d5ad4b31dc5fc530a810489f482dd59cabc9803",
+    "source_tar_sha256": "5b5f244d4754b3d6f4cd72e14901d510f5af0446b4324ad5f8f7be2627900103",
+    "published_tar_integrity_verified": true,
+    "all_Git_source_payloads_verified": 35,
+    "original_test_paths": [
+      "test/.eslintrc",
+      "test/cancel-long-running-jobs.js",
+      "test/convenience-method-test.js",
+      "test/date-convenience-methods-test.js",
+      "test/es6/job-test.js",
+      "test/graceful-shutdown-test.js",
+      "test/job-test.js",
+      "test/range-test.js",
+      "test/recurrence-rule-test.js",
+      "test/schedule-cron-jobs.js",
+      "test/start-end-test.js",
+      "test/utils/timerUtils.js"
+    ]
+  },
+  "parser": {
+    "package": "cron-parser",
+    "version": "5.10.2",
+    "commit": "5033a312f1fe04665060eacf4378f16c48ca4ea8",
+    "source_tar_sha256": "fb4be44acdaa3a41d786b1e1be4744dcc891e3828152ca5c988d08b8f1e23016",
+    "published_tar_integrity_verified": true,
+    "all_Git_source_payloads_verified": 58,
+    "original_test_paths": [
+      "tests/CronDate.test.ts",
+      "tests/CronExpression.test.ts",
+      "tests/CronExpressionParser.test.ts",
+      "tests/CronField.test.ts",
+      "tests/CronFieldCollection.test.ts",
+      "tests/CronFileParser.test.ts",
+      "tests/random.test.ts",
+      "tests/types.d.ts"
+    ]
+  },
+  "original_vendor_files": 35,
+  "changed_original_vendor_files": [
+    "lib/Invocation.js",
+    "lib/Job.js",
+    "package.json"
+  ],
+  "new_lint_config": "eslint.config.mjs",
+  "original_vendor_case_helper_fixture_blobs_unchanged": {
+    "test/.eslintrc": "6c79c17ab2421e940be58c4901a2fdc9ea131ccce63f142455350a39084075d9",
+    "test/cancel-long-running-jobs.js": "ad60c76ff77106c7b2898cd0b3c86ef82ff75f1ee73f11e2b3152f2da4c90027",
+    "test/convenience-method-test.js": "1ce678aabae64588da51ce17e2b9f3bbcf77711c407d27efef4e12dd10e762f1",
+    "test/date-convenience-methods-test.js": "fc54287f5227de3ed4ddb4b94ad1fb0060604e96886b2657f07d61a136f53d94",
+    "test/es6/job-test.js": "c0d5da1acad9bd8e743cec4182df25d83441831f7a518bf911ad16992896732c",
+    "test/graceful-shutdown-test.js": "b9050bc84fad0c9661178ac5ae3b227e632fbd2c11be2421401256468b777973",
+    "test/job-test.js": "0d2329aa0864c4e7b4b028b37daf2382a50858a8fa61fa0f6164d3762ef7a081",
+    "test/range-test.js": "760938e862f92166c83385e2a298077233a0856cf544b3266c3c8ec3b8d68479",
+    "test/recurrence-rule-test.js": "274ffc21246da7ee15753eb65feea03189431c32433983b5b540a47af72498e0",
+    "test/schedule-cron-jobs.js": "6abab0fb3dd3c2061ab51fe067d9f3341d768e3f4947bd76a080000a2ca7cc9e",
+    "test/start-end-test.js": "9e1241a45df2bd460bd209bc58b4ef63f53cdfff22b889554e102b44afd0a7cb",
+    "test/utils/timerUtils.js": "340cc8e01205535c556626cfb7a0e9c3b9d47b42fac4afdc8b039ee5aff81d10"
+  },
+  "private_local_package_tar_sha256": "a5e03c0c91623e1c7aa4a2813b294077d3280047264baea3f49cb1c83b8fb1d0",
+  "private_local_package_tar_size": 22645,
+  "upstream_version_is_not_a_new_public_release": true,
+  "direct_stable_build_and_runtime_targets": {
+    "@changesets/cli": {
+      "version": "3.0.3",
+      "metadata_sha256": "d751f649b9c0d695a4e2cab4d3877376fa07f5cb189d6c31a448bae382793553"
+    },
+    "@eslint/js": {
+      "version": "10.0.1",
+      "metadata_sha256": "75eeba3862a04516865e8797781aaed448dec1815f3cd37ac871284079b768ff"
+    },
+    "@stylistic/eslint-plugin": {
+      "version": "5.10.0",
+      "metadata_sha256": "608dda73a8897482e28080654aec6d572d9fb574943a15cd01bf680208f9d8a1"
+    },
+    "airtap": {
+      "version": "5.0.0",
+      "metadata_sha256": "235df53a19460788360b38cc9b5b060cf4532b192d9c017c2b32567864a43b28"
+    },
+    "airtap-playwright": {
+      "version": "1.0.1",
+      "metadata_sha256": "41f38755a053c2123e768bd006ebcb3bf2017c6541d25d7da401cf227723cc92"
+    },
+    "cron-parser": {
+      "version": "5.10.2",
+      "metadata_sha256": "83e72dc3e2b167536c47c2b873248f2da833661cc6299af1562c59f791db5a7e"
+    },
+    "eslint": {
+      "version": "10.13.0",
+      "metadata_sha256": "1c53c5fad93e009f1315838f82bfb41e2bbf9c6da7ed8b90a5570d58c47e3f99"
+    },
+    "globals": {
+      "version": "17.13.0",
+      "metadata_sha256": "b5a1040b814eafd80e2749fbd9957ee6e3952dcc149af93aaf7832c7a6aae5ae"
+    },
+    "long-timeout": {
+      "version": "0.1.1",
+      "metadata_sha256": "dda69017dcbcabbdac0382dc6056412630b7daa75150214af0823adf8dab599b"
+    },
+    "nyc": {
+      "version": "18.0.0",
+      "metadata_sha256": "5f7753d02a2fd1d7bed79168fc844a7e2158a9e05bc5b48d2d3ca81aa1049905"
+    },
+    "sinon": {
+      "version": "22.1.0",
+      "metadata_sha256": "2cd117b229c919e81dc899fb2cda84ba436833a3ffe4d27ea5a6a0a9f252361f"
+    },
+    "sorted-array-functions": {
+      "version": "1.3.0",
+      "metadata_sha256": "ec38305308bd467d7ca00f8795586cfe49a03c02324b5abb9c9e2cfa381d04d8"
+    },
+    "tape": {
+      "version": "5.10.3",
+      "metadata_sha256": "ebbf4f709835572a68250eb3cb1fa7e4fef65d3669fbadad2faa395a79ca9e48"
+    }
+  },
+  "no_dependency_overrides": true,
+  "no_application_cases_added_or_edited": true,
+  "local_application_compiler_package_or_scanner_execution": false,
+  "original_source_file_sha256": {
+    ".airtap.yml": "47475498e6f1538bd5358f370f6e291be0dd3f87a22f49b4fef2ad01cb5edaa9",
+    ".changeset/README.md": "1353fe828202307d93b7e2d4f45e4bbd86c7a79142b5480b33c156c0c7f58778",
+    ".changeset/config.json": "0893b2e4a84fe1d697f7f889b23ba9be54bc442872c1b620da10b61b5db4c0dc",
+    ".eslintrc": "2eec06ea23ab6d8ecf151bf887c301d267b9e81f598f49ffeee94288958a4234",
+    ".github/dependabot.yml": "f30589ac10db02299e2a1dd7dd82e55153cd0269aa0df8d7aaefa0b2c0952d9e",
+    ".github/workflows/browser.yml": "aabc7ac2ccebf981e5711f6412e33d7fdf7d709efa5a3c0da603b68d7123bb19",
+    ".github/workflows/ci.yml": "144b19fc563633ed4aa47100a5c8faf640787314cf4df801019d40e34d223158",
+    ".github/workflows/coverage.yml": "ec1a5d18f27726bf6ec89370d7621a575b188e4093fc0b54128300d71a5b8698",
+    ".github/workflows/linting.yml": "e1efc0ad3b02228b2d85f8519aac414d5e0ea3402b2ef14f573f9d25462cac8e",
+    ".github/workflows/merge-release-pr.yml": "f095562671c2420b8fa546e1bbd1f51cb5d691ae3fdbcff729dfb4e53e8825e0",
+    ".github/workflows/release.yml": "faab8a01791fa15000b0cb8e8e2c10ba20fe2888c11450253999d9bcae0f1573",
+    ".gitignore": "b77b35196b6625c63fd5dd34eda545fa56dbd1fe65752d80b2d364d1801666d1",
+    "CHANGELOG.md": "12030b38f41bd01b21d9cc9e59985bbb04d22dcc14b5c2a432a714a43b1f6f9b",
+    "CONTRIBUTING.md": "d46ca88617c9e1708b28372146d44ec3e78e1734b4d440a70c2f0dd54d2b775c",
+    "LICENSE": "6404827d88a5d8848a386d5405d92a73739c9d569a8c83ffe3be556cf7001ba9",
+    "README.md": "e519f0567681ec84578e8327727b29b16c77fe613fcf18609f01e66b8ea330d1",
+    "UPGRADING.md": "62136a072deb14e12587c350caf68d7893e24a1c730c338653d30d5ed3743f21",
+    "index.js": "ab6418de3220df9659094a8207ab0b788aca8cc190f345beb6954bbaaa051288",
+    "lib/Invocation.js": "db7a47b73958e67308b0be50992e8243f7c5bf322ac43cea34693e8fb9628253",
+    "lib/Job.js": "ce0c9ffd416ca9c2bb07b83d39e985966abb78498ea64b2576e0f5feeef2b215",
+    "lib/schedule.js": "0e101a52ab26997a02a66caaafb40f94b9f08d153b921edd0a723291364d6073",
+    "lib/utils/dateUtils.js": "3d2dc3f7cc38dd1015cf15ece815c8d71f40cf4e13a0c3cb583beec56d42f8ed",
+    "package.json": "5502005e1e9a870c9d543a318527b5de059225c4c75e2cedd972732f885a8378",
+    "test/.eslintrc": "6c79c17ab2421e940be58c4901a2fdc9ea131ccce63f142455350a39084075d9",
+    "test/cancel-long-running-jobs.js": "ad60c76ff77106c7b2898cd0b3c86ef82ff75f1ee73f11e2b3152f2da4c90027",
+    "test/convenience-method-test.js": "1ce678aabae64588da51ce17e2b9f3bbcf77711c407d27efef4e12dd10e762f1",
+    "test/date-convenience-methods-test.js": "fc54287f5227de3ed4ddb4b94ad1fb0060604e96886b2657f07d61a136f53d94",
+    "test/es6/job-test.js": "c0d5da1acad9bd8e743cec4182df25d83441831f7a518bf911ad16992896732c",
+    "test/graceful-shutdown-test.js": "b9050bc84fad0c9661178ac5ae3b227e632fbd2c11be2421401256468b777973",
+    "test/job-test.js": "0d2329aa0864c4e7b4b028b37daf2382a50858a8fa61fa0f6164d3762ef7a081",
+    "test/range-test.js": "760938e862f92166c83385e2a298077233a0856cf544b3266c3c8ec3b8d68479",
+    "test/recurrence-rule-test.js": "274ffc21246da7ee15753eb65feea03189431c32433983b5b540a47af72498e0",
+    "test/schedule-cron-jobs.js": "6abab0fb3dd3c2061ab51fe067d9f3341d768e3f4947bd76a080000a2ca7cc9e",
+    "test/start-end-test.js": "9e1241a45df2bd460bd209bc58b4ef63f53cdfff22b889554e102b44afd0a7cb",
+    "test/utils/timerUtils.js": "340cc8e01205535c556626cfb7a0e9c3b9d47b42fac4afdc8b039ee5aff81d10"
+  },
+  "minimum_dependency_runtime": "Node18 as required by cron-parser5; actual application target remains Node26.12.1",
+  "vendor_attributes_disable_EOL_conversion_to_preserve_original_case_blob_bytes": true,
+  "registry_security_patch": {
+    "description": "Register arbitrary string job names as own data properties; preserve ordinary registry prototype and all original cases.",
+    "private_runtime_path": "lib/Job.js",
+    "all_original_case_helper_fixture_payloads_unchanged": true,
+    "public_upstream_release": false
+  }
+}
