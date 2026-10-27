@@ -1,0 +1,7 @@
+# Imported keys are data
+
+Workspace export sanitization, autopilot board-list grouping and work-graph dependency-type counts use dictionaries with a null prototype. Names such as `__proto__`, `constructor`, `prototype` and `toString` are retained as own data properties rather than resolving inherited members or invoking prototype setters. Serialized JSON retains ordinary record shapes and those explicit keys. No provider identifier is dropped or renamed.
+
+Dependency summary normalization copies own enumerable counts into a fresh dictionary. Direct summary updates also upgrade an ordinary dictionary before adding a type; existing source dictionaries are not mutated. Workspace export still recursively removes its existing secret-key set, omits binary values, handles shared/circular records and retains owner authorization. Board grouping retains its workspace query and list order.
+
+Independent added cases exercise special keys through the actual export, grouping and graph-summary entry points, including JSON round trips and unchanged source prototypes. Existing cases remain unchanged. This is an incremental source hardening patch: other dictionary sites and all other raw scan findings remain counted. No database, serialized source record, workspace identifier, permission or live provider data is migrated by this change. Hosted verification is separate from live deployment acceptance.

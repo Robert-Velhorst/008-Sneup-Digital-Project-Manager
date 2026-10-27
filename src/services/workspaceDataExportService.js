@@ -28,7 +28,7 @@ const sanitizeExportValue = (value, seen = new WeakSet()) => {
   if (seen.has(value)) return '[circular omitted]';
 
   seen.add(value);
-  const output = {};
+  const output = Object.create(null);
   for (const [key, child] of Object.entries(value)) {
     if (SECRET_KEYS.has(normalizedKey(key))) continue;
     output[key] = sanitizeExportValue(child, seen);
