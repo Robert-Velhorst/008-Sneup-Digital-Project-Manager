@@ -16,13 +16,17 @@ const copiedSourceSha256 = Object.create(null);
 const record = relative => {
   const absolute = path.resolve('/app', relative);
   assert.ok(absolute.startsWith('/app/'));
-  const stat = fs.lstatSync(absolute);
-  assert.equal(stat.isSymbolicLink(), false);
-  if (stat.isDirectory()) {
-    for (const entry of fs.readdirSync(absolute).sort()) record(path.posix.join(relative, entry));
-  } else {
-    assert.ok(stat.isFile());
-    copiedSourceSha256[relative] = crypto.createHash('sha256').update(fs.readFileSync(absolute)).digest('hex');
+  const descriptor = fs.openSync(absolute, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+  try {
+    const stat = fs.fstatSync(descriptor);
+    if (stat.isDirectory()) {
+      for (const entry of fs.readdirSync(absolute).sort()) record(path.posix.join(relative, entry));
+    } else {
+      assert.ok(stat.isFile());
+      copiedSourceSha256[relative] = crypto.createHash('sha256').update(fs.readFileSync(descriptor)).digest('hex');
+    }
+  } finally {
+    fs.closeSync(descriptor);
   }
 };
 for (const entry of ['package.json', 'package-lock.json', 'src', 'public', 'scripts']) record(entry);
