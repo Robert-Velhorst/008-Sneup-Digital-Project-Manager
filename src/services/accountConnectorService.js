@@ -8,6 +8,7 @@ const { buildConnectorSafetyProfile, summarizeConnectorSafety } = require('./con
 const { copyWorkSignalSyncCounts } = require('../utils/workSignalSyncMetadata');
 const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
 const { jiraResourcesUrl } = require('./jiraRequestBoundary');
+const { providerApiUrl } = require('./fixedProviderApiBoundary');
 
 const STATE_TTL_MS = 10 * 60 * 1000;
 const MAX_CATALOG_LIMIT = 300;
@@ -1038,14 +1039,16 @@ class AccountConnectorService {
       throw error;
     }
 
-    const apiUrl = String(process.env.SNEUP_ASANA_API_URL || 'https://app.asana.com/api/1.0').replace(/\/$/, '');
+    const apiUrl = providerApiUrl(process.env.SNEUP_ASANA_API_URL || 'https://app.asana.com/api/1.0', 'Asana');
     const response = await this.http.get(`${apiUrl}/workspaces`, {
       params: { limit: 100, opt_fields: 'gid,name,is_organization' },
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${accessToken}`
       },
-      timeout: 15000
+      timeout: 15000,
+      maxRedirects: 0,
+      proxy: false
     });
 
     return (Array.isArray(response.data?.data) ? response.data.data : [])
@@ -1127,7 +1130,7 @@ class AccountConnectorService {
       error.statusCode = 500;
       throw error;
     }
-    return url.origin;
+    return 'https://launchpad.37signals.com';
   }
 
   normalizeBasecampApiUrl(value, accountId) {
@@ -1157,7 +1160,9 @@ class AccountConnectorService {
         Authorization: `Bearer ${accessToken}`,
         'User-Agent': 'Sneup Digital Project Manager'
       },
-      timeout: 15000
+      timeout: 15000,
+      maxRedirects: 0,
+      proxy: false
     });
 
     return (Array.isArray(response.data?.accounts) ? response.data.accounts : [])

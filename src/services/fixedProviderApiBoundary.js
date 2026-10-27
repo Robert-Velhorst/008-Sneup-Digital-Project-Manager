@@ -1,4 +1,5 @@
 const ENDPOINTS = Object.freeze({
+  Asana: ['https://app.asana.com/api/1.0'],
   Linear: ['https://api.linear.app/graphql'],
   Notion: ['https://api.notion.com/v1'],
   Monday: ['https://api.monday.com/v2'],
