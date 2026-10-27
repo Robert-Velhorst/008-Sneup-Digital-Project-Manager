@@ -1,5 +1,52 @@
 # Stable dependency and runtime review - 2026-10-23
 
+## Current combined review candidate — 27 October 2026
+
+This integration retains both security and dependency/SDK draft histories. Nine
+conflicts were resolved while preserving all 178 security-head test payloads
+(including the 165 original files), all 64 vendor payloads and all 34 existing
+scripts. Connector authority/redirect boundaries, scalar service and route
+filters, Autopilot target validation and original SDK workflows remain present.
+The original cloud-case script is unchanged; an independent hosted check validates
+the current pinned proxy image. npm and Yarn remain in the runtime image and
+remain visible to complete vulnerability scans.
+
+The exact normally generated worker manifest/lock is adopted: Axios 1.21.0,
+Natural 8.2.6, OpenAI 7.45.1 and Electron Builder 26.18.1 advance to the observed
+public stable targets. That worker resolved/installed normally and its full
+unfiltered dependency audit reported zero vulnerabilities. This does not qualify
+the whole graph or current source. Gensync beta and Postject alpha remain in the
+SDK through current Babel and Windows-signing parent requirements; no prerelease
+allowance, downgrade, override or waiver has been applied.
+
+A subsequent ordinary update also produced a zero-finding audit, but selected
+older Emnapi versions during deduplication. That graph was not adopted. The SDK
+host now explicitly declares current stable Emnapi core/runtime peers within
+`@napi-rs/wasm-runtime`'s documented stable peer range. A fresh normal update must
+generate and verify the resulting lock. Every source/case payload and public
+catalog is retained by the hosted evidence job; both prerelease and lower-version
+graph gates remain strict. No local installation or application/SDK execution
+is used for this work.
+
+The scheduler port already uses public Node Schedule 2.1.2, commit
+`6d5ad4b31dc5fc530a810489f482dd59cabc9803`. Fresh publisher Git/archive checks
+reconcile all 35 source payloads, the unchanged 32 nonported payloads and all
+12 original case/helper/fixture payloads. This establishes its current upstream
+base, while the private modifications and complete SDK acceptance remain separate.
+
+The combined application, source/image, original SDK and Windows runtime gates
+remain unqualified. Known failures include old runtime diagnostic fixtures, a
+configuration-parser case under the application runner, and Electron 45's
+embedded Node 24.22.0 below the required release floor. No original case,
+assertion, fixture, helper, timeout or case selector was changed to clear a gate.
+No main merge, manual deployment, live database/data change, billing or permission
+change occurred.
+
+## Historical evidence before the combined candidate
+
+The sections below retain dated investigation results and older configurations.
+They do not qualify this combined source or supersede the current state above.
+
 ## 25 October ordinary-resolution correction
 
 The current candidate removes every dependency override and uses ordinary npm resolution. All22 direct dependency declarations were checked against official stable latest registry tags; node-schedule advances from2.1.1 to2.1.2. No override or prerelease was added. The older override-based evidence below is historical and does not establish acceptance of this graph.
