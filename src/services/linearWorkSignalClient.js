@@ -1,5 +1,6 @@
 const axios = require('axios');
 const accountConnectorService = require('./accountConnectorService');
+const { providerApiUrl } = require('./fixedProviderApiBoundary');
 
 const DEFAULT_GRAPHQL_URL = 'https://api.linear.app/graphql';
 
@@ -50,7 +51,7 @@ class LinearWorkSignalClient {
 
   getConfig() {
     return {
-      graphqlUrl: String(process.env.SNEUP_LINEAR_GRAPHQL_URL || DEFAULT_GRAPHQL_URL).replace(/\/$/, ''),
+      graphqlUrl: providerApiUrl(process.env.SNEUP_LINEAR_GRAPHQL_URL || DEFAULT_GRAPHQL_URL, 'Linear'),
       timeout: clampInteger(process.env.SNEUP_LINEAR_TIMEOUT_MS, 15000, 1000, 60000),
       maxIssues: clampInteger(process.env.SNEUP_LINEAR_MAX_ISSUES, 1000, 1, 5000),
       pageSize: clampInteger(process.env.SNEUP_LINEAR_PAGE_SIZE, 100, 1, 250),
@@ -70,7 +71,7 @@ class LinearWorkSignalClient {
   }
 
   async requestIssues(token, config, first, after) {
-    const response = await this.http.post(config.graphqlUrl, {
+    const response = await this.http.post(providerApiUrl(config.graphqlUrl, 'Linear'), {
       query: ISSUE_QUERY,
       variables: { first, after: after || null }
     }, {
@@ -79,7 +80,9 @@ class LinearWorkSignalClient {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      timeout: config.timeout
+      timeout: config.timeout,
+      maxRedirects: 0,
+      proxy: false
     });
     const errors = Array.isArray(response.data?.errors) ? response.data.errors : [];
     if (errors.length > 0) {

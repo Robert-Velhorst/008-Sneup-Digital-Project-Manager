@@ -1,5 +1,6 @@
 const axios = require('axios');
 const accountConnectorService = require('./accountConnectorService');
+const { providerApiUrl } = require('./fixedProviderApiBoundary');
 
 const DEFAULT_API_URL = 'https://api.clickup.com/api/v2';
 
@@ -48,7 +49,7 @@ class ClickUpWorkSignalClient {
 
   getConfig() {
     return {
-      apiUrl: String(process.env.SNEUP_CLICKUP_API_URL || DEFAULT_API_URL).replace(/\/$/, ''),
+      apiUrl: providerApiUrl(process.env.SNEUP_CLICKUP_API_URL || DEFAULT_API_URL, 'ClickUp'),
       timeout: clampInteger(process.env.SNEUP_CLICKUP_TIMEOUT_MS, 15000, 1000, 60000),
       maxTeams: clampInteger(process.env.SNEUP_CLICKUP_MAX_TEAMS, 5, 1, 20),
       maxTasksPerTeam: clampInteger(process.env.SNEUP_CLICKUP_MAX_TASKS_PER_TEAM, 1000, 1, 5000),
@@ -69,13 +70,20 @@ class ClickUpWorkSignalClient {
   }
 
   request(path, token, config, params = {}) {
-    return this.http.get(`${config.apiUrl}${path}`, {
+    if (path !== '/team' && !/^\/team\/[A-Za-z0-9_-]+\/task$/.test(path)) {
+      const error = new Error('ClickUp work-signal request path is invalid.');
+      error.statusCode = 400;
+      throw error;
+    }
+    return this.http.get(`${providerApiUrl(config.apiUrl, 'ClickUp')}${path}`, {
       params,
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`
       },
-      timeout: config.timeout
+      timeout: config.timeout,
+      maxRedirects: 0,
+      proxy: false
     });
   }
 

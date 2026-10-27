@@ -1,5 +1,6 @@
 const axios = require('axios');
 const accountConnectorService = require('./accountConnectorService');
+const { providerApiUrl } = require('./fixedProviderApiBoundary');
 
 const DEFAULT_API_URL = 'https://api.airtable.com/v0';
 const FIELD_LIMIT = 12;
@@ -71,21 +72,7 @@ class AirtableWorkSignalClient {
   }
 
   getApiUrl() {
-    const raw = String(process.env.SNEUP_AIRTABLE_API_URL || DEFAULT_API_URL).trim();
-    let url;
-    try {
-      url = new URL(raw);
-    } catch {
-      const error = new Error('Airtable API URL must be https://api.airtable.com/v0.');
-      error.statusCode = 400;
-      throw error;
-    }
-    if (url.protocol !== 'https:' || url.hostname !== 'api.airtable.com' || url.pathname.replace(/\/$/, '') !== '/v0' || url.search || url.hash || url.username || url.password) {
-      const error = new Error('Airtable API URL must be https://api.airtable.com/v0.');
-      error.statusCode = 400;
-      throw error;
-    }
-    return url.toString().replace(/\/$/, '');
+    return providerApiUrl(process.env.SNEUP_AIRTABLE_API_URL || DEFAULT_API_URL, 'Airtable');
   }
 
   async fetchDelta(account, cursor) {
@@ -106,7 +93,7 @@ class AirtableWorkSignalClient {
         error.statusCode = 413;
         throw error;
       }
-      const response = await this.http.get(`${config.apiUrl}/${encodeURIComponent(config.baseId)}/${encodeURIComponent(config.tableName)}`, {
+      const response = await this.http.get(`${providerApiUrl(config.apiUrl, 'Airtable')}/${encodeURIComponent(config.baseId)}/${encodeURIComponent(config.tableName)}`, {
         params: { 'fields[]': config.allowedFields, pageSize: Math.min(config.pageSize, remaining), ...(offset ? { offset } : {}) },
         headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
         timeout: config.timeout,
