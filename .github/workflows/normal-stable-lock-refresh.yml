@@ -69,7 +69,7 @@ jobs:
           PY
       - name: Generate the complete lock normally without overrides or peer bypasses
         id: resolve
-        run: npm install --package-lock-only --ignore-scripts --no-audit
+        run: npm update --package-lock-only --ignore-scripts --no-audit
       - name: Install the normally generated complete lock
         if: ${{ !cancelled() && steps.resolve.outcome == 'success' }}
         run: npm ci --ignore-scripts --no-audit

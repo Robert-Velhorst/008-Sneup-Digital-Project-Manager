@@ -57,7 +57,7 @@
   "author": "Noodzakelijk Online",
   "license": "MIT",
   "dependencies": {
-    "axios": "1.20.0",
+    "axios": "1.21.0",
     "body-parser": "2.4.0",
     "compression": "1.8.2",
     "cors": "2.8.6",
@@ -65,16 +65,16 @@
     "express": "5.3.0",
     "helmet": "8.3.0",
     "mongoose": "9.11.4",
-    "natural": "8.2.3",
+    "natural": "8.2.6",
     "node-schedule": "file:third_party/node-schedule-cron-parser5.tgz",
-    "openai": "7.43.0",
+    "openai": "7.45.1",
     "pdfkit": "0.20.2",
     "trello.js": "2.3.0",
     "winston": "3.19.0"
   },
   "devDependencies": {
     "electron": "45.0.0",
-    "electron-builder": "26.18.0",
+    "electron-builder": "26.18.1",
     "eslint": "10.13.0",
     "espree": "11.2.0",
     "globals": "17.13.0",
