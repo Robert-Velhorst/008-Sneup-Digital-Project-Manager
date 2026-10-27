@@ -1,0 +1,7 @@
+# Linear input validation
+
+Invitation email shape checking, workspace slug edge trimming and Bearer header parsing no longer use the three scan-reported backtracking expressions. Each uses bounded passes over its input. Existing invitation normalization and shape acceptance are retained, including unusual domain dots previously accepted by the shape rule; this is not a new claim of RFC-complete email validation. Workspace slug normalization and the `default` fallback retain their previous output.
+
+Bearer parsing retains case-insensitive schemes, whitespace separators, opaque token contents and explicit `x-sneup-api-key` precedence. It rejects whitespace-only Bearer credentials, nonstring header values and embedded token line separators. This intentionally rejects ambiguous input rather than treating the last separator as a credential. Ordinary token comparison, permissions and authentication activity remain unchanged.
+
+Independent added cases cover prior accepted/rejected shapes, token precedence and long inputs. They run only on owned hosted workers, alongside every unchanged original case. No fragile elapsed-time assertion substitutes for the source change: the implementation removes nested/overlapping backtracking choices. No token, email address, workspace, database content or live authentication setting is rewritten by this source patch. Workspace identifier hashing and its separate findings remain unchanged to preserve existing data identities pending a reviewed migration.

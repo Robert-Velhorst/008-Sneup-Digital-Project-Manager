@@ -166,8 +166,12 @@ const extractApiKey = (req) => {
   if (explicit) return explicit;
 
   const authorization = req.get('authorization') || '';
-  const match = authorization.match(/^Bearer\s+(.+)$/i);
-  return match ? match[1] : null;
+  if (typeof authorization !== 'string' || authorization.slice(0, 6).toLowerCase() !== 'bearer') return null;
+  let start = 6;
+  while (start < authorization.length && /\s/.test(authorization[start])) start += 1;
+  if (start === 6 || start === authorization.length) return null;
+  const token = authorization.slice(start);
+  return /[\r\n\u2028\u2029]/.test(token) ? null : token;
 };
 
 const safeEquals = (left, right) => {
