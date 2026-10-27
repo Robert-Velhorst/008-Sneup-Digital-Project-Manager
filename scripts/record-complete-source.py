@@ -10,10 +10,18 @@ import sys
 mode, destination = sys.argv[1:]
 assert mode in {'before', 'verify'}
 assert os.environ.get('RUNNER_ENVIRONMENT') == 'github-hosted'
-root = Path(os.environ['GITHUB_WORKSPACE']).resolve()
-output = Path(destination).resolve()
-assert output.is_relative_to(Path(os.environ['RUNNER_TEMP']).resolve())
-assert not output.is_relative_to(root)
+# This recorder is deliberately bound to this repository's owned Ubuntu worker.
+# Never use arbitrary CLI/environment values as source or evidence file paths.
+root = Path('/home/runner/work/008-Sneup-Digital-Project-Manager/008-Sneup-Digital-Project-Manager')
+assert os.environ['GITHUB_WORKSPACE'] == str(root)
+assert Path.cwd().resolve() == root
+assert os.environ['RUNNER_TEMP'] == '/home/runner/work/_temp'
+destinations = {
+    'scan': Path('/home/runner/work/_temp/sneup-codeql/evidence'),
+    'lock': Path('/home/runner/work/_temp/sneup-lock-evidence')
+}
+assert destination in destinations
+output = destinations[destination]
 output.mkdir(parents=True, exist_ok=True)
 
 def git(*arguments, **kwargs):
