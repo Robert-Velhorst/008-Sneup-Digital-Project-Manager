@@ -185,9 +185,9 @@ router.get('/', requirePermission('audit:read'), async (req, res) => {
     });
   } catch (error) {
     logger.error('Failed to get job dashboard:', error);
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
-      error: 'Failed to get job dashboard'
+      error: error.statusCode ? error.message : 'Failed to get job dashboard'
     });
   }
 });
@@ -231,9 +231,9 @@ router.get('/runs', requirePermission('audit:read'), async (req, res) => {
     });
   } catch (error) {
     logger.error('Failed to list job runs:', error);
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
-      error: 'Failed to list job runs'
+      error: error.statusCode ? error.message : 'Failed to list job runs'
     });
   }
 });
