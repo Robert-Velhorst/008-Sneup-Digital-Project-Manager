@@ -22,8 +22,11 @@ allowance, downgrade, override or waiver has been applied.
 A subsequent ordinary update also produced a zero-finding audit, but selected
 older Emnapi versions during deduplication. That graph was not adopted. The SDK
 host now explicitly declares current stable Emnapi core/runtime peers within
-`@napi-rs/wasm-runtime`'s documented stable peer range. A fresh normal update must
-generate and verify the resulting lock. Every source/case payload and public
+`@napi-rs/wasm-runtime`'s documented stable peer range. The fresh normal update
+now resolves and installs successfully, with zero lower component versions and a
+zero-finding full audit. Its exact generated lock is adopted; the two inherited
+prerelease rows still fail the stable-only gate. Complete SDK/runtime/source and
+application qualification is required at the newly committed head. Every source/case payload and public
 catalog is retained by the hosted evidence job; both prerelease and lower-version
 graph gates remain strict. No local installation or application/SDK execution
 is used for this work.
