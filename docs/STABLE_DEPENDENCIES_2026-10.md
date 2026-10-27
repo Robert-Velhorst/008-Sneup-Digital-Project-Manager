@@ -5,7 +5,9 @@
 This integration retains both security and dependency/SDK draft histories. Nine
 conflicts were resolved while preserving all 178 security-head test payloads
 (including the 165 original files), all 64 vendor payloads and all 34 existing
-scripts. Connector authority/redirect boundaries, scalar service and route
+scripts. Subsequent registry hardening changes one already ported production
+file and regenerates its private package/provenance; the original vendor cases
+and helpers remain byte-identical. Connector authority/redirect boundaries, scalar service and route
 filters, Autopilot target validation and original SDK workflows remain present.
 The original cloud-case script is unchanged; an independent hosted check validates
 the current pinned proxy image. npm and Yarn remain in the runtime image and
@@ -44,6 +46,24 @@ embedded Node 24.22.0 below the required release floor. No original case,
 assertion, fixture, helper, timeout or case selector was changed to clear a gate.
 No main merge, manual deployment, live database/data change, billing or permission
 change occurred.
+
+## Scheduler registry hardening
+
+The private scheduler registry now defines each job name as an own enumerable,
+writable and configurable data property. It keeps the ordinary-object API and
+all string job names while avoiding inherited setters such as `__proto__`.
+The owned hosted packaging job rebuilt the package from bound source, refreshed
+its local-file lock through the normal installer, verified all 36 installed
+package payloads and passed 18 independent public registration/rescheduling/
+cancellation cases with no skips. Its complete dependency audit reported zero
+known vulnerabilities. All 12 original vendor case/helper/fixture payloads and
+all 178 existing root test files remain unchanged.
+
+The exact generated private tar, provenance and integrity-only lock change are
+adopted for fresh current-head qualification. This is a private source patch,
+not a new upstream release. Complete original SDK, source/image, packaged-runtime
+and live acceptance gates remain separate and unqualified. No original test,
+helper, assertion, fixture, selector or timeout is changed to clear those gates.
 
 ## Historical evidence before the combined candidate
 

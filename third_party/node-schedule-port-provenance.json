@@ -60,8 +60,8 @@
     "test/start-end-test.js": "9e1241a45df2bd460bd209bc58b4ef63f53cdfff22b889554e102b44afd0a7cb",
     "test/utils/timerUtils.js": "340cc8e01205535c556626cfb7a0e9c3b9d47b42fac4afdc8b039ee5aff81d10"
   },
-  "private_local_package_tar_sha256": "523f3852b5381b4b976db19f4a057e9151bd7572ec64c0f6e94161498be5739d",
-  "private_local_package_tar_size": 22545,
+  "private_local_package_tar_sha256": "a5e03c0c91623e1c7aa4a2813b294077d3280047264baea3f49cb1c83b8fb1d0",
+  "private_local_package_tar_size": 22645,
   "upstream_version_is_not_a_new_public_release": true,
   "direct_stable_build_and_runtime_targets": {
     "@changesets/cli": {
@@ -158,5 +158,11 @@
     "test/utils/timerUtils.js": "340cc8e01205535c556626cfb7a0e9c3b9d47b42fac4afdc8b039ee5aff81d10"
   },
   "minimum_dependency_runtime": "Node18 as required by cron-parser5; actual application target remains Node26.12.1",
-  "vendor_attributes_disable_EOL_conversion_to_preserve_original_case_blob_bytes": true
+  "vendor_attributes_disable_EOL_conversion_to_preserve_original_case_blob_bytes": true,
+  "registry_security_patch": {
+    "description": "Register arbitrary string job names as own data properties; preserve ordinary registry prototype and all original cases.",
+    "private_runtime_path": "lib/Job.js",
+    "all_original_case_helper_fixture_payloads_unchanged": true,
+    "public_upstream_release": false
+  }
 }
