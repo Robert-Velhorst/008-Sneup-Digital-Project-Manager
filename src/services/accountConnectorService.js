@@ -9,6 +9,7 @@ const { copyWorkSignalSyncCounts } = require('../utils/workSignalSyncMetadata');
 const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
 const { jiraResourcesUrl } = require('./jiraRequestBoundary');
 const { providerApiUrl } = require('./fixedProviderApiBoundary');
+const { sanitizeConnectorReturnPath } = require('../utils/connectorReturnPath');
 
 const STATE_TTL_MS = 10 * 60 * 1000;
 const MAX_CATALOG_LIMIT = 300;
@@ -659,7 +660,7 @@ class AccountConnectorService {
 
     return {
       account: this.sanitizeAccount(account),
-      returnTo: state.returnTo || '/?connectors=1'
+      returnTo: this.sanitizeReturnTo(state.returnTo)
     };
   }
 
@@ -2064,10 +2065,7 @@ class AccountConnectorService {
   }
 
   sanitizeReturnTo(returnTo) {
-    if (typeof returnTo === 'string' && returnTo.startsWith('/') && !returnTo.startsWith('//')) {
-      return returnTo;
-    }
-    return '/?connectors=1';
+    return sanitizeConnectorReturnPath(returnTo);
   }
 
   createState(payload) {
