@@ -80,7 +80,7 @@
     }
   },
   "devDependencies": {
-    "electron": "^44.8.0",
+    "electron": "^45.0.0",
     "electron-builder": "^26.15.3",
     "eslint": "^10.13.0",
     "espree": "^11.2.0",
