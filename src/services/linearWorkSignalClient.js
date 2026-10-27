@@ -1,7 +1,18 @@
 const axios = require('axios');
 const accountConnectorService = require('./accountConnectorService');
+const { providerApiUrl } = require('./fixedProviderApiBoundary');
 
 const DEFAULT_GRAPHQL_URL = 'https://api.linear.app/graphql';
+
+const authorizationHeader = (token, mode) => {
+  if (!['oauth2', 'api_key', 'personal_access_token'].includes(mode) ||
+      typeof token !== 'string' || !/^[\x21-\x7e]+$/.test(token)) {
+    const error = new Error('Linear credentials or authentication mode are invalid. Reconnect this account to continue syncing.');
+    error.statusCode = 503;
+    throw error;
+  }
+  return mode === 'oauth2' ? `Bearer ${token}` : token;
+};
 
 const clampInteger = (value, fallback, minimum, maximum) => {
   const parsed = Number.parseInt(value, 10);
@@ -50,7 +61,7 @@ class LinearWorkSignalClient {
 
   getConfig() {
     return {
-      graphqlUrl: String(process.env.SNEUP_LINEAR_GRAPHQL_URL || DEFAULT_GRAPHQL_URL).replace(/\/$/, ''),
+      graphqlUrl: providerApiUrl(process.env.SNEUP_LINEAR_GRAPHQL_URL || DEFAULT_GRAPHQL_URL, 'Linear'),
       timeout: clampInteger(process.env.SNEUP_LINEAR_TIMEOUT_MS, 15000, 1000, 60000),
       maxIssues: clampInteger(process.env.SNEUP_LINEAR_MAX_ISSUES, 1000, 1, 5000),
       pageSize: clampInteger(process.env.SNEUP_LINEAR_PAGE_SIZE, 100, 1, 250),
@@ -58,28 +69,41 @@ class LinearWorkSignalClient {
     };
   }
 
-  getAccessToken(account) {
-    const credentials = this.accountConnectorService.getAccountCredentials(account);
-    const token = credentials.accessToken || credentials.token || credentials.apiKey;
-    if (!token) {
-      const error = new Error('Linear access token is missing. Reconnect this account to continue syncing.');
-      error.statusCode = 503;
-      throw error;
+  getAuthentication(account) {
+    const credentials = this.accountConnectorService.getAccountCredentials(account) || {};
+    let mode = account?.authType;
+    let token;
+    if (mode === 'api_key' || mode === 'personal_access_token') {
+      token = credentials.apiKey || credentials.token;
+    } else if (mode === 'oauth2') {
+      token = credentials.accessToken || credentials.token;
+    } else if (mode === undefined) {
+      // Preserve legacy OAuth token fields; an explicit apiKey field denotes a personal key.
+      token = credentials.accessToken || credentials.token || credentials.apiKey;
+      mode = credentials.accessToken || credentials.token ? 'oauth2' : 'api_key';
     }
-    return token;
+    authorizationHeader(token, mode);
+    return { token, mode };
   }
 
-  async requestIssues(token, config, first, after) {
-    const response = await this.http.post(config.graphqlUrl, {
+  getAccessToken(account) {
+    return this.getAuthentication(account).token;
+  }
+
+  async requestIssues(token, config, first, after, mode = 'oauth2') {
+    const authorization = authorizationHeader(token, mode);
+    const response = await this.http.post(providerApiUrl(config.graphqlUrl, 'Linear'), {
       query: ISSUE_QUERY,
       variables: { first, after: after || null }
     }, {
       headers: {
         Accept: 'application/json',
-        Authorization: `Bearer ${token}`,
+        Authorization: authorization,
         'Content-Type': 'application/json'
       },
-      timeout: config.timeout
+      timeout: config.timeout,
+      maxRedirects: 0,
+      proxy: false
     });
     const errors = Array.isArray(response.data?.errors) ? response.data.errors : [];
     if (errors.length > 0) {
@@ -99,7 +123,7 @@ class LinearWorkSignalClient {
 
   async fetchDelta(account, cursor) {
     const config = this.getConfig();
-    const token = this.getAccessToken(account);
+    const authentication = this.getAuthentication(account);
     const cursorDate = parseCursor(cursor);
     const records = [];
     let nextPageCursor = null;
@@ -114,7 +138,7 @@ class LinearWorkSignalClient {
         error.statusCode = 413;
         throw error;
       }
-      const page = await this.requestIssues(token, config, Math.min(config.pageSize, remaining), nextPageCursor);
+      const page = await this.requestIssues(authentication.token, config, Math.min(config.pageSize, remaining), nextPageCursor, authentication.mode);
       const nodes = Array.isArray(page.nodes) ? page.nodes : [];
       fetchedIssues += nodes.length;
       for (const issue of nodes) {

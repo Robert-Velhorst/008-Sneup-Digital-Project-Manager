@@ -1,0 +1,7 @@
+# Connector OAuth return paths
+
+OAuth return destinations must be local absolute paths on Sneup. A shared validator rejects external and protocol-relative destinations, literal backslashes, controls and spaces, and paths whose normalized form begins with `//`. It parses against a reserved dummy origin solely to normalize the path; that origin is never a redirect destination or a network request. Invalid inputs retain the existing `/?connectors=1` fallback.
+
+The check applies when creating signed state, when completing it, and at the callback redirect boundary. A stored return value is not trusted merely because it came from signed state. Callback status and connector fields are set as query parameters before the preserved fragment; stale instances are replaced and connector identities are encoded as values. Existing ordinary local paths and query filters remain supported. This does not change OAuth grants, token exchange, state signatures, account persistence or external-provider configuration.
+
+Added cases exercise local paths, backslashes, controls, normalized double-slash paths, query/fragment handling, and actual local HTTP callback responses without following redirects. They run on owned hosted workers alongside unchanged original cases. No real provider credentials or live OAuth exchanges are used. The full-source scan retains every finding; no query or source is excluded. See [CodeQL server-side redirect guidance](https://codeql.github.com/codeql-query-help/javascript/js-server-side-unvalidated-url-redirection/).

@@ -28,13 +28,26 @@ class AsanaWorkSignalClient {
 
   getConfig() {
     return {
-      apiUrl: String(process.env.SNEUP_ASANA_API_URL || DEFAULT_API_URL).replace(/\/$/, ''),
+      apiUrl: this.getApiUrl(process.env.SNEUP_ASANA_API_URL || DEFAULT_API_URL),
       timeout: clampInteger(process.env.SNEUP_ASANA_TIMEOUT_MS, 15000, 1000, 60000),
       maxProjects: clampInteger(process.env.SNEUP_ASANA_MAX_PROJECTS, DEFAULT_MAX_PROJECTS, 1, 100),
       maxTasksPerProject: clampInteger(process.env.SNEUP_ASANA_MAX_TASKS_PER_PROJECT, DEFAULT_MAX_TASKS_PER_PROJECT, 1, 1000),
       maxTotalTasks: clampInteger(process.env.SNEUP_ASANA_MAX_TOTAL_TASKS, DEFAULT_MAX_TOTAL_TASKS, 1, 10000),
       cursorLookbackMs: clampInteger(process.env.SNEUP_ASANA_CURSOR_LOOKBACK_MS, DEFAULT_CURSOR_LOOKBACK_MS, 0, 3600000)
     };
+  }
+
+  getApiUrl(raw) {
+    let url;
+    try { url = new URL(String(raw).trim()); } catch { /* Reject below. */ }
+    if (!url || url.protocol !== 'https:' || url.hostname !== 'app.asana.com' || url.port ||
+        url.username || url.password || url.search || url.hash ||
+        !['/api/1.0', '/api/1.0/'].includes(url.pathname)) {
+      const error = new Error('Asana API URL must be https://app.asana.com/api/1.0.');
+      error.statusCode = 400;
+      throw error;
+    }
+    return DEFAULT_API_URL;
   }
 
   getAccessToken(account) {
@@ -53,13 +66,23 @@ class AsanaWorkSignalClient {
   }
 
   request(path, token, config, params = {}) {
-    return this.http.get(`${config.apiUrl}${path}`, {
+    this.getApiUrl(config.apiUrl);
+    if (path !== '/workspaces' &&
+        !/^\/workspaces\/[A-Za-z0-9_-]+\/projects$/.test(path) &&
+        !/^\/projects\/[A-Za-z0-9_-]+\/tasks$/.test(path)) {
+      const error = new Error('Asana work-signal request path is invalid.');
+      error.statusCode = 400;
+      throw error;
+    }
+    return this.http.get(`${DEFAULT_API_URL}${path}`, {
       params,
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`
       },
-      timeout: config.timeout
+      timeout: config.timeout,
+      maxRedirects: 0,
+      proxy: false
     });
   }
 

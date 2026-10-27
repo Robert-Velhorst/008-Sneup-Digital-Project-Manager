@@ -305,7 +305,7 @@ class AutopilotService {
       }
       grouped[boardId].push(list);
       return grouped;
-    }, {});
+    }, Object.create(null));
   }
 
   buildCardIndex(cards) {

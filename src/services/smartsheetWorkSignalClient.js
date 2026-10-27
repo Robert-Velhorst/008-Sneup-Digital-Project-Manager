@@ -1,8 +1,8 @@
 const axios = require('axios');
 const accountConnectorService = require('./accountConnectorService');
+const { providerApiUrl } = require('./fixedProviderApiBoundary');
 
 const DEFAULT_API_URL = 'https://api.smartsheet.com/2.0';
-const ALLOWED_API_HOSTS = new Set(['api.smartsheet.com', 'api.smartsheet.eu', 'api.smartsheet.au']);
 const ALLOWED_APP_HOSTS = new Set(['app.smartsheet.com', 'app.smartsheet.eu', 'app.smartsheet.au']);
 const SIGNAL_COLUMN_PATTERN = /\b(status|state|priority|assigned|assignee|owner|responsible|due|finish|end)\b/i;
 const STATUS_COLUMN_PATTERN = /\b(status|state)\b/i;
@@ -119,32 +119,25 @@ class SmartsheetWorkSignalClient {
   }
 
   getApiUrl(account) {
-    const raw = String(account?.metadata?.fields?.apiUrl || process.env.SNEUP_SMARTSHEET_API_URL || DEFAULT_API_URL).trim();
-    let url;
-    try {
-      url = new URL(raw);
-    } catch {
-      const error = new Error('Smartsheet API URL must use https://api.smartsheet.com/2.0, https://api.smartsheet.eu/2.0, or https://api.smartsheet.au/2.0.');
-      error.statusCode = 400;
-      throw error;
-    }
-    if (url.protocol !== 'https:' || !ALLOWED_API_HOSTS.has(url.hostname) || url.pathname.replace(/\/$/, '') !== '/2.0' || url.search || url.hash || url.username || url.password) {
-      const error = new Error('Smartsheet API URL must use https://api.smartsheet.com/2.0, https://api.smartsheet.eu/2.0, or https://api.smartsheet.au/2.0.');
-      error.statusCode = 400;
-      throw error;
-    }
-    return url.toString().replace(/\/$/, '');
+    return providerApiUrl(account?.metadata?.fields?.apiUrl || process.env.SNEUP_SMARTSHEET_API_URL || DEFAULT_API_URL, 'Smartsheet');
   }
 
   request(config, path, token, params = {}) {
-    return this.http.get(`${config.apiUrl}${path}`, {
+    if (path !== '/sheets' && !/^\/sheets\/[A-Za-z0-9_-]+(?:\/columns)?$/.test(path)) {
+      const error = new Error('Smartsheet work-signal request path is invalid.');
+      error.statusCode = 400;
+      throw error;
+    }
+    return this.http.get(`${providerApiUrl(config.apiUrl, 'Smartsheet')}${path}`, {
       params,
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`,
         'smartsheet-integration-source': 'AI,Noodzakelijk,Sneup'
       },
-      timeout: config.timeout
+      timeout: config.timeout,
+      maxRedirects: 0,
+      proxy: false
     });
   }
 

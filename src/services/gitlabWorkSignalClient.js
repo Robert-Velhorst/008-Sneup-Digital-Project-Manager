@@ -1,7 +1,7 @@
 const axios = require('axios');
 const accountConnectorService = require('./accountConnectorService');
+const { configuredCodeHostApi, codeHostRequestUrl } = require('./codeHostRequestBoundary');
 
-const DEFAULT_API_URL = 'https://gitlab.com/api/v4';
 const DEFAULT_MAX_ITEMS = 1000;
 const DEFAULT_PAGE_SIZE = 100;
 const DEFAULT_CURSOR_LOOKBACK_MS = 60000;
@@ -64,7 +64,7 @@ class GitLabWorkSignalClient {
 
   getConfig() {
     return {
-      apiUrl: String(process.env.SNEUP_GITLAB_API_URL || DEFAULT_API_URL).replace(/\/$/, ''),
+      apiUrl: configuredCodeHostApi('GitLab'),
       timeout: clampInteger(process.env.SNEUP_GITLAB_TIMEOUT_MS, 15000, 1000, 60000),
       maxItems: clampInteger(process.env.SNEUP_GITLAB_MAX_ITEMS, DEFAULT_MAX_ITEMS, 1, 5000),
       pageSize: clampInteger(process.env.SNEUP_GITLAB_PAGE_SIZE, DEFAULT_PAGE_SIZE, 1, 100),
@@ -84,9 +84,11 @@ class GitLabWorkSignalClient {
   }
 
   request(path, token, config, params = {}) {
-    return this.http.get(`${config.apiUrl}${path}`, {
+    return this.http.get(codeHostRequestUrl(path, config.apiUrl, 'GitLab'), {
       params,
       timeout: config.timeout,
+      maxRedirects: 0,
+      proxy: false,
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`

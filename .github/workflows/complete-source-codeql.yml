@@ -1,0 +1,121 @@
+name: Complete source CodeQL and normal lock evidence
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Complete source CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript, python, actions]
+    env:
+      LANGUAGE: ${{ matrix.language }}
+      REVIEWED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      CODEQL_VERSION: 2.27.3
+      CODEQL_BUNDLE_SHA256: 5e7607e1b721728955e31f5402d460ad227cbd2ffed0d4cc610116755796150e
+      CODEQL_EXTRACTOR_JAVASCRIPT_ALLOW_MINIFIED_FILES: 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.15.1'
+      - name: Bind the exact complete source and stable CLI bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$(id -u)" -ne 0
+          stage="$RUNNER_TEMP/sneup-codeql"
+          mkdir -p "$stage/evidence"
+          printf 'SNEUP_EVIDENCE=%s\n' "$stage/evidence" >> "$GITHUB_ENV"
+          python scripts/record-complete-source.py before scan
+          curl --fail --location --retry 3 --output "$stage/bundle.tar.zst" \
+            "https://github.com/github/codeql-action/releases/download/codeql-bundle-v${CODEQL_VERSION}/codeql-bundle-linux64.tar.zst"
+          printf '%s  %s\n' "$CODEQL_BUNDLE_SHA256" "$stage/bundle.tar.zst" | sha256sum --check
+          tar --zstd -xf "$stage/bundle.tar.zst" -C "$stage"
+          "$stage/codeql/codeql" version --format=json > "$stage/evidence/cli-version.json"
+      - name: Extract the whole source without diff packs or path exclusions
+        shell: bash
+        run: |
+          set -euo pipefail
+          export LGTM_INDEX_INCLUDE='.'
+          "$RUNNER_TEMP/sneup-codeql/codeql/codeql" database create "$RUNNER_TEMP/sneup-codeql/database" \
+            --language="$LANGUAGE" --build-mode=none --source-root="$GITHUB_WORKSPACE" \
+            --threads=2 --ram=6000 2>&1 | tee "$SNEUP_EVIDENCE/create.log"
+          cp "$RUNNER_TEMP/sneup-codeql/database/src.zip" "$SNEUP_EVIDENCE/extracted-source.zip"
+      - name: Analyze all security and quality queries with local and default threats
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/sneup-codeql/codeql/codeql" database analyze "$RUNNER_TEMP/sneup-codeql/database" \
+            "codeql/${LANGUAGE}-queries:codeql-suites/${LANGUAGE}-security-and-quality.qls" \
+            --threat-model=local --format=sarifv2.1.0 --sarif-category="/complete-source:$LANGUAGE" \
+            --output="$SNEUP_EVIDENCE/full-source.sarif" --threads=2 --ram=6000 \
+            2>&1 | tee "$SNEUP_EVIDENCE/analyze.log"
+      - name: Preserve original source and require zero unfiltered findings
+        if: always()
+        run: python scripts/record-complete-source.py verify scan
+      - name: Retain complete raw findings and source evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: complete-source-codeql-${{ matrix.language }}
+          path: ${{ runner.temp }}/sneup-codeql/evidence/
+          if-no-files-found: error
+          retention-days: 7
+
+  normal-lock:
+    name: Resolve Body Parser through its declared range
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      REVIEWED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '26.12.1'
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.15.1'
+      - name: Resolve ordinary lock metadata without lifecycle execution or forced peers
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          evidence="$RUNNER_TEMP/sneup-lock-evidence"
+          mkdir -p "$evidence"
+          python scripts/record-complete-source.py before lock
+          cp package.json "$evidence/package-before.json"
+          cp package-lock.json "$evidence/lock-before.json"
+          npm install --global npm@12.2.1
+          npm update body-parser --package-lock-only --ignore-scripts --no-audit 2>&1 | tee "$evidence/resolution.log"
+          cmp package.json "$evidence/package-before.json"
+          cp package.json package-lock.json "$evidence/"
+          git diff --name-only > "$evidence/changed-paths.txt"
+          npm audit --json > "$evidence/audit.json" || audit_status=$?
+          printf '%s\n' "${audit_status:-0}" > "$evidence/audit.exit-status"
+          test -f "$evidence/audit.json"
+      - name: Retain actual normal resolution and every audit result
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ordinary-body-parser-lock-evidence
+          path: ${{ runner.temp }}/sneup-lock-evidence/
+          if-no-files-found: error
+          retention-days: 7

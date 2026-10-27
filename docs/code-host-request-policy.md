@@ -1,0 +1,13 @@
+# GitHub and GitLab request policy
+
+The deployment operator selects one API base per provider with `SNEUP_GITHUB_API_URL` or `SNEUP_GITLAB_API_URL`. Defaults are `https://api.github.com` and `https://gitlab.com/api/v4`. These settings are trust decisions: a configured HTTPS origin receives that provider's credentials. Keep deployment configuration under operator control; account data and provider responses cannot select a different base.
+
+GitHub Enterprise Server and self-managed GitLab retain HTTPS custom hosts, nondefault TLS ports and reverse-proxy path prefixes. For example, an operator can set `https://github.example.test:8443/api/v3` or `https://gitlab.example.test/group/gitlab/api/v4`. No particular private host or account is enabled by this change. TLS verification remains enabled; redirects and proxy discovery are disabled.
+
+Each request rechecks the configured base and permits only the existing read routes: GitHub `/user/repos` and `/repos/{owner}/{repo}/issues`; GitLab `/issues` and `/merge_requests`. Userinfo, query strings and fragments are forbidden in API bases. Resource paths cannot contain dot segments, authority overrides or arbitrary query strings. Ordinary query parameters remain separate request options. The clients retain their existing bounded pagination and data selection.
+
+GitHub defaults to REST version `2026-03-10`, the newest version returned by its public `/versions` endpoint on27October2026. `SNEUP_GITHUB_API_VERSION` can explicitly select supported `2022-11-28` for a server that requires it. Unsupported version values fail; no silent version fallback is used. An explicit older setting does not satisfy a latest-version deployment requirement. Check the specific enterprise server's supported versions and schema before deployment; current live-server acceptance is unproved.
+
+References: [GitHub versions](https://docs.github.com/en/rest/about-the-rest-api/api-versions), [breaking changes](https://docs.github.com/en/rest/about-the-rest-api/breaking-changes), [enterprise server requests](https://docs.github.com/en/enterprise-server@latest/rest/using-the-rest-api/getting-started-with-the-rest-api), [GitLab REST requests](https://docs.gitlab.com/api/rest/).
+
+These controls preserve deliberate self-managed endpoints. They do not protect against an attacker who can replace deployment settings or read provider credentials. Complete-source scanning retains every finding, including any remaining local-configuration data flow; no query is excluded and no alert is dismissed. No deployment, credential rotation, private-network probe or live provider-data migration is performed by this policy change.

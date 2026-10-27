@@ -1,5 +1,6 @@
 const logger = require('../utils/logger');
 const { sanitizeText } = require('../utils/logSanitizer');
+const { scalarQueryString, scalarQueryId } = require('../utils/scalarQueryFilter');
 
 const DEFAULT_LIMIT = 100;
 const CONNECTOR_SYNC_REGRESSION_HISTORY_LIMIT = 4;
@@ -291,10 +292,10 @@ class JobObservabilityService {
 
     const query = {};
     query.workspaceId = this.resolveWorkspaceId(filters.workspaceId);
-    if (filters.jobName) query.jobName = filters.jobName;
-    if (filters.jobType) query.jobType = filters.jobType;
-    if (filters.status) query.status = filters.status;
-    if (filters.boardId) query.boardId = filters.boardId;
+    if (filters.jobName) query.jobName = scalarQueryString(filters.jobName);
+    if (filters.jobType) query.jobType = scalarQueryString(filters.jobType);
+    if (filters.status) query.status = scalarQueryString(filters.status);
+    if (filters.boardId) query.boardId = scalarQueryId(filters.boardId);
 
     return require('../models/JobRun').find(query)
       .populate(require('./workspaceScopeService').workspacePopulate(query.workspaceId, 'boardId'))

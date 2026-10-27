@@ -1006,6 +1006,9 @@ class WorkGraphService {
 
   addDependencyToSummary(summary, dependencyType, direction, freshnessStatus = 'fresh') {
     summary.dependencyCount += 1;
+    if (!summary.dependencyTypes || Object.getPrototypeOf(summary.dependencyTypes) !== null) {
+      summary.dependencyTypes = Object.assign(Object.create(null), summary.dependencyTypes || {});
+    }
     summary.dependencyTypes[dependencyType || 'unknown'] = (summary.dependencyTypes[dependencyType || 'unknown'] || 0) + 1;
     if (freshnessStatus === 'stale') {
       summary.staleDependencyCount = (Number(summary.staleDependencyCount) || 0) + 1;
@@ -1034,7 +1037,7 @@ class WorkGraphService {
       blockingCount: Number(summary.blockingCount) || 0,
       blockedByCount: Number(summary.blockedByCount) || 0,
       relatedCount: Number(summary.relatedCount) || 0,
-      dependencyTypes: summary.dependencyTypes || {}
+      dependencyTypes: Object.assign(Object.create(null), summary.dependencyTypes || {})
     };
   }
 

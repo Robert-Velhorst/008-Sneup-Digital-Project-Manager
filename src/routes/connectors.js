@@ -6,6 +6,7 @@ const connectorSyncService = require('../services/connectorSyncService');
 const genericWebhookService = require('../services/genericWebhookService');
 const { getRequestWorkspaceObjectId } = require('../services/workspaceScopeService');
 const { hasPermission, requirePermission, validateObjectIdParam } = require('../utils/requestSecurity');
+const { buildConnectorReturnPath } = require('../utils/connectorReturnPath');
 
 router.param('accountId', validateObjectIdParam('accountId'));
 
@@ -440,8 +441,7 @@ router.get('/:connectorId/callback', async (req, res) => {
     const result = await accountConnectorService.completeOAuth(req.params.connectorId, req.query, {
       baseUrl: getBaseUrl(req)
     });
-    const separator = result.returnTo.includes('?') ? '&' : '?';
-    res.redirect(`${result.returnTo}${separator}connector=${encodeURIComponent(result.account.connectorId)}&status=connected`);
+    res.redirect(buildConnectorReturnPath(result.returnTo, result.account.connectorId));
   } catch (error) {
     logger.error('OAuth connector callback failed:', error);
     res.status(error.statusCode || 500).send(`

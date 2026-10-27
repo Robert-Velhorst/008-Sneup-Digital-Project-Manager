@@ -33,13 +33,26 @@ class SlackWorkSignalClient {
 
   getConfig() {
     return {
-      apiUrl: String(process.env.SNEUP_SLACK_API_URL || DEFAULT_API_URL).replace(/\/$/, ''),
+      apiUrl: this.getApiUrl(process.env.SNEUP_SLACK_API_URL || DEFAULT_API_URL),
       timeout: clampInteger(process.env.SNEUP_SLACK_TIMEOUT_MS, 15000, 1000, 60000),
       maxChannels: clampInteger(process.env.SNEUP_SLACK_MAX_CHANNELS, DEFAULT_MAX_CHANNELS, 1, 100),
       maxMessagesPerChannel: clampInteger(process.env.SNEUP_SLACK_MAX_MESSAGES_PER_CHANNEL, DEFAULT_MAX_MESSAGES_PER_CHANNEL, 1, 100),
       maxTotalMessages: clampInteger(process.env.SNEUP_SLACK_MAX_TOTAL_MESSAGES, DEFAULT_MAX_TOTAL_MESSAGES, 1, 5000),
       cursorLookbackMs: clampInteger(process.env.SNEUP_SLACK_CURSOR_LOOKBACK_MS, DEFAULT_CURSOR_LOOKBACK_MS, 0, 3600000)
     };
+  }
+
+  getApiUrl(raw) {
+    let url;
+    try { url = new URL(String(raw).trim()); } catch { /* Reject below. */ }
+    if (!url || url.protocol !== 'https:' || url.hostname !== 'slack.com' || url.port ||
+        url.username || url.password || url.search || url.hash ||
+        !['/api', '/api/'].includes(url.pathname)) {
+      const error = new Error('Slack API URL must be https://slack.com/api.');
+      error.statusCode = 400;
+      throw error;
+    }
+    return DEFAULT_API_URL;
   }
 
   getAccessToken(account) {
@@ -68,18 +81,22 @@ class SlackWorkSignalClient {
   }
 
   async getTeam(token, config) {
-    const response = await this.http.post(`${config.apiUrl}/auth.test`, {}, {
+    this.getApiUrl(config.apiUrl);
+    const response = await this.http.post('https://slack.com/api/auth.test', {}, {
       headers: this.headers(token),
-      timeout: config.timeout
+      timeout: config.timeout,
+      maxRedirects: 0,
+      proxy: false
     });
     return this.assertSlackResponse(response, 'identity check');
   }
 
   async listChannels(token, config) {
+    this.getApiUrl(config.apiUrl);
     const channels = [];
     let cursor;
     do {
-      const response = await this.http.get(`${config.apiUrl}/conversations.list`, {
+      const response = await this.http.get('https://slack.com/api/conversations.list', {
         params: {
           limit: Math.min(100, config.maxChannels - channels.length),
           types: 'public_channel,private_channel',
@@ -87,7 +104,9 @@ class SlackWorkSignalClient {
           ...(cursor ? { cursor } : {})
         },
         headers: this.headers(token),
-        timeout: config.timeout
+        timeout: config.timeout,
+        maxRedirects: 0,
+        proxy: false
       });
       const data = this.assertSlackResponse(response, 'channel listing');
       channels.push(...(Array.isArray(data.channels) ? data.channels : []));
@@ -108,21 +127,24 @@ class SlackWorkSignalClient {
   }
 
   async listChannelMessages(channel, team, token, cursorDate, config) {
+    this.getApiUrl(config.apiUrl);
     const messages = [];
     let cursor;
     const oldest = cursorDate
       ? String((cursorDate.getTime() - config.cursorLookbackMs) / 1000)
       : undefined;
     do {
-      // Slack documents conversations.history as a POST read query; this path never posts a message.
-      const response = await this.http.post(`${config.apiUrl}/conversations.history`, {
+      // This existing read query never calls a message-posting endpoint.
+      const response = await this.http.post('https://slack.com/api/conversations.history', {
         channel: channel.id,
         limit: Math.min(config.maxMessagesPerChannel, config.maxMessagesPerChannel - messages.length),
         ...(oldest ? { oldest } : {}),
         ...(cursor ? { cursor } : {})
       }, {
         headers: { ...this.headers(token), 'Content-Type': 'application/json' },
-        timeout: config.timeout
+        timeout: config.timeout,
+        maxRedirects: 0,
+        proxy: false
       });
       const data = this.assertSlackResponse(response, 'channel history');
       const page = Array.isArray(data.messages) ? data.messages : [];
