@@ -269,7 +269,11 @@ Job.prototype.schedule = function(spec) {
     }
   }
 
-  scheduledJobs[this.name] = this;
+  // Job names are registry data, including inherited names such as __proto__.
+  // Preserve the public ordinary-object registry without invoking its setters.
+  Object.defineProperty(scheduledJobs, this.name, {
+    value: this, enumerable: true, configurable: true, writable: true
+  });
   return success;
 };
 
