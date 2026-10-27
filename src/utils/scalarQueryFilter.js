@@ -1,5 +1,3 @@
-const mongoose = require('mongoose');
-
 // Public single-value filters must never become MongoDB operator documents or
 // Mongoose's implicit array-to-$in queries. Leave string content unchanged.
 const scalarQueryString = (value) => {
@@ -12,7 +10,10 @@ const scalarQueryString = (value) => {
 // Internal callers may pass a genuine ObjectId; its canonical string has the
 // same database identity without carrying an object into the filter boundary.
 const scalarQueryId = (value) => {
-  if (value instanceof mongoose.Types.ObjectId) return scalarQueryString(value.toHexString());
+  if (typeof value === 'string') return value;
+  // Demo observability intentionally loads without the database runtime.
+  // Resolve ObjectId support only when a live query supplies an object value.
+  if (value instanceof require('mongoose').Types.ObjectId) return scalarQueryString(value.toHexString());
   return scalarQueryString(value);
 };
 
