@@ -7,6 +7,7 @@ const { CATEGORIES, getCategories, getConnector, getConnectors } = require('./co
 const { buildConnectorSafetyProfile, summarizeConnectorSafety } = require('./connectorSafetyProfile');
 const { copyWorkSignalSyncCounts } = require('../utils/workSignalSyncMetadata');
 const { getDefaultWorkspaceObjectId, normalizeWorkspaceObjectId } = require('./workspaceScopeService');
+const { jiraResourcesUrl } = require('./jiraRequestBoundary');
 
 const STATE_TTL_MS = 10 * 60 * 1000;
 const MAX_CATALOG_LIMIT = 300;
@@ -979,13 +980,14 @@ class AccountConnectorService {
       throw error;
     }
 
-    const apiUrl = String(process.env.SNEUP_JIRA_API_URL || 'https://api.atlassian.com').replace(/\/$/, '');
-    const response = await this.http.get(`${apiUrl}/oauth/token/accessible-resources`, {
+    const response = await this.http.get(jiraResourcesUrl(process.env.SNEUP_JIRA_API_URL || 'https://api.atlassian.com'), {
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${accessToken}`
       },
-      timeout: 15000
+      timeout: 15000,
+      maxRedirects: 0,
+      proxy: false
     });
 
     return (Array.isArray(response.data) ? response.data : [])
