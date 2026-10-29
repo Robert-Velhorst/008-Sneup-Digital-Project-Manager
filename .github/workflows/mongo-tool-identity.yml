@@ -22,6 +22,15 @@ jobs:
           docker cp "$container_id:/usr/bin/mongorestore" "$RUNNER_TEMP/mongo-tool-identity/mongorestore"
           sha256sum "$RUNNER_TEMP/mongo-tool-identity/mongodump" "$RUNNER_TEMP/mongo-tool-identity/mongorestore" > "$RUNNER_TEMP/mongo-tool-identity/tool-sha256.txt"
           docker image inspect "$image" --format '{{.Id}} {{.Os}} {{.Architecture}}' > "$RUNNER_TEMP/mongo-tool-identity/image-identity.txt"
+          printf '%s  %s\n' 'efde5f6076cffb4c126df1f9d1e7f9505c3e18deba035bca812a9628df735cc5' "$RUNNER_TEMP/mongo-tool-identity/mongodump" '8ea28d0ed2185641c27d9f4c52f965c924a8658d70fe115e8b7bb78fb4b1f423' "$RUNNER_TEMP/mongo-tool-identity/mongorestore" | sha256sum --check --status
+          cp "$RUNNER_TEMP/mongo-tool-identity/mongodump" "$RUNNER_TEMP/mongo-tool-identity/corrupted"
+          printf x >> "$RUNNER_TEMP/mongo-tool-identity/corrupted"
+          if printf '%s  %s\n' 'efde5f6076cffb4c126df1f9d1e7f9505c3e18deba035bca812a9628df735cc5' "$RUNNER_TEMP/mongo-tool-identity/corrupted" | sha256sum --check --status; then
+            echo 'Corrupted tool incorrectly passed' >&2
+            exit 1
+          fi
+          rm "$RUNNER_TEMP/mongo-tool-identity/corrupted"
+          printf 'genuine hashes accepted; altered copy rejected\n' > "$RUNNER_TEMP/mongo-tool-identity/gate-result.txt"
           rm "$RUNNER_TEMP/mongo-tool-identity/mongodump" "$RUNNER_TEMP/mongo-tool-identity/mongorestore"
       - name: Retain hashes
         if: always()
