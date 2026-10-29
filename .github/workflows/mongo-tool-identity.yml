@@ -31,6 +31,9 @@ jobs:
           fi
           rm "$RUNNER_TEMP/mongo-tool-identity/corrupted"
           printf 'genuine hashes accepted; altered copy rejected\n' > "$RUNNER_TEMP/mongo-tool-identity/gate-result.txt"
+          chmod +x "$RUNNER_TEMP/mongo-tool-identity/mongodump" "$RUNNER_TEMP/mongo-tool-identity/mongorestore"
+          "$RUNNER_TEMP/mongo-tool-identity/mongodump" --version > "$RUNNER_TEMP/mongo-tool-identity/mongodump-version.txt"
+          "$RUNNER_TEMP/mongo-tool-identity/mongorestore" --version > "$RUNNER_TEMP/mongo-tool-identity/mongorestore-version.txt"
           rm "$RUNNER_TEMP/mongo-tool-identity/mongodump" "$RUNNER_TEMP/mongo-tool-identity/mongorestore"
       - name: Retain hashes
         if: always()
