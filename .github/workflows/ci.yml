@@ -78,6 +78,7 @@ jobs:
           docker cp "${{ job.services.mongodb.id }}:/usr/bin/mongodump" "$RUNNER_TEMP/mongodump"
           docker cp "${{ job.services.mongodb.id }}:/usr/bin/mongorestore" "$RUNNER_TEMP/mongorestore"
           chmod +x "$RUNNER_TEMP/mongodump" "$RUNNER_TEMP/mongorestore"
+          printf '%s  %s\n' 'efde5f6076cffb4c126df1f9d1e7f9505c3e18deba035bca812a9628df735cc5' "$RUNNER_TEMP/mongodump" '8ea28d0ed2185641c27d9f4c52f965c924a8658d70fe115e8b7bb78fb4b1f423' "$RUNNER_TEMP/mongorestore" | sha256sum --check --status
       - run: npm run verify:backup-restore
         env:
           SNEUP_BACKUP_RESTORE_MONGO_URI: mongodb://127.0.0.1:27017
